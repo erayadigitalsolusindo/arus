@@ -29,10 +29,10 @@ Bahasa komunikasi dengan pengguna: **Bahasa Indonesia**. Identifier kode: Bahasa
 
 - **Fase:** 0 — Fondasi, sebagian selesai (0.1, 0.2, 0.3, 0.5). Sisa: **0.4** (goose + sqlc + migration pertama). Roadmap: §2b.
 - **Toolchain di mesin pengguna (Windows 11, 2026-10-06):** Node v26 ✅, Docker ✅, **Go 1.27 ✅ (dipasang via winget; shell yang sudah terbuka perlu refresh PATH)**. psql/redis-cli lokal ❌ → pakai `docker exec`. Python ❌.
-- **Infra dev:** `cd deploy && docker compose --env-file .env up -d` → `aciraba_postgres` (PG16, `127.0.0.1:5433`) & `aciraba_redis` (Redis 7, `127.0.0.1:6380`). Port sengaja bukan default: di mesin ini sudah ada container proyek lain (`eds_postgres` :6969, `eds_redis` :6379, folder `erp-docker/`) — jangan disentuh. Kredensial dev di `deploy/.env` & `backend/.env` (di-gitignore; contoh di `.env.example`).
-- **Menjalankan:** API `cd backend && go run ./cmd/api` (:8080, `GET /healthz`); web: `.claude/launch.json` config `web` atau `cd web && npm run dev` (:5173). Test: `cd backend && go test ./...`, `cd web && npm run check`.
-- **Catatan SvelteKit 3 (terpasang 3.0.1, bukan 2):** konfigurasi adapter ada di `vite.config.ts` (tidak ada `svelte.config.js`); alias `$lib` dihapus → pakai `#lib/...` **dengan ekstensi** (`#lib/nav.ts`, `#lib/components/X.svelte`) lewat `imports` di `web/package.json`; butuh `typescript@6`.
-- **UI:** `web/src/lib/styles/dreams/dreams-core.css` = salinan build CSS template (token, komponen `.btn`/`.surface-card`/`.app-sidebar`, ikon lucide `icon-*` & phosphor `ph-*`) + font; 6 URL gambar demo diganti GIF 1px. Template menyembunyikan `<html>` sampai `data-theme` terpasang → di-set sinkron di `web/src/app.html`. Tailwind v4 (`@tailwindcss/vite`) hanya menambah utilitas baru. Logo ACIRABA = placeholder SVG di `web/static/`.
+- **Infra dev:** `cd source/deploy && docker compose --env-file .env up -d` → `aciraba_postgres` (PG16, `127.0.0.1:5433`) & `aciraba_redis` (Redis 7, `127.0.0.1:6380`). Port sengaja bukan default: di mesin ini sudah ada container proyek lain (`eds_postgres` :6969, `eds_redis` :6379, folder `erp-docker/`) — jangan disentuh. Kredensial dev di `deploy/.env` & `backend/.env` (di-gitignore; contoh di `.env.example`).
+- **Menjalankan:** API `cd source/backend && go run ./cmd/api` (:8080, `GET /healthz`); web: `.claude/launch.json` config `web` atau `cd source/web && npm run dev` (:5173). Test: `cd source/backend && go test ./...`, `cd source/web && npm run check`.
+- **Catatan SvelteKit 3 (terpasang 3.0.1, bukan 2):** konfigurasi adapter ada di `vite.config.ts` (tidak ada `svelte.config.js`); alias `$lib` dihapus → pakai `#lib/...` **dengan ekstensi** (`#lib/nav.ts`, `#lib/components/X.svelte`) lewat `imports` di `source/web/package.json`; butuh `typescript@6`.
+- **UI:** `source/web/src/lib/styles/dreams/dreams-core.css` = salinan build CSS template (token, komponen `.btn`/`.surface-card`/`.app-sidebar`, ikon lucide `icon-*` & phosphor `ph-*`) + font; 6 URL gambar demo diganti GIF 1px. Template menyembunyikan `<html>` sampai `data-theme` terpasang → di-set sinkron di `web/src/app.html`. Tailwind v4 (`@tailwindcss/vite`) hanya menambah utilitas baru. Logo ACIRABA = placeholder SVG di `web/static/`.
 - **Langkah berikutnya:**
   1. 0.4: goose + sqlc, migration `tenants`, `outlets`, `users`, `roles` (desain §4).
   2. Fase 2.1: login nyata (`POST /auth/login`). Halaman login sudah memanggilnya; sekarang API membalas 404 `NOT_FOUND` dan UI menampilkan pesannya. Route `(app)/*` belum dijaga auth; sidebar masih placeholder "Belum masuk".
@@ -45,15 +45,15 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 
 **Fase 0 — Fondasi (tanpa fitur bisnis)**
 - [x] 0.1 `git init`, `.gitignore` (termasuk `.env`, `reference/template/` bila repo akan publik — template berlisensi), struktur folder §5
-- [x] 0.2 `deploy/docker-compose.yml`: postgres 16, redis 7; `.env.example`
-- [x] 0.3 Install Go (atau dev container `golang`), `backend/` go module, `cmd/api` + `/healthz` (cek DB & Redis)
+- [x] 0.2 `source/deploy/docker-compose.yml`: postgres 16, redis 7; `.env.example`
+- [x] 0.3 Install Go (atau dev container `golang`), `source/backend/` go module, `cmd/api` + `/healthz` (cek DB & Redis)
 - [ ] 0.4 goose + sqlc terpasang; migration pertama: `tenants`, `outlets`, `users`, `roles`
-- [x] 0.5 `web/` SvelteKit SPA + Tailwind v4; layout shell (sidebar/topbar) diport dari `index.html` template; halaman `login` dari `login.html`
+- [x] 0.5 `source/web/` SvelteKit SPA + Tailwind v4; layout shell (sidebar/topbar) diport dari `index.html` template; halaman `login` dari `login.html`
 
 **Fase 1 — Legacy discovery (paralel dengan Fase 0, tanpa menulis kode produk)**
 - [ ] 1.1 Daftar endpoint Node (205 route) + `KONDISI` SP yang benar-benar dipanggil CI4 → `docs/legacy-map.md`
 - [ ] 1.2 Tanyakan ke pengguna modul yang masih dipakai klien (§10) → tandai IN/OUT scope
-- [ ] 1.3 Ambil 10–20 nota nyata (tunai, kredit, split, retur, edit, grosir, diskon, resto) dari DB legacy → `tests/golden/` (anonimkan data pelanggan)
+- [ ] 1.3 Ambil 10–20 nota nyata (tunai, kredit, split, retur, edit, grosir, diskon, resto) dari DB legacy → `source/tests/golden/` (anonimkan data pelanggan)
 
 **Fase 2 — Auth & Tenant**
 - [ ] 2.1 Login (bcrypt kompatibel hash legacy), JWT akses + refresh di Redis, middleware tenant/outlet, RLS
@@ -81,7 +81,7 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 **Fase 8 — Modul opsional (sesuai scope 1.2)**: Resto/KDS (`table-floor-map.html`, `kds-queue.html`, Redis Pub/Sub), SIAK akuntansi (`ledger-explorer.html`, `accounting-dashboard.html`), Acipay, payment gateway
 
 **Fase 9 — Migrasi data & cutover**
-- [ ] 9.1 `tools/legacy-etl`: MySQL → Postgres per tenant (mapping §4), validasi saldo stok & piutang
+- [ ] 9.1 `source/tools/legacy-etl`: MySQL → Postgres per tenant (mapping §4), validasi saldo stok & piutang
 - [ ] 9.2 Tenant pilot: jalan paralel 1–2 minggu, rekonsiliasi laporan harian
 - [ ] 9.3 Cutover bertahap tenant lain; legacy jadi read-only
 
@@ -129,18 +129,19 @@ aciraba_newgen/
   CLAUDE.md                ← pointer `@AGENTS.md` untuk Claude Code
   .cursor/rules/aciraba.mdc ← pointer alwaysApply untuk Cursor (cadangan)
   docs/PRD.md              ← Product Requirements Document (scope, FR/NFR, rilis R0–R5)
-  backend/                 Go module
-    cmd/api/               main.go
-    internal/platform/     config, db (pgx pool, tx helper), redis, httpx (router, errors, middleware auth/tenant/idempotency), logger
-    internal/<modul>/      handler.go · service.go · queries.sql (sqlc) · service_test.go
-                           modul: auth, tenant, catalog, customer, sales, purchasing, stock, receivable, payable, ledger(siak), resto, acipay, report
-    db/migrations/         goose *.sql
-    sqlc.yaml
-  web/                     SvelteKit SPA — src/routes/(auth)|(kasir)|(admin)|(laporan), src/lib/api, src/lib/stores
-  print-agent/             Go — ESC/POS lokal
-  tools/legacy-etl/        ETL MySQL→Postgres + skrip rekonsiliasi
-  tests/golden/            fixture nota legacy + expected output
-  deploy/                  docker-compose.yml (postgres, redis, api, web), .env.example
+  source/                  ← ROOT seluruh source code aplikasi (semua di bawah ini)
+    backend/                 Go module
+      cmd/api/               main.go
+      internal/platform/     config, db (pgx pool, tx helper), redis, httpx (router, errors, middleware auth/tenant/idempotency), logger
+      internal/<modul>/      handler.go · service.go · queries.sql (sqlc) · service_test.go
+                             modul: auth, tenant, catalog, customer, sales, purchasing, stock, receivable, payable, ledger(siak), resto, acipay, report
+      db/migrations/         goose *.sql
+      sqlc.yaml
+    web/                     SvelteKit SPA — src/routes/(auth)|(kasir)|(admin)|(laporan), src/lib/api, src/lib/stores
+    print-agent/             Go — ESC/POS lokal
+    tools/legacy-etl/        ETL MySQL→Postgres + skrip rekonsiliasi
+    tests/golden/            fixture nota legacy + expected output
+    deploy/                  docker-compose.yml (postgres, redis, api, web), .env.example
 ```
 
 ## 5b. Template UI → Modul (acuan visual di `reference/template/`)
@@ -170,7 +171,7 @@ Cara porting: buka HTML halaman terkait → salin struktur & class Tailwind ke k
 
 ## 6. Konvensi
 
-- Nama tabel/kolom/kode: **Inggris, snake_case** (`sale_lines`, `tenant_id`). Simpan pemetaan ke nama legacy di §7/§4 dan di `tools/legacy-etl`.
+- Nama tabel/kolom/kode: **Inggris, snake_case** (`sale_lines`, `tenant_id`). Simpan pemetaan ke nama legacy di §7/§4 dan di `source/tools/legacy-etl`.
 - Teks UI dan pesan error untuk pengguna akhir: **Bahasa Indonesia**.
 - Error API: JSON `{ "error": { "code": "STOCK_INSUFFICIENT", "message": "..." } }` + HTTP status yang benar (bukan selalu 200 seperti legacy).
 - Auth: access token JWT pendek (≤15 menit) + refresh token di Redis (httpOnly cookie). Klaim: `sub`, `tid` (tenant), `oid` (outlet aktif), `role`.
@@ -241,6 +242,7 @@ Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → 
 
 ## 11. Log Sesi  ← TAMBAHKAN DI ATAS, terbaru dulu
 
+- **2026-10-06 (restruktur)** — Semua source code (backend, web, print-agent, tools, tests, deploy) dipindah ke `source/` sebagai root kode; `AGENTS.md`, `CLAUDE.md`, `docs/`, `reference/`, `.claude`, `.cursor` tetap di root repo.
 - **2026-10-06 (Fase 0.1–0.3, 0.5)** — Repo git + struktur §5 + `.gitignore` (`reference/template/` dan `erp-docker/` tidak ikut git). `deploy/docker-compose.yml` (PG16/Redis7, port 5433/6380). Go 1.27 dipasang; `backend/` modul `aciraba`: config (env/.env), pgx pool, go-redis, chi + middleware (request id, log slog, recover, CORS), `/healthz` (200; 503 bila dependensi down — diuji dengan mematikan Redis, plus `go test`). `web/`: SvelteKit 3 SPA + shell (sidebar/topbar) dan halaman `/login` (zod, memanggil `POST /auth/login`) dari template; diverifikasi di browser pane termasuk CORS web→API; `npm run build` sukses. 0.4 belum.
 
 - **2026-10-06 (PRD)** — Dibuat `docs/PRD.md` v0.1 (draf): tujuan, metrik, persona, rilis R0–R5, FR per modul, NFR, migrasi, risiko, 10 pertanyaan terbuka (Q1–Q10, sama dengan §10).
