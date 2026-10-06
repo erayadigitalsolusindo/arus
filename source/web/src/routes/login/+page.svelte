@@ -8,6 +8,14 @@
     password: z.string().min(1, 'Kata sandi wajib diisi.')
   });
 
+  const points = [
+    'Ekosistem dan Integrasi terlengkap untuk maksimalkan peluang usaha di level berikutnya.',
+    'Aplikasi kami membantu dalam melesatkan bisnis Anda.',
+    'Point of Sale dengan ragam fitur lengkap, mudah digunakan dan penyajian data akurat, pastikan strategi bisnis yang lebih tepat.',
+    'Whitelabel untuk membangun brand bisnis Anda sendiri.',
+    'Aciraba hadir untuk mendukung kemajuan bisnis UMKM.'
+  ];
+
   let email = $state('');
   let password = $state('');
   let remember = $state(true);
@@ -135,12 +143,11 @@
   <div class="hidden lg:flex relative items-center justify-center p-12 overflow-hidden u-background-linear-gradient-150deg-color-primary-700-color-pr">
     <div class="absolute inset-0 opacity-10 u-background-image-radial-gradient-circle-at-20-20-white-1px-t"></div>
     <div class="relative max-w-[440px] w-full">
-      <h2 class="font-display font-bold text-[24px] text-white">Seluruh operasional toko dalam satu ruang kerja.</h2>
-      <p class="text-[13px] mt-2 u-color-rgb-255-255-255-0-7">Kasir, stok, pembelian, dan laporan — terpadu dan akurat.</p>
-      <div class="space-y-2 mt-5">
-        {#each ['Kasir cepat dengan harga dihitung server', 'Stok akurat per outlet, tercatat sebagai ledger', 'Hak akses berbasis peran untuk setiap tim'] as line (line)}
-          <div class="flex items-center gap-2 text-[12.5px] text-white">
-            <i class="icon-check-circle-2 text-[15px] shrink-0 u-color-color-success-400"></i>{line}
+      <h2 class="font-display font-bold text-[24px] text-white">Wirausaha Membuka Lapangan Pekerjaan!</h2>
+      <div class="space-y-3 mt-5">
+        {#each points as line (line)}
+          <div class="flex items-start gap-2 text-[12.5px] text-white">
+            <i class="icon-check-circle-2 text-[15px] shrink-0 mt-px u-color-color-success-400"></i>{line}
           </div>
         {/each}
       </div>
