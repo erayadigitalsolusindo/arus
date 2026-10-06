@@ -1,0 +1,1546 @@
+<!doctype html><html lang="en"><head>
+	<meta charset="utf-8">
+<title>Range Slider | Dreams Core - Tailwind Admin Template</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta content="Dreams Core is a modern, feature-rich Tailwind CSS admin dashboard template with a wide range of ready-to-use pages, components, and layouts for building web applications." name="description">
+<meta content="Dreams Technologies" name="author">
+	<!-- Favicon -->
+<link rel="shortcut icon" type="image/x-icon" href="assets/favicon-BfZIYWJw.png">
+
+<!-- Apple Touch Icon -->
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-icon-z_cRtcRT.png">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script type="module" crossorigin="" src="assets/ui-rangeslider-DPetWCLV.js"></script>
+  <link rel="modulepreload" crossorigin="" href="assets/script-CFI7pXVP.js">
+  <link rel="stylesheet" crossorigin="" href="assets/script-DbEScXyL.css">
+  <link rel="stylesheet" crossorigin="" href="assets/ui-rangeslider-Bzny1oQ5.css">
+</head>
+
+<body>
+    <!-- Start Main Wrapper -->
+	<div class="app-shell">
+
+		<!-- ================= SIDEBAR ================= -->
+<aside class="app-sidebar sidebar-pattern scroll-thin" id="appSidebar" aria-label="Sidebar">
+
+  <!-- Logo + collapse toggle -->
+  <div class="flex items-center justify-between h-16 px-4 shrink-0 border-b border-[var(--sidebar-border)]">
+    <a href="index.html" class="flex items-center gap-2.5 min-w-0 rounded-xl px-2.5 py-1.5">
+      <img src="assets/logo-CJz3JuiL.svg" alt="Dreams Core logo" class="sidebar-logo-full max-w-[150px] object-contain shrink-0">
+      <img src="data:image/svg+xml,%3csvg%20width='374'%20height='374'%20viewBox='0%200%20374%20374'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M187%2022L329.894%20104.5V269.5L187%20352L44.1058%20269.5V104.5L187%2022Z'%20fill='white'/%3e%3cpath%20d='M187%2063.3162L294.113%20125.158V248.842L187%20310.684L79.8868%20248.842V125.158L187%2063.3162Z'%20fill='%23141414'/%3e%3cpath%20d='M187%2099.3354L262.92%20143.168V230.832L187%20274.665L111.08%20230.832V143.168L187%2099.3354Z'%20fill='%2340BFA6'/%3e%3ccircle%20cx='187'%20cy='187'%20r='30.9872'%20fill='%2340916C'/%3e%3c/svg%3e" alt="Dreams Core logo" class="sidebar-logo-small size-8 object-contain shrink-0 hidden">
+    </a>
+    <button type="button" id="sidebarCollapseBtn" class="header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-8 shrink-0" aria-label="Collapse sidebar">
+      <i class="icon-panel-left-close text-[17px]"></i>
+    </button>
+  </div>
+
+  <!-- Favorites -->
+  <!-- Main navigation (Favorites scrolls together with the rest of the menu) -->
+  <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label="Sidebar navigation">
+
+    <div class="sidebar-favorites pt-2">
+      <ul>
+        <li class="has-submenu is-open">
+          <button type="button" class="sidebar-link w-full !px-1.5" data-submenu-toggle="">
+            <span class="text-[10.5px] font-semibold uppercase tracking-wide flex-1 text-start text-[rgb(255_255_255_/_0.4)]">Favorites</span>
+            <span class="grid place-items-center size-4.5 rounded-full text-[10px] font-semibold me-1 bg-[rgb(255_255_255_/_0.12)] text-[rgb(255_255_255_/_0.7)]">6</span>
+            <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+          </button>
+          <div class="sidebar-submenu !ms-0 !ps-0 favorite-tile-panel">
+            <div class="grid grid-cols-2 gap-2 pt-1 pb-1">
+              <a href="index.html" class="favorite-tile is-active">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-primary"><i class="icon-layout-dashboard text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Dashboard</span>
+              </a>
+              <a href="patients.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-info"><i class="icon-user text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">All Patients</span>
+              </a>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 hidden" data-favorites-extra="">
+              <a href="appointments.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-accent"><i class="icon-calendar-days text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Appointments</span>
+              </a>
+              <a href="emergency.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-danger"><i class="icon-alert-triangle text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Emergency</span>
+              </a>
+              <a href="billing.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-warning"><i class="icon-wallet text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Billing</span>
+              </a>
+              <a href="doctor-directory.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-success"><i class="icon-stethoscope text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Doctors</span>
+              </a>
+            </div>
+            <button type="button" class="w-full text-center text-[11px] font-semibold mt-2 py-1 text-[var(--color-primary-400)]" data-favorites-more="">
+              View 4 more <i class="icon-chevron-down text-[9px]"></i>
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <ul id="sidebarMenu" role="menu" aria-label="Main navigation">
+
+      <li class="sidebar-group-title">Main</li>
+
+      <li class="has-submenu is-open">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-dashboard text-[16px]"></i>
+          <span class="sidebar-label">Dashboards</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="index.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Ecommerce</span></a></li>
+          <li><a href="ai-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">AI Analytics</span><span class="sidebar-badge badge-accent sidebar-meta">NEW</span></a></li>
+          <li><a href="analytics-ecommerce.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Business Intelligence</span></a></li>
+          <li><a href="sales-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales Analytics</span></a></li>
+          <li><a href="project-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Project Management</span></a></li>
+          <li><a href="finance-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Finance</span></a></li>
+          <li><a href="accounting-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Accounting</span></a></li>
+          <li><a href="banking-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Banking</span></a></li>
+          <li><a href="crypto-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Crypto Analytics</span></a></li>
+          <li><a href="logistics-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Logistics</span></a></li>
+          <li><a href="hospital-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Hospital Management</span></a></li>
+          <li><a href="school-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">School Management</span></a></li>
+          <li><a href="lms-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">LMS Analytics</span></a></li>
+          <li><a href="hotel-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Hotel Management</span></a></li>
+          <li><a href="restaurant-pos.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Restaurant POS</span></a></li>
+          <li><a href="food-delivery.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Food Delivery</span></a></li>
+          <li><a href="travel-booking.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Travel &amp; Booking</span></a></li>
+          <li><a href="seo-analytics-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">SEO Analytics</span></a></li>
+          <li><a href="crm-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">CRM</span></a></li>
+          <li><a href="hrm-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">HRM</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">Applications</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="chat.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Chat</span></a></li>
+          <li><a href="ai-chat.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">AI Chat</span></a></li>
+          <li class="has-submenu">
+            <button type="button" class="sidebar-link w-full !text-[12.5px]" data-submenu-toggle="">
+              <span class="sidebar-label">Calls</span>
+              <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+            </button>
+            <ul class="sidebar-submenu">
+              <li><a href="voice-call.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Voice Call</span></a></li>
+              <li><a href="video-call.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Video Call</span></a></li>
+            </ul>
+          </li>
+          <li><a href="calendar.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Calendar</span></a></li>
+          <li><a href="email.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Email</span></a></li>
+          <li><a href="file-manager.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">File Manager</span></a></li>
+          <li><a href="kanban-board.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Kanban</span></a></li>
+          <li><a href="notes.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Notes</span></a></li>
+          <li><a href="todo.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">To Do</span></a></li>
+          <li><a href="workflow-approvals.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Workflow &amp; Approvals</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Ecommerce</li>
+
+      <li><a href="storefront.html" class="sidebar-link"><i class="icon-store text-[16px]"></i><span class="sidebar-label">Storefront</span></a></li>
+      <li><a href="products-list.html" class="sidebar-link"><i class="icon-package text-[16px]"></i><span class="sidebar-label">Products</span></a></li>
+      <li><a href="orders.html" class="sidebar-link"><i class="icon-shopping-bag text-[16px]"></i><span class="sidebar-label">Orders</span></a></li>
+      <li><a href="categories.html" class="sidebar-link"><i class="icon-tag text-[16px]"></i><span class="sidebar-label">Categories</span></a></li>
+      <li><a href="reviews.html" class="sidebar-link"><i class="icon-star text-[16px]"></i><span class="sidebar-label">Reviews</span></a></li>
+
+      <li class="sidebar-group-title">Business Intelligence</li>
+
+      <li><a href="bi-overview.html" class="sidebar-link"><i class="icon-gauge-circle text-[16px]"></i><span class="sidebar-label">BI Overview</span></a></li>
+      <li><a href="data-sources.html" class="sidebar-link"><i class="icon-database text-[16px]"></i><span class="sidebar-label">Data Sources</span></a></li>
+      <li><a href="kpi-builder.html" class="sidebar-link"><i class="icon-bar-chart-4 text-[16px]"></i><span class="sidebar-label">KPI Builder</span></a></li>
+      <li><a href="insights.html" class="sidebar-link"><i class="icon-lightbulb text-[16px]"></i><span class="sidebar-label">Insights</span></a></li>
+
+      <li class="sidebar-group-title">Sales Analytics</li>
+
+      <li><a href="leads.html" class="sidebar-link"><i class="icon-target text-[16px]"></i><span class="sidebar-label">Leads</span></a></li>
+      <li><a href="deals.html" class="sidebar-link"><i class="icon-handshake text-[16px]"></i><span class="sidebar-label">Deals</span></a></li>
+      <li><a href="quotations.html" class="sidebar-link"><i class="icon-receipt-text text-[16px]"></i><span class="sidebar-label">Quotations</span></a></li>
+      <li><a href="pipeline.html" class="sidebar-link"><i class="icon-workflow text-[16px]"></i><span class="sidebar-label">Pipeline</span></a></li>
+
+      <li class="sidebar-group-title">Logistics</li>
+
+      <li><a href="inventory.html" class="sidebar-link"><i class="icon-boxes text-[16px]"></i><span class="sidebar-label">Inventory</span></a></li>
+      <li><a href="stock-transfer.html" class="sidebar-link"><i class="icon-arrow-left-right text-[16px]"></i><span class="sidebar-label">Stock Transfer</span></a></li>
+      <li><a href="purchase-orders.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Purchase Orders</span></a></li>
+      <li><a href="suppliers.html" class="sidebar-link"><i class="icon-truck text-[16px]"></i><span class="sidebar-label">Suppliers</span></a></li>
+      <li><a href="shipments.html" class="sidebar-link"><i class="icon-container text-[16px]"></i><span class="sidebar-label">Shipments</span></a></li>
+
+      <li class="sidebar-group-title">CRM</li>
+
+      <li><a href="customer-segments.html" class="sidebar-link"><i class="icon-users text-[16px]"></i><span class="sidebar-label">Customer Segments</span></a></li>
+      <li><a href="companies.html" class="sidebar-link"><i class="icon-building-2 text-[16px]"></i><span class="sidebar-label">Companies</span></a></li>
+      <li><a href="activities.html" class="sidebar-link"><i class="icon-history text-[16px]"></i><span class="sidebar-label">Activities</span></a></li>
+      <li><a href="calls-emails.html" class="sidebar-link"><i class="icon-phone-call text-[16px]"></i><span class="sidebar-label">Calls &amp; Emails</span></a></li>
+
+      <li class="sidebar-group-title">Project Management</li>
+
+      <li><a href="projects.html" class="sidebar-link"><i class="icon-gantt-chart-square text-[16px]"></i><span class="sidebar-label">Projects</span></a></li>
+      <li><a href="tasks.html" class="sidebar-link"><i class="icon-list-todo text-[16px]"></i><span class="sidebar-label">Tasks</span></a></li>
+      <li><a href="team.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Team</span></a></li>
+      <li><a href="timesheets.html" class="sidebar-link"><i class="icon-calendar-clock text-[16px]"></i><span class="sidebar-label">Timesheets</span></a></li>
+
+      <li class="sidebar-group-title">Finance</li>
+
+      <li><a href="accounts.html" class="sidebar-link"><i class="icon-landmark text-[16px]"></i><span class="sidebar-label">Accounts</span></a></li>
+      <li><a href="transactions-list.html" class="sidebar-link"><i class="icon-coins text-[16px]"></i><span class="sidebar-label">Transactions</span></a></li>
+      <li><a href="budgets.html" class="sidebar-link"><i class="icon-piggy-bank text-[16px]"></i><span class="sidebar-label">Budgets</span></a></li>
+      <li><a href="expenses-list.html" class="sidebar-link"><i class="icon-wallet text-[16px]"></i><span class="sidebar-label">Expenses</span></a></li>
+
+      <li class="sidebar-group-title">Accounting</li>
+
+      <li><a href="ledger-explorer.html" class="sidebar-link"><i class="icon-calculator text-[16px]"></i><span class="sidebar-label">Ledger</span></a></li>
+      <li><a href="invoice-workspace.html" class="sidebar-link"><i class="icon-receipt-euro text-[16px]"></i><span class="sidebar-label">Invoices</span></a></li>
+      <li><a href="tax-filing-center.html" class="sidebar-link"><i class="icon-file-search text-[16px]"></i><span class="sidebar-label">Tax Reports</span></a></li>
+      <li><a href="match-center.html" class="sidebar-link"><i class="icon-arrow-right-left text-[16px]"></i><span class="sidebar-label">Reconciliation</span></a></li>
+
+      <li class="sidebar-group-title">Banking</li>
+
+      <li><a href="bank-workspace.html" class="sidebar-link"><i class="icon-landmark text-[16px]"></i><span class="sidebar-label">Accounts</span></a></li>
+      <li><a href="card-gallery.html" class="sidebar-link"><i class="icon-wallet-cards text-[16px]"></i><span class="sidebar-label">Cards</span></a></li>
+      <li><a href="transfer-center.html" class="sidebar-link"><i class="icon-send-to-back text-[16px]"></i><span class="sidebar-label">Transfers</span></a></li>
+      <li><a href="loan-workspace.html" class="sidebar-link"><i class="icon-scale text-[16px]"></i><span class="sidebar-label">Loans</span></a></li>
+      <li><a href="international-wires.html" class="sidebar-link"><i class="icon-globe text-[16px]"></i><span class="sidebar-label">Int'l Wires</span></a></li>
+
+      <li class="sidebar-group-title">Crypto Analytics</li>
+
+      <li><a href="portfolio-explorer.html" class="sidebar-link"><i class="icon-wallet-minimal text-[16px]"></i><span class="sidebar-label">Portfolio</span></a></li>
+      <li><a href="watchlist.html" class="sidebar-link"><i class="icon-bitcoin text-[16px]"></i><span class="sidebar-label">Market Watch</span></a></li>
+      <li><a href="crypto-predictions.html" class="sidebar-link"><i class="icon-trending-up text-[16px]"></i><span class="sidebar-label">Trends</span></a></li>
+      <li><a href="secure-wallet.html" class="sidebar-link"><i class="icon-vault text-[16px]"></i><span class="sidebar-label">Vault</span></a></li>
+
+      <li class="sidebar-group-title">Hospital Management</li>
+
+      <li><a href="patients.html" class="sidebar-link"><i class="icon-user-round-check text-[16px]"></i><span class="sidebar-label">Patients</span></a></li>
+      <li><a href="doctor-directory.html" class="sidebar-link"><i class="icon-stethoscope text-[16px]"></i><span class="sidebar-label">Doctors</span></a></li>
+      <li><a href="appointments.html" class="sidebar-link"><i class="icon-calendar-heart text-[16px]"></i><span class="sidebar-label">Appointments</span></a></li>
+      <li><a href="floor-layout.html" class="sidebar-link"><i class="icon-bed text-[16px]"></i><span class="sidebar-label">Wards &amp; Beds</span></a></li>
+      <li><a href="medicine-catalog.html" class="sidebar-link"><i class="icon-pill text-[16px]"></i><span class="sidebar-label">Pharmacy</span></a></li>
+      <li><a href="emergency.html" class="sidebar-link"><i class="icon-ambulance text-[16px]"></i><span class="sidebar-label">Ambulance</span></a></li>
+      <li><a href="billing.html" class="sidebar-link"><i class="icon-receipt-text text-[16px]"></i><span class="sidebar-label">Billing</span></a></li>
+
+      <li class="sidebar-group-title">School Management</li>
+
+      <li><a href="student-directory.html" class="sidebar-link"><i class="icon-graduation-cap text-[16px]"></i><span class="sidebar-label">Students</span></a></li>
+      <li><a href="class-workspace.html" class="sidebar-link"><i class="icon-school text-[16px]"></i><span class="sidebar-label">Classes</span></a></li>
+      <li><a href="attendance-list.html" class="sidebar-link"><i class="icon-calendar-clock text-[16px]"></i><span class="sidebar-label">Attendance</span></a></li>
+      <li><a href="exam-planner.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Exams</span></a></li>
+
+      <li class="sidebar-group-title">LMS Analytics</li>
+
+      <li><a href="course-catalog.html" class="sidebar-link"><i class="icon-book-open-check text-[16px]"></i><span class="sidebar-label">Courses</span></a></li>
+      <li><a href="learner-profile.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Learners</span></a></li>
+      <li><a href="quiz-builder.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Assessments</span></a></li>
+      <li><a href="lms-activity-feed.html" class="sidebar-link"><i class="icon-bar-chart-4 text-[16px]"></i><span class="sidebar-label">Engagement</span></a></li>
+
+      <li class="sidebar-group-title">Hotel Management</li>
+
+      <li><a href="room-explorer.html" class="sidebar-link"><i class="icon-bed-double text-[16px]"></i><span class="sidebar-label">Rooms</span></a></li>
+      <li><a href="reservation-timeline.html" class="sidebar-link"><i class="icon-concierge-bell text-[16px]"></i><span class="sidebar-label">Reservations</span></a></li>
+      <li><a href="guest-directory.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Guests</span></a></li>
+      <li><a href="housekeeping-task-board.html" class="sidebar-link"><i class="icon-hotel text-[16px]"></i><span class="sidebar-label">Housekeeping</span></a></li>
+
+      <li class="sidebar-group-title">Restaurant POS</li>
+
+      <li><a href="order-board.html" class="sidebar-link"><i class="icon-utensils-crossed text-[16px]"></i><span class="sidebar-label">Orders</span></a></li>
+      <li><a href="menu-builder.html" class="sidebar-link"><i class="icon-cooking-pot text-[16px]"></i><span class="sidebar-label">Menu</span></a></li>
+      <li><a href="table-floor-map.html" class="sidebar-link"><i class="icon-table text-[16px]"></i><span class="sidebar-label">Tables</span></a></li>
+      <li><a href="kds-queue.html" class="sidebar-link"><i class="icon-soup text-[16px]"></i><span class="sidebar-label">Kitchen Display</span></a></li>
+
+      <li class="sidebar-group-title">Food Delivery</li>
+
+      <li><a href="live-map.html" class="sidebar-link"><i class="icon-bike text-[16px]"></i><span class="sidebar-label">Live Orders</span></a></li>
+      <li><a href="rider-profile.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Riders</span></a></li>
+      <li><a href="partner-restaurant-profile.html" class="sidebar-link"><i class="icon-store text-[16px]"></i><span class="sidebar-label">Restaurants</span></a></li>
+      <li><a href="delivery-zones-map.html" class="sidebar-link"><i class="icon-map text-[16px]"></i><span class="sidebar-label">Delivery Zones</span></a></li>
+
+      <li class="sidebar-group-title">Travel &amp; Booking</li>
+
+      <li><a href="flights-list.html" class="sidebar-link"><i class="icon-plane text-[16px]"></i><span class="sidebar-label">Flights</span></a></li>
+      <li><a href="cabs-list.html" class="sidebar-link"><i class="icon-car text-[16px]"></i><span class="sidebar-label">Cabs</span></a></li>
+      <li><a href="cruises-list.html" class="sidebar-link"><i class="icon-ship text-[16px]"></i><span class="sidebar-label">Cruises</span></a></li>
+      <li><a href="trips-list.html" class="sidebar-link"><i class="icon-briefcase text-[16px]"></i><span class="sidebar-label">Trips</span></a></li>
+      <li><a href="bookings-list.html" class="sidebar-link"><i class="icon-ticket-check text-[16px]"></i><span class="sidebar-label">Bookings</span></a></li>
+      <li><a href="itineraries-list.html" class="sidebar-link"><i class="icon-map text-[16px]"></i><span class="sidebar-label">Itineraries</span></a></li>
+
+      <li class="sidebar-group-title">SEO Analytics</li>
+
+      <li><a href="keywords-list.html" class="sidebar-link"><i class="icon-search-check text-[16px]"></i><span class="sidebar-label">Keyword Rank</span></a></li>
+      <li><a href="backlinks-list.html" class="sidebar-link"><i class="icon-link-2 text-[16px]"></i><span class="sidebar-label">Backlinks</span></a></li>
+      <li><a href="site-audits-list.html" class="sidebar-link"><i class="icon-file-search text-[16px]"></i><span class="sidebar-label">Site Audit</span></a></li>
+      <li><a href="traffic-overview.html" class="sidebar-link"><i class="icon-globe text-[16px]"></i><span class="sidebar-label">Traffic</span></a></li>
+
+      <li class="sidebar-group-title">HRM</li>
+
+      <li><a href="employees-list.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Employees</span></a></li>
+      <li><a href="payroll-list.html" class="sidebar-link"><i class="icon-banknote text-[16px]"></i><span class="sidebar-label">Payroll</span></a></li>
+      <li><a href="leave-requests-list.html" class="sidebar-link"><i class="icon-plane-takeoff text-[16px]"></i><span class="sidebar-label">Leave Requests</span></a></li>
+      <li><a href="reviews-list.html" class="sidebar-link"><i class="icon-award text-[16px]"></i><span class="sidebar-label">Performance Reviews</span></a></li>
+
+      <li class="sidebar-group-title">AI Analytics</li>
+
+      <li><a href="insights-list.html" class="sidebar-link"><i class="icon-sparkle text-[16px]"></i><span class="sidebar-label">AI Insights</span></a></li>
+      <li><a href="chatbot-conversations.html" class="sidebar-link"><i class="icon-bot text-[16px]"></i><span class="sidebar-label">Chatbot Assistant</span></a></li>
+      <li><a href="predictions-list.html" class="sidebar-link"><i class="icon-brain text-[16px]"></i><span class="sidebar-label">Predictions</span></a></li>
+      <li><a href="model-settings-list.html" class="sidebar-link"><i class="icon-cpu text-[16px]"></i><span class="sidebar-label">Model Settings</span></a></li>
+
+      <li class="sidebar-group-title">Management</li>
+
+      <li>
+        <a href="customer-explorer.html" class="sidebar-link">
+          <i class="icon-users text-[16px]"></i><span class="sidebar-label">Customers</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="customer-invoices.html" class="sidebar-link">
+          <i class="icon-receipt text-[16px]"></i><span class="sidebar-label">Invoices</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="payment-center.html" class="sidebar-link">
+          <i class="icon-credit-card text-[16px]"></i><span class="sidebar-label">Payments</span>
+        </a>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shield-check text-[16px]"></i>
+          <span class="sidebar-label">Users &amp; Access</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="user-directory.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Users</span></a></li>
+          <li><a href="role-builder.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Roles</span></a></li>
+          <li><a href="permission-matrix.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Permissions</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Reports</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shopping-bag text-[16px]"></i>
+          <span class="sidebar-label">Sales &amp; Ecommerce</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="sales-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales</span></a></li>
+          <li><a href="revenue-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Revenue</span></a></li>
+          <li><a href="product-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Product Performance</span></a></li>
+          <li><a href="order-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Order Summary</span></a></li>
+          <li><a href="discount-coupon-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Discount &amp; Coupon</span></a></li>
+          <li><a href="customer-purchase-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Customer Purchase</span></a></li>
+          <li><a href="cart-abandonment-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Cart Abandonment</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-boxes text-[16px]"></i>
+          <span class="sidebar-label">Inventory &amp; Logistics</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="stock-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Stock Summary</span></a></li>
+          <li><a href="stock-movement-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Stock Movement</span></a></li>
+          <li><a href="purchase-order-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Purchase Order</span></a></li>
+          <li><a href="supplier-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Supplier Performance</span></a></li>
+          <li><a href="shipment-delivery-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Shipment / Delivery</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-handshake text-[16px]"></i>
+          <span class="sidebar-label">CRM &amp; Sales Pipeline</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="lead-conversion-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lead Conversion</span></a></li>
+          <li><a href="deals-pipeline-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Deals Pipeline</span></a></li>
+          <li><a href="sales-rep-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales Rep Performance</span></a></li>
+          <li><a href="crm-activity-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Activity</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-users text-[16px]"></i>
+          <span class="sidebar-label">HRM</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="hr-attendance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Attendance</span></a></li>
+          <li><a href="payroll-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Payroll</span></a></li>
+          <li><a href="leave-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Leave</span></a></li>
+          <li><a href="employee-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Employee Performance</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-gantt-chart-square text-[16px]"></i>
+          <span class="sidebar-label">Project Management</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="project-progress-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Project Progress</span></a></li>
+          <li><a href="task-completion-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Task Completion</span></a></li>
+          <li><a href="time-tracking-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Time Tracking</span></a></li>
+          <li><a href="resource-utilization-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Resource Utilization</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-headset text-[16px]"></i>
+          <span class="sidebar-label">Support / Helpdesk</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ticket-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Ticket Summary</span></a></li>
+          <li><a href="agent-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Agent Performance</span></a></li>
+          <li><a href="sla-compliance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">SLA Compliance</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">General</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="traffic-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Traffic</span></a></li>
+          <li><a href="user-activity-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">User Activity</span></a></li>
+          <li><a href="audit-log-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Audit Log</span></a></li>
+          <li><a href="system-usage-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">System Usage</span></a></li>
+          <li><a href="report-builder.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Custom Report Builder</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Insights</li>
+
+      <li>
+        <a href="activity-log.html" class="sidebar-link">
+          <i class="icon-activity text-[16px]"></i><span class="sidebar-label">Activity Log</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="audit-log.html" class="sidebar-link">
+          <i class="icon-file-clock text-[16px]"></i><span class="sidebar-label">Audit Log</span>
+        </a>
+      </li>
+
+      <li class="sidebar-group-title">UI Interface</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">Base UI</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ui-alerts.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Alerts</span></a></li>
+          <li><a href="ui-accordion.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Accordion</span></a></li>
+          <li><a href="ui-avatar.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Avatar</span></a></li>
+          <li><a href="ui-badges.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Badges</span></a></li>
+          <li><a href="ui-buttons.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Buttons</span></a></li>
+          <li><a href="ui-buttons-group.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Button Group</span></a></li>
+          <li><a href="ui-breadcrumb.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Breadcrumb</span></a></li>
+          <li><a href="ui-cards.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Card</span></a></li>
+          <li><a href="ui-colors.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Colors</span></a></li>
+          <li><a href="ui-collapse.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Collapse</span></a></li>
+          <li><a href="ui-dropdowns.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Dropdowns</span></a></li>
+          <li><a href="ui-grid.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Grid</span></a></li>
+          <li><a href="ui-images.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Images</span></a></li>
+          <li><a href="ui-modals.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Modals</span></a></li>
+          <li><a href="ui-offcanvas.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Offcanvas</span></a></li>
+          <li><a href="ui-pagination.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Pagination</span></a></li>
+          <li><a href="ui-popovers.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Popovers</span></a></li>
+          <li><a href="ui-progress.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Progress</span></a></li>
+          <li><a href="ui-nav-tabs.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Tabs</span></a></li>
+          <li><a href="ui-typography.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Typography</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-sparkles text-[16px]"></i>
+          <span class="sidebar-label">Advanced UI</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ui-dragula.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Dragula</span></a></li>
+          <li><a href="ui-clipboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Clipboard</span></a></li>
+          <li><a href="ui-rangeslider.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Range Slider</span></a></li>
+          <li><a href="ui-lightbox.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lightbox</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-notebook-pen text-[16px]"></i>
+          <span class="sidebar-label">Forms</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="form-elements.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Form Elements</span></a></li>
+          <li><a href="form-select2.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Select2</span></a></li>
+          <li><a href="form-pickers.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Form Picker</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-table text-[16px]"></i>
+          <span class="sidebar-label">Tables</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="tables-basic.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Basic Tables</span></a></li>
+          <li><a href="data-tables.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Data Table</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-pie-chart text-[16px]"></i>
+          <span class="sidebar-label">Charts</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="chart-apex.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Apex Charts</span></a></li>
+          <li><a href="chart-js.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Chart Js</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shapes text-[16px]"></i>
+          <span class="sidebar-label">Icons</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="icon-fontawesome.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Fontawesome Icons</span></a></li>
+          <li><a href="icon-lucide.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lucide</span></a></li>
+          <li><a href="icon-phosphor.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Phosphor</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Account</li>
+
+      <li>
+        <a href="account-profile.html" class="sidebar-link">
+          <i class="icon-user-round text-[16px]"></i><span class="sidebar-label">Profile</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="profile-settings.html" class="sidebar-link">
+          <i class="icon-settings text-[16px]"></i><span class="sidebar-label">Settings</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="account-notifications.html" class="sidebar-link">
+          <i class="icon-bell text-[16px]"></i><span class="sidebar-label">Notifications</span>
+          <span class="sidebar-badge badge-danger sidebar-meta">5</span>
+        </a>
+      </li>
+
+      <li class="sidebar-group-title">Pages</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-log-in text-[16px]"></i>
+          <span class="sidebar-label">Authentication</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="login.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Login</span></a></li>
+          <li><a href="register.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Register</span></a></li>
+          <li><a href="forgot-password.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Forgot Password</span></a></li>
+          <li><a href="reset-password.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Reset Password</span></a></li>
+          <li><a href="lock-screen.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lock Screen</span></a></li>
+          <li><a href="verify-otp.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Two-Factor Auth</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-alert-triangle text-[16px]"></i>
+          <span class="sidebar-label">Error Pages</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="error-404.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">404 Not Found</span></a></li>
+          <li><a href="error-500.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">500 Server Error</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Support</li>
+
+      <li>
+        <a href="../documentation/index.html" target="_blank" class="sidebar-link">
+          <i class="icon-book-open text-[16px]"></i><span class="sidebar-label">Documentation</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="faq.html" class="sidebar-link">
+          <i class="icon-help-circle text-[16px]"></i><span class="sidebar-label">FAQ</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="../documentation/changelog.html" target="_blank" class="sidebar-link">
+          <i class="icon-life-buoy text-[16px]"></i><span class="sidebar-label">Changelog</span>
+        </a>
+      </li>
+
+    </ul>
+  </nav>
+
+  <!-- Storage / usage meter -->
+  <div class="workspace-text px-3 pb-2 shrink-0">
+    <div class="rounded-xl p-3 bg-[rgb(255_255_255_/_0.04)] border border-[rgb(255_255_255_/_0.06)]">
+      <div class="flex items-center justify-between">
+        <span class="flex items-center gap-1.5 text-[11px] font-semibold text-white"><i class="icon-database text-[12px] text-[var(--color-primary-400)]"></i>Storage</span>
+        <span class="text-[10.5px] font-semibold text-[var(--sidebar-text)]">68.4 / 100 GB</span>
+      </div>
+      <div class="h-1.5 rounded-full mt-2 overflow-hidden bg-[rgb(255_255_255_/_0.08)]">
+        <div class="h-full rounded-full w-[68%] bg-[linear-gradient(90deg,var(--color-primary-400),var(--color-accent-500))]"></div>
+      </div>
+      <a href="subscription.html" class="inline-flex items-center gap-1 text-[10.5px] font-semibold mt-2 text-[var(--color-primary-400)]">Upgrade plan<i class="icon-arrow-right text-[9px]"></i></a>
+    </div>
+  </div>
+
+  <!-- User profile / logout -->
+  <div class="p-3 border-t shrink-0 border-[var(--sidebar-border)]">
+    <div id="sidebarUserTrigger" class="w-full flex items-center gap-2.5 rounded-lg p-2 transition-colors bg-[rgb(255_255_255_/_0.04)]">
+      <a href="account-profile.html" class="flex items-center gap-2.5 min-w-0 flex-1">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-12-Dpl-96rW.jpg" alt="User profile avatar" class="size-8 rounded-full object-cover border-[1.5px] border-[rgb(255_255_255_/_0.18)]">
+          <span class="absolute -bottom-0.5 -end-0.5 size-2.5 rounded-full bg-[var(--color-success-500)] border-2 border-[var(--sidebar-bg)]"></span>
+        </span>
+        <span class="workspace-text text-left min-w-0">
+          <span class="flex items-center gap-1.5">
+            <span class="block text-[12.5px] font-semibold text-white truncate">Amelia Hart</span>
+            <span class="inline-flex items-center px-1 py-px rounded text-[8.5px] font-bold uppercase tracking-wide shrink-0 bg-[color-mix(in_oklab,var(--color-accent-500)_30%,transparent)] text-[var(--color-accent-400,#FBBF24)]">Pro</span>
+          </span>
+          <span class="block text-[10.5px] truncate text-[var(--sidebar-text)]">Product Admin</span>
+        </span>
+      </a>
+      <a href="login.html" class="workspace-text header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-7 shrink-0" title="Sign out" aria-label="Sign out"><i class="icon-log-out text-[14px]"></i></a>
+    </div>
+  </div>
+
+</aside>
+<!-- Sidenav Menu End -->
+	    <!-- Start Page Wrapper -->
+		<div class="app-main">
+
+		<!-- ================= HEADER ================= -->
+<header class="app-header">
+  <!-- Premium accent line -->
+  <div class="absolute inset-x-0 bottom-0 h-px pointer-events-none [background:linear-gradient(90deg,transparent,var(--color-primary-500)_20%,var(--color-accent-500)_50%,var(--color-primary-500)_80%,transparent)] opacity-[0.55]"></div>
+
+  <div class="flex items-center gap-3 px-4 lg:px-6 h-16">
+
+    <!-- Mobile sidebar toggle -->
+    <button type="button" id="mobileSidebarBtn" class="header-icon-btn lg:hidden" aria-label="Open menu">
+      <i class="icon-menu text-[18px]"></i>
+    </button>
+
+    <!-- Mobile logo (shown next to the sidebar toggle on small screens) -->
+    <a href="index.html" class="lg:hidden shrink-0" aria-label="Dreams Core">
+      <img src="data:image/svg+xml,%3csvg%20width='374'%20height='374'%20viewBox='0%200%20374%20374'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M187%2022L329.894%20104.5V269.5L187%20352L44.1058%20269.5V104.5L187%2022Z'%20fill='white'/%3e%3cpath%20d='M187%2063.3162L294.113%20125.158V248.842L187%20310.684L79.8868%20248.842V125.158L187%2063.3162Z'%20fill='%23141414'/%3e%3cpath%20d='M187%2099.3354L262.92%20143.168V230.832L187%20274.665L111.08%20230.832V143.168L187%2099.3354Z'%20fill='%2340BFA6'/%3e%3ccircle%20cx='187'%20cy='187'%20r='30.9872'%20fill='%2340916C'/%3e%3c/svg%3e" alt="Dreams Core logo" class="size-8 object-contain">
+    </a>
+
+    <!-- Global search -->
+    <button type="button" id="headerSearchBar" class="group hidden md:flex items-center gap-2.5 w-full max-w-[240px] xl:max-w-[280px] h-10 pe-3.5 ps-1.5 rounded-full transition-all hover:shadow-[var(--shadow-sm)] bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
+      <span class="grid place-items-center size-7 rounded-full shrink-0 transition-colors bg-[color-mix(in_oklab,var(--color-primary-500)_16%,transparent)] text-[var(--color-primary-600)]">
+        <i class="icon-search text-[13px]"></i>
+      </span>
+      <span class="text-[13px] flex-1 text-start truncate font-medium text-[var(--text-tertiary)]">Search orders, customers, products…</span>
+      <kbd class="text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 transition-colors group-hover:border-[var(--color-primary-400)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] border border-[var(--border-default)]">⌘K</kbd>
+    </button>
+
+    <!-- Explore + Apps -->
+    <div class="hidden lg:flex items-center gap-0.5 h-10 px-1 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
+      <div class="hs-dropdown [--strategy:static] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-[var(--surface-sunken)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-layout-grid text-[13px]"></i>Explore<i class="icon-chevron-down text-[9px] opacity-70"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration fixed top-[72px] start-1/2 -translate-x-1/2 w-[94vw] max-w-[840px] surface-card !p-0 overflow-hidden z-50 shadow-[var(--shadow-xl)]" role="menu" aria-orientation="vertical">
+
+          <!-- Search header -->
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-[var(--border-subtle)] [background:linear-gradient(180deg,var(--surface-sunken),transparent)]">
+            <span class="grid place-items-center size-9 rounded-xl shrink-0 bg-[var(--color-primary-600)] shadow-[0_6px_16px_-4px_color-mix(in_oklab,var(--color-primary-600)_55%,transparent)]"><i class="icon-layout-grid text-[16px] text-white"></i></span>
+            <div class="min-w-0 flex-1">
+              <p class="font-display font-bold text-[15px] leading-tight">Explore Dreamscore</p>
+              <p class="text-[11.5px] text-[var(--text-tertiary)]">42 workspaces · jump to any app or module</p>
+            </div>
+          </div>
+
+          <!-- Recently visited -->
+          <div class="flex items-center gap-2 px-5 py-3 border-b overflow-x-auto scroll-thin border-[var(--border-subtle)]">
+            <span class="text-[10.5px] font-semibold uppercase tracking-wide shrink-0 text-[var(--text-tertiary)]">Recent</span>
+            <a href="orders.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-shopping-bag text-[11px] text-[var(--color-info-600)]"></i>Orders</a>
+            <a href="products-list.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-package text-[11px] text-[var(--color-accent-600)]"></i>Products</a>
+            <a href="index.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-store text-[11px] text-[var(--color-primary-600)]"></i>Ecommerce</a>
+            <a href="ui-rangeslider.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-contact text-[11px] text-[var(--color-success-600)]"></i>CRM</a>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_200px]">
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-layout-dashboard text-[11px]"></i>Dashboards</p>
+              <ul class="space-y-0.5">
+                <li><a href="index.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-store text-[13px]"></i></span><span class="flex-1">Ecommerce</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-handshake text-[13px]"></i></span><span class="flex-1">Sales</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-warehouse text-[13px]"></i></span><span class="flex-1">Warehouse</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-contact text-[13px]"></i></span><span class="flex-1">CRM</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-success size-8 shrink-0"><i class="icon-sparkle text-[13px]"></i></span><span class="flex-1">AI Analytics</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-grip text-[11px]"></i>Applications</p>
+              <ul class="space-y-0.5">
+                <li><a href="calendar.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-calendar-days text-[13px]"></i></span><span class="flex-1">Calendar</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="chat.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-message-circle text-[13px]"></i></span><span class="flex-1">Chat</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="email.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-warning size-8 shrink-0"><i class="icon-mail text-[13px]"></i></span><span class="flex-1">Email</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="file-manager.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-folder text-[13px]"></i></span><span class="flex-1">File Manager</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-kanban text-[13px]"></i></span><span class="flex-1">Kanban</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-briefcase-business text-[11px]"></i>Management</p>
+              <ul class="space-y-0.5">
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-users text-[13px]"></i></span><span class="flex-1">Customers</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="products-list.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-package text-[13px]"></i></span><span class="flex-1">Products</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="orders.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-shopping-bag text-[13px]"></i></span><span class="flex-1">Orders</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="invoices-list.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-success size-8 shrink-0"><i class="icon-receipt text-[13px]"></i></span><span class="flex-1">Invoices</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="ui-rangeslider.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-credit-card text-[13px]"></i></span><span class="flex-1">Payments</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-4 flex flex-col">
+              <div class="rounded-2xl p-4 text-white relative overflow-hidden flex flex-col items-start flex-1 [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950))]">
+                <span class="absolute -top-8 -end-8 size-24 rounded-full bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+                <span class="absolute -bottom-10 -start-6 size-20 rounded-full bg-[var(--color-accent-500)] opacity-[0.18] blur-[6px]"></span>
+                <span class="grid place-items-center size-9 rounded-xl mb-3 relative bg-[rgb(255_255_255_/_0.16)]"><i class="icon-sparkle text-[16px]"></i></span>
+                <p class="text-[13px] font-semibold leading-snug relative">Explore AI Insights</p>
+                <p class="text-[11.5px] mt-1.5 relative text-[rgb(255_255_255_/_0.75)]">Smart, real-time recommendations tailored to your business.</p>
+                <a href="ui-rangeslider.html" class="inline-flex items-center justify-center gap-1.5 w-full text-[11.5px] font-semibold mt-4 py-2 rounded-lg relative transition-colors hover:bg-white/90 bg-[#fff] text-[var(--color-primary-800)]">Try it now <i class="icon-arrow-up-right text-[10px]"></i></a>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex items-center justify-between px-5 py-3 border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+            <p class="text-[11px] text-[var(--text-tertiary)]"><span class="font-semibold text-[var(--text-primary)]">42</span> workspaces available</p>
+            <a href="ui-rangeslider.html" class="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--color-primary-600)]">View full directory <i class="icon-arrow-right text-[10px]"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs-dropdown [--placement:bottom-start] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-[var(--surface-sunken)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-grip text-[13px]"></i>Apps<i class="icon-chevron-down text-[9px] opacity-70"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-3 w-[340px] surface-card !p-0 overflow-hidden z-50" role="menu" aria-orientation="vertical">
+          <div class="flex items-center justify-between px-4 py-3.5 border-b border-[var(--border-subtle)]">
+            <div>
+              <p class="font-display font-bold text-[14px]">Apps</p>
+              <p class="text-[11px] mt-0.5 text-[var(--text-tertiary)]">Jump to a workspace app</p>
+            </div>
+            <a href="profile-settings.html" class="header-icon-btn" aria-label="App settings"><i class="icon-settings text-[15px]"></i></a>
+          </div>
+          <div class="grid grid-cols-3 gap-2 p-4">
+            <a href="calendar.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-primary"><i class="icon-calendar-days text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Calendar</span>
+            </a>
+            <a href="email.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-success"><i class="icon-mail text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Email</span>
+            </a>
+            <a href="chat.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-info"><i class="icon-message-circle text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Chat</span>
+            </a>
+            <a href="todo.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-accent"><i class="icon-list-todo text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">To Do</span>
+            </a>
+            <a href="file-manager.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-danger"><i class="icon-folder text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Files</span>
+            </a>
+            <a href="notes.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-neutral"><i class="icon-notebook-text text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Notes</span>
+            </a>
+            <a href="voice-call.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-accent"><i class="icon-phone text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Call</span>
+            </a>
+            <a href="invoices-list.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-success"><i class="icon-receipt text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Invoices</span>
+            </a>
+            <a href="customer-support-tickets.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-danger"><i class="icon-ticket text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Tickets</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ms-auto flex items-center gap-2.5 lg:gap-3">
+
+      <!-- Quick actions (desktop) -->
+      <div class="hs-dropdown [--placement:bottom-end] relative hidden sm:block">
+        <button type="button" class="hs-dropdown-toggle inline-flex items-center gap-2 h-10 ps-3.5 pe-3 rounded-full text-[12.5px] font-semibold text-white transition-all hover:shadow-[0_10px_20px_-8px_var(--color-primary-600)] hover:-translate-y-px bg-[var(--color-primary-600)] shadow-[0_6px_14px_-6px_color-mix(in_oklab,var(--color-primary-600)_60%,transparent)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-plus text-[13px]"></i>
+          <span>Quick Create</span>
+          <i class="icon-chevron-down text-[9px] opacity-80"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-56 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <a href="invoice-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>New Invoice</a>
+          <a href="customer-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-user-plus text-[15px] text-[var(--color-primary-600)]"></i>Add Customer</a>
+          <a href="product-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-package text-[15px] text-[var(--color-primary-600)]"></i>New Product</a>
+          <a href="task-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-kanban text-[15px] text-[var(--color-primary-600)]"></i>New Task</a>
+        </div>
+      </div>
+
+      <!-- Quick actions (mobile) -->
+      <div class="hs-dropdown [--placement:bottom-end] relative sm:hidden">
+        <button type="button" class="hs-dropdown-toggle header-icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Quick create">
+          <i class="icon-plus text-[17px]"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-56 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <a href="invoice-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>New Invoice</a>
+          <a href="customer-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-user-plus text-[15px] text-[var(--color-primary-600)]"></i>Add Customer</a>
+          <a href="product-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-package text-[15px] text-[var(--color-primary-600)]"></i>New Product</a>
+          <a href="task-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-kanban text-[15px] text-[var(--color-primary-600)]"></i>New Task</a>
+        </div>
+      </div>
+
+      <!-- Theme switcher (always visible, incl. mobile) -->
+      <div class="hs-dropdown [--placement:bottom-end] [--auto-close:inside] relative">
+        <button type="button" class="hs-dropdown-toggle grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Theme">
+          <i class="icon-sun-medium text-[13.5px]" id="themeIcon"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-44 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <button type="button" data-theme-set="light" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-sun-medium text-[15px]"></i>Light<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          <button type="button" data-theme-set="dark" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-moon text-[15px]"></i>Dark<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          <button type="button" data-theme-set="system" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-monitor text-[15px]"></i>System<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+        </div>
+      </div>
+
+      <!-- Soft elevated toolbar: each icon in its own tinted chip -->
+      <div class="hidden sm:flex items-center gap-1 h-10 px-1.5 rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] shadow-[var(--shadow-sm)]">
+
+        <!-- Language selector -->
+        <div class="hs-dropdown [--placement:bottom-end] relative">
+          <button type="button" class="hs-dropdown-toggle grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)] text-[var(--color-info-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Language">
+            <i class="icon-languages text-[13.5px]"></i>
+          </button>
+          <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-44 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+            <button type="button" data-lang-set="en" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇺🇸</span>English<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="fr" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇫🇷</span>Français<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="de" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇩🇪</span>Deutsch<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="ar" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇸🇦</span>العربية<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          </div>
+        </div>
+
+        <!-- Fullscreen -->
+        <button type="button" class="grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--text-tertiary)_14%,transparent)] text-[var(--text-secondary)]" id="fullscreenBtn" aria-label="Toggle fullscreen">
+          <i class="icon-maximize text-[13.5px]" id="fullscreenIcon"></i>
+        </button>
+
+        <!-- Messages (opens chat offcanvas) -->
+        <button type="button" class="relative grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-accent-500)_16%,transparent)] text-[var(--color-accent-600)]" id="messagesOffcanvasBtn" aria-haspopup="true" aria-expanded="false" aria-label="Messages">
+          <i class="icon-messages-square text-[13.5px]"></i>
+          <span class="absolute top-0.5 end-0.5 size-1.5 rounded-full bg-[var(--color-accent-500)] border-[1.5px] border-[var(--surface-raised)]"></span>
+        </button>
+
+        <!-- Notifications -->
+        <div class="hs-dropdown [--placement:bottom-end] relative">
+          <button type="button" class="hs-dropdown-toggle relative grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-danger-500)_14%,transparent)] text-[var(--color-danger-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Notifications">
+            <i class="icon-bell text-[13.5px]"></i>
+          </button>
+          <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-96 surface-card !p-0 overflow-hidden z-50 shadow-[var(--shadow-xl)]" role="menu" aria-orientation="vertical">
+
+            <!-- Header -->
+            <div class="relative px-4 pt-4 pb-3.5 overflow-hidden [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950)_75%)]">
+              <span class="absolute -top-8 -end-6 size-20 rounded-full pointer-events-none bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+              <div class="relative flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                  <span class="font-display font-bold text-[14.5px] text-white">Notifications</span>
+                  <span class="inline-flex items-center justify-center min-w-[19px] h-[19px] px-1 rounded-full text-[10px] font-bold bg-[rgb(255_255_255_/_0.2)] text-[#fff]">4 new</span>
+                </span>
+                <button type="button" class="grid place-items-center size-7 rounded-full transition-colors hover:bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.8)]" aria-label="Notification settings"><i class="icon-settings text-[13px]"></i></button>
+              </div>
+              <!-- Filter tabs -->
+              <div class="relative flex items-center gap-1.5 mt-3.5">
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fff] text-[var(--color-primary-800)]">All</button>
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.85)]">Unread</button>
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.85)]">Mentions</button>
+                <button type="button" class="ms-auto text-[11px] font-semibold text-[rgb(255_255_255_/_0.85)]">Mark all read</button>
+              </div>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto scroll-thin">
+              <p class="px-4 pt-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Today</p>
+              <a href="ui-rangeslider.html" class="relative flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="absolute start-1.5 top-5 size-1.5 rounded-full bg-[var(--color-primary-500)]"></span>
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-success"><i class="icon-check text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Payment received</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">5m</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">$2,480 from <strong>Nova Retail</strong> was credited to your account.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-success-500)_14%,transparent)] text-[var(--color-success-600)]">Finance</span>
+                </span>
+              </a>
+              <a href="ui-rangeslider.html" class="relative flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="absolute start-1.5 top-5 size-1.5 rounded-full bg-[var(--color-primary-500)]"></span>
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-warning"><i class="icon-alert-triangle text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Low stock alert</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">42m</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">Inventory for <strong>SKU-2291</strong> has dropped below the reorder threshold.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]">Inventory</span>
+                </span>
+              </a>
+
+              <p class="px-4 pt-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Earlier</p>
+              <a href="ui-rangeslider.html" class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <img src="assets/avatar-16-OUv867cs.jpg" alt="Sofia Reyes avatar" class="size-9 rounded-xl object-cover shrink-0">
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">New team member</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">3h</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]"><strong>Sofia Reyes</strong> joined the Design team.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]">Team</span>
+                </span>
+              </a>
+              <a href="ui-rangeslider.html" class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-accent"><i class="icon-sparkle text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Weekly AI insight ready</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Yesterday</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">Your personalized performance report has new recommendations.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-accent-500)_16%,transparent)] text-[var(--color-accent-600)]">AI Insights</span>
+                </span>
+              </a>
+            </div>
+
+            <a href="account-notifications.html" class="flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold border-t border-[var(--border-subtle)] text-[var(--color-primary-600)]">View all notifications<i class="icon-arrow-right text-[11px]"></i></a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- User profile -->
+      <div class="hs-dropdown [--placement:bottom-end] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-2 h-10 ps-1 pe-2.5 rounded-full transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]" aria-haspopup="menu" aria-expanded="false">
+          <span class="relative shrink-0 rounded-full p-[2px] max-[991px]:p-0 [background:conic-gradient(from_180deg,var(--color-primary-500),var(--color-accent-500),var(--color-primary-500))] max-[991px]:[background:none]">
+            <img src="assets/avatar-12-Dpl-96rW.jpg" alt="User profile avatar" class="size-7 rounded-full object-cover block border-[2px] border-[var(--surface-base)] max-[991px]:border-0">
+          </span>
+          <span class="hidden lg:flex flex-col items-start leading-none">
+            <span class="text-[12px] font-semibold">Amelia</span>
+            <span class="text-[10px] text-[var(--text-tertiary)]">Admin</span>
+          </span>
+          <i class="hidden lg:block icon-chevron-down text-[10px] text-[var(--text-tertiary)]"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-72 surface-card !p-0 overflow-hidden z-50" role="menu" aria-orientation="vertical">
+
+          <!-- Profile header card -->
+          <div class="relative px-4 pt-4 pb-3.5 overflow-hidden [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950)_75%)]">
+            <span class="absolute -top-8 -end-8 size-24 rounded-full pointer-events-none bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+            <span class="absolute -bottom-10 -start-6 size-20 rounded-full pointer-events-none bg-[var(--color-accent-500)] opacity-[0.18] blur-[6px]"></span>
+            <div class="relative flex items-center gap-3">
+              <span class="relative shrink-0">
+                <img src="assets/avatar-12-Dpl-96rW.jpg" alt="Amelia Hart profile avatar" class="size-11 rounded-full object-cover border-[2px] border-[rgb(255_255_255_/_0.25)]">
+                <span class="absolute bottom-0 end-0 size-2.5 rounded-full bg-[var(--color-success-500)] border-[2px] border-[var(--color-primary-800)]"></span>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5">
+                  <span class="block text-[14px] font-display font-bold text-white truncate">Amelia Hart</span>
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shrink-0 bg-[rgb(255_255_255_/_0.18)] text-[#fff]"><i class="icon-crown text-[9px]"></i>Pro</span>
+                </span>
+                <span class="block text-[11.5px] truncate text-[rgb(255_255_255_/_0.72)]">amelia@dreamsadmin.com</span>
+              </span>
+            </div>
+
+            <!-- Mini stat row -->
+            <div class="relative grid grid-cols-3 gap-2 mt-3.5">
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">12</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Tasks Today</p>
+              </div>
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">4</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Messages</p>
+              </div>
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">98%</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Uptime</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-1.5">
+            <a href="account-profile.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]"><i class="icon-user-round text-[13.5px]"></i></span>My Profile</a>
+            <a href="profile-settings.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--text-tertiary)_14%,transparent)] text-[var(--text-secondary)]"><i class="icon-settings text-[13.5px]"></i></span>Account Settings</a>
+            <a href="user-security.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-success-500)_14%,transparent)] text-[var(--color-success-600)]"><i class="icon-shield-check text-[13.5px]"></i></span>Security &amp; Privacy</a>
+            <a href="faq.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)] text-[var(--color-info-600)]"><i class="icon-life-buoy text-[13.5px]"></i></span>Help Center</a>
+          </div>
+
+          <div class="mx-3 h-px bg-[var(--border-subtle)]"></div>
+
+          <div class="p-1.5">
+            <a href="login.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)] text-[var(--color-danger-600)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-danger-500)_12%,transparent)]"><i class="icon-log-out text-[13.5px]"></i></span>Sign Out</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</header>
+
+<!-- ================= CHAT OFFCANVAS ================= -->
+<div id="chatOffcanvasBackdrop" class="hidden fixed inset-0 z-[60] bg-[rgb(10_12_11_/_0.5)]"></div>
+<aside id="chatOffcanvas" class="fixed top-0 end-0 h-full w-full max-w-sm z-[61] flex flex-col bg-[var(--surface-raised)] [border-inline-start:1px_solid_var(--border-subtle)] shadow-[var(--shadow-xl)] [transform:translateX(100%)] [transition:transform_0.25s_cubic-bezier(0.4,0,0.2,1)]" aria-label="Messages">
+
+  <!-- Conversation list view -->
+  <div id="chatListView" class="flex flex-col h-full">
+    <div class="flex items-center justify-between px-4 py-3.5 border-b shrink-0 border-[var(--border-subtle)]">
+      <p class="font-display font-bold text-[15px]">Messages</p>
+      <button type="button" class="header-icon-btn chat-offcanvas-close" aria-label="Close chat"><i class="icon-x text-[16px]"></i></button>
+    </div>
+    <div class="p-3 shrink-0">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-sunken)]">
+        <i class="icon-search text-[13px] text-[var(--text-tertiary)]"></i>
+        <input type="text" placeholder="Search conversations…" class="flex-1 bg-transparent border-0 outline-none text-[13px]">
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto scroll-thin">
+      <p class="px-4 pt-1 pb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">This week</p>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Ryan Cole" data-chat-avatar="assets/img/avatar/avatar-03.jpg">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-03-CMAwRMpe.jpg" class="size-10 rounded-full object-cover" alt="Ryan Cole avatar">
+          <span class="absolute bottom-0 end-0 size-2.5 rounded-full border-2 bg-[var(--color-success-500)] border-[var(--surface-raised)]"></span>
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Ryan Cole</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">2m</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Can you review the Q3 forecast deck?</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Priya Nair" data-chat-avatar="assets/img/avatar/avatar-16.jpg">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-16-OUv867cs.jpg" class="size-10 rounded-full object-cover" alt="Priya Nair avatar">
+          <span class="absolute bottom-0 end-0 size-2.5 rounded-full border-2 bg-[var(--color-success-500)] border-[var(--surface-raised)]"></span>
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Priya Nair</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">1h</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Invoice #4471 has been approved ✅</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Diego Fernandez" data-chat-avatar="assets/img/avatar/avatar-05.jpg">
+        <img src="assets/avatar-05-C9uvGOoI.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Diego Fernandez avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Diego Fernandez</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">3h</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Shipment for order #8821 delayed</span>
+        </span>
+      </button>
+
+      <p class="px-4 pt-3 pb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Earlier</p>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Sofia Reyes" data-chat-avatar="assets/img/avatar/avatar-21.jpg">
+        <img src="assets/avatar-21-oHVmObUk.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Sofia Reyes avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Sofia Reyes</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Mon</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Brand assets are ready for review</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Alex Morgan" data-chat-avatar="assets/img/avatar/avatar-04.jpg">
+        <img src="assets/avatar-04-a9Y1EXhu.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Alex Morgan avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Alex Morgan</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Mon</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Thanks for the fast delivery! 🙌</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Marcus Lee" data-chat-avatar="assets/img/avatar/avatar-15.jpg">
+        <img src="assets/avatar-15-DU7Y08Sx.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Marcus Lee avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Marcus Lee</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Fri</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Can we push the sync to 3pm?</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Nova Retail Team" data-chat-avatar="assets/img/avatar/avatar-19.jpg">
+        <img src="assets/avatar-19-DUF2O7YC.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Nova Retail Team avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Nova Retail Team</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Thu</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Payment of $2,480 confirmed</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Thread view -->
+  <div id="chatThreadView" class="hidden flex-col h-full">
+    <div class="flex items-center gap-3 px-4 py-3.5 border-b shrink-0 border-[var(--border-subtle)]">
+      <button type="button" id="chatThreadBack" class="header-icon-btn" aria-label="Back to conversations"><i class="icon-arrow-left text-[16px]"></i></button>
+      <img id="chatThreadAvatar" src="assets/avatar-03-CMAwRMpe.jpg" class="size-8 rounded-full object-cover shrink-0" alt="Chat contact avatar">
+      <span class="min-w-0 flex-1">
+        <span id="chatThreadName" class="block font-semibold text-[13px] truncate"></span>
+        <span class="flex items-center gap-1 text-[10.5px] text-[var(--color-success-500)]"><span class="size-1.5 rounded-full bg-[var(--color-success-500)]"></span>Online</span>
+      </span>
+      <button type="button" class="header-icon-btn chat-offcanvas-close" aria-label="Close chat"><i class="icon-x text-[16px]"></i></button>
+    </div>
+    <div class="flex-1 overflow-y-auto scroll-thin p-4 space-y-3">
+      <div class="flex justify-start">
+        <div class="max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] bg-[var(--surface-sunken)]">Hey! Can you review the Q3 forecast deck when you get a chance?</div>
+      </div>
+      <div class="flex justify-end">
+        <div class="max-w-[75%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-white bg-[var(--color-primary-600)]">Sure, I'll take a look this afternoon.</div>
+      </div>
+      <div class="flex justify-start">
+        <div class="max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] bg-[var(--surface-sunken)]">Thanks! No rush, end of day is fine.</div>
+      </div>
+    </div>
+    <div class="p-3 border-t shrink-0 flex items-center gap-2 border-[var(--border-subtle)]">
+      <input type="text" placeholder="Type a message…" class="flex-1 px-3.5 py-2.5 rounded-xl text-[13px] border-0 outline-none bg-[var(--surface-sunken)]">
+      <button type="button" class="grid place-items-center size-9 rounded-xl shrink-0 text-white bg-[var(--color-primary-600)]" aria-label="Send"><i class="icon-send text-[14px]"></i></button>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ================= COMMAND PALETTE ================= -->
+<div id="cmdkBackdrop" class="cmdk-backdrop hidden items-start justify-center pt-24 px-4">
+  <div class="cmdk-panel w-full max-w-xl overflow-hidden animate-rise-in" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border-subtle)]">
+      <i class="icon-command text-[16px] text-[var(--text-tertiary)]"></i>
+      <input id="cmdkInput" type="text" placeholder="Search pages, actions, customers…" autocomplete="off" class="flex-1 bg-transparent border-0 outline-none text-[14px] placeholder:text-[var(--text-tertiary)]">
+      <kbd class="key">Esc</kbd>
+    </div>
+    <div id="cmdkResults" class="max-h-96 overflow-y-auto scroll-thin p-2">
+
+      <p class="px-2.5 pt-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Navigate</p>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Dashboard Overview">
+        <i class="icon-layout-dashboard text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Dashboard Overview</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Analytics">
+        <i class="icon-chart-no-axes-column text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Analytics</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Invoices">
+        <i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Invoices</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Customers">
+        <i class="icon-users text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Customers</span>
+      </button>
+
+      <p class="px-2.5 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Quick actions</p>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Create new invoice">
+        <i class="icon-plus text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Create new invoice</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Invite team member">
+        <i class="icon-user-plus text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Invite team member</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Toggle theme">
+        <i class="icon-sun-medium text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Toggle theme</span>
+      </button>
+
+    </div>
+  </div>
+</div>
+            <!-- ================= BREADCRUMB BAR ================= -->
+<div class="px-4 lg:px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+  <div class="flex flex-wrap items-center justify-between gap-2 max-w-[1600px] mx-auto">
+    <h2 class="font-display font-bold text-[13px] tracking-wide uppercase">Range Slider</h2>
+    <div class="flex items-center gap-1.5 text-[12px] font-medium">
+      <a href="index.html" class="text-[var(--color-primary-600)]">Dashboards</a>
+      <span class="text-[var(--text-tertiary)]">/</span>
+      <span class="text-[var(--text-tertiary)]">Range Slider</span>
+    </div>
+  </div>
+</div>
+			<main class="p-4 lg:p-6 pb-0 space-y-6 max-w-full mx-auto w-full">
+                <div class="p-3 lg:py-6 lg:px-0">
+                    <!-- Start grid -->
+                    <div class="grid grid-cols-12 gap-6 items-baseline">
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h2 class="text-gray-900 text-lg font-bold mb-0">Basic Range Slider</h2>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>
+                            <div class="preview-content">
+                                <div class="rangeslider_basic"></div>
+                            </div>  
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div class="rangeslider_basic"&gt;&lt;/div&gt;
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h3 class="text-gray-900 text-lg font-bold mb-0">Multi Elements Range</h3>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>
+                            <div class="preview-content">
+                                <div id="rangeslider_multielement"></div>
+                            </div> 
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div id="rangeslider_multielement"&gt;&lt;/div&gt;
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h4 class="text-gray-900 text-lg font-bold mb-0">Value Range Slider</h4>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content">
+                                <div id="nonlinear"></div>
+                                <div class="flex justify-between mt-3">
+                                    <div class="example-val" id="lower-value"></div>
+                                    <div class="example-val" id="upper-value"></div>
+                                </div>
+                            </div> 
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div&gt;
+        &lt;div id="nonlinear"&gt;&lt;/div&gt;
+        &lt;div class="flex justify-between mt-3"&gt;
+            &lt;div class="example-val" id="lower-value"&gt;&lt;/div&gt;
+            &lt;div class="example-val" id="upper-value"&gt;&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt; 
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Color Scheme</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content">
+                                <div class="mb-4">
+                                    <h6 class="mb-2 text-sm">Primary</h6>
+                                    <div class="primary-range rangeslider_basic"></div> 
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="mb-2 text-sm">Success</h6>
+                                    <div class="success-range rangeslider_basic"></div> 
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="mb-2 text-sm">Info</h6>
+                                    <div class="info-range rangeslider_basic"></div> 
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="mb-2 text-sm">Warning</h6>
+                                    <div class="warning-range rangeslider_basic"></div> 
+                                </div>
+
+                                <div>
+                                    <h6 class="mb-2 text-sm">Danger</h6>
+                                    <div class="danger-range rangeslider_basic"></div> 
+                                </div>
+
+                            </div>
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div&gt;
+        &lt;div class="mb-4"&gt;
+            &lt;h6 class="mb-2 text-sm"&gt;Primary&lt;/h6&gt;
+            &lt;div class="primary-range" id="rangeslider_basic"&gt;&lt;/div&gt; 
+        &lt;/div&gt;
+
+        &lt;div class="mb-4"&gt;
+            &lt;h6 class="mb-2 text-sm"&gt;Success&lt;/h6&gt;
+            &lt;div class="success-range" id="rangeslider_basic"&gt;&lt;/div&gt; 
+        &lt;/div&gt;
+
+        &lt;div class="mb-4"&gt;
+            &lt;h6 class="mb-2 text-sm"&gt;Info&lt;/h6&gt;
+            &lt;div class="info-range" id="rangeslider_basic"&gt;&lt;/div&gt; 
+        &lt;/div&gt;
+
+        &lt;div class="mb-4"&gt;
+            &lt;h6 class="mb-2 text-sm"&gt;Warning&lt;/h6&gt;
+            &lt;div class="warning-range" id="rangeslider_basic"&gt;&lt;/div&gt; 
+        &lt;/div&gt;
+
+        &lt;div&gt;
+            &lt;h6 class="mb-2 text-sm"&gt;Danger&lt;/h6&gt;
+            &lt;div class="danger-range" id="rangeslider_basic"&gt;&lt;/div&gt; 
+        &lt;/div&gt;
+    &lt;/div&gt;
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Locking Sliders Together</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content">
+                                <div class="slider" id="slider1"></div>
+                                <span class="example-val mt-1" id="slider1-span"></span> 
+                                <div class="slider" id="slider2"></div>
+                                <span class="example-val mt-1" id="slider2-span"></span> 
+                                <button id="lockbutton" class="btn bg-primary border border-primary text-white text-center hover:bg-primary-900 hover:text-white mt-4" type="button">Lock</button>
+                            </div> 
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div&gt;
+        &lt;div class="slider" id="slider1"&gt;&lt;/div&gt;
+        &lt;span class="example-val mt-1" id="slider1-span"&gt;&lt;/span&gt; 
+        &lt;div class="slider" id="slider2"&gt;&lt;/div&gt;
+        &lt;span class="example-val mt-1" id="slider2-span"&gt;&lt;/span&gt; 
+        &lt;button id="lockbutton" class="btn bg-primary border border-primary text-white text-center hover:bg-primary-900 hover:text-white mt-4"&gt;Lock&lt;/button&gt;
+    &lt;/div&gt; 
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Tooltip</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content">
+                                <div class="slider mt-13" id="slider-merging-tooltips"></div>
+                            </div>  
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div class="slider mt-13" id="slider-merging-tooltips"&gt;&lt;/div&gt;  
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card col-span-12 bg-white rounded-md border border-border-color p-5 pb-10 mb-6">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Soft Limits</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content">
+                                <div class="slider mb-2" id="soft"></div>
+                            </div>   
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div class="slider mb-2" id="soft"&gt;&lt;/div&gt;   
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card lg:col-span-6 col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Color Picker</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content flex items-center justify-center gap-8">
+                                <div> 
+                                    <div class="sliders" id="red"></div>
+                                    <div class="sliders" id="green"></div>
+                                    <div class="sliders" id="blue"></div>
+                                </div> 
+                                <div id="result"></div>
+                            </div> 
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div class="flex items-center gap-8"&gt;
+        &lt;div&gt; 
+            &lt;div class="sliders" id="red"&gt;&lt;/div&gt;
+            &lt;div class="sliders" id="green"&gt;&lt;/div&gt;
+            &lt;div class="sliders" id="blue"&gt;&lt;/div&gt;
+        &lt;/div&gt; 
+        &lt;div id="result"&gt;&lt;/div&gt;
+    &lt;/div&gt; 
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card lg:col-span-6 col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Multi Range</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>
+                            <div class="preview-content">
+                                <div id="slider-vertical" class="mx-auto"></div>
+                            </div>
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div id="slider-vertical" class="mx-auto"&gt;&lt;/div&gt;
+    </code>
+    </pre>   
+                        </div> <!-- end card -->
+
+                        <div class="preview-card lg:col-span-6 col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Vertical Range</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content"> 
+                                <div id="slider-connect-upper" class="mx-auto"></div>
+                            </div> 
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div id="slider-connect-upper" class="mx-auto"&gt;&lt;/div&gt;
+    </code>
+    </pre>
+                        </div> <!-- end card -->
+
+                        <div class="preview-card lg:col-span-6 col-span-12 bg-white rounded-md border border-border-color p-5">
+                            <div class="pb-5 mb-5 flex items-center xxl:gap-0 gap-3 justify-between flex-wrap">
+                                <h5>Vertical Tooltip</h5>
+                                <button type="button" data-toggle="code" class="flex items-center gap-2 border py-1.5 px-2.5 text-xs border-border-color font-semibold rounded-md bg-light-200 dark:bg-gray-100 focus:bg-primary focus:border-primary focus:text-white text-gray-900 dark:text-dark dark:focus:text-dark">
+                                    <i class="icon icon-eye"></i>
+                                    <span class="code-btn">Show Code</span>
+                                </button>
+                            </div>  
+                            <div class="preview-content"> 
+                                <div id="slider-vertical-tooltip" class="mx-auto"></div>
+                            </div>
+    <pre class="code hidden relative mt-4 p-0! bg-dark text-gray-100 text-sm  overflow-hidden">    <button type="button" data-copy="" class="sticky float-end top-3 right-3 z-10 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-700 flex items-center gap-1"><i class="icon icon-copy"></i><span>Copy</span></button>
+    <code class="language-html block w-full max-h-[250px] mb-[-42px] mt-[-10px]! overflow-auto p-4 pr-16">
+    &lt;div id="slider-vertical-tooltip" class="mx-auto"&gt;&lt;/div&gt;
+    </code>
+    </pre> 
+                        </div> <!-- end card -->
+
+                    </div> 
+                    <!-- End grid -->  
+				</div>
+            </main>
+
+            <!-- Footer -->
+<footer class="px-4 lg:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] border-t text-[var(--text-tertiary)] bg-[var(--surface-card)] border-[var(--border-subtle)]">
+  <p>© 2026 Dreams Core. Crafted by <span class="font-semibold text-[var(--text-secondary)]">Dreams Technologies</span>.</p>
+  <div class="flex items-center gap-4">
+    <a href="../documentation/index.html" target="_blank" class="hover:underline">Documentation</a>
+    <a href="faq.html" class="hover:underline">Support</a>
+    <a href="../documentation/changelog.html" target="_blank" class="hover:underline">Changelog</a>
+  </div>
+</footer>
+<!-- End Footer -->
+		</div>
+    </div>
+<!-- ApexCharts  -->
+<script src="assets/libs/apexcharts/apexcharts.min.js"></script>
+<!-- Wizard JS -->
+<!-- Flatpickr JS -->
+<script src="assets/libs/flatpickr/flatpickr.min.js"></script>
+
+
+<!-- FullCalendar JS -->
+
+<!-- Simplebar JS -->
+<script src="assets/libs/simplebar/simplebar.min.js"></script>
+<!-- Preline JS -->
+<script src="assets/libs/preline/preline.js"></script>
+
+<!-- Nouislider JS -->
+<script src="assets/libs/wnumb/wNumb.min.js"></script>
+<script src="assets/libs/nouislider/nouislider.min.js"></script>
+<!-- Choices JS -->
+<script src="assets/libs/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<!-- Chart.js JS -->
+
+
+</body></html>

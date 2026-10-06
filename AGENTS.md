@@ -242,6 +242,7 @@ Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → 
 
 ## 11. Log Sesi  ← TAMBAHKAN DI ATAS, terbaru dulu
 
+- **2026-10-06 (UI mirip template)** — Header diport penuh seperti template (pencarian + Ctrl K, Buat Cepat, tema, notifikasi, chip pengguna; dropdown state-based Svelte), dasbor: breadcrumb, hero, 4 kartu KPI placeholder (tanpa angka karangan), footer. `app.css` menambah `@theme` breakpoint agar utilitas responsif baru (`sm:`/`xl:`) ter-generate tanpa menimpa token template.
 - **2026-10-06 (restruktur)** — Semua source code (backend, web, print-agent, tools, tests, deploy) dipindah ke `source/` sebagai root kode; `AGENTS.md`, `CLAUDE.md`, `docs/`, `reference/`, `.claude`, `.cursor` tetap di root repo.
 - **2026-10-06 (Fase 0.1–0.3, 0.5)** — Repo git + struktur §5 + `.gitignore` (`reference/template/` dan `erp-docker/` tidak ikut git). `deploy/docker-compose.yml` (PG16/Redis7, port 5433/6380). Go 1.27 dipasang; `backend/` modul `aciraba`: config (env/.env), pgx pool, go-redis, chi + middleware (request id, log slog, recover, CORS), `/healthz` (200; 503 bila dependensi down — diuji dengan mematikan Redis, plus `go test`). `web/`: SvelteKit 3 SPA + shell (sidebar/topbar) dan halaman `/login` (zod, memanggil `POST /auth/login`) dari template; diverifikasi di browser pane termasuk CORS web→API; `npm run build` sukses. 0.4 belum.
 

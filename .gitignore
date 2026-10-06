@@ -15,9 +15,3 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
-
-# proyek lain yang kebetulan ada di folder ini
-erp-docker/
-
-# template berlisensi (acuan visual lokal)
-reference/template/

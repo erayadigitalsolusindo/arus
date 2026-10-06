@@ -1,0 +1,122 @@
+<!doctype html><html lang="en"><head>
+
+    <meta charset="utf-8">
+<title>Server Error | Dreams Core - Tailwind Admin Template</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta content="Dreams Core is a modern, feature-rich Tailwind CSS admin dashboard template with a wide range of ready-to-use pages, components, and layouts for building web applications." name="description">
+<meta content="Dreams Technologies" name="author">
+
+    <!-- Favicon -->
+<link rel="shortcut icon" type="image/x-icon" href="assets/favicon-BfZIYWJw.png">
+
+<!-- Apple Touch Icon -->
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-icon-z_cRtcRT.png">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <style>
+        @keyframes err-mesh { 0%, 100% { transform: translate(0,0) scale(1); } 33% { transform: translate(4%, -6%) scale(1.08); } 66% { transform: translate(-3%, 4%) scale(0.96); } }
+        @keyframes err-glitch {
+            0%, 92%, 100% { clip-path: inset(0 0 0 0); transform: translate(0,0); }
+            93% { clip-path: inset(10% 0 60% 0); transform: translate(-3px, 1px); }
+            94% { clip-path: inset(55% 0 15% 0); transform: translate(3px, -1px); }
+            95% { clip-path: inset(25% 0 40% 0); transform: translate(-2px, 0); }
+            96% { clip-path: inset(0 0 0 0); transform: translate(0,0); }
+        }
+        @keyframes err-grain { 0%,100%{transform:translate(0,0)} 10%{transform:translate(-1%,-2%)} 30%{transform:translate(2%,1%)} 50%{transform:translate(-1%,2%)} 70%{transform:translate(1%,-1%)} 90%{transform:translate(-2%,1%)} }
+        .err-mesh-1 { animation: err-mesh 16s ease-in-out infinite; }
+        .err-mesh-2 { animation: err-mesh 20s ease-in-out infinite reverse; }
+        .err-num { position: relative; }
+        .err-num .err-glitch-layer { position:absolute; inset:0; animation: err-glitch 6s steps(1) infinite; }
+    </style>
+
+  <script type="module" crossorigin="" src="assets/script-CFI7pXVP.js"></script>
+  <link rel="stylesheet" crossorigin="" href="assets/script-DbEScXyL.css">
+</head>
+
+<body class="bg-gray-950">
+
+    <div class="min-h-screen relative flex items-center justify-center overflow-hidden px-6 py-16 text-white">
+
+        <!-- Mesh gradient background -->
+        <div class="absolute inset-0 -z-30 bg-gray-950"></div>
+        <div class="absolute top-[-10%] end-[-10%] size-[560px] rounded-full blur-[110px] opacity-40 -z-20 err-mesh-1 bg-[var(--color-danger-500)]"></div>
+        <div class="absolute bottom-[-15%] start-[-10%] size-[520px] rounded-full blur-[110px] opacity-30 -z-20 err-mesh-2 bg-[var(--color-primary-500)]"></div>
+        <div class="absolute top-[30%] start-[15%] size-[300px] rounded-full blur-[100px] opacity-20 -z-20 err-mesh-1 bg-[var(--color-danger-300)] [animation-delay:2s]"></div>
+
+        <!-- Grid + grain -->
+        <div class="absolute inset-0 -z-10 opacity-[0.07]" style="background-image:linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px); background-size:44px 44px; mask-image:radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent)"></div>
+        <div class="absolute -inset-[10%] -z-10 opacity-[0.04] pointer-events-none" style="background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;); animation: err-grain 1.2s steps(4) infinite"></div>
+
+        <div class="relative w-full max-w-[640px] text-center">
+
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10.5px] font-semibold uppercase tracking-[0.12em] bg-white/5 border border-white/10 text-white/60 mb-8">
+                <span class="relative flex size-1.5">
+                    <span class="absolute inline-flex h-full w-full rounded-full bg-danger-500 opacity-75 animate-ping"></span>
+                    <span class="relative inline-flex rounded-full size-1.5 bg-danger-500"></span>
+                </span>
+                500 · Internal server error
+            </div>
+
+            <div class="err-num select-none">
+                <p class="font-display font-black leading-none tracking-tighter text-[130px] sm:text-[190px]" style="background:linear-gradient(180deg, #fff 0%, rgba(255,255,255,.35) 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent">500</p>
+                <p class="err-glitch-layer font-display font-black leading-none tracking-tighter text-[130px] sm:text-[190px] text-danger-400/70" aria-hidden="true">500</p>
+            </div>
+
+            <p class="text-[13.5px] mt-3 text-white/50 leading-relaxed max-w-[420px] mx-auto">
+                Our team has already been notified and is looking into it. This usually resolves within a few minutes — try again shortly.
+            </p>
+
+            <div class="inline-flex items-center justify-between gap-6 mt-6 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/40">Reference ID</p>
+                <p class="font-mono text-[12.5px] text-white/80">ERR-500-8F21-KD09</p>
+                <button type="button" class="text-white/50 hover:text-white transition-colors" aria-label="Copy"><i class="icon-clipboard text-[13px]"></i></button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
+                <a href="javascript:location.reload()" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-[13px] font-semibold bg-white text-gray-950 hover:bg-white/90 transition-colors"><i class="icon-refresh-cw text-[13px]"></i>Try Again</a>
+                <a href="index.html" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white/80 border border-white/15 hover:bg-white/[0.06] transition-colors"><i class="icon-home text-[13px]"></i>Back to Dashboard</a>
+            </div>
+
+            <div class="flex items-center justify-center gap-3 mt-10 text-white/40">
+                <p class="text-[12px]">Need help now?</p>
+                <a href="faq.html" class="text-[12px] font-semibold text-white/80 hover:text-white transition-colors">Status Page</a>
+                <span class="w-px h-3.5 bg-white/15"></span>
+                <a href="https://dreamscore.dreamstechnologies.com/tailwind/email-compose.html" class="text-[12px] font-semibold text-white/80 hover:text-white transition-colors">Contact Support</a>
+            </div>
+
+        </div>
+
+    </div>
+<!-- ApexCharts  -->
+<script src="assets/libs/apexcharts/apexcharts.min.js"></script>
+<!-- Wizard JS -->
+<!-- Flatpickr JS -->
+<script src="assets/libs/flatpickr/flatpickr.min.js"></script>
+
+
+<!-- FullCalendar JS -->
+
+<!-- Simplebar JS -->
+<script src="assets/libs/simplebar/simplebar.min.js"></script>
+<!-- Preline JS -->
+<script src="assets/libs/preline/preline.js"></script>
+<!-- Choices JS -->
+<script src="assets/libs/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<!-- Chart.js JS -->
+
+
+</body></html>
