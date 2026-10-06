@@ -1,0 +1,8 @@
+---
+description: Konteks proyek ACIRABA NewGen (sumber tunggal di AGENTS.md)
+alwaysApply: true
+---
+
+Seluruh konteks, keputusan terkunci, status, dan aturan desain proyek ada di @AGENTS.md di root repo.
+Baca file itu sebelum mengerjakan apa pun, dan perbarui §2 (Status) serta §11 (Log Sesi) di sana pada akhir sesi.
+Jangan menulis konten proyek di file rules ini.
