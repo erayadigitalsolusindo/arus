@@ -2,6 +2,7 @@
   import { z } from 'zod';
   import { goto } from '$app/navigation';
   import { api, ApiError } from '#lib/api/client.ts';
+  import TransactionFeed from '#lib/components/TransactionFeed.svelte';
 
   const schema = z.object({
     email: z.string().trim().min(1, 'Email wajib diisi.').pipe(z.email('Format email tidak valid.')),
@@ -151,6 +152,8 @@
           </div>
         {/each}
       </div>
+
+      <TransactionFeed />
     </div>
   </div>
 </div>
