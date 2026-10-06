@@ -1,5 +1,14 @@
 /* Build Tailwind v4 milik template Dreams Core (token, komponen, utilitas) — acuan visual. */
 @import './lib/styles/dreams/dreams-core.css';
 
-/* Utilitas tambahan untuk class baru yang belum ada di build template. */
+/* Utilitas tambahan untuk class baru yang belum ada di build template.
+   Hanya breakpoint yang didefinisikan (bukan seluruh tema bawaan) agar token warna template tidak tertimpa. */
 @import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+}

@@ -1,0 +1,2161 @@
+<!doctype html><html lang="en"><head>
+
+    <meta charset="utf-8">
+<title>Business Intelligence | Dreams Core - Tailwind Admin Template</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta content="Dreams Core is a modern, feature-rich Tailwind CSS admin dashboard template with a wide range of ready-to-use pages, components, and layouts for building web applications." name="description">
+<meta content="Dreams Technologies" name="author">
+
+    <!-- Favicon -->
+<link rel="shortcut icon" type="image/x-icon" href="assets/favicon-BfZIYWJw.png">
+
+<!-- Apple Touch Icon -->
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-icon-z_cRtcRT.png">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script type="module" crossorigin="" src="assets/script-CFI7pXVP.js"></script>
+  <script type="module" crossorigin="" src="assets/chart-data-CX_DRFsn.js"></script>
+  <link rel="stylesheet" crossorigin="" href="assets/script-DbEScXyL.css">
+</head>
+
+<body>
+    <div class="app-shell">
+
+        <!-- ================= SIDEBAR ================= -->
+<aside class="app-sidebar sidebar-pattern scroll-thin" id="appSidebar" aria-label="Sidebar">
+
+  <!-- Logo + collapse toggle -->
+  <div class="flex items-center justify-between h-16 px-4 shrink-0 border-b border-[var(--sidebar-border)]">
+    <a href="index.html" class="flex items-center gap-2.5 min-w-0 rounded-xl px-2.5 py-1.5">
+      <img src="assets/logo-CJz3JuiL.svg" alt="Dreams Core logo" class="sidebar-logo-full max-w-[150px] object-contain shrink-0">
+      <img src="data:image/svg+xml,%3csvg%20width='374'%20height='374'%20viewBox='0%200%20374%20374'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M187%2022L329.894%20104.5V269.5L187%20352L44.1058%20269.5V104.5L187%2022Z'%20fill='white'/%3e%3cpath%20d='M187%2063.3162L294.113%20125.158V248.842L187%20310.684L79.8868%20248.842V125.158L187%2063.3162Z'%20fill='%23141414'/%3e%3cpath%20d='M187%2099.3354L262.92%20143.168V230.832L187%20274.665L111.08%20230.832V143.168L187%2099.3354Z'%20fill='%2340BFA6'/%3e%3ccircle%20cx='187'%20cy='187'%20r='30.9872'%20fill='%2340916C'/%3e%3c/svg%3e" alt="Dreams Core logo" class="sidebar-logo-small size-8 object-contain shrink-0 hidden">
+    </a>
+    <button type="button" id="sidebarCollapseBtn" class="header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-8 shrink-0" aria-label="Collapse sidebar">
+      <i class="icon-panel-left-close text-[17px]"></i>
+    </button>
+  </div>
+
+  <!-- Favorites -->
+  <!-- Main navigation (Favorites scrolls together with the rest of the menu) -->
+  <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label="Sidebar navigation">
+
+    <div class="sidebar-favorites pt-2">
+      <ul>
+        <li class="has-submenu is-open">
+          <button type="button" class="sidebar-link w-full !px-1.5" data-submenu-toggle="">
+            <span class="text-[10.5px] font-semibold uppercase tracking-wide flex-1 text-start text-[rgb(255_255_255_/_0.4)]">Favorites</span>
+            <span class="grid place-items-center size-4.5 rounded-full text-[10px] font-semibold me-1 bg-[rgb(255_255_255_/_0.12)] text-[rgb(255_255_255_/_0.7)]">6</span>
+            <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+          </button>
+          <div class="sidebar-submenu !ms-0 !ps-0 favorite-tile-panel">
+            <div class="grid grid-cols-2 gap-2 pt-1 pb-1">
+              <a href="index.html" class="favorite-tile is-active">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-primary"><i class="icon-layout-dashboard text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Dashboard</span>
+              </a>
+              <a href="patients.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-info"><i class="icon-user text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">All Patients</span>
+              </a>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 hidden" data-favorites-extra="">
+              <a href="appointments.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-accent"><i class="icon-calendar-days text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Appointments</span>
+              </a>
+              <a href="emergency.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-danger"><i class="icon-alert-triangle text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Emergency</span>
+              </a>
+              <a href="billing.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-warning"><i class="icon-wallet text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Billing</span>
+              </a>
+              <a href="doctor-directory.html" class="favorite-tile">
+                <i class="ph ph-star favorite-tile-star"></i>
+                <span class="grid place-items-center size-9 rounded-lg badge-solid-success"><i class="icon-stethoscope text-[15px]"></i></span>
+                <span class="text-[11px] font-medium text-center truncate w-full">Doctors</span>
+              </a>
+            </div>
+            <button type="button" class="w-full text-center text-[11px] font-semibold mt-2 py-1 text-[var(--color-primary-400)]" data-favorites-more="">
+              View 4 more <i class="icon-chevron-down text-[9px]"></i>
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <ul id="sidebarMenu" role="menu" aria-label="Main navigation">
+
+      <li class="sidebar-group-title">Main</li>
+
+      <li class="has-submenu is-open">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-dashboard text-[16px]"></i>
+          <span class="sidebar-label">Dashboards</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="index.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Ecommerce</span></a></li>
+          <li><a href="ai-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">AI Analytics</span><span class="sidebar-badge badge-accent sidebar-meta">NEW</span></a></li>
+          <li><a href="analytics-ecommerce.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Business Intelligence</span></a></li>
+          <li><a href="sales-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales Analytics</span></a></li>
+          <li><a href="project-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Project Management</span></a></li>
+          <li><a href="finance-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Finance</span></a></li>
+          <li><a href="accounting-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Accounting</span></a></li>
+          <li><a href="banking-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Banking</span></a></li>
+          <li><a href="crypto-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Crypto Analytics</span></a></li>
+          <li><a href="logistics-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Logistics</span></a></li>
+          <li><a href="hospital-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Hospital Management</span></a></li>
+          <li><a href="school-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">School Management</span></a></li>
+          <li><a href="lms-analytics.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">LMS Analytics</span></a></li>
+          <li><a href="hotel-management.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Hotel Management</span></a></li>
+          <li><a href="restaurant-pos.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Restaurant POS</span></a></li>
+          <li><a href="food-delivery.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Food Delivery</span></a></li>
+          <li><a href="travel-booking.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Travel &amp; Booking</span></a></li>
+          <li><a href="seo-analytics-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">SEO Analytics</span></a></li>
+          <li><a href="crm-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">CRM</span></a></li>
+          <li><a href="hrm-dashboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">HRM</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">Applications</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="chat.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Chat</span></a></li>
+          <li><a href="ai-chat.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">AI Chat</span></a></li>
+          <li class="has-submenu">
+            <button type="button" class="sidebar-link w-full !text-[12.5px]" data-submenu-toggle="">
+              <span class="sidebar-label">Calls</span>
+              <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+            </button>
+            <ul class="sidebar-submenu">
+              <li><a href="voice-call.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Voice Call</span></a></li>
+              <li><a href="video-call.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Video Call</span></a></li>
+            </ul>
+          </li>
+          <li><a href="calendar.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Calendar</span></a></li>
+          <li><a href="email.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Email</span></a></li>
+          <li><a href="file-manager.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">File Manager</span></a></li>
+          <li><a href="kanban-board.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Kanban</span></a></li>
+          <li><a href="notes.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Notes</span></a></li>
+          <li><a href="todo.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">To Do</span></a></li>
+          <li><a href="workflow-approvals.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Workflow &amp; Approvals</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Ecommerce</li>
+
+      <li><a href="storefront.html" class="sidebar-link"><i class="icon-store text-[16px]"></i><span class="sidebar-label">Storefront</span></a></li>
+      <li><a href="products-list.html" class="sidebar-link"><i class="icon-package text-[16px]"></i><span class="sidebar-label">Products</span></a></li>
+      <li><a href="orders.html" class="sidebar-link"><i class="icon-shopping-bag text-[16px]"></i><span class="sidebar-label">Orders</span></a></li>
+      <li><a href="categories.html" class="sidebar-link"><i class="icon-tag text-[16px]"></i><span class="sidebar-label">Categories</span></a></li>
+      <li><a href="reviews.html" class="sidebar-link"><i class="icon-star text-[16px]"></i><span class="sidebar-label">Reviews</span></a></li>
+
+      <li class="sidebar-group-title">Business Intelligence</li>
+
+      <li><a href="bi-overview.html" class="sidebar-link"><i class="icon-gauge-circle text-[16px]"></i><span class="sidebar-label">BI Overview</span></a></li>
+      <li><a href="data-sources.html" class="sidebar-link"><i class="icon-database text-[16px]"></i><span class="sidebar-label">Data Sources</span></a></li>
+      <li><a href="kpi-builder.html" class="sidebar-link"><i class="icon-bar-chart-4 text-[16px]"></i><span class="sidebar-label">KPI Builder</span></a></li>
+      <li><a href="insights.html" class="sidebar-link"><i class="icon-lightbulb text-[16px]"></i><span class="sidebar-label">Insights</span></a></li>
+
+      <li class="sidebar-group-title">Sales Analytics</li>
+
+      <li><a href="leads.html" class="sidebar-link"><i class="icon-target text-[16px]"></i><span class="sidebar-label">Leads</span></a></li>
+      <li><a href="deals.html" class="sidebar-link"><i class="icon-handshake text-[16px]"></i><span class="sidebar-label">Deals</span></a></li>
+      <li><a href="quotations.html" class="sidebar-link"><i class="icon-receipt-text text-[16px]"></i><span class="sidebar-label">Quotations</span></a></li>
+      <li><a href="pipeline.html" class="sidebar-link"><i class="icon-workflow text-[16px]"></i><span class="sidebar-label">Pipeline</span></a></li>
+
+      <li class="sidebar-group-title">Logistics</li>
+
+      <li><a href="inventory.html" class="sidebar-link"><i class="icon-boxes text-[16px]"></i><span class="sidebar-label">Inventory</span></a></li>
+      <li><a href="stock-transfer.html" class="sidebar-link"><i class="icon-arrow-left-right text-[16px]"></i><span class="sidebar-label">Stock Transfer</span></a></li>
+      <li><a href="purchase-orders.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Purchase Orders</span></a></li>
+      <li><a href="suppliers.html" class="sidebar-link"><i class="icon-truck text-[16px]"></i><span class="sidebar-label">Suppliers</span></a></li>
+      <li><a href="shipments.html" class="sidebar-link"><i class="icon-container text-[16px]"></i><span class="sidebar-label">Shipments</span></a></li>
+
+      <li class="sidebar-group-title">CRM</li>
+
+      <li><a href="customer-segments.html" class="sidebar-link"><i class="icon-users text-[16px]"></i><span class="sidebar-label">Customer Segments</span></a></li>
+      <li><a href="companies.html" class="sidebar-link"><i class="icon-building-2 text-[16px]"></i><span class="sidebar-label">Companies</span></a></li>
+      <li><a href="activities.html" class="sidebar-link"><i class="icon-history text-[16px]"></i><span class="sidebar-label">Activities</span></a></li>
+      <li><a href="calls-emails.html" class="sidebar-link"><i class="icon-phone-call text-[16px]"></i><span class="sidebar-label">Calls &amp; Emails</span></a></li>
+
+      <li class="sidebar-group-title">Project Management</li>
+
+      <li><a href="projects.html" class="sidebar-link"><i class="icon-gantt-chart-square text-[16px]"></i><span class="sidebar-label">Projects</span></a></li>
+      <li><a href="tasks.html" class="sidebar-link"><i class="icon-list-todo text-[16px]"></i><span class="sidebar-label">Tasks</span></a></li>
+      <li><a href="team.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Team</span></a></li>
+      <li><a href="timesheets.html" class="sidebar-link"><i class="icon-calendar-clock text-[16px]"></i><span class="sidebar-label">Timesheets</span></a></li>
+
+      <li class="sidebar-group-title">Finance</li>
+
+      <li><a href="accounts.html" class="sidebar-link"><i class="icon-landmark text-[16px]"></i><span class="sidebar-label">Accounts</span></a></li>
+      <li><a href="transactions-list.html" class="sidebar-link"><i class="icon-coins text-[16px]"></i><span class="sidebar-label">Transactions</span></a></li>
+      <li><a href="budgets.html" class="sidebar-link"><i class="icon-piggy-bank text-[16px]"></i><span class="sidebar-label">Budgets</span></a></li>
+      <li><a href="expenses-list.html" class="sidebar-link"><i class="icon-wallet text-[16px]"></i><span class="sidebar-label">Expenses</span></a></li>
+
+      <li class="sidebar-group-title">Accounting</li>
+
+      <li><a href="ledger-explorer.html" class="sidebar-link"><i class="icon-calculator text-[16px]"></i><span class="sidebar-label">Ledger</span></a></li>
+      <li><a href="invoice-workspace.html" class="sidebar-link"><i class="icon-receipt-euro text-[16px]"></i><span class="sidebar-label">Invoices</span></a></li>
+      <li><a href="tax-filing-center.html" class="sidebar-link"><i class="icon-file-search text-[16px]"></i><span class="sidebar-label">Tax Reports</span></a></li>
+      <li><a href="match-center.html" class="sidebar-link"><i class="icon-arrow-right-left text-[16px]"></i><span class="sidebar-label">Reconciliation</span></a></li>
+
+      <li class="sidebar-group-title">Banking</li>
+
+      <li><a href="bank-workspace.html" class="sidebar-link"><i class="icon-landmark text-[16px]"></i><span class="sidebar-label">Accounts</span></a></li>
+      <li><a href="card-gallery.html" class="sidebar-link"><i class="icon-wallet-cards text-[16px]"></i><span class="sidebar-label">Cards</span></a></li>
+      <li><a href="transfer-center.html" class="sidebar-link"><i class="icon-send-to-back text-[16px]"></i><span class="sidebar-label">Transfers</span></a></li>
+      <li><a href="loan-workspace.html" class="sidebar-link"><i class="icon-scale text-[16px]"></i><span class="sidebar-label">Loans</span></a></li>
+      <li><a href="international-wires.html" class="sidebar-link"><i class="icon-globe text-[16px]"></i><span class="sidebar-label">Int'l Wires</span></a></li>
+
+      <li class="sidebar-group-title">Crypto Analytics</li>
+
+      <li><a href="portfolio-explorer.html" class="sidebar-link"><i class="icon-wallet-minimal text-[16px]"></i><span class="sidebar-label">Portfolio</span></a></li>
+      <li><a href="watchlist.html" class="sidebar-link"><i class="icon-bitcoin text-[16px]"></i><span class="sidebar-label">Market Watch</span></a></li>
+      <li><a href="crypto-predictions.html" class="sidebar-link"><i class="icon-trending-up text-[16px]"></i><span class="sidebar-label">Trends</span></a></li>
+      <li><a href="secure-wallet.html" class="sidebar-link"><i class="icon-vault text-[16px]"></i><span class="sidebar-label">Vault</span></a></li>
+
+      <li class="sidebar-group-title">Hospital Management</li>
+
+      <li><a href="patients.html" class="sidebar-link"><i class="icon-user-round-check text-[16px]"></i><span class="sidebar-label">Patients</span></a></li>
+      <li><a href="doctor-directory.html" class="sidebar-link"><i class="icon-stethoscope text-[16px]"></i><span class="sidebar-label">Doctors</span></a></li>
+      <li><a href="appointments.html" class="sidebar-link"><i class="icon-calendar-heart text-[16px]"></i><span class="sidebar-label">Appointments</span></a></li>
+      <li><a href="floor-layout.html" class="sidebar-link"><i class="icon-bed text-[16px]"></i><span class="sidebar-label">Wards &amp; Beds</span></a></li>
+      <li><a href="medicine-catalog.html" class="sidebar-link"><i class="icon-pill text-[16px]"></i><span class="sidebar-label">Pharmacy</span></a></li>
+      <li><a href="emergency.html" class="sidebar-link"><i class="icon-ambulance text-[16px]"></i><span class="sidebar-label">Ambulance</span></a></li>
+      <li><a href="billing.html" class="sidebar-link"><i class="icon-receipt-text text-[16px]"></i><span class="sidebar-label">Billing</span></a></li>
+
+      <li class="sidebar-group-title">School Management</li>
+
+      <li><a href="student-directory.html" class="sidebar-link"><i class="icon-graduation-cap text-[16px]"></i><span class="sidebar-label">Students</span></a></li>
+      <li><a href="class-workspace.html" class="sidebar-link"><i class="icon-school text-[16px]"></i><span class="sidebar-label">Classes</span></a></li>
+      <li><a href="attendance-list.html" class="sidebar-link"><i class="icon-calendar-clock text-[16px]"></i><span class="sidebar-label">Attendance</span></a></li>
+      <li><a href="exam-planner.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Exams</span></a></li>
+
+      <li class="sidebar-group-title">LMS Analytics</li>
+
+      <li><a href="course-catalog.html" class="sidebar-link"><i class="icon-book-open-check text-[16px]"></i><span class="sidebar-label">Courses</span></a></li>
+      <li><a href="learner-profile.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Learners</span></a></li>
+      <li><a href="quiz-builder.html" class="sidebar-link"><i class="icon-clipboard-check text-[16px]"></i><span class="sidebar-label">Assessments</span></a></li>
+      <li><a href="lms-activity-feed.html" class="sidebar-link"><i class="icon-bar-chart-4 text-[16px]"></i><span class="sidebar-label">Engagement</span></a></li>
+
+      <li class="sidebar-group-title">Hotel Management</li>
+
+      <li><a href="room-explorer.html" class="sidebar-link"><i class="icon-bed-double text-[16px]"></i><span class="sidebar-label">Rooms</span></a></li>
+      <li><a href="reservation-timeline.html" class="sidebar-link"><i class="icon-concierge-bell text-[16px]"></i><span class="sidebar-label">Reservations</span></a></li>
+      <li><a href="guest-directory.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Guests</span></a></li>
+      <li><a href="housekeeping-task-board.html" class="sidebar-link"><i class="icon-hotel text-[16px]"></i><span class="sidebar-label">Housekeeping</span></a></li>
+
+      <li class="sidebar-group-title">Restaurant POS</li>
+
+      <li><a href="order-board.html" class="sidebar-link"><i class="icon-utensils-crossed text-[16px]"></i><span class="sidebar-label">Orders</span></a></li>
+      <li><a href="menu-builder.html" class="sidebar-link"><i class="icon-cooking-pot text-[16px]"></i><span class="sidebar-label">Menu</span></a></li>
+      <li><a href="table-floor-map.html" class="sidebar-link"><i class="icon-table text-[16px]"></i><span class="sidebar-label">Tables</span></a></li>
+      <li><a href="kds-queue.html" class="sidebar-link"><i class="icon-soup text-[16px]"></i><span class="sidebar-label">Kitchen Display</span></a></li>
+
+      <li class="sidebar-group-title">Food Delivery</li>
+
+      <li><a href="live-map.html" class="sidebar-link"><i class="icon-bike text-[16px]"></i><span class="sidebar-label">Live Orders</span></a></li>
+      <li><a href="rider-profile.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Riders</span></a></li>
+      <li><a href="partner-restaurant-profile.html" class="sidebar-link"><i class="icon-store text-[16px]"></i><span class="sidebar-label">Restaurants</span></a></li>
+      <li><a href="delivery-zones-map.html" class="sidebar-link"><i class="icon-map text-[16px]"></i><span class="sidebar-label">Delivery Zones</span></a></li>
+
+      <li class="sidebar-group-title">Travel &amp; Booking</li>
+
+      <li><a href="flights-list.html" class="sidebar-link"><i class="icon-plane text-[16px]"></i><span class="sidebar-label">Flights</span></a></li>
+      <li><a href="cabs-list.html" class="sidebar-link"><i class="icon-car text-[16px]"></i><span class="sidebar-label">Cabs</span></a></li>
+      <li><a href="cruises-list.html" class="sidebar-link"><i class="icon-ship text-[16px]"></i><span class="sidebar-label">Cruises</span></a></li>
+      <li><a href="trips-list.html" class="sidebar-link"><i class="icon-briefcase text-[16px]"></i><span class="sidebar-label">Trips</span></a></li>
+      <li><a href="bookings-list.html" class="sidebar-link"><i class="icon-ticket-check text-[16px]"></i><span class="sidebar-label">Bookings</span></a></li>
+      <li><a href="itineraries-list.html" class="sidebar-link"><i class="icon-map text-[16px]"></i><span class="sidebar-label">Itineraries</span></a></li>
+
+      <li class="sidebar-group-title">SEO Analytics</li>
+
+      <li><a href="keywords-list.html" class="sidebar-link"><i class="icon-search-check text-[16px]"></i><span class="sidebar-label">Keyword Rank</span></a></li>
+      <li><a href="backlinks-list.html" class="sidebar-link"><i class="icon-link-2 text-[16px]"></i><span class="sidebar-label">Backlinks</span></a></li>
+      <li><a href="site-audits-list.html" class="sidebar-link"><i class="icon-file-search text-[16px]"></i><span class="sidebar-label">Site Audit</span></a></li>
+      <li><a href="traffic-overview.html" class="sidebar-link"><i class="icon-globe text-[16px]"></i><span class="sidebar-label">Traffic</span></a></li>
+
+      <li class="sidebar-group-title">HRM</li>
+
+      <li><a href="employees-list.html" class="sidebar-link"><i class="icon-users-round text-[16px]"></i><span class="sidebar-label">Employees</span></a></li>
+      <li><a href="payroll-list.html" class="sidebar-link"><i class="icon-banknote text-[16px]"></i><span class="sidebar-label">Payroll</span></a></li>
+      <li><a href="leave-requests-list.html" class="sidebar-link"><i class="icon-plane-takeoff text-[16px]"></i><span class="sidebar-label">Leave Requests</span></a></li>
+      <li><a href="reviews-list.html" class="sidebar-link"><i class="icon-award text-[16px]"></i><span class="sidebar-label">Performance Reviews</span></a></li>
+
+      <li class="sidebar-group-title">AI Analytics</li>
+
+      <li><a href="insights-list.html" class="sidebar-link"><i class="icon-sparkle text-[16px]"></i><span class="sidebar-label">AI Insights</span></a></li>
+      <li><a href="chatbot-conversations.html" class="sidebar-link"><i class="icon-bot text-[16px]"></i><span class="sidebar-label">Chatbot Assistant</span></a></li>
+      <li><a href="predictions-list.html" class="sidebar-link"><i class="icon-brain text-[16px]"></i><span class="sidebar-label">Predictions</span></a></li>
+      <li><a href="model-settings-list.html" class="sidebar-link"><i class="icon-cpu text-[16px]"></i><span class="sidebar-label">Model Settings</span></a></li>
+
+      <li class="sidebar-group-title">Management</li>
+
+      <li>
+        <a href="customer-explorer.html" class="sidebar-link">
+          <i class="icon-users text-[16px]"></i><span class="sidebar-label">Customers</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="customer-invoices.html" class="sidebar-link">
+          <i class="icon-receipt text-[16px]"></i><span class="sidebar-label">Invoices</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="payment-center.html" class="sidebar-link">
+          <i class="icon-credit-card text-[16px]"></i><span class="sidebar-label">Payments</span>
+        </a>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shield-check text-[16px]"></i>
+          <span class="sidebar-label">Users &amp; Access</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="user-directory.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Users</span></a></li>
+          <li><a href="role-builder.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Roles</span></a></li>
+          <li><a href="permission-matrix.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Permissions</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Reports</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shopping-bag text-[16px]"></i>
+          <span class="sidebar-label">Sales &amp; Ecommerce</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="sales-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales</span></a></li>
+          <li><a href="revenue-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Revenue</span></a></li>
+          <li><a href="product-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Product Performance</span></a></li>
+          <li><a href="order-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Order Summary</span></a></li>
+          <li><a href="discount-coupon-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Discount &amp; Coupon</span></a></li>
+          <li><a href="customer-purchase-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Customer Purchase</span></a></li>
+          <li><a href="cart-abandonment-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Cart Abandonment</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-boxes text-[16px]"></i>
+          <span class="sidebar-label">Inventory &amp; Logistics</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="stock-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Stock Summary</span></a></li>
+          <li><a href="stock-movement-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Stock Movement</span></a></li>
+          <li><a href="purchase-order-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Purchase Order</span></a></li>
+          <li><a href="supplier-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Supplier Performance</span></a></li>
+          <li><a href="shipment-delivery-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Shipment / Delivery</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-handshake text-[16px]"></i>
+          <span class="sidebar-label">CRM &amp; Sales Pipeline</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="lead-conversion-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lead Conversion</span></a></li>
+          <li><a href="deals-pipeline-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Deals Pipeline</span></a></li>
+          <li><a href="sales-rep-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Sales Rep Performance</span></a></li>
+          <li><a href="crm-activity-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Activity</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-users text-[16px]"></i>
+          <span class="sidebar-label">HRM</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="hr-attendance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Attendance</span></a></li>
+          <li><a href="payroll-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Payroll</span></a></li>
+          <li><a href="leave-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Leave</span></a></li>
+          <li><a href="employee-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Employee Performance</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-gantt-chart-square text-[16px]"></i>
+          <span class="sidebar-label">Project Management</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="project-progress-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Project Progress</span></a></li>
+          <li><a href="task-completion-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Task Completion</span></a></li>
+          <li><a href="time-tracking-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Time Tracking</span></a></li>
+          <li><a href="resource-utilization-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Resource Utilization</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-headset text-[16px]"></i>
+          <span class="sidebar-label">Support / Helpdesk</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ticket-summary-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Ticket Summary</span></a></li>
+          <li><a href="agent-performance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Agent Performance</span></a></li>
+          <li><a href="sla-compliance-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">SLA Compliance</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">General</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="traffic-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Traffic</span></a></li>
+          <li><a href="user-activity-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">User Activity</span></a></li>
+          <li><a href="audit-log-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Audit Log</span></a></li>
+          <li><a href="system-usage-report.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">System Usage</span></a></li>
+          <li><a href="report-builder.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Custom Report Builder</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Insights</li>
+
+      <li>
+        <a href="activity-log.html" class="sidebar-link">
+          <i class="icon-activity text-[16px]"></i><span class="sidebar-label">Activity Log</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="audit-log.html" class="sidebar-link">
+          <i class="icon-file-clock text-[16px]"></i><span class="sidebar-label">Audit Log</span>
+        </a>
+      </li>
+
+      <li class="sidebar-group-title">UI Interface</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-layout-grid text-[16px]"></i>
+          <span class="sidebar-label">Base UI</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ui-alerts.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Alerts</span></a></li>
+          <li><a href="ui-accordion.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Accordion</span></a></li>
+          <li><a href="ui-avatar.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Avatar</span></a></li>
+          <li><a href="ui-badges.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Badges</span></a></li>
+          <li><a href="ui-buttons.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Buttons</span></a></li>
+          <li><a href="ui-buttons-group.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Button Group</span></a></li>
+          <li><a href="ui-breadcrumb.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Breadcrumb</span></a></li>
+          <li><a href="ui-cards.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Card</span></a></li>
+          <li><a href="ui-colors.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Colors</span></a></li>
+          <li><a href="ui-collapse.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Collapse</span></a></li>
+          <li><a href="ui-dropdowns.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Dropdowns</span></a></li>
+          <li><a href="ui-grid.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Grid</span></a></li>
+          <li><a href="ui-images.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Images</span></a></li>
+          <li><a href="ui-modals.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Modals</span></a></li>
+          <li><a href="ui-offcanvas.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Offcanvas</span></a></li>
+          <li><a href="ui-pagination.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Pagination</span></a></li>
+          <li><a href="ui-popovers.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Popovers</span></a></li>
+          <li><a href="ui-progress.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Progress</span></a></li>
+          <li><a href="ui-nav-tabs.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Tabs</span></a></li>
+          <li><a href="ui-typography.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Typography</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-sparkles text-[16px]"></i>
+          <span class="sidebar-label">Advanced UI</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="ui-dragula.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Dragula</span></a></li>
+          <li><a href="ui-clipboard.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Clipboard</span></a></li>
+          <li><a href="ui-rangeslider.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Range Slider</span></a></li>
+          <li><a href="ui-lightbox.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lightbox</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-notebook-pen text-[16px]"></i>
+          <span class="sidebar-label">Forms</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="form-elements.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Form Elements</span></a></li>
+          <li><a href="form-select2.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Select2</span></a></li>
+          <li><a href="form-pickers.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Form Picker</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-table text-[16px]"></i>
+          <span class="sidebar-label">Tables</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="tables-basic.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Basic Tables</span></a></li>
+          <li><a href="data-tables.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Data Table</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-pie-chart text-[16px]"></i>
+          <span class="sidebar-label">Charts</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="chart-apex.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Apex Charts</span></a></li>
+          <li><a href="chart-js.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Chart Js</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-shapes text-[16px]"></i>
+          <span class="sidebar-label">Icons</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="icon-fontawesome.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Fontawesome Icons</span></a></li>
+          <li><a href="icon-lucide.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lucide</span></a></li>
+          <li><a href="icon-phosphor.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Phosphor</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Account</li>
+
+      <li>
+        <a href="account-profile.html" class="sidebar-link">
+          <i class="icon-user-round text-[16px]"></i><span class="sidebar-label">Profile</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="profile-settings.html" class="sidebar-link">
+          <i class="icon-settings text-[16px]"></i><span class="sidebar-label">Settings</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="account-notifications.html" class="sidebar-link">
+          <i class="icon-bell text-[16px]"></i><span class="sidebar-label">Notifications</span>
+          <span class="sidebar-badge badge-danger sidebar-meta">5</span>
+        </a>
+      </li>
+
+      <li class="sidebar-group-title">Pages</li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-log-in text-[16px]"></i>
+          <span class="sidebar-label">Authentication</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="login.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Login</span></a></li>
+          <li><a href="register.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Register</span></a></li>
+          <li><a href="forgot-password.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Forgot Password</span></a></li>
+          <li><a href="reset-password.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Reset Password</span></a></li>
+          <li><a href="lock-screen.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Lock Screen</span></a></li>
+          <li><a href="verify-otp.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">Two-Factor Auth</span></a></li>
+        </ul>
+      </li>
+
+      <li class="has-submenu">
+        <button type="button" class="sidebar-link w-full" data-submenu-toggle="">
+          <i class="icon-alert-triangle text-[16px]"></i>
+          <span class="sidebar-label">Error Pages</span>
+          <i class="icon-chevron-right sidebar-chevron text-[11px]"></i>
+        </button>
+        <ul class="sidebar-submenu">
+          <li><a href="error-404.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">404 Not Found</span></a></li>
+          <li><a href="error-500.html" class="sidebar-link !text-[12.5px]"><span class="sidebar-label">500 Server Error</span></a></li>
+        </ul>
+      </li>
+
+      <li class="sidebar-group-title">Support</li>
+
+      <li>
+        <a href="../documentation/index.html" target="_blank" class="sidebar-link">
+          <i class="icon-book-open text-[16px]"></i><span class="sidebar-label">Documentation</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="faq.html" class="sidebar-link">
+          <i class="icon-help-circle text-[16px]"></i><span class="sidebar-label">FAQ</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="../documentation/changelog.html" target="_blank" class="sidebar-link">
+          <i class="icon-life-buoy text-[16px]"></i><span class="sidebar-label">Changelog</span>
+        </a>
+      </li>
+
+    </ul>
+  </nav>
+
+  <!-- Storage / usage meter -->
+  <div class="workspace-text px-3 pb-2 shrink-0">
+    <div class="rounded-xl p-3 bg-[rgb(255_255_255_/_0.04)] border border-[rgb(255_255_255_/_0.06)]">
+      <div class="flex items-center justify-between">
+        <span class="flex items-center gap-1.5 text-[11px] font-semibold text-white"><i class="icon-database text-[12px] text-[var(--color-primary-400)]"></i>Storage</span>
+        <span class="text-[10.5px] font-semibold text-[var(--sidebar-text)]">68.4 / 100 GB</span>
+      </div>
+      <div class="h-1.5 rounded-full mt-2 overflow-hidden bg-[rgb(255_255_255_/_0.08)]">
+        <div class="h-full rounded-full w-[68%] bg-[linear-gradient(90deg,var(--color-primary-400),var(--color-accent-500))]"></div>
+      </div>
+      <a href="subscription.html" class="inline-flex items-center gap-1 text-[10.5px] font-semibold mt-2 text-[var(--color-primary-400)]">Upgrade plan<i class="icon-arrow-right text-[9px]"></i></a>
+    </div>
+  </div>
+
+  <!-- User profile / logout -->
+  <div class="p-3 border-t shrink-0 border-[var(--sidebar-border)]">
+    <div id="sidebarUserTrigger" class="w-full flex items-center gap-2.5 rounded-lg p-2 transition-colors bg-[rgb(255_255_255_/_0.04)]">
+      <a href="account-profile.html" class="flex items-center gap-2.5 min-w-0 flex-1">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-12-Dpl-96rW.jpg" alt="User profile avatar" class="size-8 rounded-full object-cover border-[1.5px] border-[rgb(255_255_255_/_0.18)]">
+          <span class="absolute -bottom-0.5 -end-0.5 size-2.5 rounded-full bg-[var(--color-success-500)] border-2 border-[var(--sidebar-bg)]"></span>
+        </span>
+        <span class="workspace-text text-left min-w-0">
+          <span class="flex items-center gap-1.5">
+            <span class="block text-[12.5px] font-semibold text-white truncate">Amelia Hart</span>
+            <span class="inline-flex items-center px-1 py-px rounded text-[8.5px] font-bold uppercase tracking-wide shrink-0 bg-[color-mix(in_oklab,var(--color-accent-500)_30%,transparent)] text-[var(--color-accent-400,#FBBF24)]">Pro</span>
+          </span>
+          <span class="block text-[10.5px] truncate text-[var(--sidebar-text)]">Product Admin</span>
+        </span>
+      </a>
+      <a href="login.html" class="workspace-text header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-7 shrink-0" title="Sign out" aria-label="Sign out"><i class="icon-log-out text-[14px]"></i></a>
+    </div>
+  </div>
+
+</aside>
+<!-- Sidenav Menu End -->
+        <div class="app-main">
+
+            <!-- ================= HEADER ================= -->
+<header class="app-header">
+  <!-- Premium accent line -->
+  <div class="absolute inset-x-0 bottom-0 h-px pointer-events-none [background:linear-gradient(90deg,transparent,var(--color-primary-500)_20%,var(--color-accent-500)_50%,var(--color-primary-500)_80%,transparent)] opacity-[0.55]"></div>
+
+  <div class="flex items-center gap-3 px-4 lg:px-6 h-16">
+
+    <!-- Mobile sidebar toggle -->
+    <button type="button" id="mobileSidebarBtn" class="header-icon-btn lg:hidden" aria-label="Open menu">
+      <i class="icon-menu text-[18px]"></i>
+    </button>
+
+    <!-- Mobile logo (shown next to the sidebar toggle on small screens) -->
+    <a href="index.html" class="lg:hidden shrink-0" aria-label="Dreams Core">
+      <img src="data:image/svg+xml,%3csvg%20width='374'%20height='374'%20viewBox='0%200%20374%20374'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M187%2022L329.894%20104.5V269.5L187%20352L44.1058%20269.5V104.5L187%2022Z'%20fill='white'/%3e%3cpath%20d='M187%2063.3162L294.113%20125.158V248.842L187%20310.684L79.8868%20248.842V125.158L187%2063.3162Z'%20fill='%23141414'/%3e%3cpath%20d='M187%2099.3354L262.92%20143.168V230.832L187%20274.665L111.08%20230.832V143.168L187%2099.3354Z'%20fill='%2340BFA6'/%3e%3ccircle%20cx='187'%20cy='187'%20r='30.9872'%20fill='%2340916C'/%3e%3c/svg%3e" alt="Dreams Core logo" class="size-8 object-contain">
+    </a>
+
+    <!-- Global search -->
+    <button type="button" id="headerSearchBar" class="group hidden md:flex items-center gap-2.5 w-full max-w-[240px] xl:max-w-[280px] h-10 pe-3.5 ps-1.5 rounded-full transition-all hover:shadow-[var(--shadow-sm)] bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
+      <span class="grid place-items-center size-7 rounded-full shrink-0 transition-colors bg-[color-mix(in_oklab,var(--color-primary-500)_16%,transparent)] text-[var(--color-primary-600)]">
+        <i class="icon-search text-[13px]"></i>
+      </span>
+      <span class="text-[13px] flex-1 text-start truncate font-medium text-[var(--text-tertiary)]">Search orders, customers, products…</span>
+      <kbd class="text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 transition-colors group-hover:border-[var(--color-primary-400)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] border border-[var(--border-default)]">⌘K</kbd>
+    </button>
+
+    <!-- Explore + Apps -->
+    <div class="hidden lg:flex items-center gap-0.5 h-10 px-1 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
+      <div class="hs-dropdown [--strategy:static] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-[var(--surface-sunken)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-layout-grid text-[13px]"></i>Explore<i class="icon-chevron-down text-[9px] opacity-70"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration fixed top-[72px] start-1/2 -translate-x-1/2 w-[94vw] max-w-[840px] surface-card !p-0 overflow-hidden z-50 shadow-[var(--shadow-xl)]" role="menu" aria-orientation="vertical">
+
+          <!-- Search header -->
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-[var(--border-subtle)] [background:linear-gradient(180deg,var(--surface-sunken),transparent)]">
+            <span class="grid place-items-center size-9 rounded-xl shrink-0 bg-[var(--color-primary-600)] shadow-[0_6px_16px_-4px_color-mix(in_oklab,var(--color-primary-600)_55%,transparent)]"><i class="icon-layout-grid text-[16px] text-white"></i></span>
+            <div class="min-w-0 flex-1">
+              <p class="font-display font-bold text-[15px] leading-tight">Explore Dreamscore</p>
+              <p class="text-[11.5px] text-[var(--text-tertiary)]">42 workspaces · jump to any app or module</p>
+            </div>
+          </div>
+
+          <!-- Recently visited -->
+          <div class="flex items-center gap-2 px-5 py-3 border-b overflow-x-auto scroll-thin border-[var(--border-subtle)]">
+            <span class="text-[10.5px] font-semibold uppercase tracking-wide shrink-0 text-[var(--text-tertiary)]">Recent</span>
+            <a href="orders.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-shopping-bag text-[11px] text-[var(--color-info-600)]"></i>Orders</a>
+            <a href="products-list.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-package text-[11px] text-[var(--color-accent-600)]"></i>Products</a>
+            <a href="index.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-store text-[11px] text-[var(--color-primary-600)]"></i>Ecommerce</a>
+            <a href="analytics-ecommerce.html" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium shrink-0 transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]"><i class="icon-contact text-[11px] text-[var(--color-success-600)]"></i>CRM</a>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_200px]">
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-layout-dashboard text-[11px]"></i>Dashboards</p>
+              <ul class="space-y-0.5">
+                <li><a href="index.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-store text-[13px]"></i></span><span class="flex-1">Ecommerce</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-handshake text-[13px]"></i></span><span class="flex-1">Sales</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-warehouse text-[13px]"></i></span><span class="flex-1">Warehouse</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-contact text-[13px]"></i></span><span class="flex-1">CRM</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-success size-8 shrink-0"><i class="icon-sparkle text-[13px]"></i></span><span class="flex-1">AI Analytics</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-grip text-[11px]"></i>Applications</p>
+              <ul class="space-y-0.5">
+                <li><a href="calendar.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-calendar-days text-[13px]"></i></span><span class="flex-1">Calendar</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="chat.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-message-circle text-[13px]"></i></span><span class="flex-1">Chat</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="email.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-warning size-8 shrink-0"><i class="icon-mail text-[13px]"></i></span><span class="flex-1">Email</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="file-manager.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-folder text-[13px]"></i></span><span class="flex-1">File Manager</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-kanban text-[13px]"></i></span><span class="flex-1">Kanban</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-5 lg:border-e border-[var(--border-subtle)]">
+              <p class="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-3 text-[var(--text-tertiary)]"><i class="icon-briefcase-business text-[11px]"></i>Management</p>
+              <ul class="space-y-0.5">
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-primary size-8 shrink-0"><i class="icon-users text-[13px]"></i></span><span class="flex-1">Customers</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="products-list.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-accent size-8 shrink-0"><i class="icon-package text-[13px]"></i></span><span class="flex-1">Products</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="orders.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-info size-8 shrink-0"><i class="icon-shopping-bag text-[13px]"></i></span><span class="flex-1">Orders</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="invoices-list.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-success size-8 shrink-0"><i class="icon-receipt text-[13px]"></i></span><span class="flex-1">Invoices</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+                <li><a href="analytics-ecommerce.html" class="group flex items-center gap-2.5 px-2 py-2 -mx-2 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--surface-sunken)]"><span class="icon-chip is-neutral size-8 shrink-0"><i class="icon-credit-card text-[13px]"></i></span><span class="flex-1">Payments</span><i class="icon-arrow-up-right text-[11px] opacity-0 -translate-x-1 transition-all group-hover:opacity-60 group-hover:translate-x-0 text-[var(--text-tertiary)]"></i></a></li>
+              </ul>
+            </div>
+
+            <div class="p-4 flex flex-col">
+              <div class="rounded-2xl p-4 text-white relative overflow-hidden flex flex-col items-start flex-1 [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950))]">
+                <span class="absolute -top-8 -end-8 size-24 rounded-full bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+                <span class="absolute -bottom-10 -start-6 size-20 rounded-full bg-[var(--color-accent-500)] opacity-[0.18] blur-[6px]"></span>
+                <span class="grid place-items-center size-9 rounded-xl mb-3 relative bg-[rgb(255_255_255_/_0.16)]"><i class="icon-sparkle text-[16px]"></i></span>
+                <p class="text-[13px] font-semibold leading-snug relative">Explore AI Insights</p>
+                <p class="text-[11.5px] mt-1.5 relative text-[rgb(255_255_255_/_0.75)]">Smart, real-time recommendations tailored to your business.</p>
+                <a href="analytics-ecommerce.html" class="inline-flex items-center justify-center gap-1.5 w-full text-[11.5px] font-semibold mt-4 py-2 rounded-lg relative transition-colors hover:bg-white/90 bg-[#fff] text-[var(--color-primary-800)]">Try it now <i class="icon-arrow-up-right text-[10px]"></i></a>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex items-center justify-between px-5 py-3 border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+            <p class="text-[11px] text-[var(--text-tertiary)]"><span class="font-semibold text-[var(--text-primary)]">42</span> workspaces available</p>
+            <a href="analytics-ecommerce.html" class="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--color-primary-600)]">View full directory <i class="icon-arrow-right text-[10px]"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs-dropdown [--placement:bottom-start] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-[var(--surface-sunken)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-grip text-[13px]"></i>Apps<i class="icon-chevron-down text-[9px] opacity-70"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-3 w-[340px] surface-card !p-0 overflow-hidden z-50" role="menu" aria-orientation="vertical">
+          <div class="flex items-center justify-between px-4 py-3.5 border-b border-[var(--border-subtle)]">
+            <div>
+              <p class="font-display font-bold text-[14px]">Apps</p>
+              <p class="text-[11px] mt-0.5 text-[var(--text-tertiary)]">Jump to a workspace app</p>
+            </div>
+            <a href="profile-settings.html" class="header-icon-btn" aria-label="App settings"><i class="icon-settings text-[15px]"></i></a>
+          </div>
+          <div class="grid grid-cols-3 gap-2 p-4">
+            <a href="calendar.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-primary"><i class="icon-calendar-days text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Calendar</span>
+            </a>
+            <a href="email.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-success"><i class="icon-mail text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Email</span>
+            </a>
+            <a href="chat.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-info"><i class="icon-message-circle text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Chat</span>
+            </a>
+            <a href="todo.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-accent"><i class="icon-list-todo text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">To Do</span>
+            </a>
+            <a href="file-manager.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-danger"><i class="icon-folder text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Files</span>
+            </a>
+            <a href="notes.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-neutral"><i class="icon-notebook-text text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Notes</span>
+            </a>
+            <a href="voice-call.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-accent"><i class="icon-phone text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Call</span>
+            </a>
+            <a href="invoices-list.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-success"><i class="icon-receipt text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Invoices</span>
+            </a>
+            <a href="customer-support-tickets.html" class="flex flex-col items-center gap-1.5 p-2 rounded-lg text-center hover:bg-[var(--surface-sunken)]">
+              <span class="grid place-items-center size-11 rounded-xl badge-solid-danger"><i class="icon-ticket text-[18px]"></i></span>
+              <span class="text-[11.5px] font-medium">Tickets</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ms-auto flex items-center gap-2.5 lg:gap-3">
+
+      <!-- Quick actions (desktop) -->
+      <div class="hs-dropdown [--placement:bottom-end] relative hidden sm:block">
+        <button type="button" class="hs-dropdown-toggle inline-flex items-center gap-2 h-10 ps-3.5 pe-3 rounded-full text-[12.5px] font-semibold text-white transition-all hover:shadow-[0_10px_20px_-8px_var(--color-primary-600)] hover:-translate-y-px bg-[var(--color-primary-600)] shadow-[0_6px_14px_-6px_color-mix(in_oklab,var(--color-primary-600)_60%,transparent)]" aria-haspopup="menu" aria-expanded="false">
+          <i class="icon-plus text-[13px]"></i>
+          <span>Quick Create</span>
+          <i class="icon-chevron-down text-[9px] opacity-80"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-56 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <a href="invoice-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>New Invoice</a>
+          <a href="customer-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-user-plus text-[15px] text-[var(--color-primary-600)]"></i>Add Customer</a>
+          <a href="product-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-package text-[15px] text-[var(--color-primary-600)]"></i>New Product</a>
+          <a href="task-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-kanban text-[15px] text-[var(--color-primary-600)]"></i>New Task</a>
+        </div>
+      </div>
+
+      <!-- Quick actions (mobile) -->
+      <div class="hs-dropdown [--placement:bottom-end] relative sm:hidden">
+        <button type="button" class="hs-dropdown-toggle header-icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Quick create">
+          <i class="icon-plus text-[17px]"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-56 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <a href="invoice-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>New Invoice</a>
+          <a href="customer-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-user-plus text-[15px] text-[var(--color-primary-600)]"></i>Add Customer</a>
+          <a href="product-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-package text-[15px] text-[var(--color-primary-600)]"></i>New Product</a>
+          <a href="task-add.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-kanban text-[15px] text-[var(--color-primary-600)]"></i>New Task</a>
+        </div>
+      </div>
+
+      <!-- Theme switcher (always visible, incl. mobile) -->
+      <div class="hs-dropdown [--placement:bottom-end] [--auto-close:inside] relative">
+        <button type="button" class="hs-dropdown-toggle grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Theme">
+          <i class="icon-sun-medium text-[13.5px]" id="themeIcon"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-44 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+          <button type="button" data-theme-set="light" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-sun-medium text-[15px]"></i>Light<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          <button type="button" data-theme-set="dark" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-moon text-[15px]"></i>Dark<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          <button type="button" data-theme-set="system" class="theme-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><i class="icon-monitor text-[15px]"></i>System<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+        </div>
+      </div>
+
+      <!-- Soft elevated toolbar: each icon in its own tinted chip -->
+      <div class="hidden sm:flex items-center gap-1 h-10 px-1.5 rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] shadow-[var(--shadow-sm)]">
+
+        <!-- Language selector -->
+        <div class="hs-dropdown [--placement:bottom-end] relative">
+          <button type="button" class="hs-dropdown-toggle grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)] text-[var(--color-info-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Language">
+            <i class="icon-languages text-[13.5px]"></i>
+          </button>
+          <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-44 surface-card p-1.5 z-50" role="menu" aria-orientation="vertical">
+            <button type="button" data-lang-set="en" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇺🇸</span>English<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="fr" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇫🇷</span>Français<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="de" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇩🇪</span>Deutsch<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+            <button type="button" data-lang-set="ar" class="lang-option w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span>🇸🇦</span>العربية<i class="icon-check text-[12px] ms-auto opacity-0"></i></button>
+          </div>
+        </div>
+
+        <!-- Fullscreen -->
+        <button type="button" class="grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--text-tertiary)_14%,transparent)] text-[var(--text-secondary)]" id="fullscreenBtn" aria-label="Toggle fullscreen">
+          <i class="icon-maximize text-[13.5px]" id="fullscreenIcon"></i>
+        </button>
+
+        <!-- Messages (opens chat offcanvas) -->
+        <button type="button" class="relative grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-accent-500)_16%,transparent)] text-[var(--color-accent-600)]" id="messagesOffcanvasBtn" aria-haspopup="true" aria-expanded="false" aria-label="Messages">
+          <i class="icon-messages-square text-[13.5px]"></i>
+          <span class="absolute top-0.5 end-0.5 size-1.5 rounded-full bg-[var(--color-accent-500)] border-[1.5px] border-[var(--surface-raised)]"></span>
+        </button>
+
+        <!-- Notifications -->
+        <div class="hs-dropdown [--placement:bottom-end] relative">
+          <button type="button" class="hs-dropdown-toggle relative grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-danger-500)_14%,transparent)] text-[var(--color-danger-600)]" aria-haspopup="menu" aria-expanded="false" aria-label="Notifications">
+            <i class="icon-bell text-[13.5px]"></i>
+          </button>
+          <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-96 surface-card !p-0 overflow-hidden z-50 shadow-[var(--shadow-xl)]" role="menu" aria-orientation="vertical">
+
+            <!-- Header -->
+            <div class="relative px-4 pt-4 pb-3.5 overflow-hidden [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950)_75%)]">
+              <span class="absolute -top-8 -end-6 size-20 rounded-full pointer-events-none bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+              <div class="relative flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                  <span class="font-display font-bold text-[14.5px] text-white">Notifications</span>
+                  <span class="inline-flex items-center justify-center min-w-[19px] h-[19px] px-1 rounded-full text-[10px] font-bold bg-[rgb(255_255_255_/_0.2)] text-[#fff]">4 new</span>
+                </span>
+                <button type="button" class="grid place-items-center size-7 rounded-full transition-colors hover:bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.8)]" aria-label="Notification settings"><i class="icon-settings text-[13px]"></i></button>
+              </div>
+              <!-- Filter tabs -->
+              <div class="relative flex items-center gap-1.5 mt-3.5">
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fff] text-[var(--color-primary-800)]">All</button>
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.85)]">Unread</button>
+                <button type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[rgb(255_255_255_/_0.14)] text-[rgb(255_255_255_/_0.85)]">Mentions</button>
+                <button type="button" class="ms-auto text-[11px] font-semibold text-[rgb(255_255_255_/_0.85)]">Mark all read</button>
+              </div>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto scroll-thin">
+              <p class="px-4 pt-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Today</p>
+              <a href="analytics-ecommerce.html" class="relative flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="absolute start-1.5 top-5 size-1.5 rounded-full bg-[var(--color-primary-500)]"></span>
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-success"><i class="icon-check text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Payment received</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">5m</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">$2,480 from <strong>Nova Retail</strong> was credited to your account.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-success-500)_14%,transparent)] text-[var(--color-success-600)]">Finance</span>
+                </span>
+              </a>
+              <a href="analytics-ecommerce.html" class="relative flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="absolute start-1.5 top-5 size-1.5 rounded-full bg-[var(--color-primary-500)]"></span>
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-warning"><i class="icon-alert-triangle text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Low stock alert</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">42m</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">Inventory for <strong>SKU-2291</strong> has dropped below the reorder threshold.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]">Inventory</span>
+                </span>
+              </a>
+
+              <p class="px-4 pt-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Earlier</p>
+              <a href="analytics-ecommerce.html" class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <img src="assets/avatar-16-OUv867cs.jpg" alt="Sofia Reyes avatar" class="size-9 rounded-xl object-cover shrink-0">
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">New team member</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">3h</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]"><strong>Sofia Reyes</strong> joined the Design team.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]">Team</span>
+                </span>
+              </a>
+              <a href="analytics-ecommerce.html" class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors">
+                <span class="grid place-items-center size-9 rounded-xl shrink-0 badge-solid-accent"><i class="icon-sparkle text-[15px]"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-[12.5px] font-semibold leading-snug">Weekly AI insight ready</span>
+                    <span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Yesterday</span>
+                  </span>
+                  <span class="block text-[12px] mt-0.5 text-[var(--text-secondary)]">Your personalized performance report has new recommendations.</span>
+                  <span class="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-[color-mix(in_oklab,var(--color-accent-500)_16%,transparent)] text-[var(--color-accent-600)]">AI Insights</span>
+                </span>
+              </a>
+            </div>
+
+            <a href="account-notifications.html" class="flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold border-t border-[var(--border-subtle)] text-[var(--color-primary-600)]">View all notifications<i class="icon-arrow-right text-[11px]"></i></a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- User profile -->
+      <div class="hs-dropdown [--placement:bottom-end] relative">
+        <button type="button" class="hs-dropdown-toggle flex items-center gap-2 h-10 ps-1 pe-2.5 rounded-full transition-colors hover:bg-[var(--surface-sunken)] border border-[var(--border-subtle)]" aria-haspopup="menu" aria-expanded="false">
+          <span class="relative shrink-0 rounded-full p-[2px] max-[991px]:p-0 [background:conic-gradient(from_180deg,var(--color-primary-500),var(--color-accent-500),var(--color-primary-500))] max-[991px]:[background:none]">
+            <img src="assets/avatar-12-Dpl-96rW.jpg" alt="User profile avatar" class="size-7 rounded-full object-cover block border-[2px] border-[var(--surface-base)] max-[991px]:border-0">
+          </span>
+          <span class="hidden lg:flex flex-col items-start leading-none">
+            <span class="text-[12px] font-semibold">Amelia</span>
+            <span class="text-[10px] text-[var(--text-tertiary)]">Admin</span>
+          </span>
+          <i class="hidden lg:block icon-chevron-down text-[10px] text-[var(--text-tertiary)]"></i>
+        </button>
+        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 opacity-0 hidden transition-[opacity,margin] duration mt-2 w-72 surface-card !p-0 overflow-hidden z-50" role="menu" aria-orientation="vertical">
+
+          <!-- Profile header card -->
+          <div class="relative px-4 pt-4 pb-3.5 overflow-hidden [background:linear-gradient(155deg,var(--color-primary-700),var(--color-primary-950)_75%)]">
+            <span class="absolute -top-8 -end-8 size-24 rounded-full pointer-events-none bg-[rgb(255_255_255_/_0.08)] blur-[2px]"></span>
+            <span class="absolute -bottom-10 -start-6 size-20 rounded-full pointer-events-none bg-[var(--color-accent-500)] opacity-[0.18] blur-[6px]"></span>
+            <div class="relative flex items-center gap-3">
+              <span class="relative shrink-0">
+                <img src="assets/avatar-12-Dpl-96rW.jpg" alt="Amelia Hart profile avatar" class="size-11 rounded-full object-cover border-[2px] border-[rgb(255_255_255_/_0.25)]">
+                <span class="absolute bottom-0 end-0 size-2.5 rounded-full bg-[var(--color-success-500)] border-[2px] border-[var(--color-primary-800)]"></span>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5">
+                  <span class="block text-[14px] font-display font-bold text-white truncate">Amelia Hart</span>
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shrink-0 bg-[rgb(255_255_255_/_0.18)] text-[#fff]"><i class="icon-crown text-[9px]"></i>Pro</span>
+                </span>
+                <span class="block text-[11.5px] truncate text-[rgb(255_255_255_/_0.72)]">amelia@dreamsadmin.com</span>
+              </span>
+            </div>
+
+            <!-- Mini stat row -->
+            <div class="relative grid grid-cols-3 gap-2 mt-3.5">
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">12</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Tasks Today</p>
+              </div>
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">4</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Messages</p>
+              </div>
+              <div class="rounded-lg py-1.5 text-center bg-[rgb(255_255_255_/_0.08)]">
+                <p class="font-display font-bold text-[13px] text-white leading-none">98%</p>
+                <p class="text-[9.5px] mt-1 text-[rgb(255_255_255_/_0.65)]">Uptime</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-1.5">
+            <a href="account-profile.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]"><i class="icon-user-round text-[13.5px]"></i></span>My Profile</a>
+            <a href="profile-settings.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--text-tertiary)_14%,transparent)] text-[var(--text-secondary)]"><i class="icon-settings text-[13.5px]"></i></span>Account Settings</a>
+            <a href="user-security.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-success-500)_14%,transparent)] text-[var(--color-success-600)]"><i class="icon-shield-check text-[13.5px]"></i></span>Security &amp; Privacy</a>
+            <a href="faq.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)] text-[var(--color-info-600)]"><i class="icon-life-buoy text-[13.5px]"></i></span>Help Center</a>
+          </div>
+
+          <div class="mx-3 h-px bg-[var(--border-subtle)]"></div>
+
+          <div class="p-1.5">
+            <a href="login.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)] text-[var(--color-danger-600)]"><span class="grid place-items-center size-7 rounded-lg shrink-0 bg-[color-mix(in_oklab,var(--color-danger-500)_12%,transparent)]"><i class="icon-log-out text-[13.5px]"></i></span>Sign Out</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</header>
+
+<!-- ================= CHAT OFFCANVAS ================= -->
+<div id="chatOffcanvasBackdrop" class="hidden fixed inset-0 z-[60] bg-[rgb(10_12_11_/_0.5)]"></div>
+<aside id="chatOffcanvas" class="fixed top-0 end-0 h-full w-full max-w-sm z-[61] flex flex-col bg-[var(--surface-raised)] [border-inline-start:1px_solid_var(--border-subtle)] shadow-[var(--shadow-xl)] [transform:translateX(100%)] [transition:transform_0.25s_cubic-bezier(0.4,0,0.2,1)]" aria-label="Messages">
+
+  <!-- Conversation list view -->
+  <div id="chatListView" class="flex flex-col h-full">
+    <div class="flex items-center justify-between px-4 py-3.5 border-b shrink-0 border-[var(--border-subtle)]">
+      <p class="font-display font-bold text-[15px]">Messages</p>
+      <button type="button" class="header-icon-btn chat-offcanvas-close" aria-label="Close chat"><i class="icon-x text-[16px]"></i></button>
+    </div>
+    <div class="p-3 shrink-0">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-sunken)]">
+        <i class="icon-search text-[13px] text-[var(--text-tertiary)]"></i>
+        <input type="text" placeholder="Search conversations…" class="flex-1 bg-transparent border-0 outline-none text-[13px]">
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto scroll-thin">
+      <p class="px-4 pt-1 pb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">This week</p>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Ryan Cole" data-chat-avatar="assets/img/avatar/avatar-03.jpg">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-03-CMAwRMpe.jpg" class="size-10 rounded-full object-cover" alt="Ryan Cole avatar">
+          <span class="absolute bottom-0 end-0 size-2.5 rounded-full border-2 bg-[var(--color-success-500)] border-[var(--surface-raised)]"></span>
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Ryan Cole</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">2m</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Can you review the Q3 forecast deck?</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Priya Nair" data-chat-avatar="assets/img/avatar/avatar-16.jpg">
+        <span class="relative shrink-0">
+          <img src="assets/avatar-16-OUv867cs.jpg" class="size-10 rounded-full object-cover" alt="Priya Nair avatar">
+          <span class="absolute bottom-0 end-0 size-2.5 rounded-full border-2 bg-[var(--color-success-500)] border-[var(--surface-raised)]"></span>
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Priya Nair</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">1h</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Invoice #4471 has been approved ✅</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Diego Fernandez" data-chat-avatar="assets/img/avatar/avatar-05.jpg">
+        <img src="assets/avatar-05-C9uvGOoI.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Diego Fernandez avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Diego Fernandez</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">3h</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Shipment for order #8821 delayed</span>
+        </span>
+      </button>
+
+      <p class="px-4 pt-3 pb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Earlier</p>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Sofia Reyes" data-chat-avatar="assets/img/avatar/avatar-21.jpg">
+        <img src="assets/avatar-21-oHVmObUk.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Sofia Reyes avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Sofia Reyes</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Mon</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Brand assets are ready for review</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Alex Morgan" data-chat-avatar="assets/img/avatar/avatar-04.jpg">
+        <img src="assets/avatar-04-a9Y1EXhu.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Alex Morgan avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Alex Morgan</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Mon</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Thanks for the fast delivery! 🙌</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Marcus Lee" data-chat-avatar="assets/img/avatar/avatar-15.jpg">
+        <img src="assets/avatar-15-DU7Y08Sx.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Marcus Lee avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Marcus Lee</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Fri</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Can we push the sync to 3pm?</span>
+        </span>
+      </button>
+      <button type="button" class="chat-conv-item w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] text-start" data-chat-name="Nova Retail Team" data-chat-avatar="assets/img/avatar/avatar-19.jpg">
+        <img src="assets/avatar-19-DUF2O7YC.jpg" class="size-10 rounded-full object-cover shrink-0" alt="Nova Retail Team avatar">
+        <span class="min-w-0 flex-1">
+          <span class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] truncate">Nova Retail Team</span><span class="text-[10.5px] shrink-0 text-[var(--text-tertiary)]">Thu</span></span>
+          <span class="block text-[12px] truncate text-[var(--text-secondary)]">Payment of $2,480 confirmed</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Thread view -->
+  <div id="chatThreadView" class="hidden flex-col h-full">
+    <div class="flex items-center gap-3 px-4 py-3.5 border-b shrink-0 border-[var(--border-subtle)]">
+      <button type="button" id="chatThreadBack" class="header-icon-btn" aria-label="Back to conversations"><i class="icon-arrow-left text-[16px]"></i></button>
+      <img id="chatThreadAvatar" src="assets/avatar-03-CMAwRMpe.jpg" class="size-8 rounded-full object-cover shrink-0" alt="Chat contact avatar">
+      <span class="min-w-0 flex-1">
+        <span id="chatThreadName" class="block font-semibold text-[13px] truncate"></span>
+        <span class="flex items-center gap-1 text-[10.5px] text-[var(--color-success-500)]"><span class="size-1.5 rounded-full bg-[var(--color-success-500)]"></span>Online</span>
+      </span>
+      <button type="button" class="header-icon-btn chat-offcanvas-close" aria-label="Close chat"><i class="icon-x text-[16px]"></i></button>
+    </div>
+    <div class="flex-1 overflow-y-auto scroll-thin p-4 space-y-3">
+      <div class="flex justify-start">
+        <div class="max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] bg-[var(--surface-sunken)]">Hey! Can you review the Q3 forecast deck when you get a chance?</div>
+      </div>
+      <div class="flex justify-end">
+        <div class="max-w-[75%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-white bg-[var(--color-primary-600)]">Sure, I'll take a look this afternoon.</div>
+      </div>
+      <div class="flex justify-start">
+        <div class="max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] bg-[var(--surface-sunken)]">Thanks! No rush, end of day is fine.</div>
+      </div>
+    </div>
+    <div class="p-3 border-t shrink-0 flex items-center gap-2 border-[var(--border-subtle)]">
+      <input type="text" placeholder="Type a message…" class="flex-1 px-3.5 py-2.5 rounded-xl text-[13px] border-0 outline-none bg-[var(--surface-sunken)]">
+      <button type="button" class="grid place-items-center size-9 rounded-xl shrink-0 text-white bg-[var(--color-primary-600)]" aria-label="Send"><i class="icon-send text-[14px]"></i></button>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ================= COMMAND PALETTE ================= -->
+<div id="cmdkBackdrop" class="cmdk-backdrop hidden items-start justify-center pt-24 px-4">
+  <div class="cmdk-panel w-full max-w-xl overflow-hidden animate-rise-in" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border-subtle)]">
+      <i class="icon-command text-[16px] text-[var(--text-tertiary)]"></i>
+      <input id="cmdkInput" type="text" placeholder="Search pages, actions, customers…" autocomplete="off" class="flex-1 bg-transparent border-0 outline-none text-[14px] placeholder:text-[var(--text-tertiary)]">
+      <kbd class="key">Esc</kbd>
+    </div>
+    <div id="cmdkResults" class="max-h-96 overflow-y-auto scroll-thin p-2">
+
+      <p class="px-2.5 pt-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Navigate</p>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Dashboard Overview">
+        <i class="icon-layout-dashboard text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Dashboard Overview</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Analytics">
+        <i class="icon-chart-no-axes-column text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Analytics</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Invoices">
+        <i class="icon-receipt text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Invoices</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Customers">
+        <i class="icon-users text-[15px] text-[var(--color-primary-600)]"></i>
+        <span class="text-[13px] font-medium">Customers</span>
+      </button>
+
+      <p class="px-2.5 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Quick actions</p>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Create new invoice">
+        <i class="icon-plus text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Create new invoice</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Invite team member">
+        <i class="icon-user-plus text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Invite team member</span>
+      </button>
+      <button type="button" class="cmdk-item w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left" data-label="Toggle theme">
+        <i class="icon-sun-medium text-[15px] text-[var(--color-accent-500)]"></i>
+        <span class="text-[13px] font-medium">Toggle theme</span>
+      </button>
+
+    </div>
+  </div>
+</div>
+            <!-- ================= BREADCRUMB BAR ================= -->
+<div class="px-4 lg:px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+  <div class="flex flex-wrap items-center justify-between gap-2 max-w-[1600px] mx-auto">
+    <h2 class="font-display font-bold text-[13px] tracking-wide uppercase">Business Intelligence</h2>
+    <div class="flex items-center gap-1.5 text-[12px] font-medium">
+      <a href="index.html" class="text-[var(--color-primary-600)]">Dashboards</a>
+      <span class="text-[var(--text-tertiary)]">/</span>
+      <span class="text-[var(--text-tertiary)]">Business Intelligence</span>
+    </div>
+  </div>
+</div>
+            <main class="p-4 lg:p-6 space-y-6 max-w-full mx-auto w-full">
+
+                <!-- ============ Hero Band ============ -->
+                <div class="surface-card rounded-2xl overflow-hidden animate-rise-in">
+                    <div class="px-5 py-4 lg:px-6 lg:py-5 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="grid place-items-center size-10 rounded-xl shrink-0 badge-solid-primary"><i class="icon-bar-chart-2 text-[17px]"></i></span>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h1 class="font-display font-bold text-[20px]">Business Intelligence</h1>
+                                    <span class="badge-soft badge-success"><span class="relative flex size-1.5"><span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping bg-success-500"></span><span class="relative inline-flex rounded-full size-1.5 bg-success-500"></span></span>Live · FY2026 Q3</span>
+                                </div>
+                                <p class="text-[11.5px] mt-1 text-tertiary"><i class="icon-clock text-[10px]"></i> Synced 4 min ago · auto-refresh every 15 min</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 shrink-0">
+                            <button type="button" class="btn btn-outline !text-[12.5px]" id="refreshDataBtn" data-reload-page=""><i class="icon-refresh-cw text-[13px]"></i>Refresh</button>
+                            <a href="ai-chat.html" class="btn btn-primary !text-[12.5px]"><i class="icon-sparkle text-[13px]"></i>Generate AI Report</a>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 u-border-top-1px-solid-border-subtle">
+                        <div class="px-5 py-3 flex items-center justify-between sm:border-e u-border-color-border-subtle">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Net Revenue</p>
+                                <p class="font-display font-bold text-[15px] mt-0.5 counter-up">$18.6M</p>
+                            </div>
+                            <span class="text-[10.5px] font-semibold text-success-600">+12.4%</span>
+                        </div>
+                        <div class="px-5 py-3 flex items-center justify-between sm:border-e u-border-color-border-subtle">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Business Health</p>
+                                <p class="font-display font-bold text-[15px] mt-0.5 counter-up">84 / 100</p>
+                            </div>
+                            <span class="text-[10.5px] font-semibold text-success-600">Strong</span>
+                        </div>
+                        <div class="px-5 py-3 flex items-center justify-between border-t sm:border-t-0 sm:border-e u-border-color-border-subtle">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Risk Score</p>
+                                <p class="font-display font-bold text-[15px] mt-0.5 counter-up">36 / 100</p>
+                            </div>
+                            <span class="text-[10.5px] font-semibold u-color-color-warning-600-var-color-warning-500">Moderate</span>
+                        </div>
+                        <div class="px-5 py-3 flex items-center justify-between border-t sm:border-t-0 u-border-color-border-subtle">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Open Alerts</p>
+                                <p class="font-display font-bold text-[15px] mt-0.5 counter-up">3 critical</p>
+                            </div>
+                            <span class="text-[10.5px] font-semibold text-danger-500">Review</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============ Executive Signal Deck ============ -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+                    <!-- Hero Revenue Panel -->
+                    <article class="relative overflow-hidden rounded-2xl col-span-1 lg:col-span-5 lg:row-span-2 p-5 lg:p-6 flex flex-col animate-rise-in aec-hero-revenue-panel">
+                        <div class="pointer-events-none absolute inset-0 opacity-40 aec-hero-grid-overlay"></div>
+                        <div class="relative flex items-center justify-between">
+                            <h2 class="badge-soft bg-[color-mix(in_oklab,var(--color-neutral-0)_16%,transparent)] text-[var(--color-neutral-0)]"><i class="icon-dollar-sign text-[10px]"></i>Net Revenue</h2>
+                            <span class="badge-soft bg-[color-mix(in_oklab,var(--color-success-400)_30%,transparent)] text-[var(--color-neutral-0)]"><i class="icon-arrow-up-right text-[9px]"></i>+12.4% QoQ</span>
+                        </div>
+                        <p class="relative font-display font-extrabold text-[40px] lg:text-[46px] leading-none mt-5 u-color-color-neutral-0 counter-up">$18.6M</p>
+                        <p class="relative text-[12px] mt-2 max-w-sm text-[color-mix(in_oklab,var(--color-neutral-0)_78%,transparent)]">vs. $16.5M same quarter last year — strongest quarter on record, led by Cloud Platform.</p>
+                        <div class="relative mt-auto pt-6">
+                            <svg viewBox="0 0 300 70" preserveAspectRatio="none" class="w-full h-16">
+                                <defs>
+                                    <linearGradient id="heroRevFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="var(--color-neutral-0)" stop-opacity="0.35"></stop>
+                                        <stop offset="100%" stop-color="var(--color-neutral-0)" stop-opacity="0"></stop>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M0,55 L42,48 L84,50 L126,32 L168,36 L210,16 L252,20 L300,4 L300,70 L0,70 Z" fill="url(#heroRevFill)"></path>
+                                <polyline points="0,55 42,48 84,50 126,32 168,36 210,16 252,20 300,4" fill="none" stroke="var(--color-neutral-0)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                            </svg>
+                            <div class="flex items-center justify-between text-[10.5px] mt-1 text-[color-mix(in_oklab,var(--color-neutral-0)_60%,transparent)]">
+                                <span>Q3 W1</span><span>Q3 W4</span><span>Q3 W8</span><span>Q3 W12</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Business Health Ring -->
+                    <article class="relative overflow-hidden rounded-2xl col-span-1 lg:col-span-4 lg:row-span-2 p-5 lg:p-6 flex flex-col animate-rise-in glass-panel border-subtle">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-display font-bold text-[14.5px]">Business Health Index</h2>
+                            <span class="badge-soft badge-success"><span class="relative flex size-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-success-500"></span><span class="relative inline-flex rounded-full size-1.5 bg-success-500"></span></span>Live</span>
+                        </div>
+                        <div class="grid place-items-center my-3 flex-1">
+                            <div class="relative grid place-items-center w-[168px] h-[168px] rounded-full aec-health-ring-track">
+                                <div class="absolute rounded-full inset-[6px] blur-[6px] opacity-[0.55] aec-health-ring-glow"></div>
+                                <div class="relative flex flex-col items-center justify-center text-center rounded-full w-[132px] h-[132px] bg-[var(--surface-raised)] shadow-[inset_0_0_0_1px_var(--border-subtle)]">
+                                    <span class="font-display font-extrabold text-[34px] leading-none counter-up">84</span>
+                                    <span class="text-[10px] mt-2 leading-tight text-tertiary">out of 100<br>Strong</span>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="space-y-2 text-[11.5px]">
+                            <li class="flex items-center gap-2"><span class="w-24 shrink-0 text-tertiary">Financial</span><div class="h-1.5 flex-1 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full u-width-91_background-color-primary-500"></div></div><span class="font-semibold w-7 text-right">91</span></li>
+                            <li class="flex items-center gap-2"><span class="w-24 shrink-0 text-tertiary">Operational</span><div class="h-1.5 flex-1 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[79%] bg-[var(--color-info-500)]"></div></div><span class="font-semibold w-7 text-right">79</span></li>
+                            <li class="flex items-center gap-2"><span class="w-24 shrink-0 text-tertiary">Customer</span><div class="h-1.5 flex-1 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[85%] bg-[var(--color-accent-500)]"></div></div><span class="font-semibold w-7 text-right">85</span></li>
+                            <li class="flex items-center gap-2"><span class="w-24 shrink-0 text-tertiary">Market</span><div class="h-1.5 flex-1 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full u-width-80_background-color-warning-500"></div></div><span class="font-semibold w-7 text-right">80</span></li>
+                        </ul>
+                    </article>
+
+                    <!-- Forecast Accuracy + Annual Growth + Regional Perf column -->
+                    <div class="col-span-1 lg:col-span-3 flex flex-col gap-3">
+                        <article class="surface-card is-interactive p-4 flex flex-col items-center text-center justify-center flex-1">
+                            <div class="relative grid place-items-center w-[76px] h-[76px] rounded-full aec-forecast-ring-track">
+                                <div class="rounded-full grid place-items-center u-width-60px_height-60px_background-surface-raised"><span class="text-[13px] font-bold counter-up">92%</span></div>
+                            </div>
+                            <h2 class="text-[11px] mt-3 text-tertiary">Forecast Accuracy</h2>
+                            <p class="text-[10.5px] mt-0.5 font-semibold text-success-600">+3.2pt vs prior</p>
+                        </article>
+                        <article class="surface-card is-interactive p-3.5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-[10px] text-tertiary">Annual Growth</h2>
+                                <p class="font-display font-bold text-[16px] mt-0.5 counter-up">+31.8%</p>
+                            </div>
+                            <span class="grid place-items-center size-8 rounded-lg badge-solid-success"><i class="icon-calendar-check text-[13px]"></i></span>
+                        </article>
+                        <article class="surface-card is-interactive p-3.5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-[10px] text-tertiary">Regional Perf.</h2>
+                                <p class="font-display font-bold text-[16px] mt-0.5 counter-up">$8.9M</p>
+                            </div>
+                            <span class="grid place-items-center size-8 rounded-lg badge-solid-neutral"><i class="icon-map text-[13px]"></i></span>
+                        </article>
+                    </div>
+
+                </div>
+
+                <!-- ============ Executive Summary AI Panel + OKRs ============ -->
+                <div class="grid grid-cols-12 gap-4">
+
+                    <div class="glass-panel rounded-2xl col-span-12 lg:col-span-7 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-center gap-2.5 mb-3">
+                            <span class="grid place-items-center size-9 rounded-lg badge-solid-accent"><i class="icon-sparkle text-[16px]"></i></span>
+                            <div class="min-w-0 flex-1">
+                                <h2 class="font-display font-bold text-[15px]">Executive Summary</h2>
+                                <p class="text-[11px] text-tertiary">Generated today · confidence 91%</p>
+                            </div>
+                            <span class="badge-soft badge-success shrink-0">Confidence 91%</span>
+                        </div>
+                        <div class="ai-callout rounded-xl p-3.5">
+                            <p class="text-[12.5px] leading-snug font-medium">Revenue grew <strong>12.4% QoQ</strong> to <strong>$18.6M</strong>, led by Cloud Platform and stronger enterprise win rates. Margin expanded <strong>1.8 pts</strong> on operating leverage, though Engineering velocity and EMEA pipeline coverage are emerging risk points. Business health remains strong at <strong>84/100</strong>.</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div class="rounded-xl p-3 bg-sunken">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-tertiary">Risk Analysis</p>
+                                    <span class="badge-soft badge-warning">Moderate</span>
+                                </div>
+                                <div class="flex items-end gap-2">
+                                    <span class="font-display font-extrabold text-[24px] leading-none counter-up">36</span>
+                                    <span class="text-[10.5px] pb-0.5 text-tertiary">/ 100 risk score</span>
+                                </div>
+                                <div class="h-1.5 rounded-full overflow-hidden mt-2 bg-raised"><div class="h-full rounded-full w-[36%] bg-[linear-gradient(90deg,var(--color-warning-500),var(--color-danger-500))]"></div></div>
+                                <ul class="space-y-1.5 mt-3">
+                                    <li class="flex items-center justify-between text-[10.5px]"><span class="text-tertiary">Vendor concentration</span><span class="font-semibold text-danger-500">High</span></li>
+                                    <li class="flex items-center justify-between text-[10.5px]"><span class="text-tertiary">EMEA pipeline coverage</span><span class="font-semibold text-warning-500">Elevated</span></li>
+                                    <li class="flex items-center justify-between text-[10.5px]"><span class="text-tertiary">Currency / FX exposure</span><span class="font-semibold text-success-600">Low</span></li>
+                                </ul>
+                            </div>
+                            <div class="rounded-xl p-3 bg-sunken">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide mb-2 text-tertiary">Opportunity Matrix</p>
+                                <ul class="space-y-1.5">
+                                    <li class="flex items-center gap-2 rounded-lg px-2 py-1.5 u-background-color-mix-in-oklab-color-success-500-10-transpare">
+                                        <span class="size-1.5 rounded-full shrink-0 bg-success-500"></span>
+                                        <span class="text-[11px] font-medium truncate flex-1">Cloud upsell push</span>
+                                        <span class="text-[9.5px] font-semibold shrink-0 text-success-600">High impact · Low effort</span>
+                                    </li>
+                                    <li class="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-[color-mix(in_oklab,var(--color-info-500)_10%,transparent)]">
+                                        <span class="size-1.5 rounded-full shrink-0 bg-info-500"></span>
+                                        <span class="text-[11px] font-medium truncate flex-1">APAC market entry</span>
+                                        <span class="text-[9.5px] font-semibold shrink-0 u-color-color-info-600-var-color-info-500">High impact · High effort</span>
+                                    </li>
+                                    <li class="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-raised">
+                                        <span class="size-1.5 rounded-full shrink-0 u-background-color-neutral-400"></span>
+                                        <span class="text-[11px] font-medium truncate flex-1">Support macros</span>
+                                        <span class="text-[9.5px] font-semibold shrink-0 text-tertiary">Low impact · Low effort</span>
+                                    </li>
+                                    <li class="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-[color-mix(in_oklab,var(--color-warning-500)_10%,transparent)]">
+                                        <span class="size-1.5 rounded-full shrink-0 bg-warning-500"></span>
+                                        <span class="text-[11px] font-medium truncate flex-1">Legacy SKU rebuild</span>
+                                        <span class="text-[9.5px] font-semibold shrink-0 u-color-color-warning-600-var-color-warning-500">Low impact · High effort</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OKRs / Department Performance -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-5 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-1">Department OKRs</h2>
+                        <p class="text-[11.5px] mb-4 text-tertiary">Target vs. actual — FY2026 Q3</p>
+                        <div class="space-y-3.5">
+                            <div>
+                                <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-medium">Sales</span><span class="badge-soft badge-success">On track</span></div>
+                                <div class="flex items-center justify-between text-[11px] mb-1 text-tertiary"><span>$18.6M / $20M</span><span>93%</span></div>
+                                <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[93%] bg-[linear-gradient(90deg,var(--color-success-500),var(--color-success-600))]"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-medium">Marketing</span><span class="badge-soft badge-info">In progress</span></div>
+                                <div class="flex items-center justify-between text-[11px] mb-1 text-tertiary"><span>3,420 / 5,000 MQLs</span><span>68%</span></div>
+                                <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[68%] bg-[linear-gradient(90deg,var(--color-info-500),var(--color-info-700,var(--color-info-600)))]"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-medium">Operations</span><span class="badge-soft badge-warning">At risk</span></div>
+                                <div class="flex items-center justify-between text-[11px] mb-1 text-tertiary"><span>77 / 95 efficiency idx</span><span>81%</span></div>
+                                <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[81%] bg-[linear-gradient(90deg,var(--color-warning-500),var(--color-warning-600,var(--color-warning-500)))]"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-medium">Support</span><span class="badge-soft badge-success">On track</span></div>
+                                <div class="flex items-center justify-between text-[11px] mb-1 text-tertiary"><span>94% CSAT / 95% target</span><span>99%</span></div>
+                                <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[99%] bg-[linear-gradient(90deg,var(--color-success-500),var(--color-success-600))]"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ============ Charts Row ============ -->
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-7 p-5 lg:p-6 animate-rise-in flex flex-col">
+                        <div class="flex items-start justify-between gap-3 mb-2">
+                            <div>
+                                <h2 class="font-display font-bold text-[15px]">Revenue Trend</h2>
+                                <p class="text-[11.5px] mt-0.5 text-tertiary">Monthly net revenue, last 12 months</p>
+                            </div>
+                            <span class="badge-soft badge-success"><i class="icon-arrow-up-right text-[9px]"></i>+31.8% YoY</span>
+                        </div>
+                        <div class="grid grid-cols-6 sm:grid-cols-12 gap-2 items-end u-height-150px">
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$12.8M</span><div class="w-full rounded-md h-[62%] bg-[color-mix(in_oklab,var(--color-primary-500)_55%,transparent)]"></div><span class="text-[10px] text-tertiary">Aug</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$13.1M</span><div class="w-full rounded-md h-[65%] bg-[color-mix(in_oklab,var(--color-primary-500)_58%,transparent)]"></div><span class="text-[10px] text-tertiary">Sep</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$13.6M</span><div class="w-full rounded-md h-[69%] bg-[color-mix(in_oklab,var(--color-primary-500)_62%,transparent)]"></div><span class="text-[10px] text-tertiary">Oct</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$14.0M</span><div class="w-full rounded-md h-[72%] bg-[color-mix(in_oklab,var(--color-primary-500)_65%,transparent)]"></div><span class="text-[10px] text-tertiary">Nov</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$14.4M</span><div class="w-full rounded-md h-[75%] bg-[color-mix(in_oklab,var(--color-primary-500)_68%,transparent)]"></div><span class="text-[10px] text-tertiary">Dec</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$14.9M</span><div class="w-full rounded-md h-[78%] bg-[color-mix(in_oklab,var(--color-primary-500)_72%,transparent)]"></div><span class="text-[10px] text-tertiary">Jan</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$15.6M</span><div class="w-full rounded-md h-[83%] bg-[color-mix(in_oklab,var(--color-primary-500)_78%,transparent)]"></div><span class="text-[10px] text-tertiary">Feb</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$16.0M</span><div class="w-full rounded-md h-[86%] bg-[color-mix(in_oklab,var(--color-primary-500)_82%,transparent)]"></div><span class="text-[10px] text-tertiary">Mar</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$16.8M</span><div class="w-full rounded-md h-[90%] bg-[color-mix(in_oklab,var(--color-primary-500)_88%,transparent)]"></div><span class="text-[10px] text-tertiary">Apr</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$17.3M</span><div class="w-full rounded-md h-[93%] bg-[color-mix(in_oklab,var(--color-primary-500)_92%,transparent)]"></div><span class="text-[10px] text-tertiary">May</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-semibold text-tertiary">$17.9M</span><div class="w-full rounded-md h-[96%] bg-[color-mix(in_oklab,var(--color-primary-500)_96%,transparent)]"></div><span class="text-[10px] text-tertiary">Jun</span></div>
+                            <div class="col-span-1 flex flex-col items-center gap-1.5 h-full justify-end"><span class="text-[9.5px] font-bold u-color-color-primary-600">$18.6M</span><div class="w-full rounded-md h-[100%] bg-[var(--color-primary-500)]"></div><span class="text-[10px] font-semibold">Jul</span></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 mt-5 pt-4 u-border-top-1px-solid-border-subtle">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Avg. Monthly</p>
+                                <p class="font-display font-bold text-[14.5px] mt-0.5 counter-up">$15.7M</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">Best Month</p>
+                                <p class="font-display font-bold text-[14.5px] mt-0.5">Jul · $18.6M</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wide text-tertiary">12-mo Growth</p>
+                                <p class="font-display font-bold text-[14.5px] mt-0.5 text-success-600 counter-up">+45.3%</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2.5 rounded-xl p-3 mt-auto u-background-color-mix-in-oklab-color-primary-600-6-surface-su">
+                            <span class="grid place-items-center size-7 rounded-lg shrink-0 u-background-color-mix-in-oklab-color-primary-600-14-transpare"><i class="icon-sparkle text-[13px]"></i></span>
+                            <p class="text-[11.5px]"><span class="font-semibold">Cloud Platform</span> drove 41% of Q3 growth, followed by Managed Services (24%) and Professional Services (18%).</p>
+                        </div>
+                    </div>
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-5 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-1">Expense Breakdown</h2>
+                        <p class="text-[11.5px] mb-2 text-tertiary">Share of $5.2M operating expense</p>
+                        <div id="bi-expense-donut-chart"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-6 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-1">Quarter-over-Quarter Comparison</h2>
+                        <p class="text-[11.5px] mb-2 text-tertiary">Revenue vs. expenses by quarter</p>
+                        <div id="bi-qoq-bar-chart"></div>
+                    </div>
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-6 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-1">Regional Performance</h2>
+                        <p class="text-[11.5px] mb-2 text-tertiary">Revenue attainment by region, Q3</p>
+                        <div class="overflow-x-auto scroll-thin -mx-1">
+                            <table class="data-table w-full min-w-[420px]">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Region</th>
+                                        <th scope="col">Revenue</th>
+                                        <th scope="col">Attainment</th>
+                                        <th scope="col">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="font-medium">North America</td>
+                                        <td>$8.9M</td>
+                                        <td class="font-semibold text-success-600">104%</td>
+                                        <td><span class="badge-soft badge-success">Above target</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Europe</td>
+                                        <td>$4.6M</td>
+                                        <td class="font-semibold">92%</td>
+                                        <td><span class="badge-soft badge-info">On track</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">APAC</td>
+                                        <td>$3.1M</td>
+                                        <td class="font-semibold u-color-color-warning-600-var-color-warning-500">78%</td>
+                                        <td><span class="badge-soft badge-warning">Behind</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">LATAM</td>
+                                        <td>$1.2M</td>
+                                        <td class="font-semibold u-color-color-warning-600-var-color-warning-500">68%</td>
+                                        <td><span class="badge-soft badge-warning">Behind</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">MEA</td>
+                                        <td>$0.5M</td>
+                                        <td class="font-semibold text-danger-500">61%</td>
+                                        <td><span class="badge-soft badge-danger">At risk</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Oceania</td>
+                                        <td>$0.3M</td>
+                                        <td class="font-semibold text-danger-500">54%</td>
+                                        <td><span class="badge-soft badge-danger">At risk</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="flex items-center gap-1.5 mt-3 pt-3 border-t u-border-color-border-subtle text-[11px] text-tertiary">
+                            <i class="icon-info text-[12px]"></i>MEA &amp; Oceania trailing target — flagged for Q4 recovery plan
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============ Command Center Grid ============ -->
+                <div class="grid grid-cols-12 gap-4">
+
+                    <!-- Department Performance Matrix (heatmap grid) -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-8 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <h2 class="font-display font-bold text-[15px]">Department Performance Matrix</h2>
+                                <p class="text-[11.5px] mt-0.5 text-tertiary">Score vs. quarterly target — darker = stronger performance</p>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto scroll-thin -mx-1">
+                            <table class="w-full min-w-[620px] text-[11.5px]">
+                                <thead>
+                                    <tr class="text-left text-tertiary">
+                                        <th class="font-medium pb-2" scope="col">Department</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">Jan</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">Feb</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">Mar</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">Apr</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">May</th>
+                                        <th class="font-medium pb-2 text-center" scope="col">Jun</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="align-middle">
+                                    <tr>
+                                        <td class="py-1 font-semibold whitespace-nowrap">Sales &amp; Revenue</td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_92%,transparent)]">92</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_88%,transparent)]">88</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_95%,transparent)]">95</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_90%,transparent)]">90</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_96%,transparent)]">96</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_98%,transparent)]">98</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 font-semibold whitespace-nowrap">Marketing</td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_70%,transparent)]">70</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_76%,transparent)]">76</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_68%,transparent)]">68</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_81%,transparent)]">81</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_84%,transparent)]">84</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-info-600)_79%,transparent)]">79</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 font-semibold whitespace-nowrap">Operations</td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_58%,transparent)]">58</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_62%,transparent)]">62</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_71%,transparent)]">71</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_74%,transparent)]">74</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_77%,transparent)]">77</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_80%,transparent)]">80</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 font-semibold whitespace-nowrap">Customer Success</td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_83%,transparent)]">83</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_85%,transparent)]">85</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_87%,transparent)]">87</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_82%,transparent)]">82</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_89%,transparent)]">89</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_91%,transparent)]">91</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 font-semibold whitespace-nowrap">Engineering</td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-danger-500)_46%,transparent)]">46</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_54%,transparent)]">54</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_61%,transparent)]">61</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold bg-[color-mix(in_oklab,var(--color-warning-500)_63%,transparent)]">63</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_70%,transparent)]">70</div></td>
+                                        <td class="py-1 px-0.5"><div class="h-7 rounded grid place-items-center text-[10px] font-semibold text-white bg-[color-mix(in_oklab,var(--color-success-600)_73%,transparent)]">73</div></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Forecast Cards -->
+                    <div class="col-span-12 lg:col-span-4 grid grid-cols-2 gap-3">
+                        <article class="surface-card is-interactive p-4 flex flex-col">
+                            <h2 class="text-[10.5px] uppercase tracking-wide text-tertiary">Q3 Forecast</h2>
+                            <p class="font-display font-bold text-[19px] mt-1 counter-up">$19.8M</p>
+                            <span class="badge-soft badge-success mt-2 self-start"><i class="icon-trending-up text-[9px]"></i>+6.5%</span>
+                            <p class="text-[10.5px] mt-2 text-tertiary">Confidence: 88%</p>
+                        </article>
+                        <article class="surface-card is-interactive p-4 flex flex-col">
+                            <h2 class="text-[10.5px] uppercase tracking-wide text-tertiary">Q4 Forecast</h2>
+                            <p class="font-display font-bold text-[19px] mt-1 counter-up">$22.1M</p>
+                            <span class="badge-soft badge-success mt-2 self-start"><i class="icon-trending-up text-[9px]"></i>+11.6%</span>
+                            <p class="text-[10.5px] mt-2 text-tertiary">Confidence: 74%</p>
+                        </article>
+                        <article class="surface-card is-interactive p-4 flex flex-col">
+                            <h2 class="text-[10.5px] uppercase tracking-wide text-tertiary">FY Close Est.</h2>
+                            <p class="font-display font-bold text-[19px] mt-1 counter-up">$76.4M</p>
+                            <span class="badge-soft badge-warning mt-2 self-start"><i class="icon-alert-triangle text-[9px]"></i>-2.1% vs plan</span>
+                            <p class="text-[10.5px] mt-2 text-tertiary">Confidence: 66%</p>
+                        </article>
+                        <article class="surface-card is-interactive p-4 flex flex-col">
+                            <h2 class="text-[10.5px] uppercase tracking-wide text-tertiary">Next FY Outlook</h2>
+                            <p class="font-display font-bold text-[19px] mt-1 counter-up">$84.9M</p>
+                            <span class="badge-soft badge-success mt-2 self-start"><i class="icon-trending-up text-[9px]"></i>+11.1%</span>
+                            <p class="text-[10.5px] mt-2 text-tertiary">Confidence: 58%</p>
+                        </article>
+                    </div>
+
+                    <!-- Regional Performance Ranking -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-7 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <div>
+                                <h2 class="font-display font-bold text-[15px]">Regional Performance</h2>
+                                <p class="text-[11.5px] mt-0.5 text-tertiary">Revenue attainment vs. target, ranked — FY2026 Q3</p>
+                            </div>
+                            <span class="badge-soft badge-success">2 of 6 above target</span>
+                        </div>
+                        <div class="space-y-3.5">
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] badge-solid-success">1</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">North America</span><span class="text-tertiary">$8.9M · 104%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[100%] bg-[linear-gradient(90deg,var(--color-success-500),var(--color-success-600))]"></div></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] bg-sunken-text-tertiary">2</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">Europe</span><span class="text-tertiary">$4.6M · 92%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[92%] bg-[linear-gradient(90deg,var(--color-info-500),var(--color-info-700,var(--color-info-600)))]"></div></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] bg-sunken-text-tertiary">3</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">APAC</span><span class="text-tertiary">$3.1M · 78%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[78%] bg-[linear-gradient(90deg,var(--color-warning-500),var(--color-warning-600,var(--color-warning-500)))]"></div></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] bg-sunken-text-tertiary">4</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">LATAM</span><span class="text-tertiary">$1.2M · 68%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[68%] bg-[linear-gradient(90deg,var(--color-warning-500),var(--color-warning-600,var(--color-warning-500)))]"></div></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] bg-sunken-text-tertiary">5</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">MEA</span><span class="text-tertiary">$0.5M · 61%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[61%] bg-[linear-gradient(90deg,var(--color-danger-500),var(--color-warning-500))]"></div></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center size-7 rounded-lg shrink-0 font-display font-bold text-[11px] bg-sunken-text-tertiary">6</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between text-[12px] mb-1"><span class="font-semibold">Oceania</span><span class="text-tertiary">$0.3M · 54%</span></div>
+                                    <div class="h-2 rounded-full overflow-hidden bg-sunken"><div class="h-full rounded-full w-[54%] bg-[linear-gradient(90deg,var(--color-danger-500),var(--color-warning-500))]"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Executive Timeline (vertical) -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-5 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-4">Executive Timeline</h2>
+                        <ol class="relative ms-2 space-y-5 [border-inline-start:1px_solid_var(--border-subtle)]">
+                            <li class="ps-4 relative">
+                                <span class="absolute -start-[5px] top-1 size-2.5 rounded-full u-background-color-primary-600"></span>
+                                <p class="text-[11px] text-tertiary">Jul 22, 2026 · 09:00</p>
+                                <p class="text-[12.5px] font-semibold mt-0.5">Board pre-read circulated for Q3 review</p>
+                            </li>
+                            <li class="ps-4 relative">
+                                <span class="absolute -start-[5px] top-1 size-2.5 rounded-full bg-success-500"></span>
+                                <p class="text-[11px] text-tertiary">Jul 19, 2026 · 14:30</p>
+                                <p class="text-[12.5px] font-semibold mt-0.5">Closed $1.4M enterprise deal — Solstice Retail Group</p>
+                            </li>
+                            <li class="ps-4 relative">
+                                <span class="absolute -start-[5px] top-1 size-2.5 rounded-full bg-warning-500"></span>
+                                <p class="text-[11px] text-tertiary">Jul 16, 2026 · 11:00</p>
+                                <p class="text-[12.5px] font-semibold mt-0.5">Engineering flagged infra scaling risk for Q4 launch</p>
+                            </li>
+                            <li class="ps-4 relative">
+                                <span class="absolute -start-[5px] top-1 size-2.5 rounded-full bg-info-500"></span>
+                                <p class="text-[11px] text-tertiary">Jul 10, 2026 · 08:00</p>
+                                <p class="text-[12.5px] font-semibold mt-0.5">FY2027 strategic planning kickoff with department heads</p>
+                            </li>
+                            <li class="ps-4 relative">
+                                <span class="absolute -start-[5px] top-1 size-2.5 rounded-full u-background-color-neutral-400"></span>
+                                <p class="text-[11px] text-tertiary">Jul 2, 2026 · 16:00</p>
+                                <p class="text-[12.5px] font-semibold mt-0.5">Q2 books closed — audited financials submitted</p>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <!-- Top Opportunities -->
+                    <div class="surface-card is-interactive col-span-12 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <h2 class="font-display font-bold text-[15px]">Top Opportunities</h2>
+                            <a href="pipeline.html" class="text-[11.5px] font-semibold text-primary-600">View pipeline</a>
+                        </div>
+                        <div class="overflow-x-auto scroll-thin -mx-1">
+                            <table class="data-table w-full min-w-[560px]">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Account</th>
+                                        <th scope="col">Stage</th>
+                                        <th scope="col">Value</th>
+                                        <th scope="col">Probability</th>
+                                        <th scope="col">Close Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="font-medium">Solstice Retail Group</td>
+                                        <td><span class="badge-soft badge-success">Negotiation</span></td>
+                                        <td class="font-semibold">$1.42M</td>
+                                        <td>82%</td>
+                                        <td class="text-tertiary">Aug 4, 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Northbridge Logistics</td>
+                                        <td><span class="badge-soft badge-info">Proposal Sent</span></td>
+                                        <td class="font-semibold">$890K</td>
+                                        <td>64%</td>
+                                        <td class="text-tertiary">Aug 15, 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Vantage Healthcare Systems</td>
+                                        <td><span class="badge-soft badge-warning">Evaluation</span></td>
+                                        <td class="font-semibold">$2.1M</td>
+                                        <td>41%</td>
+                                        <td class="text-tertiary">Sep 2, 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Cobalt Manufacturing Co.</td>
+                                        <td><span class="badge-soft badge-success">Negotiation</span></td>
+                                        <td class="font-semibold">$675K</td>
+                                        <td>77%</td>
+                                        <td class="text-tertiary">Aug 9, 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Harbor Point Financial</td>
+                                        <td><span class="badge-soft badge-info">Proposal Sent</span></td>
+                                        <td class="font-semibold">$1.05M</td>
+                                        <td>58%</td>
+                                        <td class="text-tertiary">Aug 28, 2026</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Top Selling Products -->
+                    <div class="surface-card is-interactive col-span-12 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <div class="flex items-center gap-2.5">
+                                <span class="grid place-items-center size-9 rounded-lg badge-solid-primary"><i class="icon-award text-[16px]"></i></span>
+                                <div>
+                                    <h2 class="font-display font-bold text-[15px]">Top Selling Products</h2>
+                                    <p class="text-[11.5px] mt-0.5 text-tertiary">Ranked by units sold — Q3 to date</p>
+                                </div>
+                            </div>
+                            <a href="products-list.html" class="text-[11.5px] font-semibold shrink-0 flex items-center gap-1 text-primary-600">View catalog<i class="icon-arrow-right text-[11px]"></i></a>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                            <div class="relative rounded-xl p-4 flex flex-col u-background-color-mix-in-oklab-color-primary-600-6-surface-su">
+                                <span class="absolute top-3 end-3 grid place-items-center size-6 rounded-lg font-display font-bold text-[11px] bg-primary-solid">1</span>
+                                <span class="grid place-items-center size-11 rounded-lg u-background-color-mix-in-oklab-color-primary-600-14-transpare"><i class="icon-headphones text-[18px]"></i></span>
+                                <p class="text-[12.5px] font-semibold mt-3 truncate">Aria Wireless Earbuds Pro</p>
+                                <p class="text-[10.5px] text-tertiary truncate">Electronics · SKU AWE-102</p>
+                                <div class="mt-auto pt-3">
+                                    <p class="font-display font-bold text-[16px]">$412K</p>
+                                    <p class="text-[10px] font-semibold text-success-600 mt-0.5">6,840 units</p>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-raised mt-2"><div class="h-full rounded-full u-width-100_background-color-primary-500"></div></div>
+                                </div>
+                            </div>
+                            <div class="relative rounded-xl p-4 flex flex-col bg-sunken">
+                                <span class="absolute top-3 end-3 grid place-items-center size-6 rounded-lg font-display font-bold text-[11px] text-tertiary u-background-surface-raised">2</span>
+                                <span class="grid place-items-center size-11 rounded-lg bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)] text-[var(--color-info-600,var(--color-info-500))]"><i class="icon-briefcase text-[18px]"></i></span>
+                                <p class="text-[12.5px] font-semibold mt-3 truncate">Everyday Carry Backpack</p>
+                                <p class="text-[10.5px] text-tertiary truncate">Bags &amp; Travel · SKU ECB-047</p>
+                                <div class="mt-auto pt-3">
+                                    <p class="font-display font-bold text-[16px]">$298K</p>
+                                    <p class="text-[10px] font-semibold text-success-600 mt-0.5">4,120 units</p>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-raised mt-2"><div class="h-full rounded-full w-[72%] bg-[var(--color-info-500)]"></div></div>
+                                </div>
+                            </div>
+                            <div class="relative rounded-xl p-4 flex flex-col bg-sunken">
+                                <span class="absolute top-3 end-3 grid place-items-center size-6 rounded-lg font-display font-bold text-[11px] text-tertiary u-background-surface-raised">3</span>
+                                <span class="grid place-items-center size-11 rounded-lg u-background-color-mix-in-oklab-color-accent-500-14-transparen"><i class="icon-lamp text-[18px]"></i></span>
+                                <p class="text-[12.5px] font-semibold mt-3 truncate">Lumen Smart Desk Lamp</p>
+                                <p class="text-[10.5px] text-tertiary truncate">Home &amp; Living · SKU LSL-019</p>
+                                <div class="mt-auto pt-3">
+                                    <p class="font-display font-bold text-[16px]">$176K</p>
+                                    <p class="text-[10px] font-semibold text-success-600 mt-0.5">3,305 units</p>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-raised mt-2"><div class="h-full rounded-full w-[43%] bg-[var(--color-accent-500)]"></div></div>
+                                </div>
+                            </div>
+                            <div class="relative rounded-xl p-4 flex flex-col bg-sunken">
+                                <span class="absolute top-3 end-3 grid place-items-center size-6 rounded-lg font-display font-bold text-[11px] text-tertiary u-background-surface-raised">4</span>
+                                <span class="grid place-items-center size-11 rounded-lg bg-[color-mix(in_oklab,var(--color-warning-500)_14%,transparent)] text-[var(--color-warning-600,var(--color-warning-500))]"><i class="icon-footprints text-[18px]"></i></span>
+                                <p class="text-[12.5px] font-semibold mt-3 truncate">Fusion Running Shoes</p>
+                                <p class="text-[10.5px] text-tertiary truncate">Footwear · SKU FRS-233</p>
+                                <div class="mt-auto pt-3">
+                                    <p class="font-display font-bold text-[16px]">$154K</p>
+                                    <p class="text-[10px] font-semibold text-success-600 mt-0.5">2,910 units</p>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-raised mt-2"><div class="h-full rounded-full w-[37%] bg-[var(--color-warning-500)]"></div></div>
+                                </div>
+                            </div>
+                            <div class="relative rounded-xl p-4 flex flex-col bg-sunken">
+                                <span class="absolute top-3 end-3 grid place-items-center size-6 rounded-lg font-display font-bold text-[11px] text-tertiary u-background-surface-raised">5</span>
+                                <span class="grid place-items-center size-11 rounded-lg bg-[color-mix(in_oklab,var(--color-neutral-400)_20%,transparent)] text-[var(--text-tertiary)]"><i class="icon-coffee text-[18px]"></i></span>
+                                <p class="text-[12.5px] font-semibold mt-3 truncate">Nomad Insulated Tumbler</p>
+                                <p class="text-[10.5px] text-tertiary truncate">Home &amp; Living · SKU NIT-088</p>
+                                <div class="mt-auto pt-3">
+                                    <p class="font-display font-bold text-[16px]">$118K</p>
+                                    <p class="text-[10px] font-semibold text-success-600 mt-0.5">2,240 units</p>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-raised mt-2"><div class="h-full rounded-full u-width-28_background-color-neutral-400"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profitability Matrix -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-6 p-5 lg:p-6 animate-rise-in">
+                        <h2 class="font-display font-bold text-[15px] mb-1">Profitability Matrix</h2>
+                        <p class="text-[11.5px] mb-3 text-tertiary">Business unit margin vs. growth rate</p>
+                        <div class="overflow-x-auto scroll-thin -mx-1">
+                            <table class="data-table w-full min-w-[480px]">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Business Unit</th>
+                                        <th scope="col">Revenue</th>
+                                        <th scope="col">Margin</th>
+                                        <th scope="col">Growth</th>
+                                        <th scope="col">Quadrant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="font-medium">Cloud Platform</td>
+                                        <td>$7.2M</td>
+                                        <td class="font-semibold text-success-600">41.2%</td>
+                                        <td>+18.6%</td>
+                                        <td><span class="badge-soft badge-success">Star</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">Managed Services</td>
+                                        <td>$5.1M</td>
+                                        <td class="font-semibold text-success-600">36.4%</td>
+                                        <td>+4.1%</td>
+                                        <td><span class="badge-soft badge-info">Cash Cow</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium">IoT Hardware</td>
+                                        <td>$3.9M</td>
+                                        <td class="font-semibold u-color-color-warning-600-var-color-warning-500">18.9%</td>
+                                        <td>+27.3%</td>
+                                        <td><span class="badge-soft badge-warning">Question Mark</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Operational Risks -->
+                    <div class="surface-card is-interactive col-span-12 lg:col-span-6 p-5 lg:p-6 animate-rise-in">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-display font-bold text-[15px]">Operational Risks</h2>
+                            <span class="badge-soft badge-danger">1 high · 2 medium</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div class="rounded-xl p-3 bg-[color-mix(in_oklab,var(--color-danger-500)_8%,var(--surface-sunken))] border border-solid border-[color-mix(in_oklab,var(--color-danger-500)_25%,transparent)]">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="grid place-items-center size-8 rounded-lg badge-solid-danger"><i class="icon-alert-octagon text-[14px]"></i></span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-danger-500">High</span>
+                                </div>
+                                <p class="text-[12px] font-semibold leading-snug">Single-vendor dependency</p>
+                                <p class="text-[10.5px] mt-0.5 text-tertiary">Cloud hosting</p>
+                            </div>
+                            <div class="rounded-xl p-3 u-background-color-mix-in-oklab-color-warning-500-8-surface-su-2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="grid place-items-center size-8 rounded-lg badge-solid-warning"><i class="icon-shield-alert text-[14px]"></i></span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-warning-500">Medium</span>
+                                </div>
+                                <p class="text-[12px] font-semibold leading-snug">Key personnel concentration</p>
+                                <p class="text-[10.5px] mt-0.5 text-tertiary">3 senior engineers</p>
+                            </div>
+                            <div class="rounded-xl p-3 u-background-color-mix-in-oklab-color-warning-500-8-surface-su-2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="grid place-items-center size-8 rounded-lg badge-solid-warning"><i class="icon-file-warning text-[14px]"></i></span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-warning-500">Medium</span>
+                                </div>
+                                <p class="text-[12px] font-semibold leading-snug">Regulatory change exposure</p>
+                                <p class="text-[10.5px] mt-0.5 text-tertiary">EU data residency</p>
+                            </div>
+                            <div class="rounded-xl p-3 bg-[color-mix(in_oklab,var(--color-success-500)_8%,var(--surface-sunken))] border border-solid border-[color-mix(in_oklab,var(--color-success-500)_25%,transparent)]">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="grid place-items-center size-8 rounded-lg badge-solid-success"><i class="icon-shield-check text-[14px]"></i></span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-success-600">Low</span>
+                                </div>
+                                <p class="text-[12px] font-semibold leading-snug">Currency hedging coverage</p>
+                                <p class="text-[10.5px] mt-0.5 text-tertiary">FX exposure</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Decision Tracker (kanban-lite) -->
+                    <div class="rounded-2xl overflow-hidden col-span-12 animate-rise-in border border-solid border-[var(--border-subtle)] bg-[var(--surface-raised)]">
+                        <div class="flex items-center justify-between gap-3 p-5 pb-4">
+                            <div class="flex items-center gap-2.5">
+                                <span class="grid place-items-center size-9 rounded-xl badge-solid-neutral"><i class="icon-git-pull-request text-[15px]"></i></span>
+                                <div>
+                                    <h2 class="font-display font-bold text-[15px]">Decision Tracker</h2>
+                                    <p class="text-[11.5px] mt-0.5 text-tertiary">Board &amp; leadership decisions in flight</p>
+                                </div>
+                            </div>
+                            <button type="button" id="decisionTrackerOpenBtn" class="btn btn-outline !text-[12.5px]">
+                                <i class="icon-panel-right text-[13px]"></i>Open Full Tracker
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 u-border-top-1px-solid-border-subtle">
+                            <div class="p-4 u-border-inline-end-1px-solid-border-subtle">
+                                <div class="flex items-center gap-2 mb-3"><span class="size-1.5 rounded-full bg-neutral-400"></span><p class="text-[11px] font-semibold uppercase tracking-wide text-tertiary">Proposed</p><span class="badge-soft ms-auto u-background-surface-sunken_color-text-tertiary">2</span></div>
+                                <div class="space-y-2">
+                                    <div class="rounded-lg p-3 bg-sunken">
+                                        <p class="text-[12px] font-semibold">Sunset legacy on-prem SKU</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: P. Delacroix</p>
+                                    </div>
+                                    <div class="rounded-lg p-3 bg-sunken">
+                                        <p class="text-[12px] font-semibold">Open Singapore regional office</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: R. Alden</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-4 u-border-inline-end-1px-solid-border-subtle">
+                                <div class="flex items-center gap-2 mb-3"><span class="size-1.5 rounded-full bg-warning-500"></span><p class="text-[11px] font-semibold uppercase tracking-wide text-warning-500">In Review</p><span class="badge-soft badge-warning ms-auto">2</span></div>
+                                <div class="space-y-2">
+                                    <div class="rounded-lg p-3 u-background-color-mix-in-oklab-color-warning-500-8-surface-su">
+                                        <p class="text-[12px] font-semibold">Enterprise tier pricing update</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: Finance · Due Jul 25</p>
+                                    </div>
+                                    <div class="rounded-lg p-3 u-background-color-mix-in-oklab-color-warning-500-8-surface-su">
+                                        <p class="text-[12px] font-semibold">Vendor contract renegotiation</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: Legal · Due Jul 30</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-center gap-2 mb-3"><span class="size-1.5 rounded-full bg-success-500"></span><p class="text-[11px] font-semibold uppercase tracking-wide text-success-600">Approved</p><span class="badge-soft badge-success ms-auto">2</span></div>
+                                <div class="space-y-2">
+                                    <div class="rounded-lg p-3 u-background-color-mix-in-oklab-color-success-500-8-surface-su">
+                                        <p class="text-[12px] font-semibold">Reliability team headcount +4</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: M. Okoye · Jul 18</p>
+                                    </div>
+                                    <div class="rounded-lg p-3 u-background-color-mix-in-oklab-color-success-500-8-surface-su">
+                                        <p class="text-[12px] font-semibold">Q3 marketing budget reallocation</p>
+                                        <p class="text-[10.5px] mt-1 text-tertiary">Owner: CMO · Jul 18</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Smart Recommendations (AI-style) -->
+                    <div class="col-span-12 rounded-2xl p-5 lg:p-6 animate-rise-in u-background-linear-gradient-150deg-color-mix-in-oklab-color-p">
+                        <div class="flex items-center gap-2.5 mb-4">
+                            <span class="grid place-items-center size-9 rounded-lg badge-solid-accent"><i class="icon-sparkle text-[16px]"></i></span>
+                            <div>
+                                <h2 class="font-display font-bold text-[15px]">Smart Recommendations</h2>
+                                <p class="text-[11px] text-tertiary">Generated from revenue, risk &amp; engagement signals across this dashboard</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="rounded-xl p-4 is-interactive bg-raised-bordered">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="badge-soft badge-success">High Impact</span>
+                                    <i class="icon-trending-up text-[13px] text-success-500"></i>
+                                </div>
+                                <p class="text-[12.5px] font-medium leading-snug">Reallocate 8% of Legacy Licensing budget into Cloud Platform — highest margin and fastest-growing unit.</p>
+                                <button type="button" class="btn btn-outline w-full !py-1.5 !text-[11.5px] mt-3">Model Scenario</button>
+                            </div>
+                            <div class="rounded-xl p-4 is-interactive bg-raised-bordered">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="badge-soft badge-warning">Action Needed</span>
+                                    <i class="icon-alert-triangle text-[13px] text-warning-500"></i>
+                                </div>
+                                <p class="text-[12.5px] font-medium leading-snug">EMEA pipeline coverage risk could miss Q3 target by <strong>$620K</strong> — escalate to regional VP this week.</p>
+                                <button type="button" class="btn btn-outline w-full !py-1.5 !text-[11.5px] mt-3">Escalate</button>
+                            </div>
+                            <div class="rounded-xl p-4 is-interactive bg-raised-bordered">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="badge-soft badge-info">Opportunity</span>
+                                    <i class="icon-heart text-[13px] u-color-color-info-500"></i>
+                                </div>
+                                <p class="text-[12.5px] font-medium leading-snug">Expansion revenue up <strong>19%</strong> — 6 accounts show upsell signals worth an estimated <strong>$410K</strong>.</p>
+                                <button type="button" class="btn btn-outline w-full !py-1.5 !text-[11.5px] mt-3">View Accounts</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </main>
+
+            <!-- Footer -->
+<footer class="px-4 lg:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] border-t text-[var(--text-tertiary)] bg-[var(--surface-card)] border-[var(--border-subtle)]">
+  <p>© 2026 Dreams Core. Crafted by <span class="font-semibold text-[var(--text-secondary)]">Dreams Technologies</span>.</p>
+  <div class="flex items-center gap-4">
+    <a href="../documentation/index.html" target="_blank" class="hover:underline">Documentation</a>
+    <a href="faq.html" class="hover:underline">Support</a>
+    <a href="../documentation/changelog.html" target="_blank" class="hover:underline">Changelog</a>
+  </div>
+</footer>
+<!-- End Footer -->
+        </div>
+    </div>
+    <!-- Decision Tracker Drawer -->
+    <div class="drawer-backdrop hidden" id="decisionDrawerBackdrop"></div>
+    <aside class="hs-overlay drawer-panel" id="decisionDrawer" aria-label="Decision Details">
+        <div class="p-4 flex items-center justify-between border-b border-color-subtle">
+            <h3 class="font-display font-bold text-[15px]">Decision Tracker — Full View</h3>
+            <button type="button" id="decisionDrawerCloseBtn" class="header-icon-btn" aria-label="Close"><i class="icon-x text-[15px]"></i></button>
+        </div>
+        <div class="p-4 space-y-3">
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo">
+                <p class="text-[12.5px] font-semibold">Enterprise tier pricing update</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: Finance · Due Jul 25, 2026 · Status: In Review</p>
+            </div>
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo">
+                <p class="text-[12.5px] font-semibold">Vendor contract renegotiation</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: Legal · Due Jul 30, 2026 · Status: In Review</p>
+            </div>
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo-3">
+                <p class="text-[12.5px] font-semibold">Sunset legacy on-prem SKU</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: P. Delacroix · Status: Proposed</p>
+            </div>
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo-3">
+                <p class="text-[12.5px] font-semibold">Open Singapore regional office</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: R. Alden · Status: Proposed</p>
+            </div>
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo-2">
+                <p class="text-[12.5px] font-semibold">Reliability team headcount +4</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: M. Okoye · Approved Jul 18, 2026</p>
+            </div>
+            <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo-2">
+                <p class="text-[12.5px] font-semibold">Q3 marketing budget reallocation</p>
+                <p class="text-[11px] mt-1 text-tertiary">Owner: CMO · Approved Jul 18, 2026</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- AI Report Panel -->
+    <div class="drawer-backdrop hidden" data-drawer-backdrop="aiReportDrawer"></div>
+    <aside class="hs-overlay drawer-panel translate-x-full" id="aiReportDrawer" aria-label="AI Report">
+        <div class="p-4 flex items-center justify-between border-b border-color-subtle">
+            <div class="flex items-center gap-2">
+                <span class="grid place-items-center size-8 rounded-lg u-background-linear-gradient-135deg-color-primary-600-color-ac"><i class="icon-sparkle text-[14px]"></i></span>
+                <h3 class="font-display font-bold text-[15px]">AI Business Report</h3>
+            </div>
+            <button type="button" class="header-icon-btn" data-drawer-close="aiReportDrawer" aria-label="Close"><i class="icon-x text-[15px]"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="rounded-xl p-3.5 bg-sunken-bordered">
+                <p class="text-[12px] leading-relaxed text-secondary">Summarized from this period's revenue, marketing, inventory &amp; refund signals.</p>
+            </div>
+            <div class="space-y-2.5">
+                <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo-2">
+                    <p class="text-[12.5px] font-semibold">Revenue up 18.6% MoM, led by Electronics</p>
+                    <p class="text-[11px] mt-1 text-tertiary">Profit contribution holding at 34.8% of revenue</p>
+                </div>
+                <div class="rounded-lg p-3 u-background-surface-sunken_border-inline-start-3px-solid-colo">
+                    <p class="text-[12.5px] font-semibold">14 SKUs approaching stockout</p>
+                    <p class="text-[11px] mt-1 text-tertiary">Restock recommended within 2 weeks to protect fulfillment speed</p>
+                </div>
+                <div class="rounded-lg p-3 bg-[var(--surface-sunken)] [border-inline-start:3px_solid_var(--color-info-500)]">
+                    <p class="text-[12.5px] font-semibold">Email campaign delivering 1,335% ROI</p>
+                    <p class="text-[11px] mt-1 text-tertiary">Best-performing channel this month — consider reallocating budget from Affiliate</p>
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary w-full !text-[12.5px]"><i class="icon-file-down text-[13px]"></i>Download Full Report</button>
+        </div>
+    </aside>
+
+    <!-- ============ Scroll to Top ============ -->
+    <button type="button" id="scrollToTopBtn" class="hidden fixed bottom-6 end-6 z-50 grid place-items-center size-11 rounded-full bg-primary-solid shadow-lg transition-all hover:scale-105" aria-label="Scroll to top">
+        <i class="icon-arrow-up text-[16px]"></i>
+    </button>
+<!-- ApexCharts  -->
+<script src="assets/libs/apexcharts/apexcharts.min.js"></script>
+<!-- Wizard JS -->
+<!-- Flatpickr JS -->
+<script src="assets/libs/flatpickr/flatpickr.min.js"></script>
+
+
+<!-- FullCalendar JS -->
+
+<!-- Simplebar JS -->
+<script src="assets/libs/simplebar/simplebar.min.js"></script>
+<!-- Preline JS -->
+<script src="assets/libs/preline/preline.js"></script>
+<!-- Choices JS -->
+<script src="assets/libs/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<!-- Chart.js JS -->
+
+
+
+</body></html>
