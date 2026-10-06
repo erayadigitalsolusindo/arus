@@ -5,9 +5,9 @@
 
 # build output
 node_modules/
-web/build/
-web/.svelte-kit/
-backend/bin/
+**/build/
+**/.svelte-kit/
+**/bin/
 *.exe
 
 # editor / OS
@@ -18,7 +18,6 @@ Thumbs.db
 
 # proyek lain yang kebetulan ada di folder ini
 erp-docker/
-source/
 
 # template berlisensi (acuan visual lokal)
 reference/template/
