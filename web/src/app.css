@@ -1,0 +1,5 @@
+/* Build Tailwind v4 milik template Dreams Core (token, komponen, utilitas) — acuan visual. */
+@import './lib/styles/dreams/dreams-core.css';
+
+/* Utilitas tambahan untuk class baru yang belum ada di build template. */
+@import 'tailwindcss/utilities.css' layer(utilities);
