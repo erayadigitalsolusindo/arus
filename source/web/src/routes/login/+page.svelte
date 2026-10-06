@@ -3,6 +3,9 @@
   import { goto } from '$app/navigation';
   import { api, ApiError } from '#lib/api/client.ts';
   import TransactionFeed from '#lib/components/TransactionFeed.svelte';
+  import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
+  import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
+  import LoginFooter from '#lib/components/LoginFooter.svelte';
 
   const schema = z.object({
     email: z.string().trim().min(1, 'Email wajib diisi.').pipe(z.email('Format email tidak valid.')),
@@ -56,8 +59,11 @@
 
 <div class="min-h-screen grid lg:grid-cols-2 bg-base">
   <!-- Left: form -->
-  <div class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-10">
-    <div class="w-full max-w-[400px] mx-auto">
+  <div class="relative flex flex-col px-6 sm:px-10 lg:px-16 py-10 overflow-hidden">
+    <LoginBackdrop />
+    <div class="relative flex-1 flex flex-col justify-center w-full max-w-[400px] mx-auto">
+      <BarcodeScanner />
+
       <a href="/" class="flex items-center gap-2.5 mb-10">
         <img src="/logo-dark.svg" alt="ACIRABA logo" class="login-logo" />
       </a>
@@ -137,6 +143,10 @@
       <p class="text-center text-[12.5px] mt-6 text-tertiary">
         Don't have an account? <a href="/register" class="font-semibold text-primary-600">Create one</a>
       </p>
+    </div>
+
+    <div class="relative w-full max-w-[400px] mx-auto">
+      <LoginFooter />
     </div>
   </div>
 
