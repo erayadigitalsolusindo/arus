@@ -30,3 +30,11 @@ const (
 	ActionOutletCreate = "outlet.create"
 	ActionOutletUpdate = "outlet.update"
 )
+
+// Tindakan Platform Admin yang terlihat oleh pemilik tenant (audit tenant). Pelaku tercatat "Platform: <nama>".
+const (
+	EntityTenant = "tenant"
+
+	ActionPlatformImpersonate  = "platform.impersonate"
+	ActionPlatformTenantStatus = "platform.tenant_status"
+)

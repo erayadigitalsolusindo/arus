@@ -10,7 +10,8 @@ import account from './account.ts';
 import outlets from './outlets.ts';
 import audit from './audit.ts';
 import legal from './legal.ts';
+import platform from './platform.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform };
 
 export default en;

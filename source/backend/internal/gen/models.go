@@ -45,6 +45,32 @@ type Outlet struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type PlatformAdmin struct {
+	ID               uuid.UUID
+	Email            string
+	Name             string
+	PasswordHash     string
+	Active           bool
+	TokensValidAfter pgtype.Timestamptz
+	LastLoginAt      pgtype.Timestamptz
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type PlatformAuditLog struct {
+	ID         int64
+	AdminID    pgtype.UUID
+	AdminName  string
+	Action     string
+	TenantID   pgtype.UUID
+	TenantName string
+	Details    []byte
+	Ip         string
+	RequestID  string
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Role struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

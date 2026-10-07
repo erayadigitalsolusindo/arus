@@ -18,7 +18,7 @@ export default {
   loading: 'Memuat…',
   empty: 'Belum ada catatan untuk filter ini.',
   loadFailed: 'Gagal memuat audit log.',
-  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi' },
+  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant' },
   actions: {
     auth_register: 'Mendaftarkan usaha',
     auth_login: 'Masuk',
@@ -34,6 +34,8 @@ export default {
     role_update: 'Mengubah role',
     role_delete: 'Menghapus role',
     outlet_create: 'Menambah outlet',
-    outlet_update: 'Mengubah outlet'
+    outlet_update: 'Mengubah outlet',
+    platform_impersonate: 'Platform Admin melihat data tenant (hanya-baca)',
+    platform_tenant_status: 'Platform Admin mengubah status tenant'
   }
 };

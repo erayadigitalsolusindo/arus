@@ -2,7 +2,7 @@
 // Otorisasi sebenarnya selalu di server (token akses/RLS); store ini bukan sumber kebenaran.
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { api, refreshSession, setAccessToken, setAuthListener, CSRF_HEADERS, type AuthResponse, type Identity, type Permissions } from '#lib/api/client.ts';
+import { api, refreshSession, setAccessToken, setAuthListener, setImpersonating, setImpersonationEndListener, CSRF_HEADERS, type AuthResponse, type Identity, type Permissions } from '#lib/api/client.ts';
 
 type Status = 'unknown' | 'authed' | 'anon';
 
@@ -13,6 +13,10 @@ class SessionState {
   outlet = $state<Identity | null>(null);
   permissions = $state<Permissions>({});
   emailVerified = $state(true); // true sebagai bawaan agar banner tidak berkedip sebelum sesi dimuat
+  /** Platform Admin sedang "masuk sebagai" tenant (hanya-baca, tanpa refresh). */
+  impersonating = $state(false);
+  /** Tujuan setelah sesi berakhir (mis. kembali ke panel platform) menggantikan /login. */
+  returnTo = $state<string | null>(null);
 }
 
 export const session = new SessionState();
@@ -30,6 +34,7 @@ function apply(res: AuthResponse | null) {
     session.user = session.tenant = session.outlet = null;
     session.permissions = {};
     session.emailVerified = true;
+    session.impersonating = false;
     return;
   }
   session.status = 'authed';
@@ -39,6 +44,8 @@ function apply(res: AuthResponse | null) {
   session.permissions = res.permissions ?? {};
   session.emailVerified = res.email_verified ?? true;
   expiresAt = Date.now() + res.expires_in * 1000;
+  session.impersonating = !!res.impersonating;
+  if (res.impersonating) return; // tanpa cookie refresh: tidak ada yang dijadwalkan
   timer = setTimeout(() => void refreshSession().catch(() => {}), Math.max(res.expires_in - REFRESH_LEAD_S, 5) * 1000);
 }
 
@@ -64,6 +71,46 @@ export async function switchOutlet(outletId: string) {
   apply(res);
 }
 
+/** Penanda mode "masuk sebagai" (sessionStorage, per tab): setelah reload kembali ke panel platform, bukan ke sesi tenant. */
+const IMP_KEY = 'aciraba.impersonating';
+const impFlag = {
+  get: (): string | null => {
+    try {
+      return sessionStorage.getItem(IMP_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set: (v: string | null) => {
+    try {
+      if (v) sessionStorage.setItem(IMP_KEY, v);
+      else sessionStorage.removeItem(IMP_KEY);
+    } catch {
+      /* penyimpanan diblokir: abaikan */
+    }
+  }
+};
+
+/** Platform Admin masuk sebagai tenant: token hanya di memori, tanpa refresh. `tenantId` = tujuan saat keluar mode. */
+export function startImpersonation(res: AuthResponse, tenantId: string) {
+  setAccessToken(res.access_token);
+  setImpersonating(true);
+  impFlag.set(tenantId);
+  session.returnTo = null;
+  apply({ ...res, impersonating: true });
+}
+
+/** Keluar dari mode "masuk sebagai": kembali ke halaman tenant di panel platform. */
+export function exitImpersonation() {
+  const tenantId = impFlag.get();
+  setImpersonating(false);
+  impFlag.set(null);
+  session.returnTo = tenantId ? `/platform/tenants/${tenantId}` : '/platform/tenants';
+  dropSession();
+}
+
+setImpersonationEndListener(exitImpersonation);
+
 /** Dipanggil setelah login/register berhasil. */
 export function startSession(res: AuthResponse) {
   setAccessToken(res.access_token);
@@ -75,6 +122,11 @@ let booting: Promise<void> | null = null;
 /** Memulihkan sesi dari cookie refresh (sekali per pemuatan halaman). Error jaringan membiarkan status `unknown`. */
 export function bootstrap(): Promise<void> {
   if (session.status !== 'unknown') return Promise.resolve();
+  if (impFlag.get()) {
+    // Reload saat "masuk sebagai": token di memori sudah hilang. Jangan memulihkan sesi tenant asli browser ini.
+    session.status = 'anon';
+    return Promise.resolve();
+  }
   booting ??= refreshSession()
     .then(() => {})
     .catch(() => {})
@@ -97,7 +149,14 @@ export async function requirePermission(module: string, action = 'view') {
 /** Penjaga route aplikasi: pengguna yang belum masuk diarahkan ke login. */
 export async function requireSession() {
   await bootstrap();
-  if (session.status !== 'authed') redirect(307, '/login');
+  if (session.status !== 'authed') {
+    const back = impFlag.get();
+    if (back) {
+      impFlag.set(null);
+      redirect(307, `/platform/tenants/${back}`);
+    }
+    redirect(307, '/login');
+  }
 }
 
 const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('aciraba-auth');
@@ -108,6 +167,11 @@ function dropSession() {
 }
 
 export async function logout() {
+  if (session.impersonating) {
+    // Jangan menyentuh cookie/sesi tenant yang asli: cukup akhiri mode ini.
+    exitImpersonation();
+    return;
+  }
   try {
     await api('/auth/logout', { method: 'POST', headers: CSRF_HEADERS });
   } catch {
@@ -124,7 +188,7 @@ if (channel) channel.onmessage = (e) => e.data === 'logout' && dropSession();
 // Timer ditahan di tab latar belakang; segarkan segera saat tab kembali terlihat dan token hampir habis.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && session.status === 'authed' && expiresAt - Date.now() < REFRESH_LEAD_S * 1000) {
+    if (document.visibilityState === 'visible' && session.status === 'authed' && !session.impersonating && expiresAt - Date.now() < REFRESH_LEAD_S * 1000) {
       void refreshSession().catch(() => {});
     }
   });
