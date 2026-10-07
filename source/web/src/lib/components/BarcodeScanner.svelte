@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '#lib/i18n/index.ts';
+
   // Lebar tiap batang (px); celah antar batang 3px. Dekoratif, bukan barcode sungguhan.
   const bars = [3, 1, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 1, 4, 2, 1, 3, 2, 1];
   let x = 0;
@@ -20,8 +22,8 @@
     <span class="scan-line absolute inset-x-1 h-[2px] rounded-full bg-[var(--color-danger-500,#ef4444)]"></span>
   </span>
   <span class="text-[10.5px] font-semibold uppercase tracking-wide text-tertiary leading-tight">
-    <span class="beep inline-flex items-center gap-1 text-[var(--color-primary-600)]"><i class="icon-check text-[11px]"></i>Terbaca</span>
-    <span class="block font-medium normal-case tracking-normal">Scan & jual dalam sekejap</span>
+    <span class="beep inline-flex items-center gap-1 text-[var(--color-primary-600)]"><i class="icon-check text-[11px]"></i>{t('auth.promo.scanRead')}</span>
+    <span class="block font-medium normal-case tracking-normal">{t('auth.promo.scanTagline')}</span>
   </span>
 </div>
 

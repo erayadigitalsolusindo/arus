@@ -1,0 +1,22 @@
+// Kunci = kode error API (AGENTS.md §6). Kode yang belum ada di sini memakai `message` dari server.
+export default {
+  NETWORK: 'Tidak dapat terhubung ke server.',
+  UNKNOWN: 'Terjadi kesalahan tak terduga.',
+  UNAUTHORIZED: 'Sesi berakhir atau Anda belum masuk.',
+  FORBIDDEN: 'Anda tidak memiliki izin untuk tindakan ini.',
+  NOT_FOUND: 'Data atau layanan yang diminta tidak ditemukan.',
+  VALIDATION: 'Data yang dikirim tidak valid.',
+  STOCK_INSUFFICIENT: 'Stok tidak mencukupi.',
+  INTERNAL: 'Terjadi kesalahan pada server.',
+  BAD_REQUEST: 'Permintaan tidak dapat diproses.',
+  UNSUPPORTED_MEDIA_TYPE: 'Format data tidak didukung.',
+  PAYLOAD_TOO_LARGE: 'Ukuran data terlalu besar.',
+  EMAIL_TAKEN: 'Email ini sudah terdaftar. Silakan masuk atau gunakan email lain.',
+  RATE_LIMITED: 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.',
+  UNAVAILABLE: 'Layanan sementara tidak tersedia. Coba lagi nanti.',
+  FIELD_REQUIRED: 'Wajib diisi.',
+  FIELD_INVALID: 'Isian tidak valid atau mengandung karakter yang tidak diizinkan.',
+  FIELD_TOO_LONG: 'Terlalu panjang.',
+  FIELD_TOO_SHORT: 'Terlalu pendek.',
+  FIELD_WEAK: 'Terlalu lemah: gunakan kombinasi huruf dan angka.'
+};

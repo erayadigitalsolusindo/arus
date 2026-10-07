@@ -1,40 +1,50 @@
 // Menu sidebar. Hanya route yang sudah ada yang diberi href; sisanya mengikuti roadmap AGENTS.md §2b.
+// Label diambil dari kamus (`nav.*`), bukan teks langsung, agar ikut bahasa aktif.
+import type { MessageKey } from '#lib/i18n/index.ts';
+
 export type NavItem = {
-  label: string;
+  id: string; // kunci stabil (state buka/tutup submenu), independen dari bahasa
+  labelKey: MessageKey;
   icon: string; // nama ikon lucide (class `icon-*` dari template)
   href?: string;
-  children?: { label: string; href?: string }[];
+  children?: { labelKey: MessageKey; href?: string }[];
 };
 
-export type NavGroup = { title: string; items: NavItem[] };
+export type NavGroup = { titleKey: MessageKey; items: NavItem[] };
 
 export const nav: NavGroup[] = [
   {
-    title: 'Utama',
-    items: [{ label: 'Dasbor', icon: 'layout-dashboard', href: '/dashboard' }]
+    titleKey: 'nav.group.main',
+    items: [{ id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' }]
   },
   {
-    title: 'Operasional',
+    titleKey: 'nav.group.operations',
     items: [
-      { label: 'Kasir', icon: 'shopping-cart' },
+      { id: 'pos', labelKey: 'nav.pos', icon: 'shopping-cart' },
       {
-        label: 'Master Data',
+        id: 'master',
+        labelKey: 'nav.masterData',
         icon: 'package',
-        children: [{ label: 'Barang' }, { label: 'Kategori' }, { label: 'Pelanggan' }, { label: 'Pemasok' }]
+        children: [
+          { labelKey: 'nav.items' },
+          { labelKey: 'nav.categories' },
+          { labelKey: 'nav.customers' },
+          { labelKey: 'nav.suppliers' }
+        ]
       },
-      { label: 'Stok', icon: 'warehouse' },
-      { label: 'Pembelian', icon: 'truck' }
+      { id: 'stock', labelKey: 'nav.stock', icon: 'warehouse' },
+      { id: 'purchasing', labelKey: 'nav.purchasing', icon: 'truck' }
     ]
   },
   {
-    title: 'Analisis',
-    items: [{ label: 'Laporan', icon: 'chart-column' }]
+    titleKey: 'nav.group.analysis',
+    items: [{ id: 'reports', labelKey: 'nav.reports', icon: 'chart-column' }]
   },
   {
-    title: 'Sistem',
+    titleKey: 'nav.group.system',
     items: [
-      { label: 'Pengguna & Hak Akses', icon: 'users' },
-      { label: 'Pengaturan', icon: 'settings' }
+      { id: 'users', labelKey: 'nav.users', icon: 'users' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'settings' }
     ]
   }
 ];
