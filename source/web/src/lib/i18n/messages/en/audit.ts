@@ -56,6 +56,9 @@ const audit: Messages['audit'] = {
     item_update: 'Edited an item',
     item_price: 'Changed an item selling price',
     item_active: 'Changed an item status',
+    item_image_add: 'Added an item image',
+    item_image_main: 'Changed an item main image',
+    item_image_delete: 'Deleted an item image',
     platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
     platform_tenant_status: 'Platform Admin changed the tenant status'
   }

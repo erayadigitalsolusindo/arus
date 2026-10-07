@@ -1,9 +1,12 @@
 <script lang="ts">
   import ItemForm from '#lib/components/ItemForm.svelte';
   import { can } from '#lib/auth/session.svelte.ts';
+  import { page } from '$app/state';
   import { t } from '#lib/i18n/index.ts';
 
   let { data } = $props();
+  // ?notice=images_failed: item baru tersimpan tetapi sebagian gambarnya gagal diunggah.
+  const imagesFailed = $derived(page.url.searchParams.get('notice') === 'images_failed');
   const title = $derived(can('items', 'update') ? t('items.editTitle') : t('items.view'));
 </script>
 
@@ -23,6 +26,11 @@
 </div>
 
 <main class="p-4 lg:p-6 max-w-full mx-auto w-full">
+  {#if imagesFailed}
+    <div role="alert" class="mb-3 flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-warning">
+      <i class="icon-circle-alert text-[14px] shrink-0"></i><span>{t('items.images.someFailed')}</span>
+    </div>
+  {/if}
   <h1 class="font-display font-bold text-[19px]">{data.item.name}</h1>
   <p class="text-[12px] mt-0.5 mb-4 font-mono text-[var(--text-tertiary)]">{data.item.sku}</p>
   <!-- {#key}: berpindah ke item lain memasang ulang form dengan nilai awal yang baru. -->

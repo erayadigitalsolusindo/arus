@@ -77,3 +77,10 @@ const (
 	ActionItemPrice  = "item.price"
 	ActionItemActive = "item.active"
 )
+
+// Gambar item (Fase 3.2, irisan C).
+const (
+	ActionItemImageAdd    = "item.image_add"
+	ActionItemImageMain   = "item.image_main"
+	ActionItemImageDelete = "item.image_delete"
+)

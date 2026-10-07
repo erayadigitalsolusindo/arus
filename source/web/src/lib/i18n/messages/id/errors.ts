@@ -23,6 +23,11 @@ export default {
   NAME_TAKEN: 'Nama ini sudah dipakai.',
   CODE_TAKEN: 'Kode ini sudah dipakai.',
   BARCODE_TAKEN: 'Barcode ini sudah dipakai barang lain.',
+  IMAGE_LIMIT: 'Jumlah gambar item sudah maksimal.',
+  IMAGE_TOO_LARGE: 'Ukuran gambar melebihi 10 MB.',
+  IMAGE_UNSUPPORTED: 'Format gambar tidak didukung. Gunakan JPG, PNG, atau WebP.',
+  IMAGE_DIMENSIONS: 'Dimensi gambar terlalu besar.',
+  IMAGE_CORRUPT: 'Gambar rusak atau tidak dapat dibaca.',
   LAST_OWNER: 'Pemilik aktif terakhir tidak boleh dinonaktifkan atau diganti rolenya.',
   SELF_CHANGE: 'Anda tidak dapat menonaktifkan atau mengganti role akun sendiri.',
   INVALID_TOKEN: 'Tautan tidak valid atau sudah kedaluwarsa. Minta tautan baru.',
@@ -49,5 +54,8 @@ export default {
   FIELD_INVALID: 'Isian tidak valid atau mengandung karakter yang tidak diizinkan.',
   FIELD_TOO_LONG: 'Terlalu panjang.',
   FIELD_TOO_SHORT: 'Terlalu pendek.',
-  FIELD_WEAK: 'Terlalu lemah: gunakan kombinasi huruf dan angka.'
+  FIELD_WEAK: 'Terlalu lemah: gunakan kombinasi huruf dan angka.',
+  FIELD_TOO_MANY: 'Terlalu banyak baris.',
+  FIELD_DUPLICATE: 'Ada isian ganda (jumlah, satuan, atau barcode yang sama).',
+  FIELD_NOT_DECREASING: 'Harga tidak boleh lebih tinggi pada jumlah yang lebih banyak.'
 };

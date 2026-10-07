@@ -21,6 +21,10 @@ type Config struct {
 	// TrustProxy: percayai X-Forwarded-For (hanya bila di belakang proxy tepercaya).
 	TrustProxy bool
 
+	// UploadDir = folder penyimpanan gambar unggahan (disk lokal). Di luar kode dan di-gitignore; di produksi taruh di
+	// volume yang ikut dicadangkan.
+	UploadDir string
+
 	// PlatformSetupToken = rahasia untuk membuat Platform Admin pertama lewat /platform/setup. Kosong = setup mati.
 	// Hapus dari lingkungan server setelah admin pertama dibuat.
 	PlatformSetupToken string
@@ -48,6 +52,7 @@ func Load() (Config, error) {
 		RedisURL:           os.Getenv("REDIS_URL"),
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		TrustProxy:         os.Getenv("TRUST_PROXY") == "true",
+		UploadDir:          getenv("UPLOAD_DIR", "./data/uploads"),
 		PlatformSetupToken: os.Getenv("PLATFORM_SETUP_TOKEN"),
 		AppBaseURL:         strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
 		SMTPHost:           os.Getenv("SMTP_HOST"),

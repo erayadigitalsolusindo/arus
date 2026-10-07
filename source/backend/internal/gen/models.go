@@ -79,12 +79,45 @@ type ItemCounter struct {
 	LastNo   int64
 }
 
+type ItemImage struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	ItemID     uuid.UUID
+	Position   int32
+	IsMain     bool
+	Width      int32
+	Height     int32
+	FullBytes  int32
+	ThumbBytes int32
+	CreatedAt  pgtype.Timestamptz
+}
+
 type ItemOutletPrice struct {
 	TenantID  uuid.UUID
 	ItemID    uuid.UUID
 	OutletID  uuid.UUID
 	SellPrice decimal.Decimal
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ItemUnit struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	UnitID    uuid.UUID
+	Factor    decimal.Decimal
+	Barcode   pgtype.Text
+	SellPrice pgtype.Numeric
+	Position  int32
+}
+
+type ItemWholesaleTier struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+	OutletID pgtype.UUID
+	MinQty   decimal.Decimal
+	Price    decimal.Decimal
 }
 
 type Outlet struct {
