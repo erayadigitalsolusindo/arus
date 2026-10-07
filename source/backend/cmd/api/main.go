@@ -65,8 +65,10 @@ func run() error {
 		"redis":    redisPinger{rdb},
 	}))
 
-	authSvc := auth.NewService(pool, pauth.NewTokenIssuer(cfg.JWTSecret), pauth.NewSessions(rdb))
-	auth.NewHandler(authSvc, log, !cfg.IsDev()).Routes(r, rdb)
+	tokens := pauth.NewTokenIssuer(cfg.JWTSecret)
+	authSvc := auth.NewService(pool, tokens, pauth.NewSessions(rdb))
+	lockout := auth.NewLockout(rdb, auth.NewPolicyLoader(pool, log))
+	auth.NewHandler(authSvc, log, rdb, lockout, tokens, cfg.CORSOrigins, !cfg.IsDev()).Routes(r)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

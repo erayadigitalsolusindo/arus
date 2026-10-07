@@ -25,7 +25,7 @@ func NewRouter(log *slog.Logger, corsOrigins []string, trustProxy bool) *chi.Mux
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   corsOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "Idempotency-Key"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Idempotency-Key", CSRFHeader, "Accept-Language"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))

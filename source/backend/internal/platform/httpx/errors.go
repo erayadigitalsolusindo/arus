@@ -15,6 +15,8 @@ type errorDetail struct {
 	Message string `json:"message"`
 	// Fields: kode galat per field (mis. {"email":"INVALID"}) agar klien menerjemahkannya sendiri.
 	Fields map[string]string `json:"fields,omitempty"`
+	// RetryAfter: detik sampai boleh mencoba lagi (RATE_LIMITED, ACCOUNT_LOCKED).
+	RetryAfter int `json:"retry_after,omitempty"`
 }
 
 // JSON menulis respons JSON dengan status yang diberikan.
