@@ -55,9 +55,14 @@ func ClientIP(r *http.Request) string {
 // RateLimit membatasi `limit` request per `window` per IP klien. `name` memisahkan counter antar endpoint.
 // Bila Redis gagal, request ditolak (fail closed).
 func RateLimit(rdb *redis.Client, name string, limit int, window time.Duration) func(http.Handler) http.Handler {
+	return RateLimitFunc(rdb, name, window, func(context.Context) int { return limit })
+}
+
+// RateLimitFunc seperti RateLimit, tetapi batasnya dibaca per request (mis. dari pengaturan yang bisa diubah tanpa deploy).
+func RateLimitFunc(rdb *redis.Client, name string, window time.Duration, limit func(context.Context) int) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ok, wait, err := Allow(r.Context(), rdb, fmt.Sprintf("rl:%s:%s", name, ClientIP(r)), limit, window)
+			ok, wait, err := Allow(r.Context(), rdb, fmt.Sprintf("rl:%s:%s", name, ClientIP(r)), limit(r.Context()), window)
 			switch {
 			case err != nil:
 				Error(w, http.StatusServiceUnavailable, "UNAVAILABLE", "Layanan sementara tidak tersedia.")

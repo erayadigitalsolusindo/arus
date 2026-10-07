@@ -10,7 +10,7 @@
   const ACTIONS = ['view', 'create', 'update', 'delete', 'approve'] as const;
 
   type Grants = Record<string, string[]>;
-  type Editor = { id: string | null; name: string; grants: Grants; system: boolean; saving: boolean; error: string; nameError: string };
+  type Editor = { id: string | null; name: string; grants: Grants; administrator: boolean; system: boolean; saving: boolean; error: string; nameError: string };
 
   let roles = $state<Role[]>([]);
   let modules = $state<ModuleDef[]>([]);
@@ -50,11 +50,11 @@
   }
 
   function openNew() {
-    editor = { id: null, name: '', grants: {}, system: false, saving: false, error: '', nameError: '' };
+    editor = { id: null, name: '', grants: {}, administrator: false, system: false, saving: false, error: '', nameError: '' };
   }
 
   function openRole(role: Role) {
-    editor = { id: role.id, name: role.name, grants: grantsOf(role), system: role.is_system, saving: false, error: '', nameError: '' };
+    editor = { id: role.id, name: role.name, grants: grantsOf(role), administrator: role.permissions['*'] === true && !role.is_system, system: role.is_system, saving: false, error: '', nameError: '' };
   }
 
   // Pemilik boleh memberi apa saja; yang lain hanya izin yang ia miliki (server menegakkan hal yang sama).
@@ -107,8 +107,8 @@
     editor.saving = true;
     editor.error = editor.nameError = '';
     try {
-      if (editor.id) await iam.updateRole(editor.id, editor.name, editor.grants);
-      else await iam.createRole(editor.name, editor.grants);
+      if (editor.id) await iam.updateRole(editor.id, editor.name, editor.grants, editor.administrator);
+      else await iam.createRole(editor.name, editor.grants, editor.administrator);
       editor = null;
       notice = t('iam.roles.saved');
       await load();
@@ -193,7 +193,7 @@
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="p-3">
                 <button type="button" class="font-semibold text-start" onclick={() => openRole(role)}>{role.name}</button>
-                {#if role.is_system}<span class="badge-soft badge-primary ms-2"><i class="icon-shield-check text-[9px]"></i>{t('iam.roles.system')}</span>{/if}
+                {#if role.is_system}<span class="badge-soft badge-primary ms-2"><i class="icon-shield-check text-[9px]"></i>{t('iam.roles.system')}</span>{:else if role.permissions['*'] === true}<span class="badge-soft badge-warning ms-2"><i class="icon-crown text-[9px]"></i>{t('iam.roles.administratorBadge')}</span>{/if}
               </td>
               <td class="p-3">{t('iam.roles.users', { count: role.user_count })}</td>
               <td class="p-3">{role.permissions['*'] === true ? t('iam.roles.allAccess') : t('iam.roles.permissions', { count: permissionCount(role) })}</td>
@@ -235,6 +235,18 @@
       {#if editor.system}
         <p class="text-[12.5px] rounded-lg px-3 py-2.5 bg-[var(--surface-sunken)]"><i class="icon-shield-check me-1.5"></i>{t('iam.roles.systemHint')}</p>
       {:else}
+        <!-- Administrator: sifat role (izin "*"), bukan role sistem. Hanya Administrator yang boleh memberikannya. -->
+        <label class="flex items-start gap-2.5 rounded-lg px-3 py-2.5 bg-[var(--surface-sunken)] {readonly || !isOwner ? 'opacity-70' : 'cursor-pointer'}">
+          <input type="checkbox" class="size-4 rounded mt-0.5 accent-[var(--color-primary-600)]" bind:checked={editor.administrator} disabled={readonly || !isOwner} />
+          <span class="text-[12.5px]">
+            <span class="font-semibold block">{t('iam.roles.administrator')}</span>
+            <span class="text-[var(--text-tertiary)]">{t('iam.roles.administratorHint')}</span>
+            {#if !isOwner && !readonly}<span class="block mt-1 text-[11.5px] text-[var(--color-warning-600)]">{t('iam.roles.administratorOnly')}</span>{/if}
+          </span>
+        </label>
+      {/if}
+
+      {#if !editor.system && !editor.administrator}
         <div>
           <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h3 class="font-display font-bold text-[13px]">{t('iam.roles.matrix')}</h3>

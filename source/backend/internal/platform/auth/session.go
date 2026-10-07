@@ -32,6 +32,8 @@ const (
 //	refresh:<hash>  "uid|family|r"        token aktif (r = 1 bila "tetap masuk")
 //	used:<hash>     "family|uid|r|unix"   token yang sudah dirotasi (untuk grace & deteksi pemakaian ulang)
 //	fam:<family>    "refresh:<hash>"      token aktif terkini dalam satu rantai rotasi
+//	usr:<uid>       set of family         seluruh rantai milik satu pengguna (untuk pencabutan massal)
+//	fo:<family>     outlet id             outlet aktif sesi ini (hasil "pindah outlet"), bertahan lintas refresh
 //
 // Pemakaian ulang token lama di luar jendela grace dianggap pencurian: seluruh rantai dicabut.
 type Sessions struct{ rdb *redis.Client }
@@ -77,6 +79,8 @@ func (s *Sessions) Create(ctx context.Context, userID string, remember bool) (st
 	pipe := s.rdb.TxPipeline()
 	pipe.Set(ctx, key, userID+"|"+fam+"|"+r, ttl)
 	pipe.Set(ctx, "fam:"+fam, key, ttl)
+	pipe.SAdd(ctx, "usr:"+userID, fam)
+	pipe.Expire(ctx, "usr:"+userID, RefreshTTLRemember)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return "", fmt.Errorf("simpan sesi: %w", err)
 	}
@@ -96,6 +100,7 @@ const (
 type RotateResult struct {
 	Status   RotateStatus
 	UserID   string
+	Family   string // id rantai sesi (untuk preferensi outlet)
 	Token    string // token refresh baru; kosong kecuali Status == RotateOK
 	Remember bool
 }
@@ -109,19 +114,23 @@ if v then
   redis.call('DEL', KEYS[1])
   redis.call('SET', KEYS[3], v, 'EX', ttl)
   redis.call('SET', 'fam:' .. fam, KEYS[3], 'EX', ttl)
+  redis.call('EXPIRE', 'fo:' .. fam, ttl)
   redis.call('SET', KEYS[2], fam .. '|' .. uid .. '|' .. r .. '|' .. ARGV[4], 'EX', ARGV[1])
-  return {1, uid, r}
+  return {1, uid, r, fam}
 end
 local u = redis.call('GET', KEYS[2])
 if u then
   local fam, uid, r, ts = string.match(u, '^([^|]+)|([^|]+)|([01])|(%d+)$')
+  -- Rantai yang sudah dicabut (logout/reset password) tidak boleh hidup lagi lewat jendela grace.
+  if redis.call('EXISTS', 'fam:' .. fam) == 0 then return {0} end
   if tonumber(ARGV[4]) - tonumber(ts) <= tonumber(ARGV[3]) then
-    return {2, uid, r}
+    return {2, uid, r, fam}
   end
   local cur = redis.call('GET', 'fam:' .. fam)
   if cur then redis.call('DEL', cur) end
   redis.call('DEL', 'fam:' .. fam)
-  return {3, uid, r}
+  redis.call('DEL', 'fo:' .. fam)
+  return {3, uid, r, fam}
 end
 return {0}
 `)
@@ -141,42 +150,92 @@ func (s *Sessions) Rotate(ctx context.Context, old string) (RotateResult, error)
 		return RotateResult{}, fmt.Errorf("rotasi sesi: %w", err)
 	}
 	code, _ := res[0].(int64)
-	if code == 0 || len(res) < 3 {
+	if code == 0 || len(res) < 4 {
 		return RotateResult{Status: RotateInvalid}, nil
 	}
 	uid, _ := res[1].(string)
 	rem, _ := res[2].(string)
-	out := RotateResult{Status: RotateStatus(code), UserID: uid, Remember: rem == "1"}
+	fam, _ := res[3].(string)
+	out := RotateResult{Status: RotateStatus(code), UserID: uid, Remember: rem == "1", Family: fam}
 	if out.Status == RotateOK {
 		out.Token = fresh
 	}
 	return out, nil
 }
 
-// Revoke mencabut seluruh rantai rotasi yang berisi token ini (logout). Token tak dikenal diabaikan.
-func (s *Sessions) Revoke(ctx context.Context, token string) error {
-	h := hashOf(token)
-	v, err := s.rdb.Get(ctx, "refresh:"+h).Result()
+// FamilyOf mengembalikan (userID, family) dari refresh token aktif; ok=false bila tidak dikenal.
+func (s *Sessions) FamilyOf(ctx context.Context, token string) (userID, family string, ok bool, err error) {
+	v, err := s.rdb.Get(ctx, "refresh:"+hashOf(token)).Result()
 	if errors.Is(err, redis.Nil) {
-		return nil
+		return "", "", false, nil
 	}
 	if err != nil {
-		return fmt.Errorf("baca sesi: %w", err)
+		return "", "", false, fmt.Errorf("baca sesi: %w", err)
 	}
-	keys := []string{"refresh:" + h}
-	if fam := familyOf(v); fam != "" {
-		keys = append(keys, "fam:"+fam)
+	parts := strings.Split(v, "|")
+	if len(parts) != 3 {
+		return "", "", false, nil
 	}
-	if err := s.rdb.Del(ctx, keys...).Err(); err != nil {
+	return parts[0], parts[1], true, nil
+}
+
+// SetOutlet menyimpan outlet aktif untuk satu sesi (rantai); dipakai Refresh agar pilihan outlet tidak hilang.
+func (s *Sessions) SetOutlet(ctx context.Context, family, outletID string) error {
+	if err := s.rdb.Set(ctx, "fo:"+family, outletID, RefreshTTLRemember).Err(); err != nil {
+		return fmt.Errorf("simpan outlet sesi: %w", err)
+	}
+	return nil
+}
+
+// Outlet mengembalikan outlet pilihan sesi, atau "" bila belum pernah memilih.
+func (s *Sessions) Outlet(ctx context.Context, family string) (string, error) {
+	v, err := s.rdb.Get(ctx, "fo:"+family).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("baca outlet sesi: %w", err)
+	}
+	return v, nil
+}
+
+// Revoke mencabut seluruh rantai rotasi yang berisi token ini (logout). Token tak dikenal diabaikan.
+func (s *Sessions) Revoke(ctx context.Context, token string) error {
+	_, fam, ok, err := s.FamilyOf(ctx, token)
+	if err != nil || !ok {
+		return err
+	}
+	if err := revokeFamily.Run(ctx, s.rdb, nil, fam).Err(); err != nil {
 		return fmt.Errorf("cabut sesi: %w", err)
 	}
 	return nil
 }
 
-func familyOf(v string) string {
-	parts := strings.Split(v, "|")
-	if len(parts) != 3 {
-		return ""
+var revokeFamily = redis.NewScript(`
+local cur = redis.call('GET', 'fam:' .. ARGV[1])
+if cur then redis.call('DEL', cur) end
+redis.call('DEL', 'fam:' .. ARGV[1])
+redis.call('DEL', 'fo:' .. ARGV[1])
+return 1
+`)
+
+var revokeUser = redis.NewScript(`
+local fams = redis.call('SMEMBERS', 'usr:' .. ARGV[1])
+for _, fam in ipairs(fams) do
+  local cur = redis.call('GET', 'fam:' .. fam)
+  if cur then redis.call('DEL', cur) end
+  redis.call('DEL', 'fam:' .. fam)
+  redis.call('DEL', 'fo:' .. fam)
+end
+redis.call('DEL', 'usr:' .. ARGV[1])
+return #fams
+`)
+
+// RevokeUser mencabut SEMUA sesi refresh milik satu pengguna di semua perangkat (reset/ganti password, penonaktifan).
+// Token akses yang masih hidup dicabut terpisah lewat users.tokens_valid_after.
+func (s *Sessions) RevokeUser(ctx context.Context, userID string) error {
+	if err := revokeUser.Run(ctx, s.rdb, nil, userID).Err(); err != nil {
+		return fmt.Errorf("cabut semua sesi: %w", err)
 	}
-	return parts[1]
+	return nil
 }

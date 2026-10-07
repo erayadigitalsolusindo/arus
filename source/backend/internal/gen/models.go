@@ -17,6 +17,21 @@ type AppSetting struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type AuditLog struct {
+	ID        int64
+	TenantID  uuid.UUID
+	OutletID  pgtype.UUID
+	ActorID   pgtype.UUID
+	ActorName string
+	Action    string
+	Entity    string
+	EntityID  string
+	Details   []byte
+	Ip        string
+	RequestID string
+	CreatedAt pgtype.Timestamptz
+}
+
 type Outlet struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -51,16 +66,26 @@ type Tenant struct {
 }
 
 type User struct {
-	ID           uuid.UUID
-	TenantID     uuid.UUID
-	RoleID       uuid.UUID
-	Email        string
-	Name         string
-	PasswordHash string
-	PinHash      pgtype.Text
-	Active       bool
-	LastLoginAt  pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Phone        pgtype.Text
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	RoleID           uuid.UUID
+	Email            string
+	Name             string
+	PasswordHash     string
+	PinHash          pgtype.Text
+	Active           bool
+	LastLoginAt      pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Phone            pgtype.Text
+	EmailVerifiedAt  pgtype.Timestamptz
+	TermsAcceptedAt  pgtype.Timestamptz
+	TermsVersion     pgtype.Text
+	TokensValidAfter pgtype.Timestamptz
+}
+
+type UserOutlet struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	OutletID uuid.UUID
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -19,6 +20,15 @@ type Config struct {
 	JWTSecret   string
 	// TrustProxy: percayai X-Forwarded-For (hanya bila di belakang proxy tepercaya).
 	TrustProxy bool
+
+	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
+	AppBaseURL string
+	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
+	SMTPHost string
+	SMTPPort int
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
 }
 
 func (c Config) IsDev() bool { return c.Env == "development" }
@@ -34,11 +44,24 @@ func Load() (Config, error) {
 		RedisURL:    os.Getenv("REDIS_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
 		TrustProxy:  os.Getenv("TRUST_PROXY") == "true",
+		AppBaseURL:  strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
+		SMTPHost:    os.Getenv("SMTP_HOST"),
+		SMTPUser:    os.Getenv("SMTP_USER"),
+		SMTPPass:    os.Getenv("SMTP_PASS"),
+		SMTPFrom:    getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
 	}
 	for _, o := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {
 			c.CORSOrigins = append(c.CORSOrigins, o)
 		}
+	}
+
+	if v := os.Getenv("SMTP_PORT"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 65535 {
+			return Config{}, errors.New("SMTP_PORT tidak valid")
+		}
+		c.SMTPPort = n
 	}
 
 	var errs []error
@@ -47,6 +70,12 @@ func Load() (Config, error) {
 	}
 	if c.RedisURL == "" {
 		errs = append(errs, errors.New("REDIS_URL wajib diisi"))
+	}
+	if !c.IsDev() && !strings.HasPrefix(c.AppBaseURL, "https://") {
+		errs = append(errs, errors.New("APP_BASE_URL wajib https:// di luar development"))
+	}
+	if !c.IsDev() && c.SMTPHost == "" {
+		errs = append(errs, errors.New("SMTP_HOST wajib di luar development (email verifikasi dan reset password)"))
 	}
 	if len(c.JWTSecret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET wajib diisi, minimal 32 karakter"))

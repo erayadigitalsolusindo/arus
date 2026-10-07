@@ -19,6 +19,11 @@ export type User = {
   active: boolean;
   role_id: string;
   role_name: string;
+  role_is_system: boolean;
+  email_verified: boolean;
+  /** Pemilik otomatis mengakses semua outlet; outlet_ids kosong dalam kasus itu. */
+  all_outlets: boolean;
+  outlet_ids: string[];
   last_login_at: string | null;
   created_at: string;
 };
@@ -30,15 +35,16 @@ export const iam = {
 
   roles: () => api<{ roles: Role[] }>('/iam/roles').then((r) => r.roles),
   assignableRoles: () => api<{ roles: Role[] }>('/iam/assignable-roles').then((r) => r.roles),
-  createRole: (name: string, permissions: Record<string, string[]>) => api<Role>('/iam/roles', { method: 'POST', body: json({ name, permissions }) }),
-  updateRole: (id: string, name: string, permissions: Record<string, string[]>) =>
-    api<Role>(`/iam/roles/${id}`, { method: 'PUT', body: json({ name, permissions }) }),
+  createRole: (name: string, permissions: Record<string, string[]>, administrator = false) =>
+    api<Role>('/iam/roles', { method: 'POST', body: json({ name, permissions, administrator }) }),
+  updateRole: (id: string, name: string, permissions: Record<string, string[]>, administrator = false) =>
+    api<Role>(`/iam/roles/${id}`, { method: 'PUT', body: json({ name, permissions, administrator }) }),
   deleteRole: (id: string) => api<null>(`/iam/roles/${id}`, { method: 'DELETE' }),
 
   users: () => api<{ users: User[] }>('/iam/users').then((r) => r.users),
-  createUser: (u: { name: string; email: string; phone: string; password: string; role_id: string }) =>
+  createUser: (u: { name: string; email: string; phone: string; password: string; role_id: string; outlet_ids: string[] }) =>
     api<User>('/iam/users', { method: 'POST', body: json(u) }),
-  updateUser: (id: string, u: { name: string; phone: string; role_id: string; active: boolean }) =>
+  updateUser: (id: string, u: { name: string; phone: string; role_id: string; active: boolean; outlet_ids: string[] }) =>
     api<User>(`/iam/users/${id}`, { method: 'PUT', body: json(u) }),
   resetPassword: (id: string, password: string) => api<null>(`/iam/users/${id}/password`, { method: 'PUT', body: json({ password }) })
 };

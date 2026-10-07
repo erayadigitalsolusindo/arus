@@ -11,7 +11,9 @@ export class ApiError extends Error {
     /** Kode galat per field untuk error VALIDATION, mis. { email: 'INVALID' }. */
     public fields: Record<string, string> = {},
     /** Detik sampai boleh mencoba lagi (RATE_LIMITED, ACCOUNT_LOCKED). */
-    public retryAfter = 0
+    public retryAfter = 0,
+    /** Sisa percobaan login gagal sebelum akun dikunci (INVALID_CREDENTIALS); 0 = tidak diketahui. */
+    public attemptsLeft = 0
   ) {
     super(message);
     this.name = 'ApiError';
@@ -31,6 +33,7 @@ export type AuthResponse = {
   tenant: Identity;
   outlet: Identity;
   permissions: Permissions;
+  email_verified: boolean;
 };
 
 // Header kustom wajib di endpoint ber-cookie (refresh/logout): memaksa preflight CORS (perlindungan CSRF).
@@ -64,7 +67,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     // `message` hanya cadangan; teks untuk pengguna diterjemahkan lewat `errorMessage()` (#lib/i18n/errors.ts).
-    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`, body?.error?.fields ?? {}, body?.error?.retry_after ?? 0);
+    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`, body?.error?.fields ?? {}, body?.error?.retry_after ?? 0, body?.error?.attempts_left ?? 0);
   }
   return body as T;
 }

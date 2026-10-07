@@ -3,6 +3,8 @@ export default {
   dashboard: 'Dashboard',
   users: 'Pengguna',
   roles: 'Role & Hak Akses',
+  outlets: 'Outlet',
+  auditLog: 'Audit Log',
   siak: 'SIAK Aciraba',
   itemList: 'Daftar Item',
   stockCard: 'Kartu Stok',

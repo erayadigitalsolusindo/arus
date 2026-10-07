@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { visibleNav } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
+  import OutletSwitcher from '#lib/components/OutletSwitcher.svelte';
 
   let {
     collapsed,
@@ -38,19 +39,7 @@
     </button>
   </div>
 
-  <div class="sidebar-outlet workspace-text px-4 pt-3 pb-1 shrink-0">
-    <span class="block text-[11px] font-semibold uppercase tracking-wide text-[var(--sidebar-text)]">
-      {t('shell.currentOutlet')} [{session.outlet?.code}]
-    </span>
-    <!-- Pindah outlet butuh endpoint penerbit token dengan outlet baru; sementara hanya outlet aktif yang tampil. -->
-    <select
-      class="mt-1.5 w-full rounded-lg px-2.5 py-2 text-[12.5px] font-medium outline-none cursor-pointer"
-      style="background-color: rgb(255 255 255 / 0.08) !important; color: #fff; border: 1px solid var(--sidebar-border); color-scheme: dark"
-      aria-label={t('shell.switchOutlet')}
-    >
-      {#if session.outlet}<option class="text-black" value={session.outlet.id}>{session.outlet.name}</option>{/if}
-    </select>
-  </div>
+  <OutletSwitcher />
 
   <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label={t('shell.mainNav')}>
     <ul role="menu">

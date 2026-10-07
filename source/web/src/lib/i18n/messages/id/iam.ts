@@ -28,7 +28,9 @@ export default {
     stock_opname: 'Trx Opname Barang',
     stock_transfer: 'Mutasi Stok Barang',
     users: 'Pengguna',
-    roles: 'Role & Hak Akses'
+    roles: 'Role & Hak Akses',
+    outlets: 'Outlet',
+    audit_log: 'Audit Log'
   },
   users: {
     docTitle: 'Pengguna | ACIRABA',
@@ -61,7 +63,12 @@ export default {
     loadFailed: 'Gagal memuat data pengguna.',
     you: 'Anda',
     selfHint: 'Anda tidak dapat menonaktifkan atau mengganti role akun sendiri.',
-    selectRole: 'Pilih role…'
+    selectRole: 'Pilih role…',
+    outlets: 'Outlet',
+    outletsHint: 'Pilih outlet yang boleh diakses pegawai ini (minimal satu).',
+    allOutlets: 'Semua outlet',
+    verified: 'Terverifikasi',
+    unverified: 'Belum diverifikasi'
   },
   roles: {
     docTitle: 'Role & Hak Akses | ACIRABA',
@@ -92,6 +99,10 @@ export default {
     deleted: 'Role dihapus.',
     empty: 'Belum ada role.',
     loadFailed: 'Gagal memuat data role.',
+    administrator: 'Administrator (akses penuh)',
+    administratorHint: 'Akses ke semua menu dan aksi (termasuk menu yang ditambahkan nanti) serta semua outlet, tanpa filter. Hanya Administrator yang dapat memberikan atau mengubah role ini.',
+    administratorBadge: 'Administrator',
+    administratorOnly: 'Hanya Administrator yang dapat membuat atau mengubah role akses penuh.',
     notYours: 'Di luar izin Anda'
   }
 };

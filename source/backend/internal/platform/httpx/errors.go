@@ -17,6 +17,8 @@ type errorDetail struct {
 	Fields map[string]string `json:"fields,omitempty"`
 	// RetryAfter: detik sampai boleh mencoba lagi (RATE_LIMITED, ACCOUNT_LOCKED).
 	RetryAfter int `json:"retry_after,omitempty"`
+	// AttemptsLeft: sisa percobaan login gagal sebelum akun dikunci (INVALID_CREDENTIALS).
+	AttemptsLeft int `json:"attempts_left,omitempty"`
 }
 
 // JSON menulis respons JSON dengan status yang diberikan.
@@ -29,6 +31,11 @@ func JSON(w http.ResponseWriter, status int, v any) {
 // Error menulis error API: {"error":{"code","message"}} sesuai AGENTS.md §6.
 func Error(w http.ResponseWriter, status int, code, message string) {
 	JSON(w, status, errorBody{Error: errorDetail{Code: code, Message: message}})
+}
+
+// ErrorAttempts = Error + sisa percobaan sebelum dikunci.
+func ErrorAttempts(w http.ResponseWriter, status int, code, message string, attemptsLeft int) {
+	JSON(w, status, errorBody{Error: errorDetail{Code: code, Message: message, AttemptsLeft: attemptsLeft}})
 }
 
 // ValidationError menulis 422 VALIDATION dengan kode galat per field.

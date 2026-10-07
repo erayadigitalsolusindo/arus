@@ -5,6 +5,8 @@ const nav: Messages['nav'] = {
   dashboard: 'Dashboard',
   users: 'Users',
   roles: 'Roles & Permissions',
+  outlets: 'Outlets',
+  auditLog: 'Audit Log',
   siak: 'SIAK Aciraba',
   itemList: 'Item List',
   stockCard: 'Stock Card',

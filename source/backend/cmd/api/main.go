@@ -12,12 +12,12 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"aciraba/internal/auth"
-	"aciraba/internal/iam"
-	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/audit"
+	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/httpx"
+	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/redisx"
 )
 
@@ -61,17 +61,20 @@ func run() error {
 	defer rdb.Close()
 
 	r := httpx.NewRouter(log, cfg.CORSOrigins, cfg.TrustProxy)
+	r.Use(audit.CaptureMeta) // IP + request id untuk audit log (middleware harus sebelum route)
 	r.Get("/healthz", httpx.Healthz(map[string]httpx.Pinger{
 		"postgres": pool,
 		"redis":    redisPinger{rdb},
 	}))
 
-	tokens := pauth.NewTokenIssuer(cfg.JWTSecret)
-	perms := iam.NewResolver(pool)
-	authSvc := auth.NewService(pool, tokens, pauth.NewSessions(rdb), perms)
-	lockout := auth.NewLockout(rdb, auth.NewPolicyLoader(pool, log))
-	auth.NewHandler(authSvc, log, rdb, lockout, tokens, cfg.CORSOrigins, !cfg.IsDev()).Routes(r)
-	iam.NewHandler(iam.NewService(pool, perms), perms, tokens, log).Routes(r)
+	mail, err := mailer.New(mailer.Config{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.SMTPFrom}, log)
+	if err != nil {
+		return err
+	}
+	jobs := background.New(log, 16, 30*time.Second)
+	defer jobs.Wait() // email yang sedang dikirim diselesaikan dulu saat shutdown
+
+	mountModules(r, appDeps{Cfg: cfg, Log: log, Pool: pool, Redis: rdb, Mailer: mail, Jobs: jobs})
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

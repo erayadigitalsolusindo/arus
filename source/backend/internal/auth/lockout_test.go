@@ -99,11 +99,11 @@ func TestLockoutEscalationAndReset(t *testing.T) {
 	t.Cleanup(func() { lk.wipe(t, ip, email) })
 
 	fail := func() time.Duration {
-		d, err := lk.RecordFailure(ctx, ip, email)
+		res, err := lk.RecordFailure(ctx, ip, email)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return d
+		return res.LockedFor
 	}
 	if d, _ := lk.Check(ctx, ip, email); d != 0 {
 		t.Fatalf("awal tidak boleh terkunci: %v", d)
@@ -174,5 +174,35 @@ func TestLockoutEmailCeilingAcrossIPs(t *testing.T) {
 	}
 	if d, _ := lk.Check(ctx, "192.0.2.200", email); d <= 0 {
 		t.Fatal("batas per email dari banyak IP harus mengunci IP baru juga")
+	}
+}
+
+func TestLockoutReportsAttemptsLeft(t *testing.T) {
+	lk := newTestLockout(t, `{"max_failures":3,"lockout_minutes":[1],"reset_after_hours":1,"email_max_failures_per_hour":100}`)
+	ctx := context.Background()
+	ip, email := "203.0.113.50", fmt.Sprintf("uji-sisa-%d", os.Getpid())
+	lk.wipe(t, ip, email)
+	t.Cleanup(func() { lk.wipe(t, ip, email) })
+
+	// Sisa percobaan turun 2 → 1 → terkunci (0); sama untuk email apa pun karena dihitung per IP+email, bukan per akun.
+	for i, want := range []int{2, 1} {
+		res, err := lk.RecordFailure(ctx, ip, email)
+		if err != nil || res.LockedFor != 0 || res.AttemptsLeft != want {
+			t.Fatalf("gagal ke-%d: %+v err=%v, want sisa %d tanpa kunci", i+1, res, err, want)
+		}
+	}
+	res, err := lk.RecordFailure(ctx, ip, email)
+	if err != nil || res.LockedFor != time.Minute || res.AttemptsLeft != 0 {
+		t.Fatalf("gagal ke-3: %+v err=%v, want terkunci 1 menit, sisa 0", res, err)
+	}
+
+	// Login berhasil mengembalikan hitungan penuh.
+	_, _, until, _ := lockKeys(ip, email)
+	lk.rdb.Del(ctx, until)
+	if err := lk.Reset(ctx, ip, email); err != nil {
+		t.Fatal(err)
+	}
+	if res, _ := lk.RecordFailure(ctx, ip, email); res.AttemptsLeft != 2 {
+		t.Errorf("setelah reset sisa = %d, want 2", res.AttemptsLeft)
 	}
 }

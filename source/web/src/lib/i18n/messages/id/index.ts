@@ -5,6 +5,10 @@ import nav from './nav.ts';
 import shell from './shell.ts';
 import dashboard from './dashboard.ts';
 import iam from './iam.ts';
+import account from './account.ts';
+import outlets from './outlets.ts';
+import audit from './audit.ts';
+import legal from './legal.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal };
