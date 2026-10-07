@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { session, logout } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
   import { nav } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
@@ -10,7 +11,8 @@
     onclose
   }: { collapsed: boolean; mobileOpen: boolean; ontoggle: () => void; onclose: () => void } = $props();
 
-  let open = $state<Record<string, boolean>>({ master: true });
+  // Semua submenu tertutup saat halaman dimuat/di-reload.
+  let open = $state<Record<string, boolean>>({});
 </script>
 
 {#if mobileOpen}
@@ -20,8 +22,8 @@
 <aside class="app-sidebar sidebar-pattern scroll-thin" class:is-mobile-open={mobileOpen} aria-label={t('shell.sidebar')}>
   <div class="flex items-center justify-between h-16 px-4 shrink-0 border-b border-[var(--sidebar-border)]">
     <a href="/dashboard" class="flex items-center gap-2.5 min-w-0 rounded-xl px-2.5 py-1.5">
-      <img src="/logo-light.svg" alt="ACIRABA" class="sidebar-logo-full max-w-[150px] object-contain shrink-0" />
-      <img src="/mark.svg" alt="ACIRABA" class="sidebar-logo-small size-8 object-contain shrink-0 hidden" />
+      <img src="/logo_dengan_text-no-bg.svg" alt="ARUS" class="sidebar-logo-full logo-outline h-10 w-auto object-contain shrink-0" />
+      <img src="/logo_tanpa_text-no-bg.svg" alt="ARUS" class="sidebar-logo-small logo-outline h-8 w-auto object-contain shrink-0 hidden" />
     </a>
     <button
       type="button"
@@ -31,6 +33,20 @@
     >
       <i class="icon-panel-left-close text-[17px]"></i>
     </button>
+  </div>
+
+  <div class="sidebar-outlet workspace-text px-4 pt-3 pb-1 shrink-0">
+    <span class="block text-[11px] font-semibold uppercase tracking-wide text-[var(--sidebar-text)]">
+      {t('shell.currentOutlet')} [{session.outlet?.code}]
+    </span>
+    <!-- Pindah outlet butuh endpoint penerbit token dengan outlet baru; sementara hanya outlet aktif yang tampil. -->
+    <select
+      class="mt-1.5 w-full rounded-lg px-2.5 py-2 text-[12.5px] font-medium outline-none cursor-pointer"
+      style="background-color: rgb(255 255 255 / 0.08) !important; color: #fff; border: 1px solid var(--sidebar-border); color-scheme: dark"
+      aria-label={t('shell.switchOutlet')}
+    >
+      {#if session.outlet}<option class="text-black" value={session.outlet.id}>{session.outlet.name}</option>{/if}
+    </select>
   </div>
 
   <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label={t('shell.mainNav')}>
@@ -84,12 +100,24 @@
         <i class="icon-user text-[15px]"></i>
       </span>
       <span class="workspace-text text-left min-w-0 flex-1">
-        <span class="block text-[12.5px] font-semibold text-white truncate">{t('shell.notSignedIn')}</span>
-        <span class="block text-[10.5px] truncate text-[var(--sidebar-text)]">{t('shell.authPhase')}</span>
+        <span class="block text-[12.5px] font-semibold text-white truncate">{session.user?.name}</span>
+        <span class="block text-[10.5px] truncate text-[var(--sidebar-text)]">{session.outlet?.name}</span>
       </span>
-      <a href="/login" class="workspace-text header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-7 shrink-0" title={t('shell.signOut')} aria-label={t('shell.signOut')}>
+      <button type="button" onclick={logout} class="workspace-text header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-7 shrink-0" title={t('shell.signOut')} aria-label={t('shell.signOut')}>
         <i class="icon-log-out text-[14px]"></i>
-      </a>
+      </button>
     </div>
   </div>
 </aside>
+
+<style>
+  /* Submenu tertutup tetap membawa margin dari template, sehingga baris bersubmenu lebih tinggi dari baris biasa. */
+  .has-submenu:not(.is-open) > :global(.sidebar-submenu) {
+    margin-block: 0;
+  }
+
+  /* Outline putih mengikuti kontur logo (logo biru tua di atas sidebar gelap). */
+  .logo-outline {
+    filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff);
+  }
+</style>

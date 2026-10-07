@@ -12,3 +12,33 @@
   --breakpoint-xl: 80rem;
   --breakpoint-2xl: 96rem;
 }
+
+/* Warna merek ACIRABA/ARUS: biru dari logo (#0445ab ikon, #094996 teks).
+   Menimpa palet hijau bawaan template; tanpa @layer sehingga menang atas build template. */
+:root,
+:root[data-theme='light'] {
+  --color-primary-50: #eff5fd;
+  --color-primary-100: #dbe8fb;
+  --color-primary-200: #bcd5f6;
+  --color-primary-300: #86b4ee;
+  --color-primary-400: #4a8be0;
+  --color-primary-500: #1a63c9;
+  --color-primary-600: #0445ab;
+  --color-primary-700: #094996;
+  --color-primary-800: #0a3b78;
+  --color-primary-900: #0b2f5e;
+  --color-primary-950: #071d3d;
+  --color-primary-hover: #033a91;
+  --color-primary-transparent: #ecf1f9;
+  --shadow-glow-primary: 0 8px 24px -6px #0445ab59;
+  --sidebar-bg: #0c1b33;
+  --sidebar-bg-active: #13284a;
+}
+
+:root[data-theme='dark'] {
+  --color-primary-50: #101a2b;
+  --color-primary-100: #15233a;
+  --color-primary-transparent: #18253a;
+  --sidebar-bg: #080d17;
+  --sidebar-bg-active: #101827;
+}

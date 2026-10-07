@@ -9,18 +9,38 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     /** Kode galat per field untuk error VALIDATION, mis. { email: 'INVALID' }. */
-    public fields: Record<string, string> = {}
+    public fields: Record<string, string> = {},
+    /** Detik sampai boleh mencoba lagi (RATE_LIMITED, ACCOUNT_LOCKED). */
+    public retryAfter = 0
   ) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
+export type Identity = { id: string; code?: string; name: string; email?: string };
+
+/** Respons /auth/register, /auth/login, dan /auth/refresh. */
+export type AuthResponse = {
+  access_token: string;
+  expires_in: number;
+  user: Identity;
+  tenant: Identity;
+  outlet: Identity;
+};
+
+// Header kustom wajib di endpoint ber-cookie (refresh/logout): memaksa preflight CORS (perlindungan CSRF).
+export const CSRF_HEADERS = { 'X-Requested-With': 'aciraba' } as const;
+
 // Token akses hanya di memori (bukan localStorage) agar tidak bisa dicuri skrip XSS; refresh lewat cookie httpOnly.
 let accessToken: string | null = null;
 export const setAccessToken = (token: string | null) => (accessToken = token);
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+// Penyimpan sesi mendaftar di sini agar klien tidak bergantung pada store (hindari impor melingkar).
+let onAuthChange: (res: AuthResponse | null) => void = () => {};
+export const setAuthListener = (fn: typeof onAuthChange) => (onAuthChange = fn);
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -40,7 +60,52 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     // `message` hanya cadangan; teks untuk pengguna diterjemahkan lewat `errorMessage()` (#lib/i18n/errors.ts).
-    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`, body?.error?.fields ?? {});
+    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`, body?.error?.fields ?? {}, body?.error?.retry_after ?? 0);
   }
   return body as T;
+}
+
+// Single-flight: semua permintaan yang gagal 401 bersamaan menunggu satu panggilan refresh yang sama,
+// sehingga refresh token hanya dirotasi sekali.
+let refreshing: Promise<AuthResponse | null> | null = null;
+
+/**
+ * Menukar cookie refresh dengan token akses baru. Mengembalikan null bila sesi memang berakhir (401/403);
+ * error jaringan/server dilempar agar sesi yang masih sah tidak ikut terhapus.
+ */
+export function refreshSession(): Promise<AuthResponse | null> {
+  refreshing ??= doRefresh().finally(() => (refreshing = null));
+  return refreshing;
+}
+
+async function doRefresh(): Promise<AuthResponse | null> {
+  try {
+    const res = await request<AuthResponse>('/auth/refresh', { method: 'POST', headers: CSRF_HEADERS });
+    accessToken = res.access_token;
+    onAuthChange(res);
+    return res;
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      accessToken = null;
+      onAuthChange(null);
+      return null;
+    }
+    throw err;
+  }
+}
+
+// Endpoint yang menerbitkan/mencabut sesi tidak boleh memicu refresh (mencegah loop). /auth/me tetap ikut.
+const NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']);
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const sentWith = accessToken;
+  try {
+    return await request<T>(path, init);
+  } catch (err) {
+    // Token akses kedaluwarsa: refresh sekali lalu ulangi. Endpoint penerbit sesi dikecualikan (NO_RETRY).
+    if (!(err instanceof ApiError) || err.status !== 401 || sentWith === null || NO_RETRY.has(path)) throw err;
+    // Bila permintaan lain sudah menyegarkan token, cukup ulangi dengan token yang baru.
+    if (accessToken === sentWith && !(await refreshSession())) throw err;
+    return request<T>(path, init);
+  }
 }

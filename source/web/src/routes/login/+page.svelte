@@ -1,7 +1,8 @@
 <script lang="ts">
   import { z } from 'zod';
   import { goto } from '$app/navigation';
-  import { api } from '#lib/api/client.ts';
+  import { api, ApiError, type AuthResponse } from '#lib/api/client.ts';
+  import { startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import TransactionFeed from '#lib/components/TransactionFeed.svelte';
@@ -31,11 +32,26 @@
   let loading = $state(false);
   let formError = $state('');
   let fieldErrors = $state<{ email?: string; password?: string }>({});
+  let lockedUntil = $state(0);
+  let now = $state(Date.now());
+  const lockedSeconds = $derived(Math.max(0, Math.ceil((lockedUntil - now) / 1000)));
+  const lockedText = $derived(lockedSeconds > 0 ? t('errors.ACCOUNT_LOCKED', { count: Math.ceil(lockedSeconds / 60) }) : '');
+
+  // Hitung mundur sampai kunci berakhir; tombol masuk dinonaktifkan selama itu.
+  $effect(() => {
+    if (lockedUntil <= Date.now()) return;
+    const id = setInterval(() => {
+      now = Date.now();
+      if (now >= lockedUntil) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  });
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
     formError = '';
     fieldErrors = {};
+    if (lockedSeconds > 0) return;
 
     const parsed = makeSchema().safeParse({ email, password });
     if (!parsed.success) {
@@ -48,10 +64,16 @@
 
     loading = true;
     try {
-      // Endpoint dibuat di Fase 2.1; sampai saat itu API akan membalas NOT_FOUND.
-      await api('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
+      const res = await api<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
+      startSession(res);
+      password = '';
       await goto('/dashboard');
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
+        now = Date.now();
+        lockedUntil = now + err.retryAfter * 1000;
+        return;
+      }
       formError = errorMessage(err);
     } finally {
       loading = false;
@@ -67,7 +89,10 @@
     <LoginBackdrop />
     <div class="relative flex-1 flex flex-col justify-center w-full max-w-[400px] mx-auto">
       <BarcodeScanner />
-      <h1 class="flex flex-col justify-center items-center text-center font-display font-bold text-[22px]">{t('auth.login.titleLine1')} <br>{t('auth.login.titleLine2')}</h1>
+      <h1 class="flex flex-col justify-center items-center text-center font-display font-bold text-[22px]">
+        {t('auth.login.titleLine1')}
+        <img src="/logo_dengan_text-no-bg.svg" alt={t('auth.login.titleLine2')} class="mt-1 h-20 w-auto" />
+      </h1>
       <p class="flex justify-center items-center text-[12.5px] mt-1.5 text-tertiary">{t('auth.login.subtitle')}</p>
 
       <div class="grid grid-cols-2 gap-3 mt-6">
@@ -82,10 +107,10 @@
       </div>
 
       <form class="space-y-4" onsubmit={submit} novalidate>
-        {#if formError}
+        {#if lockedText || formError}
           <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
             <i class="icon-circle-alert text-[14px] mt-px shrink-0"></i>
-            <span>{formError}</span>
+            <span>{lockedText || formError}</span>
           </div>
         {/if}
 
@@ -134,7 +159,7 @@
           {t('auth.login.remember')}
         </label>
 
-        <button type="submit" disabled={loading} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+        <button type="submit" disabled={loading || lockedSeconds > 0} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
           {t('auth.login.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
         </button>
       </form>
