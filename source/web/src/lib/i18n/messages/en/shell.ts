@@ -5,6 +5,14 @@ const shell: Messages['shell'] = {
   closeMenu: 'Close menu',
   expandSidebar: 'Expand sidebar',
   collapseSidebar: 'Collapse sidebar',
+  tabs: 'Page tabs',
+  closeTab: 'Close tab',
+  unsaved: {
+    title: 'Unsaved changes',
+    body: 'This form has not been saved and its contents will be lost if you leave the page. Discard changes?',
+    stay: 'Stay here',
+    discard: 'Discard changes'
+  },
   mainNav: 'Main navigation',
   sidebar: 'Sidebar',
   search: 'Search items, receipts, customers…',
