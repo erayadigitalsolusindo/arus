@@ -3,7 +3,7 @@ package item
 import (
 	"context"
 	"errors"
-	"sync"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -214,23 +214,24 @@ func TestAltUnitsAndBarcodes(t *testing.T) {
 		t.Fatalf("satuan tambahan: %+v", it.Units)
 	}
 
-	// Barcode unik lintas items dan item_units (kedua arah) per tenant.
+	// Barcode BOLEH kembar antar barang, baik sebagai barcode barang maupun barcode satuan (kedua arah).
 	other, err := e.svc.Create(ctx, e.a, Input{Name: "Teh", UnitID: pcs.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.Create(ctx, e.a, Input{Name: "Gula", UnitID: pcs.String(), Barcode: "BC-DUS"}); !errors.Is(err, ErrBarcodeTaken) {
-		t.Errorf("barcode item = barcode satuan item lain: %v", err)
+	if _, err := e.svc.Create(ctx, e.a, Input{Name: "Gula", UnitID: pcs.String(), Barcode: "BC-DUS"}); err != nil {
+		t.Errorf("barcode item = barcode satuan item lain harus diizinkan: %v", err)
 	}
 	if _, err := e.svc.Update(ctx, e.a, other.ID, Input{Name: "Teh", SKU: other.SKU, UnitID: pcs.String(),
-		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "10", Barcode: "BC-PCS"}}}); !errors.Is(err, ErrBarcodeTaken) {
-		t.Errorf("barcode satuan = barcode item lain: %v", err)
+		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "10", Barcode: "BC-PCS"}}}); err != nil {
+		t.Errorf("barcode satuan = barcode item lain harus diizinkan: %v", err)
 	}
-	if _, err := e.svc.Update(ctx, e.a, other.ID, Input{Name: "Teh", SKU: other.SKU, UnitID: pcs.String(),
-		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "10", Barcode: "BC-DUS"}}}); !errors.Is(err, ErrBarcodeTaken) {
-		t.Errorf("barcode satuan ganda antar item: %v", err)
+	// Dalam SATU item barcode tetap tidak boleh ganda (pindai jadi ambigu antara satuannya sendiri).
+	var dupErr FieldErrors
+	if _, err := e.svc.Update(ctx, e.a, it.ID, Input{Name: "Kopi", SKU: it.SKU, UnitID: pcs.String(), Barcode: "BC-PCS",
+		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "12", Barcode: "BC-PCS"}}}); !errors.As(err, &dupErr) || dupErr["units"] != codeDuplicate {
+		t.Errorf("barcode ganda dalam satu item: %v", err)
 	}
-	// Item yang sama boleh menyimpan ulang barcode miliknya sendiri; tenant lain bebas memakai nilai yang sama.
 	if _, err := e.svc.Update(ctx, e.a, it.ID, Input{Name: "Kopi", SKU: it.SKU, UnitID: pcs.String(), SellPrice: "1000", Barcode: "BC-PCS",
 		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "12", Barcode: "BC-DUS"}, {UnitID: box.String(), Factor: "6.5"}}}); err != nil {
 		t.Errorf("simpan ulang barcode sendiri: %v", err)
@@ -272,41 +273,84 @@ func TestAltUnitsAndBarcodes(t *testing.T) {
 	}
 }
 
-func TestConcurrentBarcodeAcrossTables(t *testing.T) {
+// Barcode kembar (barang A negara CC dan B negara DD sama-sama "1111") dan pencarian untuk peringatan form / pilihan kasir.
+func TestSharedBarcodeLookup(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	pcs := e.master(t, "units", e.a.TenantID, "Pcs", true)
 	dus := e.master(t, "units", e.a.TenantID, "Dus", true)
-	var wg sync.WaitGroup
-	res := make(chan error, 10)
-	for i := range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			in := Input{Name: "Paralel", UnitID: pcs.String()}
-			if i%2 == 0 { // separuh memakai kode itu sebagai barcode item, separuh sebagai barcode satuan
-				in.Barcode = "SAMA"
-			} else {
-				in.Units = &[]UnitInput{{UnitID: dus.String(), Factor: "2", Barcode: "SAMA"}}
-			}
-			_, err := e.svc.Create(ctx, e.a, in)
-			res <- err
-		}()
+
+	a, err := e.svc.Create(ctx, e.a, Input{Name: "Gunting 20 cm", Origin: "CC", Barcode: "1111", UnitID: pcs.String(), SellPrice: "5000"})
+	if err != nil || a.Origin != "CC" {
+		t.Fatalf("barang A: %+v %v", a, err)
 	}
-	wg.Wait()
-	close(res)
-	ok, taken := 0, 0
-	for err := range res {
-		switch {
-		case err == nil:
-			ok++
-		case errors.Is(err, ErrBarcodeTaken):
-			taken++
-		default:
-			t.Errorf("error tak terduga: %v", err)
+	b, err := e.svc.Create(ctx, e.a, Input{Name: "Gunting 20 cm", Origin: "DD", Barcode: "1111", UnitID: pcs.String(), SellPrice: "6000",
+		OutletPrices: &[]OutletPriceInput{{OutletID: e.outlet2.String(), SellPrice: "6500"}}})
+	if err != nil {
+		t.Fatalf("barang B (barcode kembar) harus diizinkan: %v", err)
+	}
+	// Barang C memakai kode yang sama sebagai barcode satuan tambahan (Dus isi 12, harga dihitung otomatis).
+	c, err := e.svc.Create(ctx, e.a, Input{Name: "Kunci", Barcode: "9999", UnitID: pcs.String(), SellPrice: "1000",
+		Units: &[]UnitInput{{UnitID: dus.String(), Factor: "12", Barcode: "1111"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := e.svc.ByBarcode(ctx, e.a, "1111", uuid.Nil)
+	if err != nil || len(got) != 3 {
+		t.Fatalf("pindai 1111 harus menghasilkan 3 barang: %+v %v", got, err)
+	}
+	byID := map[uuid.UUID]BarcodeMatch{}
+	for _, m := range got {
+		byID[m.ID] = m
+	}
+	if m := byID[a.ID]; m.Origin != "CC" || m.Matched != "item" || m.Unit != "Pcs" || m.Price.String() != "5000" || !m.Factor.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("A: %+v", m)
+	}
+	if m := byID[b.ID]; m.Origin != "DD" || m.Price.String() != "6000" {
+		t.Errorf("B: %+v", m)
+	}
+	if m := byID[c.ID]; m.Matched != "unit" || m.Unit != "Dus" || m.Factor.String() != "12" || m.Price.String() != "12000" {
+		t.Errorf("C (barcode satuan, harga = faktor × harga dasar): %+v", m)
+	}
+	// Harga mengikuti outlet aktif sesi.
+	other := e.a
+	other.OutletID = e.outlet2
+	if got, _ = e.svc.ByBarcode(ctx, other, "1111", uuid.Nil); len(got) != 3 {
+		t.Fatal("outlet lain")
+	}
+	for _, m := range got {
+		if m.ID == b.ID && m.Price.String() != "6500" {
+			t.Errorf("harga cabang 2 untuk B = %s, want 6500", m.Price)
 		}
 	}
-	if ok != 1 || taken != 9 {
-		t.Errorf("menang=%d bentrok=%d, want 1 dan 9 (barcode harus unik lintas items/item_units)", ok, taken)
+	// exclude_id: form ubah item tidak diperingatkan oleh dirinya sendiri.
+	if got, _ = e.svc.ByBarcode(ctx, e.a, "1111", a.ID); len(got) != 2 {
+		t.Errorf("tanpa A: %+v", got)
+	}
+	// Barang nonaktif tampil paling akhir; barcode tak ada / kosong → daftar kosong; isolasi tenant.
+	if _, err := e.svc.SetActive(ctx, e.a, a.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = e.svc.ByBarcode(ctx, e.a, "1111", uuid.Nil); got[len(got)-1].ID != a.ID || got[len(got)-1].Active {
+		t.Errorf("barang nonaktif harus paling akhir: %+v", got)
+	}
+	for _, code := range []string{"", "   ", "tidak-ada"} {
+		if got, err = e.svc.ByBarcode(ctx, e.a, code, uuid.Nil); err != nil || len(got) != 0 {
+			t.Errorf("barcode %q: %+v %v", code, got, err)
+		}
+	}
+	if got, _ = e.svc.ByBarcode(ctx, e.b, "1111", uuid.Nil); len(got) != 0 {
+		t.Errorf("tenant lain tidak boleh melihat: %+v", got)
+	}
+	var fe FieldErrors
+	if _, err = e.svc.ByBarcode(ctx, e.a, "a\x00b", uuid.Nil); !errors.As(err, &fe) {
+		t.Errorf("barcode berkarakter kontrol: %v", err)
+	}
+	// Pembeda: validasi.
+	for name, origin := range map[string]string{"markup": "<b>CC</b>", "terlalu panjang": strings.Repeat("a", maxOrigin+1), "kontrol": "a\x00b"} {
+		if _, err := e.svc.Create(ctx, e.a, Input{Name: "X", UnitID: pcs.String(), Origin: origin}); !errors.As(err, &fe) || fe["origin"] == "" {
+			t.Errorf("pembeda %s: %v", name, err)
+		}
 	}
 }

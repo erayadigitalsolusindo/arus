@@ -3,7 +3,7 @@
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/item).
   import { goto } from '$app/navigation';
   import { ApiError } from '#lib/api/client.ts';
-  import { items as api, type Item, type ItemInput, type ItemKind } from '#lib/items/api.ts';
+  import { items as api, type BarcodeMatch, type Item, type ItemInput, type ItemKind } from '#lib/items/api.ts';
   import { lookup, type LookupKind } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { guard } from '#lib/tabs/guard.svelte.ts';
@@ -22,7 +22,7 @@
 
   type Field =
     | 'sku' | 'barcode' | 'name' | 'weight_grams' | 'cost' | 'sell_price' | 'unit_id'
-    | 'category_id' | 'brand_id' | 'principal_id' | 'supplier_id' | 'kind' | 'description' | 'outlet_prices' | 'wholesale' | 'units';
+    | 'category_id' | 'brand_id' | 'principal_id' | 'supplier_id' | 'kind' | 'description' | 'outlet_prices' | 'wholesale' | 'units' | 'origin';
 
   const SKU_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/;
   const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/;
@@ -35,6 +35,7 @@
 
   let sku = $state(init?.sku ?? '');
   let barcode = $state(init?.barcode ?? '');
+  let origin = $state(init?.origin ?? '');
   let name = $state(init?.name ?? '');
   let weight = $state(init ? trimZeros(init.weight_grams) : '');
   let cost = $state('');
@@ -87,7 +88,7 @@
   // (di mode ubah, gambar langsung tersimpan ke server). Tambahkan field baru ke sini bila form bertambah isian.
   const snapshot = () =>
     JSON.stringify([
-      sku, barcode, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
+      sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
       unitId, categoryId, brandId, principalId, supplierId, outletPrices.map((p) => p.value), pending.length, mainIndex,
       defaultTiers, outletTierSets, unitRows
     ]);
@@ -108,6 +109,40 @@
   const searchSuppliers = search('suppliers');
 
   const CONTROL = /[\p{Cc}\p{Cf}\p{Co}�]/u;
+
+  // Barcode kembar: diizinkan, tetapi pengguna diperingatkan dan harus mengonfirmasi (menangkap salah ketik / salin
+  // ganda). Barcode barang dan barcode satuan tambahan diperiksa bersama; item yang sedang diubah dikecualikan.
+  type SharedHit = { code: string; match: BarcodeMatch };
+  let shared = $state<SharedHit[]>([]);
+  let confirmShared = $state(false);
+  const sharedError = t('items.barcodeShared.mustConfirm');
+
+  $effect(() => {
+    const codes = [...new Set([barcode, ...unitRows.map((u) => u.barcode)].map((c) => c.trim()).filter(Boolean))].slice(0, 6);
+    if (!canWrite) return;
+    if (!codes.length) {
+      shared = [];
+      return;
+    }
+    let live = true;
+    const h = setTimeout(async () => {
+      try {
+        const hits = (await Promise.all(codes.map(async (code) => (await api.byBarcode(code, init?.id)).map((match) => ({ code, match }))))).flat();
+        if (!live) return;
+        // Himpunan bentrok berubah → konfirmasi lama tidak berlaku lagi.
+        const key = (l: SharedHit[]) => l.map((s) => `${s.code}:${s.match.id}:${s.match.matched}`).sort().join('|');
+        if (key(hits) !== key(shared)) confirmShared = false;
+        shared = hits;
+      } catch {
+        if (live) shared = []; // pemeriksaan hanya peringatan; kegagalannya tidak boleh menghalangi pengisian
+      }
+    }, 450);
+    return () => {
+      live = false;
+      clearTimeout(h);
+    };
+  });
+
   const QTY_RE = /^\d{1,9}(\.\d{1,3})?$/;
   const FACTOR_RE = /^\d{1,9}(\.\d{1,6})?$/;
 
@@ -179,6 +214,9 @@
     if (sellPrice.trim() && !MONEY_RE.test(sellPrice.trim())) next.sell_price = fieldMessage('INVALID');
     if (!init && cost.trim() && !MONEY_RE.test(cost.trim())) next.cost = fieldMessage('INVALID');
     if (!unitId) next.unit_id = fieldMessage('REQUIRED');
+    // Konfirmasi hanya untuk barcode yang BARU dibuat kembar; item lama yang sudah berbarcode kembar tidak ditanyai tiap disimpan.
+    const knownCodes = new Set([init?.barcode, ...(init?.units ?? []).map((u) => u.barcode)].filter(Boolean));
+    if (shared.some((s) => !knownCodes.has(s.code)) && !confirmShared && !next.barcode) next.barcode = sharedError;
 
     const desc = description.replace(/\r\n?/g, '\n');
     if (CONTROL.test(desc.replace(/[\n\t]/g, ''))) next.description = fieldMessage('INVALID');
@@ -202,6 +240,7 @@
     const body: ItemInput = {
       sku: code,
       barcode: bc,
+      origin: origin.trim(),
       name: n.value,
       weight_grams: weight.trim(),
       sell_price: sellPrice.trim(),
@@ -254,8 +293,6 @@
         for (const [k, c] of Object.entries(err.fields)) errors[k as Field] = fieldMessage(c);
       } else if (err instanceof ApiError && err.code === 'CODE_TAKEN') {
         errors.sku = errorMessage(err);
-      } else if (err instanceof ApiError && err.code === 'BARCODE_TAKEN') {
-        errors.barcode = errorMessage(err);
       } else {
         error = errorMessage(err);
       }
@@ -303,6 +340,30 @@
             <input id="i-barcode" class="{inputClass} font-mono" bind:value={barcode} maxlength="200" disabled={!canWrite} aria-invalid={!!errors.barcode} autocomplete="off" />
             {#if errors.barcode}<p class={errClass}>{errors.barcode}</p>{:else}<p class={hintClass}>{t('items.field.barcodeHint')}</p>{/if}
           </div>
+          <div>
+            <label for="i-origin" class={labelClass}>{t('items.field.origin')}</label>
+            <input id="i-origin" class={inputClass} bind:value={origin} maxlength="100" disabled={!canWrite} aria-invalid={!!errors.origin} />
+            {#if errors.origin}<p class={errClass}>{errors.origin}</p>{:else}<p class={hintClass}>{t('items.field.originHint')}</p>{/if}
+          </div>
+          {#if shared.length}
+            <!-- Barcode kembar diizinkan; form hanya memperingatkan (salah ketik/salin ganda tidak lagi ditolak DB). -->
+            <div class="sm:col-span-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-warning space-y-1.5" role="alert">
+              <p class="font-semibold"><i class="icon-circle-alert text-[14px] me-1"></i>{t('items.barcodeShared.title')}</p>
+              <ul class="list-disc ps-5">
+                {#each shared as s (s.code + s.match.id + s.match.matched)}
+                  <li>
+                    {t('items.barcodeShared.item', { name: s.match.name, origin: s.match.origin ? ` · ${s.match.origin}` : '', sku: s.match.sku, code: s.code })}
+                    {#if s.match.matched === 'unit'}— {t('items.barcodeShared.unitMatch', { unit: s.match.unit })}{/if}
+                  </li>
+                {/each}
+              </ul>
+              <p class="text-[11.5px]">{t('items.barcodeShared.hint')}</p>
+              <label class="flex items-center gap-2 font-medium">
+                <input type="checkbox" bind:checked={confirmShared} disabled={!canWrite} />{t('items.barcodeShared.confirm')}
+              </label>
+              {#if errors.barcode === sharedError}<p class="text-[11.5px] font-semibold">{sharedError}</p>{/if}
+            </div>
+          {/if}
           <div>
             <label for="i-weight" class={labelClass}>{t('items.field.weight')}</label>
             <input id="i-weight" class={inputClass} bind:value={weight} inputmode="decimal" placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />

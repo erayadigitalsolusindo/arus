@@ -184,17 +184,21 @@ func TestCreateGetAndCodes(t *testing.T) {
 		t.Fatalf("kode otomatis harus melewati ITM-000002 yang dipakai manual: %+v %v", i3, err)
 	}
 
-	// Kode & barcode unik per tenant (tanpa membedakan huruf besar/kecil untuk kode).
+	// Kode barang unik per tenant (tanpa membedakan huruf besar/kecil); barcode boleh kembar.
 	if _, err := e.svc.Create(ctx, e.a, Input{Name: "Dobel", SKU: "ITM-000001", UnitID: unit.String()}); !errors.Is(err, ErrCodeTaken) {
 		t.Errorf("kode ganda: %v", err)
 	}
 	if _, err := e.svc.Create(ctx, e.a, Input{Name: "A", SKU: "BC-1", Barcode: "899001", UnitID: unit.String()}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.Create(ctx, e.a, Input{Name: "B", SKU: "BC-2", Barcode: "899001", UnitID: unit.String()}); !errors.Is(err, ErrBarcodeTaken) {
-		t.Errorf("barcode ganda: %v", err)
+	// Barcode BOLEH kembar antar barang (barang A negara CC dan B negara DD sama-sama 899001); pembeda opsional.
+	if _, err := e.svc.Create(ctx, e.a, Input{Name: "A", SKU: "BC-1X", Origin: "CC", Barcode: "899001", UnitID: unit.String()}); err != nil {
+		t.Errorf("barcode kembar harus diizinkan: %v", err)
 	}
-	// Tenant lain boleh memakai kode/barcode yang sama.
+	if _, err := e.svc.Create(ctx, e.a, Input{Name: "B", SKU: "BC-2", Origin: "DD", Barcode: "899001", UnitID: unit.String()}); err != nil {
+		t.Errorf("barcode kembar harus diizinkan: %v", err)
+	}
+	// Tenant lain boleh memakai kode yang sama.
 	unitB := e.master(t, "units", e.b.TenantID, "Pcs", true)
 	if _, err := e.svc.Create(ctx, e.b, Input{Name: "A", SKU: "BC-1", Barcode: "899001", UnitID: unitB.String()}); err != nil {
 		t.Errorf("tenant lain memakai kode/barcode sama: %v", err)
@@ -217,8 +221,8 @@ func TestCreateGetAndCodes(t *testing.T) {
 	if _, err := e.svc.SetActive(ctx, e.b, i1.ID, false); !errors.Is(err, ErrNotFound) {
 		t.Errorf("arsip lintas tenant: %v", err)
 	}
-	if e.auditCount(t, e.a.TenantID, "item.create") != 6 {
-		t.Errorf("audit item.create = %d, want 6", e.auditCount(t, e.a.TenantID, "item.create"))
+	if e.auditCount(t, e.a.TenantID, "item.create") != 8 {
+		t.Errorf("audit item.create = %d, want 8", e.auditCount(t, e.a.TenantID, "item.create"))
 	}
 }
 

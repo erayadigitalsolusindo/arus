@@ -23,7 +23,6 @@ const errors: Messages['errors'] = {
   ROLE_IN_USE: 'This role is still assigned to users. Reassign them first.',
   NAME_TAKEN: 'This name is already taken.',
   CODE_TAKEN: 'This code is already taken.',
-  BARCODE_TAKEN: 'This barcode is already used by another item.',
   IMAGE_LIMIT: 'The item already has the maximum number of images.',
   IMAGE_TOO_LARGE: 'The image is larger than 10 MB.',
   IMAGE_UNSUPPORTED: 'Unsupported image format. Use JPG, PNG, or WebP.',

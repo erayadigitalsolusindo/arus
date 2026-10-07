@@ -827,41 +827,97 @@ func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (i
 	return result.RowsAffected(), nil
 }
 
-const itemBarcodeLock = `-- name: ItemBarcodeLock :exec
-SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))
+const itemByBarcode = `-- name: ItemByBarcode :many
+SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
+FROM (
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, u.name AS unit_name,
+           1::numeric AS factor, NULL::numeric AS unit_price,
+           i.sell_price AS default_price, op.sell_price AS outlet_price
+    FROM items i
+    JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+    LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+    WHERE i.tenant_id = $2 AND i.barcode = $3::text
+      AND ($4::uuid IS NULL OR i.id <> $4::uuid)
+    UNION ALL
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, au.name AS unit_name,
+           iu.factor::numeric AS factor, iu.sell_price::numeric AS unit_price,
+           i.sell_price AS default_price, op.sell_price AS outlet_price
+    FROM item_units iu
+    JOIN items i ON i.tenant_id = iu.tenant_id AND i.id = iu.item_id
+    JOIN units au ON au.tenant_id = iu.tenant_id AND au.id = iu.unit_id
+    LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+    WHERE iu.tenant_id = $2 AND iu.barcode = $3::text
+      AND ($4::uuid IS NULL OR i.id <> $4::uuid)
+) m
+ORDER BY m.active DESC, lower(m.name), m.sku
+LIMIT 20
 `
 
-// Mengunci (sampai transaksi selesai) satu nilai barcode di satu tenant: pemeriksaan "sudah dipakai?" lintas tabel
-// items/item_units lalu aman dari balapan (indeks unik hanya bisa menjaga satu tabel).
-func (q *Queries) ItemBarcodeLock(ctx context.Context, key string) error {
-	_, err := q.db.Exec(ctx, itemBarcodeLock, key)
-	return err
+type ItemByBarcodeParams struct {
+	OutletID  uuid.UUID
+	TenantID  uuid.UUID
+	Barcode   string
+	ExcludeID pgtype.UUID
 }
 
-const itemBarcodeTaken = `-- name: ItemBarcodeTaken :one
-SELECT EXISTS (SELECT 1 FROM items i WHERE i.tenant_id = $1 AND i.barcode = $2::text AND i.id <> $3)
-    OR EXISTS (SELECT 1 FROM item_units iu WHERE iu.tenant_id = $1 AND iu.barcode = $2::text AND iu.item_id <> $3)
-`
-
-type ItemBarcodeTakenParams struct {
-	TenantID uuid.UUID
-	Barcode  string
-	ItemID   uuid.UUID
+type ItemByBarcodeRow struct {
+	ID           uuid.UUID
+	Sku          string
+	Name         string
+	Origin       string
+	Active       bool
+	Matched      string
+	UnitName     string
+	Factor       decimal.Decimal
+	UnitPrice    pgtype.Numeric
+	DefaultPrice decimal.Decimal
+	OutletPrice  pgtype.Numeric
 }
 
-// Barcode sudah dipakai item LAIN (sebagai barcode item maupun barcode satuan)?
-func (q *Queries) ItemBarcodeTaken(ctx context.Context, arg ItemBarcodeTakenParams) (pgtype.Bool, error) {
-	row := q.db.QueryRow(ctx, itemBarcodeTaken, arg.TenantID, arg.Barcode, arg.ItemID)
-	var column_1 pgtype.Bool
-	err := row.Scan(&column_1)
-	return column_1, err
+// Semua barang yang memakai barcode ini, sebagai barcode barang maupun barcode satuan tambahan (barcode boleh kembar).
+// exclude_id: abaikan satu item (form ubah item tidak perlu diperingatkan oleh dirinya sendiri).
+func (q *Queries) ItemByBarcode(ctx context.Context, arg ItemByBarcodeParams) ([]ItemByBarcodeRow, error) {
+	rows, err := q.db.Query(ctx, itemByBarcode,
+		arg.OutletID,
+		arg.TenantID,
+		arg.Barcode,
+		arg.ExcludeID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemByBarcodeRow
+	for rows.Next() {
+		var i ItemByBarcodeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.Origin,
+			&i.Active,
+			&i.Matched,
+			&i.UnitName,
+			&i.Factor,
+			&i.UnitPrice,
+			&i.DefaultPrice,
+			&i.OutletPrice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const itemCreate = `-- name: ItemCreate :one
-INSERT INTO items (tenant_id, sku, barcode, name, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
+INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
                    brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
-VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17)
 RETURNING id
 `
 
@@ -870,6 +926,7 @@ type ItemCreateParams struct {
 	Sku                string
 	Barcode            pgtype.Text
 	Name               string
+	Origin             string
 	WeightGrams        decimal.Decimal
 	Cost               decimal.Decimal
 	SellPrice          decimal.Decimal
@@ -890,6 +947,7 @@ func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UU
 		arg.Sku,
 		arg.Barcode,
 		arg.Name,
+		arg.Origin,
 		arg.WeightGrams,
 		arg.Cost,
 		arg.SellPrice,
@@ -909,7 +967,7 @@ func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UU
 }
 
 const itemGet = `-- name: ItemGet :one
-SELECT i.id, i.sku, i.barcode, i.name, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
        i.category_id, c.name AS category_name,
@@ -935,6 +993,7 @@ type ItemGetRow struct {
 	Sku                string
 	Barcode            pgtype.Text
 	Name               string
+	Origin             string
 	WeightGrams        decimal.Decimal
 	LastCost           decimal.Decimal
 	AvgCost            decimal.Decimal
@@ -966,6 +1025,7 @@ func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, e
 		&i.Sku,
 		&i.Barcode,
 		&i.Name,
+		&i.Origin,
 		&i.WeightGrams,
 		&i.LastCost,
 		&i.AvgCost,
@@ -992,7 +1052,7 @@ func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, e
 }
 
 const itemGetForUpdate = `-- name: ItemGetForUpdate :one
-SELECT id, sku, barcode, name, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
+SELECT id, sku, barcode, name, origin, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
        unit_id, category_id, brand_id, principal_id, supplier_id
 FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE
 `
@@ -1007,6 +1067,7 @@ type ItemGetForUpdateRow struct {
 	Sku                string
 	Barcode            pgtype.Text
 	Name               string
+	Origin             string
 	WeightGrams        decimal.Decimal
 	SellPrice          decimal.Decimal
 	Kind               string
@@ -1029,6 +1090,7 @@ func (q *Queries) ItemGetForUpdate(ctx context.Context, arg ItemGetForUpdatePara
 		&i.Sku,
 		&i.Barcode,
 		&i.Name,
+		&i.Origin,
 		&i.WeightGrams,
 		&i.SellPrice,
 		&i.Kind,
@@ -1267,7 +1329,7 @@ func (q *Queries) ItemImageSetMain(ctx context.Context, arg ItemImageSetMainPara
 }
 
 const itemList = `-- name: ItemList :many
-SELECT i.id, i.sku, i.barcode, i.name, i.kind, i.active,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
@@ -1301,6 +1363,7 @@ type ItemListRow struct {
 	Sku          string
 	Barcode      pgtype.Text
 	Name         string
+	Origin       string
 	Kind         string
 	Active       bool
 	DefaultPrice decimal.Decimal
@@ -1335,6 +1398,7 @@ func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListR
 			&i.Sku,
 			&i.Barcode,
 			&i.Name,
+			&i.Origin,
 			&i.Kind,
 			&i.Active,
 			&i.DefaultPrice,
@@ -1758,17 +1822,18 @@ func (q *Queries) ItemUnitStates(ctx context.Context, arg ItemUnitStatesParams) 
 }
 
 const itemUpdate = `-- name: ItemUpdate :exec
-UPDATE items SET sku = $1, barcode = $2, name = $3, weight_grams = $4, sell_price = $5,
-       unit_id = $6, category_id = $7, brand_id = $8, principal_id = $9,
-       supplier_id = $10, kind = $11, allow_negative_stock = $12,
-       sell_below_cost = $13, description = $14
-WHERE tenant_id = $15 AND id = $16
+UPDATE items SET sku = $1, barcode = $2, name = $3, origin = $4, weight_grams = $5, sell_price = $6,
+       unit_id = $7, category_id = $8, brand_id = $9, principal_id = $10,
+       supplier_id = $11, kind = $12, allow_negative_stock = $13,
+       sell_below_cost = $14, description = $15
+WHERE tenant_id = $16 AND id = $17
 `
 
 type ItemUpdateParams struct {
 	Sku                string
 	Barcode            pgtype.Text
 	Name               string
+	Origin             string
 	WeightGrams        decimal.Decimal
 	SellPrice          decimal.Decimal
 	UnitID             uuid.UUID
@@ -1790,6 +1855,7 @@ func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
 		arg.Sku,
 		arg.Barcode,
 		arg.Name,
+		arg.Origin,
 		arg.WeightGrams,
 		arg.SellPrice,
 		arg.UnitID,

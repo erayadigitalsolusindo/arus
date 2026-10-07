@@ -22,7 +22,6 @@ export default {
   ROLE_IN_USE: 'Role masih dipakai pengguna. Pindahkan penggunanya dulu.',
   NAME_TAKEN: 'Nama ini sudah dipakai.',
   CODE_TAKEN: 'Kode ini sudah dipakai.',
-  BARCODE_TAKEN: 'Barcode ini sudah dipakai barang lain.',
   IMAGE_LIMIT: 'Jumlah gambar item sudah maksimal.',
   IMAGE_TOO_LARGE: 'Ukuran gambar melebihi 10 MB.',
   IMAGE_UNSUPPORTED: 'Format gambar tidak didukung. Gunakan JPG, PNG, atau WebP.',

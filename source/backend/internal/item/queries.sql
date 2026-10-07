@@ -1,6 +1,6 @@
 -- name: ItemList :many
 -- Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
-SELECT i.id, i.sku, i.barcode, i.name, i.kind, i.active,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
@@ -19,7 +19,7 @@ ORDER BY lower(i.name), i.id
 LIMIT @page_limit OFFSET @page_offset;
 
 -- name: ItemGet :one
-SELECT i.id, i.sku, i.barcode, i.name, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
        i.category_id, c.name AS category_name,
@@ -36,20 +36,20 @@ WHERE i.tenant_id = $1 AND i.id = $2;
 
 -- name: ItemGetForUpdate :one
 -- Kunci baris item selama transaksi (ubah bersamaan tidak saling menimpa; audit "sebelum" selalu benar).
-SELECT id, sku, barcode, name, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
+SELECT id, sku, barcode, name, origin, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
        unit_id, category_id, brand_id, principal_id, supplier_id
 FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE;
 
 -- name: ItemCreate :one
-INSERT INTO items (tenant_id, sku, barcode, name, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
+INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
                    brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
-VALUES (@tenant_id, @sku, @barcode, @name, @weight_grams, @cost, @cost, @sell_price, @unit_id, @category_id,
+VALUES (@tenant_id, @sku, @barcode, @name, @origin, @weight_grams, @cost, @cost, @sell_price, @unit_id, @category_id,
         @brand_id, @principal_id, @supplier_id, @kind, @allow_negative_stock, @sell_below_cost, @description)
 RETURNING id;
 
 -- name: ItemUpdate :exec
 -- HPP (last_cost/avg_cost) sengaja tidak ada di sini: hanya diubah transaksi pembelian/stok.
-UPDATE items SET sku = @sku, barcode = @barcode, name = @name, weight_grams = @weight_grams, sell_price = @sell_price,
+UPDATE items SET sku = @sku, barcode = @barcode, name = @name, origin = @origin, weight_grams = @weight_grams, sell_price = @sell_price,
        unit_id = @unit_id, category_id = @category_id, brand_id = @brand_id, principal_id = @principal_id,
        supplier_id = @supplier_id, kind = @kind, allow_negative_stock = @allow_negative_stock,
        sell_below_cost = @sell_below_cost, description = @description
@@ -161,12 +161,30 @@ VALUES (@tenant_id, @item_id, @unit_id, @factor, sqlc.narg('barcode'), sqlc.narg
 -- name: ItemUnitStates :many
 SELECT id, active FROM units WHERE tenant_id = @tenant_id AND id = ANY(@ids::uuid[]);
 
--- name: ItemBarcodeLock :exec
--- Mengunci (sampai transaksi selesai) satu nilai barcode di satu tenant: pemeriksaan "sudah dipakai?" lintas tabel
--- items/item_units lalu aman dari balapan (indeks unik hanya bisa menjaga satu tabel).
-SELECT pg_advisory_xact_lock(hashtextextended(@key::text, 0));
 
--- name: ItemBarcodeTaken :one
--- Barcode sudah dipakai item LAIN (sebagai barcode item maupun barcode satuan)?
-SELECT EXISTS (SELECT 1 FROM items i WHERE i.tenant_id = @tenant_id AND i.barcode = @barcode::text AND i.id <> @item_id)
-    OR EXISTS (SELECT 1 FROM item_units iu WHERE iu.tenant_id = @tenant_id AND iu.barcode = @barcode::text AND iu.item_id <> @item_id);
+-- name: ItemByBarcode :many
+-- Semua barang yang memakai barcode ini, sebagai barcode barang maupun barcode satuan tambahan (barcode boleh kembar).
+-- exclude_id: abaikan satu item (form ubah item tidak perlu diperingatkan oleh dirinya sendiri).
+SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
+FROM (
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, u.name AS unit_name,
+           1::numeric AS factor, NULL::numeric AS unit_price,
+           i.sell_price AS default_price, op.sell_price AS outlet_price
+    FROM items i
+    JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+    LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+    WHERE i.tenant_id = @tenant_id AND i.barcode = @barcode::text
+      AND (sqlc.narg('exclude_id')::uuid IS NULL OR i.id <> sqlc.narg('exclude_id')::uuid)
+    UNION ALL
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, au.name AS unit_name,
+           iu.factor::numeric AS factor, iu.sell_price::numeric AS unit_price,
+           i.sell_price AS default_price, op.sell_price AS outlet_price
+    FROM item_units iu
+    JOIN items i ON i.tenant_id = iu.tenant_id AND i.id = iu.item_id
+    JOIN units au ON au.tenant_id = iu.tenant_id AND au.id = iu.unit_id
+    LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+    WHERE iu.tenant_id = @tenant_id AND iu.barcode = @barcode::text
+      AND (sqlc.narg('exclude_id')::uuid IS NULL OR i.id <> sqlc.narg('exclude_id')::uuid)
+) m
+ORDER BY m.active DESC, lower(m.name), m.sku
+LIMIT 20;
