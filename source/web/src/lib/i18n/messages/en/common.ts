@@ -6,7 +6,8 @@ const common: Messages['common'] = {
   language: 'Language',
   theme: { light: 'Light mode', dark: 'Dark mode' },
   paid: 'Paid',
-  live: 'Live'
+  live: 'Live',
+  close: 'Close'
 };
 
 export default common;

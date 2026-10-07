@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	gen "aciraba/internal/gen"
+	"aciraba/internal/iam"
 	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/platform/db"
 )
 
 var (
@@ -17,9 +19,6 @@ var (
 	ErrAccountDisabled    = errors.New("akun atau tenant dinonaktifkan")
 	ErrInvalidSession     = errors.New("sesi tidak valid")
 )
-
-// account = baris akun lengkap (user + role + tenant + outlet aktif pertama).
-type account = gen.GetAccountByEmailRow
 
 // dummyHash dipakai saat email tidak ditemukan agar waktu respons sama dengan email yang ada
 // (mencegah enumerasi akun lewat selisih waktu).
@@ -40,9 +39,9 @@ type LoginInput struct {
 // Login memverifikasi kredensial lalu menerbitkan sesi. Email salah, password salah, dan akun tak ada
 // semuanya ErrInvalidCredentials; ErrAccountDisabled hanya muncul setelah password terbukti benar.
 func (s *Service) Login(ctx context.Context, in LoginInput) (*Session, error) {
-	acc, err := gen.New(s.pool).GetAccountByEmail(ctx, in.Email)
+	acc, err := accountByEmail(ctx, s.pool, in.Email)
 	found := err == nil
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoAccount(err) {
 		return nil, err
 	}
 	hash := dummyHash()
@@ -69,8 +68,14 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*Session, error) {
 		return nil, err
 	}
 	// Penanda login terakhir bersifat informasi; kegagalannya tidak boleh menggagalkan login.
-	_ = gen.New(s.pool).TouchLastLogin(ctx, gen.TouchLastLoginParams{TenantID: acc.TenantID, ID: acc.UserID})
-	return buildSession(acc, access, refresh, in.Remember), nil
+	_ = db.WithTenant(ctx, s.pool, acc.TenantID, func(tx pgx.Tx) error {
+		return gen.New(tx).TouchLastLogin(ctx, gen.TouchLastLoginParams{TenantID: acc.TenantID, ID: acc.UserID})
+	})
+	perms, err := s.perms.For(ctx, acc.TenantID, acc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return buildSession(acc, perms, access, refresh, in.Remember), nil
 }
 
 // Refresh menukar refresh token dengan token akses baru dan merotasi refresh token. Pada jendela grace
@@ -99,7 +104,11 @@ func (s *Service) Refresh(ctx context.Context, token string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buildSession(acc, access, res.Token, res.Remember), nil
+	perms, err := s.perms.For(ctx, acc.TenantID, acc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return buildSession(acc, perms, access, res.Token, res.Remember), nil
 }
 
 // Logout mencabut rantai refresh token. Token tak dikenal diabaikan.
@@ -109,14 +118,35 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 
 // Me memuat profil untuk token akses yang sah; ErrInvalidSession bila akun hilang/nonaktif/pindah tenant.
 func (s *Service) Me(ctx context.Context, userID, tenantID string) (*Profile, error) {
-	acc, err := s.accountByID(ctx, userID)
+	uid, err1 := uuid.Parse(userID)
+	tid, err2 := uuid.Parse(tenantID)
+	if err1 != nil || err2 != nil {
+		return nil, ErrInvalidSession
+	}
+	// Tenant dari token: query biasa di bawah RLS, jadi user milik tenant lain tidak mungkin terbaca.
+	var acc account
+	err := db.WithTenant(ctx, s.pool, tid, func(tx pgx.Tx) error {
+		var qerr error
+		acc, qerr = gen.New(tx).GetAccountInTenant(ctx, gen.GetAccountInTenantParams{TenantID: tid, ID: uid})
+		return qerr
+	})
+	if isNoAccount(err) {
+		return nil, ErrInvalidSession
+	}
 	if err != nil {
 		return nil, err
 	}
-	if !acc.UserActive || !acc.TenantActive || acc.TenantID.String() != tenantID {
+	if !acc.UserActive || !acc.TenantActive {
 		return nil, ErrInvalidSession
 	}
-	p := profileOf(acc)
+	perms, err := s.perms.For(ctx, acc.TenantID, acc.UserID)
+	if err != nil {
+		if errors.Is(err, iam.ErrInactive) {
+			return nil, ErrInvalidSession
+		}
+		return nil, err
+	}
+	p := profileOf(acc, perms)
 	return &p, nil
 }
 
@@ -125,27 +155,28 @@ func (s *Service) accountByID(ctx context.Context, userID string) (account, erro
 	if err != nil {
 		return account{}, ErrInvalidSession
 	}
-	row, err := gen.New(s.pool).GetAccountByID(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	acc, err := accountByUserID(ctx, s.pool, id)
+	if isNoAccount(err) {
 		return account{}, ErrInvalidSession
 	}
 	if err != nil {
 		return account{}, err
 	}
-	return account(row), nil
+	return acc, nil
 }
 
-func profileOf(a account) Profile {
+func profileOf(a account, perms iam.Permissions) Profile {
 	return Profile{
-		User:   Identity{ID: a.UserID.String(), Name: a.UserName, Email: a.Email},
-		Tenant: Identity{ID: a.TenantID.String(), Code: a.TenantCode, Name: a.TenantName},
-		Outlet: Identity{ID: a.OutletID.String(), Code: a.OutletCode, Name: a.OutletName},
+		Permissions: perms,
+		User:        Identity{ID: a.UserID.String(), Name: a.UserName, Email: a.Email},
+		Tenant:      Identity{ID: a.TenantID.String(), Code: a.TenantCode, Name: a.TenantName},
+		Outlet:      Identity{ID: a.OutletID.String(), Code: a.OutletCode, Name: a.OutletName},
 	}
 }
 
-func buildSession(a account, access, refresh string, remember bool) *Session {
+func buildSession(a account, perms iam.Permissions, access, refresh string, remember bool) *Session {
 	return &Session{
-		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()), Profile: profileOf(a),
+		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()), Profile: profileOf(a, perms),
 		RefreshToken: refresh, Remember: remember,
 	}
 }

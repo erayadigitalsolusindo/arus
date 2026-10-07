@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"aciraba/internal/auth"
+	"aciraba/internal/iam"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/db"
@@ -66,9 +67,11 @@ func run() error {
 	}))
 
 	tokens := pauth.NewTokenIssuer(cfg.JWTSecret)
-	authSvc := auth.NewService(pool, tokens, pauth.NewSessions(rdb))
+	perms := iam.NewResolver(pool)
+	authSvc := auth.NewService(pool, tokens, pauth.NewSessions(rdb), perms)
 	lockout := auth.NewLockout(rdb, auth.NewPolicyLoader(pool, log))
 	auth.NewHandler(authSvc, log, rdb, lockout, tokens, cfg.CORSOrigins, !cfg.IsDev()).Routes(r)
+	iam.NewHandler(iam.NewService(pool, perms), perms, tokens, log).Routes(r)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

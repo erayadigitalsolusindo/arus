@@ -20,6 +20,9 @@ export class ApiError extends Error {
 
 export type Identity = { id: string; code?: string; name: string; email?: string };
 
+/** Izin efektif: { "*": true } (Owner) atau { modul: [aksi, ...] }. Hanya untuk UI; penegakan di server. */
+export type Permissions = { "*"?: true } & Record<string, string[] | true | undefined>;
+
 /** Respons /auth/register, /auth/login, dan /auth/refresh. */
 export type AuthResponse = {
   access_token: string;
@@ -27,6 +30,7 @@ export type AuthResponse = {
   user: Identity;
   tenant: Identity;
   outlet: Identity;
+  permissions: Permissions;
 };
 
 // Header kustom wajib di endpoint ber-cookie (refresh/logout): memaksa preflight CORS (perlindungan CSRF).
