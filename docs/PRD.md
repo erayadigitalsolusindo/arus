@@ -3,9 +3,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Versi dokumen | 0.1 (Draf) |
+| Versi dokumen | 0.2 (Draf) |
 | Status | Draf — menunggu review pemilik produk |
-| Tanggal | 6 Oktober 2026 |
+| Tanggal | 7 Oktober 2026 |
 | Pemilik produk | Pemilik ACIRABA (Erayadigital) |
 | Penyusun | Tim pengembang (dibantu AI) |
 | Dokumen terkait | `AGENTS.md` (keputusan teknis, status, roadmap), `reference/template/` (acuan UI) |
@@ -14,6 +14,7 @@
 
 | Versi | Tanggal | Perubahan | Oleh |
 |---|---|---|---|
+| 0.2 | 2026-10-07 | Pendekatan **data baru**: tidak ada migrasi data legacy. Golden test diganti *spec test* (contoh kasus yang dihitung manual); ETL/cutover diganti onboarding (import & saldo awal); ditambah FR-ONB; Q4/Q6 diganti | Tim |
 | 0.1 | 2026-10-06 | Draf awal berdasarkan analisis sistem legacy ACIRABA SIAK OS | Tim |
 
 ### Konvensi Penandaan
@@ -39,7 +40,7 @@ ACIRABA adalah aplikasi Point of Sale dan ERP ringan berbasis web untuk usaha ri
 3. **Isolasi data antar-tenant** yang dijamin di level server dan database.
 4. Kode yang **mudah dikembangkan dan dites**.
 
-Migrasi dilakukan **bertahap per tenant**. Kebenaran perhitungan diverifikasi dengan *golden test* dari nota nyata.
+NewGen adalah **aplikasi baru dengan data baru**. Data transaksi legacy **tidak dimigrasikan**. Toko memulai dengan *onboarding*: import master barang, input saldo awal stok, dan input saldo awal piutang/hutang. Sistem legacy hanya dipakai sebagai referensi aturan bisnis. Kebenaran perhitungan dijamin dengan *spec test*, yaitu contoh kasus yang dihitung manual dan disetujui pemilik produk.
 
 ---
 
@@ -76,8 +77,8 @@ Migrasi dilakukan **bertahap per tenant**. Kebenaran perhitungan diverifikasi de
 | G1 | Kasir dapat menyelesaikan transaksi dengan cepat menggunakan keyboard/scanner, tanpa nota ganda. |
 | G2 | Stok per outlet selalu konsisten dan setiap perubahan dapat ditelusuri ke dokumen sumbernya. |
 | G3 | Data setiap tenant terisolasi penuh; tidak ada kebocoran lintas tenant. |
-| G4 | Angka penjualan, piutang, hutang, dan laporan identik dengan perhitungan yang benar (diverifikasi golden test). |
-| G5 | Klien lama dapat bermigrasi tanpa kehilangan data historis yang dibutuhkan. |
+| G4 | Angka penjualan, piutang, hutang, dan laporan sesuai aturan bisnis yang terdokumentasi (diverifikasi spec test). |
+| G5 | Toko (baru maupun pindahan dari legacy) dapat mulai beroperasi dalam ≤ 1 hari melalui onboarding: import barang, saldo awal stok, dan saldo awal piutang/hutang. |
 | G6 | Fondasi kode yang modular sehingga fitur baru dapat ditambahkan tanpa merusak fitur lain. |
 
 ### 3.2 Non-Tujuan (di luar cakupan rilis awal)
@@ -85,8 +86,9 @@ Migrasi dilakukan **bertahap per tenant**. Kebenaran perhitungan diverifikasi de
 - Aplikasi mobile native (Android/iOS). Web responsif sudah cukup.
 - Marketplace atau integrasi e-commerce.
 - Akuntansi lengkap setara software akuntansi khusus (pajak e-Faktur, konsolidasi multi-entitas).
-- Mengubah perilaku bisnis yang sudah benar di legacy tanpa permintaan pemilik produk.
-- Mempertahankan bug legacy demi kompatibilitas (lihat §15.3).
+- **Migrasi data transaksi/histori dari legacy.** Histori lama tetap dapat dilihat di sistem legacy (mode baca-saja) atau dari ekspor laporan.
+- Kompatibilitas dengan legacy: akun/password, format nomor nota, dan struktur data tidak harus sama.
+- Mempertahankan bug legacy (lihat §15.3).
 
 ---
 
@@ -97,10 +99,10 @@ Migrasi dilakukan **bertahap per tenant**. Kebenaran perhitungan diverifikasi de
 | M1 | Latensi simpan transaksi kasir (p95, server) | < 300 ms untuk ≤ 50 item | Log/metrics API |
 | M2 | Pencarian barang di kasir (p95) | < 150 ms untuk 50.000 SKU | Metrics API + cache |
 | M3 | Nota ganda akibat klik ganda/jaringan | 0 | Constraint unik + idempotency key, audit mingguan |
-| M4 | Kecocokan golden test | 100% (kecuali bug legacy yang sengaja diperbaiki) | Test otomatis di CI |
+| M4 | Kelulusan spec test (contoh kasus perhitungan yang disetujui pemilik produk) | 100% | Test otomatis di CI |
 | M5 | Selisih stok sistem vs. ledger | 0 | Job rekonsiliasi harian `Σ movements = balance` |
 | M6 | Insiden akses lintas tenant | 0 | Test otomatis RLS + pentest sebelum go-live |
-| M7 | Rekonsiliasi laporan harian tenant pilot (legacy vs. NewGen) | 100% cocok selama ≥ 7 hari berturut-turut | Laporan rekonsiliasi |
+| M7 | Waktu onboarding toko pilot (import barang + saldo awal hingga transaksi pertama) | ≤ 1 hari kerja | Observasi di toko pilot |
 | M8 | Ketersediaan layanan (jam operasional) | ≥ 99,5% per bulan | Uptime monitor |
 | M9 | Waktu pelatihan kasir baru | ≤ 30 menit hingga mandiri | Observasi di tenant pilot **[KONFIRMASI]** |
 
@@ -126,11 +128,11 @@ Migrasi dilakukan **bertahap per tenant**. Kebenaran perhitungan diverifikasi de
 | Rilis | Nama | Isi | Kriteria selesai |
 |---|---|---|---|
 | **R0** | Fondasi | Infrastruktur, auth, tenant, layout UI | Login berjalan; isolasi tenant lolos test |
-| **R1 (MVP)** | Toko Bisa Jualan | Master data, stok (ledger), kasir, retur jual, piutang, cetak struk, laporan penjualan & stok dasar | Lulus golden test penjualan; dipakai tenant pilot paralel dengan legacy |
-| **R2** | Operasional Lengkap | Pembelian, retur beli, hutang, opname, mutasi, pecah satuan, laporan lengkap | Tenant pilot cutover penuh dari legacy |
+| **R1 (MVP)** | Toko Bisa Jualan | Master data, **onboarding (import barang, saldo awal stok/piutang)**, stok (ledger), kasir, retur jual, piutang, cetak struk, laporan penjualan & stok dasar | Lulus spec test penjualan; toko pilot beroperasi harian di NewGen |
+| **R2** | Operasional Lengkap | Pembelian, retur beli, hutang (+ saldo awal hutang), opname, mutasi, pecah satuan, laporan lengkap | Toko pilot memakai NewGen untuk seluruh operasional harian |
 | **R3** | Restoran | Meja, pesanan, dine-in/takeaway, KDS realtime | **[KONFIRMASI]** jumlah klien resto aktif |
 | **R4** | Keuangan & Ekstensi | Akuntansi SIAK, Acipay/PPOB, payment gateway, notifikasi WhatsApp | **[KONFIRMASI]** modul mana yang masih dipakai |
-| **R5** | Migrasi Massal | Cutover tenant tersisa; legacy menjadi read-only | Semua tenant aktif pindah |
+| **R5** | Peluncuran Luas | Onboarding toko lain secara bertahap; legacy toko yang sudah pindah menjadi baca-saja untuk histori | Semua toko aktif beroperasi di NewGen |
 
 Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 
@@ -141,6 +143,8 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 | Auth, tenant, outlet, user, role | M | | | | |
 | Master barang, harga, grosir, diskon | | M | | | |
 | Member, poin | | M | | | |
+| Onboarding: import barang, saldo awal stok & piutang | | M | | | |
+| Saldo awal hutang | | | M | | |
 | Stok ledger (3 lokasi) | | M | | | |
 | Kasir/penjualan + pembayaran | | M | | | |
 | Retur penjualan, piutang | | M | | | |
@@ -164,7 +168,7 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 
 | ID | Kebutuhan | Prioritas |
 |---|---|---|
-| FR-AUTH-01 | Pengguna login dengan username + password; akun legacy tetap dapat login (hash bcrypt legacy diterima). | M |
+| FR-AUTH-01 | Pengguna login dengan email + password. Akun dibuat baru di NewGen; akun legacy tidak dimigrasikan. | M |
 | FR-AUTH-02 | Sesi memakai access token berumur pendek (≤ 15 menit) dan refresh token (disimpan di server, dapat dicabut). | M |
 | FR-AUTH-03 | Setelah login, pengguna memilih outlet aktif bila memiliki akses ke lebih dari satu outlet. | M |
 | FR-AUTH-04 | Tenant, outlet, dan identitas pengguna **selalu** ditentukan server dari token, bukan dari input klien. | M |
@@ -190,7 +194,7 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 | FR-MD-06 | Master satuan, kategori (bertingkat), brand, principal, supplier, salesman, metode pembayaran. | M |
 | FR-MD-07 | Member/pelanggan: kode, kontak, batas kredit, poin, deposit. | M |
 | FR-MD-08 | Setiap perubahan harga dan atribut penting barang tercatat di audit log (nilai lama → baru, oleh siapa, kapan). | M |
-| FR-MD-09 | Import/ekspor barang via Excel/CSV dengan validasi per baris. | S |
+| FR-MD-09 | Ekspor barang ke Excel/CSV (import: lihat FR-ONB-01). | S |
 | FR-MD-10 | Cetak label barcode/harga. | C |
 
 ### 7.3 Stok & Inventori (INV)
@@ -224,7 +228,7 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 | FR-POS-07 | Transaksi kredit membuat piutang otomatis dengan jatuh tempo (hari) dan wajib memilih member. | M |
 | FR-POS-08 | Uang muka (DP) untuk pesanan. | S |
 | FR-POS-09 | Hold/tunda transaksi dengan keterangan, lalu lanjutkan kembali (pengganti "keranjang pending"). | M |
-| FR-POS-10 | Nomor nota unik per tenant dengan format yang dapat dikonfigurasi (prefix, outlet, tanggal, urutan) **[KONFIRMASI format legacy yang wajib dipertahankan]**. | M |
+| FR-POS-10 | Nomor nota unik per tenant dengan format yang dapat dikonfigurasi per tenant (prefix, kode outlet, tanggal, nomor urut). Default **[KONFIRMASI]**: `{OUTLET}-{YYMMDD}-{NNNN}`. | M |
 | FR-POS-11 | Penyimpanan transaksi bersifat **idempoten**: kirim ulang (klik ganda/jaringan putus) tidak membuat nota ganda. | M |
 | FR-POS-12 | Poin member bertambah sesuai aturan (total belanja ÷ kelipatan poin); edit/void menyesuaikan poin secara **selisih**, bukan menambah ulang. | M |
 | FR-POS-13 | Edit nota (izin `edit_nota` + PIN) menghasilkan movement koreksi dan menyesuaikan piutang **dengan mempertahankan pembayaran yang sudah ada**. | M |
@@ -237,7 +241,16 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 **Kriteria penerimaan (contoh):**
 - *Given* kasir menekan "Bayar" lalu jaringan putus sebelum respons diterima, *when* aplikasi mengirim ulang dengan idempotency key yang sama, *then* server mengembalikan nota yang sama dan hanya ada satu nota di database.
 - *Given* nota kredit Rp1.000.000 dengan pembayaran piutang Rp400.000, *when* nota diedit menjadi Rp900.000, *then* sisa piutang = Rp500.000 dan riwayat pembayaran tetap ada.
-- *Given* golden test fixture penjualan legacy, *when* dihitung ulang oleh NewGen, *then* total, pajak, kembalian, perubahan stok, dan poin identik dengan nilai yang diharapkan.
+- *Given* setiap contoh kasus di spec test penjualan (`source/tests/spec/`), *when* dihitung oleh NewGen, *then* total, pajak, kembalian, perubahan stok, dan poin sama persis dengan nilai yang diharapkan.
+
+**Urutan perhitungan nota (default — [KONFIRMASI] pemilik produk):**
+1. Harga satuan = harga grosir (bila qty memenuhi tier) atau harga dasar, lalu dikurangi diskon barang yang berlaku.
+2. Subtotal baris = harga satuan × qty − potongan per item.
+3. Subtotal nota = Σ subtotal baris.
+4. Dikurangi potongan global (nominal atau persen).
+5. Ditambah pajak toko lalu pajak negara (persen dari hasil langkah 4).
+6. Ditambah biaya lain-lain, lalu dibulatkan (aturan pembulatan per tenant **[KONFIRMASI]**) = **total**.
+7. Kembalian = Σ pembayaran non-kredit − total. Sisa kurang bayar menjadi piutang (hanya untuk transaksi kredit).
 
 ### 7.5 Retur Penjualan & Piutang (AR)
 
@@ -248,6 +261,24 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 | FR-AR-03 | Pengembalian dana tunai atau potong piutang. | M |
 | FR-AR-04 | Daftar piutang per member dengan umur piutang (aging) dan jatuh tempo. | M |
 | FR-AR-05 | Pembayaran piutang sebagian/penuh; sisa piutang = total − Σ pembayaran (dihitung, bukan kolom yang dimutasi). | M |
+
+### 7.5b Onboarding Toko (ONB)
+
+Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy.
+
+| ID | Kebutuhan | Prioritas |
+|---|---|---|
+| FR-ONB-01 | Import barang dari Excel/CSV menggunakan template unduhan. Tahap pratinjau menampilkan validasi per baris (SKU duplikat, satuan/kategori belum ada, harga tidak valid); hanya baris valid yang disimpan; laporan error dapat diunduh. | M |
+| FR-ONB-02 | Import master pendukung (kategori, satuan, supplier, member) dengan mekanisme yang sama. | S |
+| FR-ONB-03 | Input **saldo awal stok** per outlet × barang × lokasi (manual atau import). Dicatat sebagai movement bertipe `OPENING` dengan tanggal mulai operasional dan HPP awal. | M |
+| FR-ONB-04 | Input **saldo awal piutang** per member (nomor referensi lama, nominal, jatuh tempo). Dapat dibayar seperti piutang biasa. | M |
+| FR-ONB-05 | Input **saldo awal hutang** per supplier. | M (R2) |
+| FR-ONB-06 | Wizard setup tenant: profil usaha → outlet (pajak, zona waktu, format nota) → user & role → import barang → saldo awal → siap transaksi. | S |
+| FR-ONB-07 | Saldo awal hanya dapat diinput/diubah sebelum "tanggal mulai operasional" dikunci. Setelah dikunci, perubahan stok hanya lewat opname. | M |
+
+**Kriteria penerimaan (contoh):**
+- *Given* file import berisi 1.000 barang dengan 3 baris SKU duplikat, *when* pengguna menekan "Import", *then* 997 barang tersimpan, 3 baris dilaporkan beserta alasannya, dan tidak ada barang yang tersimpan setengah.
+- *Given* saldo awal stok barang X = 50 di Display outlet A, *when* kartu stok dibuka, *then* baris pertama adalah `OPENING` +50 dan saldo = 50.
 
 ### 7.6 Pembelian, Retur Beli & Hutang (PUR) — R2
 
@@ -357,7 +388,7 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 | ID | Kebutuhan |
 |---|---|
 | NFR-QA-01 | Setiap modul memiliki unit test untuk invariant bisnis; test konkurensi untuk stok dan penomoran nota. |
-| NFR-QA-02 | Golden test penjualan, retur, dan piutang berjalan otomatis di CI. |
+| NFR-QA-02 | Spec test (contoh kasus perhitungan) penjualan, retur, piutang, dan onboarding berjalan otomatis di CI. |
 | NFR-QA-03 | Lint & test wajib lulus sebelum merge. |
 
 ---
@@ -383,7 +414,7 @@ Detail keputusan teknis (library, struktur folder, konvensi) ada di `AGENTS.md` 
 
 ## 10. Model Data Inti (Ringkas)
 
-| Entitas | Keterangan | Sumber legacy |
+| Entitas | Keterangan | Padanan di legacy (referensi istilah saja, data tidak dimigrasi) |
 |---|---|---|
 | Tenant | Usaha/pelanggan ACIRABA | `KODEUNIKMEMBER` |
 | Outlet | Cabang/toko | `01_set_outlet` |
@@ -414,15 +445,19 @@ Rancangan kolom: `AGENTS.md` §4.
 
 ---
 
-## 12. Strategi Migrasi & Peluncuran
+## 12. Strategi Peluncuran (Data Baru)
 
-1. **Discovery:** petakan fitur dan endpoint legacy yang benar-benar dipakai; kumpulkan 10–20 nota nyata sebagai golden test (data pribadi dianonimkan).
-2. **ETL per tenant:** MySQL → PostgreSQL. Isinya: master, saldo stok (sebagai movement saldo awal), piutang/hutang terbuka, dan riwayat transaksi sesuai kebutuhan laporan **[KONFIRMASI: berapa tahun riwayat dibawa]**.
-3. **Validasi:** total stok, nilai persediaan, saldo piutang/hutang, dan omzet per bulan harus cocok antara legacy dan NewGen.
-4. **Tenant pilot:** berjalan paralel 1–2 minggu dengan rekonsiliasi harian (M7).
-5. **Cutover:** jadwalkan di luar jam operasional; legacy tenant tersebut menjadi read-only.
-6. **Rollback plan:** selama masa paralel, legacy tetap menjadi sistem utama hingga cutover ditandatangani pemilik toko.
-7. **Pelatihan:** panduan singkat kasir & admin; sesi pelatihan per tenant.
+**Prinsip:** NewGen dimulai dengan data baru. Tidak ada ETL, tidak ada sistem paralel, dan tidak ada rekonsiliasi dengan legacy.
+
+1. **Spesifikasi aturan bisnis:** baca kode legacy hanya untuk memahami aturan (poin, pajak, grosir, piutang, pembulatan). Tulis contoh kasus beserta hasil yang benar, minta pemilik produk menyetujuinya, lalu jadikan spec test (`source/tests/spec/`).
+2. **Pemilihan fitur:** tandai fitur legacy yang masih dipakai (masuk scope) dan yang dibuang (Q1).
+3. **Toko pilot:** satu toko memulai di NewGen pada tanggal mulai operasional yang disepakati:
+   - H-3 s.d. H-1: setup tenant, import barang, pelatihan kasir & admin.
+   - Malam H-1 (setelah tutup): stok opname fisik → input saldo awal stok; input saldo awal piutang/hutang dari laporan legacy per tanggal itu.
+   - Hari H: transaksi berjalan di NewGen; legacy untuk toko tersebut berhenti menerima transaksi.
+4. **Histori:** sebelum hari H, ekspor laporan legacy yang dibutuhkan (penjualan, piutang, hutang, stok) ke PDF/Excel. Legacy tetap dapat diakses dalam mode baca-saja selama masa retensi **[KONFIRMASI]**.
+5. **Rencana mundur:** jika ada masalah kritis di minggu pertama, toko kembali ke legacy. Transaksi yang sudah terjadi di NewGen dicatat ulang manual di legacy (volume kecil karena hanya satu toko).
+6. **Peluncuran luas (R5):** toko lain onboarding bertahap memakai prosedur yang sama.
 
 ---
 
@@ -430,9 +465,10 @@ Rancangan kolom: `AGENTS.md` §4.
 
 | Risiko | Kemungkinan | Dampak | Mitigasi |
 |---|---|---|---|
-| Aturan bisnis tersembunyi (SP/trigger) terlewat | Tinggi | Tinggi | Inventaris SP/trigger (`AGENTS.md` §8), golden test, masa paralel |
-| Proyek rewrite berlarut, legacy terus dipakai dengan risiko keamanan | Sedang | Tinggi | Tambal kritis legacy dulu (tutup port API, rotasi kredensial); rilis bertahap R1 → R5 |
-| Data legacy kotor (stok ganda, tipe tanggal campur) | Tinggi | Sedang | Skrip pembersihan + laporan anomali sebelum ETL |
+| Aturan bisnis legacy terlewat | Sedang | Tinggi | Inventaris SP/trigger (`AGENTS.md` §8); spec test disetujui pemilik produk sebelum modul dibangun |
+| Proyek berlarut, legacy terus dipakai dengan risiko keamanan | Sedang | Tinggi | Tambal kritis legacy dulu (tutup port API, rotasi kredensial); rilis bertahap R1 → R5 |
+| Klien keberatan kehilangan histori di aplikasi baru | Sedang | Sedang | Ekspor laporan sebelum mulai; legacy baca-saja selama masa retensi |
+| Saldo awal salah input (stok/piutang) | Sedang | Tinggi | Opname fisik di malam H-1; import dengan pratinjau & validasi; saldo awal dikunci setelah tanggal mulai (FR-ONB-07) |
 | Klien menolak perubahan UI | Sedang | Sedang | Libatkan kasir tenant pilot sejak prototipe kasir; shortcut keyboard mirip legacy |
 | Internet toko tidak stabil | Sedang | Tinggi | Idempotency + **[KONFIRMASI]** mode offline |
 | Kapasitas pengembang terbatas (tim kecil) | Tinggi | Sedang | Scope MoSCoW ketat; modul opsional ditunda |
@@ -445,12 +481,12 @@ Rancangan kolom: `AGENTS.md` §4.
 ### 14.1 Asumsi
 - Satu instance backend melayani banyak tenant (SaaS), dengan opsi on-premise di kemudian hari.
 - Seluruh outlet memakai Rupiah dan berada di Indonesia.
-- Hash password legacy menggunakan bcrypt dan dapat dipakai langsung.
+- Data legacy tidak dimigrasikan; setiap toko memulai dengan onboarding (§7.5b).
 
 ### 14.2 Dependensi
 - Go ≥ 1.23, PostgreSQL ≥ 16, Redis ≥ 7, Docker.
-- Akses read-only ke database legacy untuk discovery dan ETL.
-- Ketersediaan tenant pilot yang bersedia menjalankan sistem paralel.
+- Kode legacy (`../aciraba_siak_os`) sebagai referensi aturan bisnis.
+- Ketersediaan toko pilot yang bersedia memulai dengan saldo awal baru.
 
 ### 14.3 Pertanyaan Terbuka (wajib dijawab pemilik produk)
 
@@ -459,9 +495,9 @@ Rancangan kolom: `AGENTS.md` §4.
 | Q1 | Modul legacy mana yang masih aktif dipakai klien (resto, SIAK, Acipay, payment gateway)? | Scope R3–R4 |
 | Q2 | Apakah kasir wajib bisa berjalan offline? | Arsitektur frontend R1 |
 | Q3 | Hosting: VPS/cloud terpusat, on-premise per toko, atau keduanya? | Deployment, lisensi |
-| Q4 | Format nomor nota yang wajib dipertahankan? | FR-POS-10 |
+| Q4 | Format nomor nota default untuk NewGen? Usulan: `{OUTLET}-{YYMMDD}-{NNNN}` | FR-POS-10 |
 | Q5 | Metode HPP: harga beli terakhir atau rata-rata tertimbang? | FR-PUR-03, laporan laba |
-| Q6 | Berapa lama riwayat transaksi yang harus dimigrasi? | ETL, ukuran DB |
+| Q6 | Urutan perhitungan nota (§7.4) dan aturan pembulatan sudah sesuai? Berapa lama legacy tetap bisa diakses baca-saja untuk histori? | FR-POS, §12 |
 | Q7 | Jumlah tenant, outlet, dan kasir aktif saat ini? | Target performa, biaya server |
 | Q8 | Apakah harga dapat berbeda per outlet? | FR-MD-02 |
 | Q9 | Apakah lisensi template Dreams Core mencakup penggunaan SaaS komersial? | Risiko legal UI |
@@ -480,18 +516,20 @@ Rancangan kolom: `AGENTS.md` §4.
 | Lokasi stok | Display (rak jual), Gudang, Retur |
 | Movement | Catatan perubahan stok yang tidak dapat diubah |
 | HPP | Harga Pokok Penjualan |
-| Golden test | Test otomatis yang membandingkan hasil perhitungan dengan nota nyata yang sudah diverifikasi |
+| Spec test | Test otomatis dari contoh kasus perhitungan yang ditulis manual dan disetujui pemilik produk |
+| Saldo awal (opening) | Stok/piutang/hutang yang diinput saat toko mulai memakai NewGen |
+| Onboarding | Proses menyiapkan toko di NewGen: setup, import barang, saldo awal |
 | Idempotency key | Kunci unik per permintaan agar pengiriman ulang tidak membuat data ganda |
 | RLS | Row Level Security: pembatasan baris data di level database |
 | KDS | Kitchen Display System |
-| Cutover | Peralihan resmi tenant dari legacy ke NewGen |
+| Tanggal mulai operasional | Tanggal toko mulai bertransaksi di NewGen; saldo awal dikunci sejak tanggal ini |
 
 ### 15.2 Referensi
 - `AGENTS.md`: keputusan teknis, roadmap, peta legacy, aturan trigger.
 - `reference/template/`: acuan UI Dreams Core (pemetaan halaman: `AGENTS.md` §5b).
 - Sistem legacy: `../aciraba_siak_os/` (read-only).
 
-### 15.3 Perbedaan Perilaku yang Disengaja terhadap Legacy
+### 15.3 Perbedaan Perilaku terhadap Legacy (bug yang tidak ditiru)
 
 | Perilaku legacy | Perilaku NewGen | Alasan |
 |---|---|---|
