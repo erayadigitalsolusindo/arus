@@ -148,7 +148,7 @@ func newEnv(t *testing.T) *env {
 	e.a, e.b = actors[0], actors[1]
 	t.Cleanup(func() {
 		for _, tid := range e.tenants {
-			for _, tbl := range []string{"audit_log", "item_outlet_prices", "item_counters", "items", "units", "categories", "brands", "principals", "suppliers", "user_outlets", "users", "roles", "outlets"} {
+			for _, tbl := range []string{"audit_log", "stock_balances", "item_outlet_prices", "item_counters", "items", "units", "categories", "brands", "principals", "suppliers", "user_outlets", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
 			_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tid)
@@ -338,6 +338,27 @@ func TestOutletPrices(t *testing.T) {
 	other.OutletID = e.outlet2
 	if rows, _, _ = e.svc.List(ctx, other, ListParams{}); rows[0].Price != "1800.00" || !rows[0].PriceOverride {
 		t.Errorf("harga efektif cabang 2: %+v", rows)
+	}
+
+	// Daftar menampilkan stok outlet aktif per bucket; outlet lain tidak ikut terhitung. Tanpa saldo = 0.
+	if rows[0].Stock.Total != "0" || rows[0].Stock.Display != "0" {
+		t.Errorf("stok awal harus 0: %+v", rows[0].Stock)
+	}
+	for _, b := range []struct {
+		outlet uuid.UUID
+		bucket string
+		qty    string
+	}{{e.a.OutletID, "display", "7.5"}, {e.a.OutletID, "warehouse", "20"}, {e.outlet2, "display", "99"}} {
+		if _, err := e.admin.Exec(ctx, `INSERT INTO stock_balances (tenant_id, outlet_id, item_id, bucket, qty) VALUES ($1, $2, $3, $4, $5)`,
+			e.a.TenantID, b.outlet, it.ID, b.bucket, b.qty); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if rows, _, _ = e.svc.List(ctx, e.a, ListParams{}); rows[0].Stock != (StockQty{Display: "7.5", Warehouse: "20", Returns: "0", Total: "27.5"}) {
+		t.Errorf("stok outlet utama: %+v", rows[0].Stock)
+	}
+	if rows, _, _ = e.svc.List(ctx, other, ListParams{}); rows[0].Stock.Total != "99" {
+		t.Errorf("stok cabang 2: %+v", rows[0].Stock)
 	}
 
 	// Mengubah tanpa menyertakan harga cabang tidak menyentuhnya.

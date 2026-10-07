@@ -20,6 +20,7 @@ import (
 	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/storage"
 	"aciraba/internal/platformadmin"
+	"aciraba/internal/stock"
 )
 
 // appDeps = infrastruktur bersama yang dirakit main() lalu diteruskan ke semua modul.
@@ -75,5 +76,6 @@ func mountModules(r chi.Router, d appDeps) error {
 		return err
 	}
 	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
+	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

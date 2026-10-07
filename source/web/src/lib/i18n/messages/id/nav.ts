@@ -33,6 +33,7 @@ export default {
   purchaseList: 'Daftar Pembelian',
   buyPriceHistory: 'History Harga Beli',
   supplierPayables: 'Daftar Hutang Suplier',
+  stockOpening: 'Saldo Awal Stok',
   stockOpname: 'Trx Opname Barang',
   stockTransfer: 'Mutasi Stok Barang'
 };

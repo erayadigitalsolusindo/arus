@@ -12,7 +12,8 @@ const items: Messages['items'] = {
   back: 'Back to list',
   search: 'Search name, code, or barcode…',
   filter: { all: 'All statuses', active: 'Active', inactive: 'Inactive', allCategories: 'All categories' },
-  col: { code: 'Code', name: 'Name', unit: 'Unit', category: 'Category', brand: 'Brand', price: 'Selling price', status: 'Status' },
+  col: { code: 'Code', name: 'Name', unit: 'Unit', category: 'Category', brand: 'Brand', price: 'Selling price', stock: 'Stock', stockTotal: 'Total stock', avgCost: 'Avg. Cost', lastCost: 'Last Purchase Price', status: 'Status' },
+  stock: { display: 'Display', warehouse: 'Warehouse', returns: 'Returns', none: 'Service, no stock', negative: 'Negative stock' },
   priceOverride: 'Outlet-specific price',
   priceDefault: 'Default price',
   active: 'Active',
@@ -132,7 +133,15 @@ const items: Messages['items'] = {
     tooLarge: '“{name}” is larger than 10 MB.',
     failed: '“{name}”: {reason}',
     someFailed: 'The item was saved, but some images failed to upload. Upload them again in the Images section.',
-    alt: 'Image {n} of {name}'
+    alt: 'Image {n} of {name}',
+    counter: '{n} / {total}',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomReset: 'Fit to screen',
+    prev: 'Previous',
+    next: 'Next',
+    close: 'Close',
+    view: 'View images'
   },
   readOnly: 'You can only view this item.'
 };

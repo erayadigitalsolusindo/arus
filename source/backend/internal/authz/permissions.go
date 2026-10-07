@@ -55,6 +55,7 @@ var Modules = []Module{
 	{"purchase_list", viewing},
 	{"buy_price_history", viewing},
 	{"supplier_payables", []string{ActView, ActCreate}},
+	{"stock_opening", []string{ActView, ActCreate, ActApprove}},
 	{"stock_opname", []string{ActView, ActCreate, ActApprove}},
 	{"stock_transfer", []string{ActView, ActCreate, ActApprove}},
 	{"users", crud},

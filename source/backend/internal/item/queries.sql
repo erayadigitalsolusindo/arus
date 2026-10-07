@@ -1,9 +1,11 @@
 -- name: ItemList :many
 -- Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
 SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
-       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       i.sell_price AS default_price, op.sell_price AS outlet_price, i.avg_cost, i.last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
+       coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
+       coalesce(sb.returns, 0)::numeric AS stock_returns,
        count(*) OVER () AS total
 FROM items i
 LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
@@ -11,6 +13,14 @@ JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+-- Stok outlet aktif per bucket (tanpa baris saldo = 0).
+LEFT JOIN LATERAL (
+    SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
+           sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
+           sum(qty) FILTER (WHERE bucket = 'returns') AS returns
+    FROM stock_balances s
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = @outlet_id AND s.item_id = i.id
+) sb ON true
 WHERE i.tenant_id = @tenant_id
   AND (@q::text = '' OR i.name ILIKE '%' || @q || '%' OR i.sku ILIKE '%' || @q || '%' OR coalesce(i.barcode, '') ILIKE '%' || @q || '%')
   AND (sqlc.narg('active')::boolean IS NULL OR i.active = sqlc.narg('active'))

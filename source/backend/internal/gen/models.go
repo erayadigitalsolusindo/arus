@@ -122,16 +122,18 @@ type ItemWholesaleTier struct {
 }
 
 type Outlet struct {
-	ID          uuid.UUID
-	TenantID    uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	StockLockedAt pgtype.Timestamptz
+	OpsStartDate  pgtype.Date
 }
 
 type PlatformAdmin struct {
@@ -186,6 +188,30 @@ type Role struct {
 	IsSystem    bool
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+}
+
+type StockBalance struct {
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	ItemID    uuid.UUID
+	Bucket    string
+	Qty       decimal.Decimal
+	UpdatedAt pgtype.Timestamptz
+}
+
+type StockMovement struct {
+	ID           int64
+	TenantID     uuid.UUID
+	OutletID     uuid.UUID
+	ItemID       uuid.UUID
+	Bucket       string
+	QtyDelta     decimal.Decimal
+	BalanceAfter decimal.Decimal
+	RefType      string
+	RefID        pgtype.UUID
+	Note         string
+	ActorID      pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
 }
 
 type Supplier struct {
