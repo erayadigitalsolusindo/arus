@@ -21,6 +21,10 @@ type Config struct {
 	// TrustProxy: percayai X-Forwarded-For (hanya bila di belakang proxy tepercaya).
 	TrustProxy bool
 
+	// PlatformSetupToken = rahasia untuk membuat Platform Admin pertama lewat /platform/setup. Kosong = setup mati.
+	// Hapus dari lingkungan server setelah admin pertama dibuat.
+	PlatformSetupToken string
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
@@ -38,17 +42,18 @@ func Load() (Config, error) {
 	_ = godotenv.Load()
 
 	c := Config{
-		Env:         getenv("APP_ENV", "development"),
-		HTTPAddr:    getenv("HTTP_ADDR", ":8080"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		RedisURL:    os.Getenv("REDIS_URL"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		TrustProxy:  os.Getenv("TRUST_PROXY") == "true",
-		AppBaseURL:  strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
-		SMTPHost:    os.Getenv("SMTP_HOST"),
-		SMTPUser:    os.Getenv("SMTP_USER"),
-		SMTPPass:    os.Getenv("SMTP_PASS"),
-		SMTPFrom:    getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+		Env:                getenv("APP_ENV", "development"),
+		HTTPAddr:           getenv("HTTP_ADDR", ":8080"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		RedisURL:           os.Getenv("REDIS_URL"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		TrustProxy:         os.Getenv("TRUST_PROXY") == "true",
+		PlatformSetupToken: os.Getenv("PLATFORM_SETUP_TOKEN"),
+		AppBaseURL:         strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
+		SMTPHost:           os.Getenv("SMTP_HOST"),
+		SMTPUser:           os.Getenv("SMTP_USER"),
+		SMTPPass:           os.Getenv("SMTP_PASS"),
+		SMTPFrom:           getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
 	}
 	for _, o := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {
@@ -76,6 +81,9 @@ func Load() (Config, error) {
 	}
 	if !c.IsDev() && c.SMTPHost == "" {
 		errs = append(errs, errors.New("SMTP_HOST wajib di luar development (email verifikasi dan reset password)"))
+	}
+	if c.PlatformSetupToken != "" && len(c.PlatformSetupToken) < 32 {
+		errs = append(errs, errors.New("PLATFORM_SETUP_TOKEN minimal 32 karakter bila diisi"))
 	}
 	if len(c.JWTSecret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET wajib diisi, minimal 32 karakter"))

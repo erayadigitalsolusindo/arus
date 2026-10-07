@@ -31,9 +31,10 @@ type Access struct {
 // Resolver menentukan hak akses pengguna dari DB, sehingga perubahan role, penugasan outlet, penggantian password,
 // dan penonaktifan akun berlaku dalam <= ttl detik walaupun token akses (15 menit) masih hidup.
 type Resolver struct {
-	pool *pgxpool.Pool
-	ttl  time.Duration
-	now  func() time.Time
+	pool     *pgxpool.Pool
+	platform PlatformChecker
+	ttl      time.Duration
+	now      func() time.Time
 
 	mu    sync.Mutex
 	cache map[string]cacheEntry

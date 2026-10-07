@@ -34,6 +34,8 @@ export type AuthResponse = {
   outlet: Identity;
   permissions: Permissions;
   email_verified: boolean;
+  /** true pada sesi "masuk sebagai" Platform Admin (hanya-baca, tanpa refresh). */
+  impersonating?: boolean;
 };
 
 // Header kustom wajib di endpoint ber-cookie (refresh/logout): memaksa preflight CORS (perlindungan CSRF).
@@ -47,7 +49,8 @@ export const setAccessToken = (token: string | null) => (accessToken = token);
 let onAuthChange: (res: AuthResponse | null) => void = () => {};
 export const setAuthListener = (fn: typeof onAuthChange) => (onAuthChange = fn);
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
+/** Satu permintaan HTTP. `token` bawaan = token akses tenant di memori; sesi Platform Admin memakai tokennya sendiri. */
+export async function request<T>(path: string, init: RequestInit, token: string | null = accessToken): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -56,7 +59,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
       headers: {
         'Content-Type': 'application/json',
         'Accept-Language': i18n.locale,
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers
       }
     });
@@ -101,6 +104,13 @@ async function doRefresh(): Promise<AuthResponse | null> {
   }
 }
 
+// Mode "masuk sebagai" (Platform Admin, hanya-baca): token tenant tidak punya cookie refresh. Bila token itu ditolak
+// (kedaluwarsa/admin dinonaktifkan), mode diakhiri — bukan di-refresh, agar tidak diam-diam berganti ke sesi tenant asli.
+let impersonating = false;
+export const setImpersonating = (on: boolean) => (impersonating = on);
+let onImpersonationEnd: () => void = () => {};
+export const setImpersonationEndListener = (fn: () => void) => (onImpersonationEnd = fn);
+
 // Endpoint yang menerbitkan/mencabut sesi tidak boleh memicu refresh (mencegah loop). /auth/me tetap ikut.
 const NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']);
 
@@ -111,6 +121,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch (err) {
     // Token akses kedaluwarsa: refresh sekali lalu ulangi. Endpoint penerbit sesi dikecualikan (NO_RETRY).
     if (!(err instanceof ApiError) || err.status !== 401 || sentWith === null || NO_RETRY.has(path)) throw err;
+    if (impersonating) {
+      onImpersonationEnd();
+      throw err;
+    }
     // Bila permintaan lain sudah menyegarkan token, cukup ulangi dengan token yang baru.
     if (accessToken === sentWith && !(await refreshSession())) throw err;
     return request<T>(path, init);

@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -36,7 +36,9 @@ const audit: Messages['audit'] = {
     role_update: 'Edited a role',
     role_delete: 'Deleted a role',
     outlet_create: 'Added an outlet',
-    outlet_update: 'Edited an outlet'
+    outlet_update: 'Edited an outlet',
+    platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
+    platform_tenant_status: 'Platform Admin changed the tenant status'
   }
 };
 

@@ -39,7 +39,7 @@
     </button>
   </div>
 
-  <OutletSwitcher />
+  {#if !session.impersonating}<OutletSwitcher />{/if}
 
   <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label={t('shell.mainNav')}>
     <ul role="menu">

@@ -16,6 +16,7 @@ import (
 	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/mailer"
+	"aciraba/internal/platformadmin"
 )
 
 // appDeps = infrastruktur bersama yang dirakit main() lalu diteruskan ke semua modul.
@@ -44,6 +45,18 @@ func mountModules(r chi.Router, d appDeps) {
 		Lockout:    auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		RateLimits: auth.NewRateLimitLoader(d.Pool, d.Log),
 		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
+	}).Routes(r)
+
+	// Platform Admin (operator ACIRABA): token & cookie terpisah; lockout login memakai kebijakan yang sama.
+	platformSvc := platformadmin.NewService(platformadmin.Deps{
+		Pool: d.Pool, Tokens: tokens, PTokens: pauth.NewPlatformTokenIssuer(d.Cfg.JWTSecret), Sessions: sessions,
+		Perms: perms, SetupToken: d.Cfg.PlatformSetupToken,
+	})
+	perms.WithPlatform(platformSvc) // menerima token "masuk sebagai" (hanya-baca) milik Platform Admin
+	platformadmin.NewHandler(platformadmin.HandlerDeps{
+		Service: platformSvc, Log: d.Log, Redis: d.Redis,
+		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
+		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 	}).Routes(r)
 
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)

@@ -1050,6 +1050,321 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 	return i, err
 }
 
+const platformAdminByEmail = `-- name: PlatformAdminByEmail :one
+SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at
+FROM platform_admins WHERE lower(email) = lower($1)
+`
+
+func (q *Queries) PlatformAdminByEmail(ctx context.Context, email string) (PlatformAdmin, error) {
+	row := q.db.QueryRow(ctx, platformAdminByEmail, email)
+	var i PlatformAdmin
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Active,
+		&i.TokensValidAfter,
+		&i.LastLoginAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const platformAdminByID = `-- name: PlatformAdminByID :one
+SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at
+FROM platform_admins WHERE id = $1
+`
+
+func (q *Queries) PlatformAdminByID(ctx context.Context, id uuid.UUID) (PlatformAdmin, error) {
+	row := q.db.QueryRow(ctx, platformAdminByID, id)
+	var i PlatformAdmin
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Active,
+		&i.TokensValidAfter,
+		&i.LastLoginAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const platformAdminCount = `-- name: PlatformAdminCount :one
+SELECT count(*) FROM platform_admins
+`
+
+func (q *Queries) PlatformAdminCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, platformAdminCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const platformAdminList = `-- name: PlatformAdminList :many
+SELECT id, email, name, active, last_login_at, created_at, created_by
+FROM platform_admins ORDER BY created_at, id
+`
+
+type PlatformAdminListRow struct {
+	ID          uuid.UUID
+	Email       string
+	Name        string
+	Active      bool
+	LastLoginAt pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+}
+
+func (q *Queries) PlatformAdminList(ctx context.Context) ([]PlatformAdminListRow, error) {
+	rows, err := q.db.Query(ctx, platformAdminList)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlatformAdminListRow
+	for rows.Next() {
+		var i PlatformAdminListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.Active,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const platformAuditInsert = `-- name: PlatformAuditInsert :exec
+INSERT INTO platform_audit_log (admin_id, admin_name, action, tenant_id, tenant_name, details, ip, request_id)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8)
+`
+
+type PlatformAuditInsertParams struct {
+	AdminID    pgtype.UUID
+	AdminName  string
+	Action     string
+	TenantID   pgtype.UUID
+	TenantName string
+	Details    []byte
+	Ip         string
+	RequestID  string
+}
+
+func (q *Queries) PlatformAuditInsert(ctx context.Context, arg PlatformAuditInsertParams) error {
+	_, err := q.db.Exec(ctx, platformAuditInsert,
+		arg.AdminID,
+		arg.AdminName,
+		arg.Action,
+		arg.TenantID,
+		arg.TenantName,
+		arg.Details,
+		arg.Ip,
+		arg.RequestID,
+	)
+	return err
+}
+
+const platformAuditList = `-- name: PlatformAuditList :many
+SELECT id, admin_id, admin_name, action, tenant_id, tenant_name, details, ip, request_id, created_at
+FROM platform_audit_log
+WHERE ($1::uuid IS NULL OR tenant_id = $1)
+  AND ($2::uuid IS NULL OR admin_id = $2)
+  AND ($3::text IS NULL OR action LIKE $3 || '%' ESCAPE '\')
+  AND ($4::bigint IS NULL OR id < $4)
+ORDER BY id DESC
+LIMIT $5
+`
+
+type PlatformAuditListParams struct {
+	TenantID     pgtype.UUID
+	AdminID      pgtype.UUID
+	ActionPrefix pgtype.Text
+	BeforeID     pgtype.Int8
+	MaxRows      int32
+}
+
+func (q *Queries) PlatformAuditList(ctx context.Context, arg PlatformAuditListParams) ([]PlatformAuditLog, error) {
+	rows, err := q.db.Query(ctx, platformAuditList,
+		arg.TenantID,
+		arg.AdminID,
+		arg.ActionPrefix,
+		arg.BeforeID,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlatformAuditLog
+	for rows.Next() {
+		var i PlatformAuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.AdminID,
+			&i.AdminName,
+			&i.Action,
+			&i.TenantID,
+			&i.TenantName,
+			&i.Details,
+			&i.Ip,
+			&i.RequestID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const platformTenantGet = `-- name: PlatformTenantGet :one
+SELECT id, code, name, active, created_at FROM tenants WHERE id = $1
+`
+
+type PlatformTenantGetRow struct {
+	ID        uuid.UUID
+	Code      string
+	Name      string
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+}
+
+// Dijalankan di bawah WithTenant(tenant yang dituju): RLS membatasi baris ke tenant itu.
+func (q *Queries) PlatformTenantGet(ctx context.Context, id uuid.UUID) (PlatformTenantGetRow, error) {
+	row := q.db.QueryRow(ctx, platformTenantGet, id)
+	var i PlatformTenantGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const platformTenantOutlets = `-- name: PlatformTenantOutlets :many
+SELECT id, code, name, active FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code
+`
+
+type PlatformTenantOutletsRow struct {
+	ID     uuid.UUID
+	Code   string
+	Name   string
+	Active bool
+}
+
+func (q *Queries) PlatformTenantOutlets(ctx context.Context, tenantID uuid.UUID) ([]PlatformTenantOutletsRow, error) {
+	rows, err := q.db.Query(ctx, platformTenantOutlets, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlatformTenantOutletsRow
+	for rows.Next() {
+		var i PlatformTenantOutletsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const platformTenantSetActive = `-- name: PlatformTenantSetActive :execrows
+UPDATE tenants SET active = $1 WHERE id = $2
+`
+
+type PlatformTenantSetActiveParams struct {
+	Active bool
+	ID     uuid.UUID
+}
+
+func (q *Queries) PlatformTenantSetActive(ctx context.Context, arg PlatformTenantSetActiveParams) (int64, error) {
+	result, err := q.db.Exec(ctx, platformTenantSetActive, arg.Active, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const platformTenantUsers = `-- name: PlatformTenantUsers :many
+SELECT u.id, u.name, u.email, u.active, r.name AS role_name, COALESCE((r.permissions->>'*')::boolean, false)::boolean AS administrator,
+       u.last_login_at, (u.email_verified_at IS NOT NULL)::boolean AS email_verified, u.created_at
+FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $1 ORDER BY u.created_at, u.id
+`
+
+type PlatformTenantUsersRow struct {
+	ID            uuid.UUID
+	Name          string
+	Email         string
+	Active        bool
+	RoleName      string
+	Administrator bool
+	LastLoginAt   pgtype.Timestamptz
+	EmailVerified bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) ([]PlatformTenantUsersRow, error) {
+	rows, err := q.db.Query(ctx, platformTenantUsers, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlatformTenantUsersRow
+	for rows.Next() {
+		var i PlatformTenantUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Active,
+			&i.RoleName,
+			&i.Administrator,
+			&i.LastLoginAt,
+			&i.EmailVerified,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const touchLastLogin = `-- name: TouchLastLogin :exec
 UPDATE users SET last_login_at = now() WHERE tenant_id = $1 AND id = $2
 `
