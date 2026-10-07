@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"aciraba/internal/iam"
 	pauth "aciraba/internal/platform/auth"
 )
 
@@ -30,26 +31,33 @@ func TestValidateRegister(t *testing.T) {
 	}
 }
 
-// Integrasi: butuh TEST_DATABASE_URL dan TEST_REDIS_URL (database dev boleh dipakai; data uji dibersihkan).
+// Integrasi: butuh TEST_DATABASE_URL (role aplikasi `aciraba_app`: RLS berlaku), TEST_ADMIN_DATABASE_URL (pemilik skema,
+// untuk memeriksa/membersihkan data lintas tenant) dan TEST_REDIS_URL. Database dev boleh dipakai; data uji dibersihkan.
+// Service diuji lewat pool aplikasi; pool yang dikembalikan adalah pool admin.
 func newTestService(t *testing.T) (*Service, *pgxpool.Pool) {
 	t.Helper()
-	dbURL, redisURL := os.Getenv("TEST_DATABASE_URL"), os.Getenv("TEST_REDIS_URL")
-	if dbURL == "" || redisURL == "" {
-		t.Skip("TEST_DATABASE_URL/TEST_REDIS_URL tidak di-set")
+	dbURL, adminURL, redisURL := os.Getenv("TEST_DATABASE_URL"), os.Getenv("TEST_ADMIN_DATABASE_URL"), os.Getenv("TEST_REDIS_URL")
+	if dbURL == "" || adminURL == "" || redisURL == "" {
+		t.Skip("TEST_DATABASE_URL/TEST_ADMIN_DATABASE_URL/TEST_REDIS_URL tidak di-set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
+	appPool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(pool.Close)
+	t.Cleanup(appPool.Close)
+	admin, err := pgxpool.New(ctx, adminURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(admin.Close)
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rdb := redis.NewClient(opt)
 	t.Cleanup(func() { _ = rdb.Close() })
-	return NewService(pool, pauth.NewTokenIssuer("rahasia-uji-rahasia-uji-rahasia-uji-123"), pauth.NewSessions(rdb)), pool
+	return NewService(appPool, pauth.NewTokenIssuer("rahasia-uji-rahasia-uji-rahasia-uji-123"), pauth.NewSessions(rdb), iam.NewResolver(appPool)), admin
 }
 
 func cleanup(t *testing.T, pool *pgxpool.Pool, emailLike string) {

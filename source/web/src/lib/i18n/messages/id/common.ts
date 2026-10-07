@@ -4,5 +4,6 @@ export default {
   language: 'Bahasa',
   theme: { light: 'Mode terang', dark: 'Mode gelap' },
   paid: 'Lunas',
-  live: 'Live'
+  live: 'Live',
+  close: 'Tutup'
 };

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { session, logout } from '#lib/auth/session.svelte.ts';
+  import { session, logout, can } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
-  import { nav } from '#lib/nav.ts';
+  import { visibleNav } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
 
   let {
@@ -10,6 +10,9 @@
     ontoggle,
     onclose
   }: { collapsed: boolean; mobileOpen: boolean; ontoggle: () => void; onclose: () => void } = $props();
+
+  // Menu disaring menurut izin pengguna (penegakan sebenarnya di server).
+  const groups = $derived(visibleNav((m) => can(m)));
 
   // Semua submenu tertutup saat halaman dimuat/di-reload.
   let open = $state<Record<string, boolean>>({});
@@ -51,7 +54,7 @@
 
   <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label={t('shell.mainNav')}>
     <ul role="menu">
-      {#each nav as group (group.titleKey)}
+      {#each groups as group (group.titleKey)}
         <li class="sidebar-group-title">{t(group.titleKey)}</li>
         {#each group.items as item (item.id)}
           {#if item.children}

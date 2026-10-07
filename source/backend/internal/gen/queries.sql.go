@@ -60,11 +60,12 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (CreateR
 }
 
 const createTenant = `-- name: CreateTenant :one
-INSERT INTO tenants (code, name) VALUES ($1, $2)
+INSERT INTO tenants (id, code, name) VALUES ($1, $2, $3)
 RETURNING id, code, name
 `
 
 type CreateTenantParams struct {
+	ID   uuid.UUID
 	Code string
 	Name string
 }
@@ -76,7 +77,7 @@ type CreateTenantRow struct {
 }
 
 func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (CreateTenantRow, error) {
-	row := q.db.QueryRow(ctx, createTenant, arg.Code, arg.Name)
+	row := q.db.QueryRow(ctx, createTenant, arg.ID, arg.Code, arg.Name)
 	var i CreateTenantRow
 	err := row.Scan(&i.ID, &i.Code, &i.Name)
 	return i, err
@@ -117,7 +118,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
-const getAccountByEmail = `-- name: GetAccountByEmail :one
+const getAccountInTenant = `-- name: GetAccountInTenant :one
+
 SELECT u.id AS user_id, u.name AS user_name, u.email, u.password_hash, u.active AS user_active,
        r.name AS role_name,
        t.id AS tenant_id, t.code AS tenant_code, t.name AS tenant_name, t.active AS tenant_active,
@@ -126,12 +128,17 @@ FROM users u
 JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 JOIN tenants t ON t.id = u.tenant_id
 JOIN outlets o ON o.tenant_id = u.tenant_id AND o.active
-WHERE lower(u.email) = lower($1)
+WHERE u.tenant_id = $1 AND u.id = $2
 ORDER BY o.created_at, o.code
 LIMIT 1
 `
 
-type GetAccountByEmailRow struct {
+type GetAccountInTenantParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type GetAccountInTenantRow struct {
 	UserID       uuid.UUID
 	UserName     string
 	Email        string
@@ -147,62 +154,12 @@ type GetAccountByEmailRow struct {
 	OutletName   string
 }
 
-// Akun + role + tenant + outlet aktif pertama, untuk login. Email dicocokkan case-insensitive (users_email_key).
-func (q *Queries) GetAccountByEmail(ctx context.Context, lower string) (GetAccountByEmailRow, error) {
-	row := q.db.QueryRow(ctx, getAccountByEmail, lower)
-	var i GetAccountByEmailRow
-	err := row.Scan(
-		&i.UserID,
-		&i.UserName,
-		&i.Email,
-		&i.PasswordHash,
-		&i.UserActive,
-		&i.RoleName,
-		&i.TenantID,
-		&i.TenantCode,
-		&i.TenantName,
-		&i.TenantActive,
-		&i.OutletID,
-		&i.OutletCode,
-		&i.OutletName,
-	)
-	return i, err
-}
-
-const getAccountByID = `-- name: GetAccountByID :one
-SELECT u.id AS user_id, u.name AS user_name, u.email, u.password_hash, u.active AS user_active,
-       r.name AS role_name,
-       t.id AS tenant_id, t.code AS tenant_code, t.name AS tenant_name, t.active AS tenant_active,
-       o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name
-FROM users u
-JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
-JOIN tenants t ON t.id = u.tenant_id
-JOIN outlets o ON o.tenant_id = u.tenant_id AND o.active
-WHERE u.id = $1
-ORDER BY o.created_at, o.code
-LIMIT 1
-`
-
-type GetAccountByIDRow struct {
-	UserID       uuid.UUID
-	UserName     string
-	Email        string
-	PasswordHash string
-	UserActive   bool
-	RoleName     string
-	TenantID     uuid.UUID
-	TenantCode   string
-	TenantName   string
-	TenantActive bool
-	OutletID     uuid.UUID
-	OutletCode   string
-	OutletName   string
-}
-
-// Sama seperti GetAccountByEmail, dicari lewat id user (refresh token, /auth/me).
-func (q *Queries) GetAccountByID(ctx context.Context, id uuid.UUID) (GetAccountByIDRow, error) {
-	row := q.db.QueryRow(ctx, getAccountByID, id)
-	var i GetAccountByIDRow
+// Pencarian akun sebelum tenant diketahui (login, refresh) memakai fungsi SECURITY DEFINER dan ditulis
+// manual di accounts.go: sqlc tidak membaca tipe hasil fungsi RETURNS TABLE.
+// Dengan tenant yang sudah diketahui (token akses): query biasa, dibatasi RLS (app.tenant_id) dan filter eksplisit.
+func (q *Queries) GetAccountInTenant(ctx context.Context, arg GetAccountInTenantParams) (GetAccountInTenantRow, error) {
+	row := q.db.QueryRow(ctx, getAccountInTenant, arg.TenantID, arg.ID)
+	var i GetAccountInTenantRow
 	err := row.Scan(
 		&i.UserID,
 		&i.UserName,
@@ -230,6 +187,381 @@ func (q *Queries) GetAppSetting(ctx context.Context, key string) ([]byte, error)
 	var value []byte
 	err := row.Scan(&value)
 	return value, err
+}
+
+const iamCreateRole = `-- name: IamCreateRole :one
+INSERT INTO roles (tenant_id, name, permissions) VALUES ($1, $2, $3)
+RETURNING id, name, permissions, is_system
+`
+
+type IamCreateRoleParams struct {
+	TenantID    uuid.UUID
+	Name        string
+	Permissions []byte
+}
+
+type IamCreateRoleRow struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	IsSystem    bool
+}
+
+func (q *Queries) IamCreateRole(ctx context.Context, arg IamCreateRoleParams) (IamCreateRoleRow, error) {
+	row := q.db.QueryRow(ctx, iamCreateRole, arg.TenantID, arg.Name, arg.Permissions)
+	var i IamCreateRoleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Permissions,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const iamCreateUser = `-- name: IamCreateUser :one
+INSERT INTO users (tenant_id, role_id, email, name, phone, password_hash)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id
+`
+
+type IamCreateUserParams struct {
+	TenantID     uuid.UUID
+	RoleID       uuid.UUID
+	Email        string
+	Name         string
+	Phone        pgtype.Text
+	PasswordHash string
+}
+
+func (q *Queries) IamCreateUser(ctx context.Context, arg IamCreateUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, iamCreateUser,
+		arg.TenantID,
+		arg.RoleID,
+		arg.Email,
+		arg.Name,
+		arg.Phone,
+		arg.PasswordHash,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const iamDeleteRole = `-- name: IamDeleteRole :execrows
+DELETE FROM roles WHERE tenant_id = $1 AND id = $2 AND NOT is_system
+`
+
+type IamDeleteRoleParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) IamDeleteRole(ctx context.Context, arg IamDeleteRoleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, iamDeleteRole, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const iamGetRole = `-- name: IamGetRole :one
+SELECT id, name, permissions, is_system FROM roles WHERE tenant_id = $1 AND id = $2
+`
+
+type IamGetRoleParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type IamGetRoleRow struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	IsSystem    bool
+}
+
+func (q *Queries) IamGetRole(ctx context.Context, arg IamGetRoleParams) (IamGetRoleRow, error) {
+	row := q.db.QueryRow(ctx, iamGetRole, arg.TenantID, arg.ID)
+	var i IamGetRoleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Permissions,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const iamGetUser = `-- name: IamGetUser :one
+SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.role_id, r.name AS role_name
+FROM users u
+JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $1 AND u.id = $2
+`
+
+type IamGetUserParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type IamGetUserRow struct {
+	ID          uuid.UUID
+	Name        string
+	Email       string
+	Phone       pgtype.Text
+	Active      bool
+	LastLoginAt pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	RoleID      uuid.UUID
+	RoleName    string
+}
+
+func (q *Queries) IamGetUser(ctx context.Context, arg IamGetUserParams) (IamGetUserRow, error) {
+	row := q.db.QueryRow(ctx, iamGetUser, arg.TenantID, arg.ID)
+	var i IamGetUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.Active,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.RoleID,
+		&i.RoleName,
+	)
+	return i, err
+}
+
+const iamGetUserPermissions = `-- name: IamGetUserPermissions :one
+SELECT r.permissions, u.active AS user_active, t.active AS tenant_active
+FROM users u
+JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+JOIN tenants t ON t.id = u.tenant_id
+WHERE u.tenant_id = $1 AND u.id = $2
+`
+
+type IamGetUserPermissionsParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type IamGetUserPermissionsRow struct {
+	Permissions  []byte
+	UserActive   bool
+	TenantActive bool
+}
+
+func (q *Queries) IamGetUserPermissions(ctx context.Context, arg IamGetUserPermissionsParams) (IamGetUserPermissionsRow, error) {
+	row := q.db.QueryRow(ctx, iamGetUserPermissions, arg.TenantID, arg.ID)
+	var i IamGetUserPermissionsRow
+	err := row.Scan(&i.Permissions, &i.UserActive, &i.TenantActive)
+	return i, err
+}
+
+const iamListRoles = `-- name: IamListRoles :many
+SELECT r.id, r.name, r.permissions, r.is_system,
+       (SELECT count(*) FROM users u WHERE u.tenant_id = r.tenant_id AND u.role_id = r.id) AS user_count
+FROM roles r
+WHERE r.tenant_id = $1
+ORDER BY r.is_system DESC, lower(r.name)
+`
+
+type IamListRolesRow struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	IsSystem    bool
+	UserCount   int64
+}
+
+func (q *Queries) IamListRoles(ctx context.Context, tenantID uuid.UUID) ([]IamListRolesRow, error) {
+	rows, err := q.db.Query(ctx, iamListRoles, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IamListRolesRow
+	for rows.Next() {
+		var i IamListRolesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Permissions,
+			&i.IsSystem,
+			&i.UserCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const iamListUsers = `-- name: IamListUsers :many
+SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.role_id, r.name AS role_name
+FROM users u
+JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $1
+ORDER BY lower(u.name)
+`
+
+type IamListUsersRow struct {
+	ID          uuid.UUID
+	Name        string
+	Email       string
+	Phone       pgtype.Text
+	Active      bool
+	LastLoginAt pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	RoleID      uuid.UUID
+	RoleName    string
+}
+
+func (q *Queries) IamListUsers(ctx context.Context, tenantID uuid.UUID) ([]IamListUsersRow, error) {
+	rows, err := q.db.Query(ctx, iamListUsers, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IamListUsersRow
+	for rows.Next() {
+		var i IamListUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Phone,
+			&i.Active,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.RoleID,
+			&i.RoleName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const iamLockActiveOwners = `-- name: IamLockActiveOwners :many
+SELECT u.id FROM users u
+JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $1 AND u.active AND r.is_system
+FOR UPDATE OF u
+`
+
+// Mengunci baris pemilik aktif selama transaksi: dua perubahan bersamaan tidak bisa sama-sama menyisakan nol pemilik.
+func (q *Queries) IamLockActiveOwners(ctx context.Context, tenantID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, iamLockActiveOwners, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const iamSetPassword = `-- name: IamSetPassword :execrows
+UPDATE users SET password_hash = $3 WHERE tenant_id = $1 AND id = $2
+`
+
+type IamSetPasswordParams struct {
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) IamSetPassword(ctx context.Context, arg IamSetPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, iamSetPassword, arg.TenantID, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const iamUpdateRole = `-- name: IamUpdateRole :one
+UPDATE roles SET name = $3, permissions = $4
+WHERE tenant_id = $1 AND id = $2 AND NOT is_system
+RETURNING id, name, permissions, is_system
+`
+
+type IamUpdateRoleParams struct {
+	TenantID    uuid.UUID
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+}
+
+type IamUpdateRoleRow struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	IsSystem    bool
+}
+
+func (q *Queries) IamUpdateRole(ctx context.Context, arg IamUpdateRoleParams) (IamUpdateRoleRow, error) {
+	row := q.db.QueryRow(ctx, iamUpdateRole,
+		arg.TenantID,
+		arg.ID,
+		arg.Name,
+		arg.Permissions,
+	)
+	var i IamUpdateRoleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Permissions,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const iamUpdateUser = `-- name: IamUpdateUser :execrows
+UPDATE users SET name = $3, phone = $4, role_id = $5, active = $6
+WHERE tenant_id = $1 AND id = $2
+`
+
+type IamUpdateUserParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+	Phone    pgtype.Text
+	RoleID   uuid.UUID
+	Active   bool
+}
+
+func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (int64, error) {
+	result, err := q.db.Exec(ctx, iamUpdateUser,
+		arg.TenantID,
+		arg.ID,
+		arg.Name,
+		arg.Phone,
+		arg.RoleID,
+		arg.Active,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const touchLastLogin = `-- name: TouchLastLogin :exec

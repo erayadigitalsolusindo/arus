@@ -9,13 +9,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	gen "aciraba/internal/gen"
+	"aciraba/internal/iam"
 	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
 
@@ -36,12 +39,13 @@ type Service struct {
 	pool     *pgxpool.Pool
 	tokens   *pauth.TokenIssuer
 	sessions *pauth.Sessions
+	perms    *iam.Resolver
 	hashSem  chan struct{}
 	now      func() time.Time
 }
 
-func NewService(pool *pgxpool.Pool, tokens *pauth.TokenIssuer, sessions *pauth.Sessions) *Service {
-	return &Service{pool: pool, tokens: tokens, sessions: sessions, hashSem: make(chan struct{}, maxConcurrentHashes), now: time.Now}
+func NewService(pool *pgxpool.Pool, tokens *pauth.TokenIssuer, sessions *pauth.Sessions, perms *iam.Resolver) *Service {
+	return &Service{pool: pool, tokens: tokens, sessions: sessions, perms: perms, hashSem: make(chan struct{}, maxConcurrentHashes), now: time.Now}
 }
 
 // RegisterInput = input mentah dari klien.
@@ -96,9 +100,11 @@ type Identity struct {
 
 // Profile = identitas pengguna yang sedang masuk (dipakai klien untuk tampilan; bukan sumber otorisasi).
 type Profile struct {
-	User   Identity `json:"user"`
-	Tenant Identity `json:"tenant"`
-	Outlet Identity `json:"outlet"`
+	// Permissions: izin efektif untuk menyaring menu/tombol di UI. Penegakan tetap di server (iam.Require).
+	Permissions iam.Permissions `json:"permissions"`
+	User        Identity        `json:"user"`
+	Tenant      Identity        `json:"tenant"`
+	Outlet      Identity        `json:"outlet"`
 }
 
 type Session struct {
@@ -148,10 +154,11 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		role   gen.CreateRoleRow
 		user   gen.CreateUserRow
 	)
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	tenantID := uuid.New() // dibuat aplikasi agar seluruh transaksi bisa berjalan di bawah RLS tenant ini
+	err := db.WithTenant(ctx, s.pool, tenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
 		var err error
-		if tenant, err = q.CreateTenant(ctx, gen.CreateTenantParams{Code: code, Name: in.BusinessName}); err != nil {
+		if tenant, err = q.CreateTenant(ctx, gen.CreateTenantParams{ID: tenantID, Code: code, Name: in.BusinessName}); err != nil {
 			return err
 		}
 		if outlet, err = q.CreateOutlet(ctx, gen.CreateOutletParams{TenantID: tenant.ID, Code: "main", Name: in.OutletName}); err != nil {
@@ -181,7 +188,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		UserID: user.ID, UserName: user.Name, Email: user.Email, RoleName: role.Name,
 		TenantID: tenant.ID, TenantCode: tenant.Code, TenantName: tenant.Name,
 		OutletID: outlet.ID, OutletCode: outlet.Code, OutletName: outlet.Name,
-	}, access, refresh, true), nil
+	}, iam.Permissions{All: true}, access, refresh, true), nil
 }
 
 func (s *Service) acquire(ctx context.Context) error {

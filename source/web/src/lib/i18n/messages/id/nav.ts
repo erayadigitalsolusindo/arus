@@ -1,6 +1,8 @@
 export default {
-  group: { main: 'Utama', masterData: 'Master Data', sales: 'Penjualan', purchasing: 'Pembelian', adjustments: 'Penyesuaian' },
+  group: { main: 'Utama', masterData: 'Master Data', sales: 'Penjualan', purchasing: 'Pembelian', adjustments: 'Penyesuaian', system: 'Sistem' },
   dashboard: 'Dashboard',
+  users: 'Pengguna',
+  roles: 'Role & Hak Akses',
   siak: 'SIAK Aciraba',
   itemList: 'Daftar Item',
   stockCard: 'Kartu Stok',

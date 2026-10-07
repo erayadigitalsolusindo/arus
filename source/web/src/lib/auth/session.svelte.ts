@@ -2,7 +2,7 @@
 // Otorisasi sebenarnya selalu di server (token akses/RLS); store ini bukan sumber kebenaran.
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { api, refreshSession, setAccessToken, setAuthListener, CSRF_HEADERS, type AuthResponse, type Identity } from '#lib/api/client.ts';
+import { api, refreshSession, setAccessToken, setAuthListener, CSRF_HEADERS, type AuthResponse, type Identity, type Permissions } from '#lib/api/client.ts';
 
 type Status = 'unknown' | 'authed' | 'anon';
 
@@ -11,6 +11,7 @@ class SessionState {
   user = $state<Identity | null>(null);
   tenant = $state<Identity | null>(null);
   outlet = $state<Identity | null>(null);
+  permissions = $state<Permissions>({});
 }
 
 export const session = new SessionState();
@@ -26,17 +27,27 @@ function apply(res: AuthResponse | null) {
   if (!res) {
     session.status = 'anon';
     session.user = session.tenant = session.outlet = null;
+    session.permissions = {};
     return;
   }
   session.status = 'authed';
   session.user = res.user;
   session.tenant = res.tenant;
   session.outlet = res.outlet;
+  session.permissions = res.permissions ?? {};
   expiresAt = Date.now() + res.expires_in * 1000;
   timer = setTimeout(() => void refreshSession().catch(() => {}), Math.max(res.expires_in - REFRESH_LEAD_S, 5) * 1000);
 }
 
 setAuthListener(apply);
+
+/** Apakah pengguna punya izin `module.action` (hanya untuk menyaring UI; server tetap menegakkan). */
+export function can(module: string, action = 'view'): boolean {
+  const p = session.permissions;
+  if (p["*"] === true) return true;
+  const acts = p[module];
+  return Array.isArray(acts) && acts.includes(action);
+}
 
 /** Dipanggil setelah login/register berhasil. */
 export function startSession(res: AuthResponse) {
@@ -60,6 +71,12 @@ export function bootstrap(): Promise<void> {
 export async function guestOnly() {
   await bootstrap();
   if (session.status === 'authed') redirect(307, '/dashboard');
+}
+
+/** Penjaga halaman yang butuh izin lihat suatu modul: tanpa izin diarahkan ke dasbor. */
+export async function requirePermission(module: string, action = 'view') {
+  await requireSession();
+  if (!can(module, action)) redirect(307, '/dashboard');
 }
 
 /** Penjaga route aplikasi: pengguna yang belum masuk diarahkan ke login. */
