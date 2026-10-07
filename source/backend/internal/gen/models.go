@@ -72,6 +72,7 @@ type Item struct {
 	Active             bool
 	CreatedAt          pgtype.Timestamptz
 	UpdatedAt          pgtype.Timestamptz
+	Origin             string
 }
 
 type ItemCounter struct {

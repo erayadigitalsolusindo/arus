@@ -31,7 +31,6 @@ import (
 var (
 	ErrNotFound        = errors.New("item tidak ditemukan")
 	ErrCodeTaken       = errors.New("kode barang sudah dipakai")
-	ErrBarcodeTaken    = errors.New("barcode sudah dipakai")
 	ErrOutletForbidden = errors.New("tidak punya akses ke outlet ini")
 )
 
@@ -75,6 +74,7 @@ type Item struct {
 	ID                 uuid.UUID     `json:"id"`
 	SKU                string        `json:"sku"`
 	Barcode            string        `json:"barcode"`
+	Origin             string        `json:"origin"`
 	Name               string        `json:"name"`
 	WeightGrams        string        `json:"weight_grams"`
 	LastCost           string        `json:"last_cost"`
@@ -103,6 +103,7 @@ type Row struct {
 	ID            uuid.UUID  `json:"id"`
 	SKU           string     `json:"sku"`
 	Barcode       string     `json:"barcode"`
+	Origin        string     `json:"origin"`
 	Name          string     `json:"name"`
 	Kind          string     `json:"kind"`
 	Active        bool       `json:"active"`
@@ -124,8 +125,10 @@ type OutletPriceInput struct {
 // Cost (HPP awal) hanya dipakai saat membuat. OutletPrices nil saat mengubah = harga cabang tidak disentuh;
 // selain itu daftar ini menggantikan seluruh harga khusus pada cabang yang boleh diakses pemanggil.
 type Input struct {
-	SKU                string
-	Barcode            string
+	SKU     string
+	Barcode string
+	// Origin = pembeda opsional (mis. negara asal) yang tampil di pilihan kasir untuk barcode kembar.
+	Origin             string
 	Name               string
 	Weight             string
 	Cost               string
@@ -155,14 +158,14 @@ type ListParams struct {
 }
 
 type clean struct {
-	sku, name, barcode, kind, desc string
-	weight, cost, sell             decimal.Decimal
-	unit                           uuid.UUID
-	category, brand, principal     uuid.UUID
-	supplier                       uuid.UUID
-	prices                         map[uuid.UUID]decimal.Decimal // nil = tidak disentuh
-	wholesale                      *cleanWholesale               // nil = tidak disentuh
-	units                          *[]cleanUnit                  // nil = tidak disentuh
+	sku, name, barcode, origin, kind, desc string
+	weight, cost, sell                     decimal.Decimal
+	unit                                   uuid.UUID
+	category, brand, principal             uuid.UUID
+	supplier                               uuid.UUID
+	prices                                 map[uuid.UUID]decimal.Decimal // nil = tidak disentuh
+	wholesale                              *cleanWholesale               // nil = tidak disentuh
+	units                                  *[]cleanUnit                  // nil = tidak disentuh
 }
 
 type Service struct {
@@ -256,6 +259,9 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 	}
 	if c.barcode, code = scanValue(in.Barcode); code != "" {
 		f["barcode"] = code
+	}
+	if c.origin, code = originValue(in.Origin); code != "" {
+		f["origin"] = code
 	}
 
 	var ok bool
@@ -351,7 +357,7 @@ func numeric(n pgtype.Numeric) (decimal.Decimal, bool) {
 
 func itemOf(r gen.ItemGetRow) Item {
 	return Item{
-		ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Name: r.Name,
+		ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name,
 		WeightGrams: r.WeightGrams.String(), LastCost: r.LastCost.StringFixed(2), AvgCost: r.AvgCost.StringFixed(2), SellPrice: r.SellPrice.StringFixed(2),
 		Kind: r.Kind, AllowNegativeStock: r.AllowNegativeStock, SellBelowCost: r.SellBelowCost, Description: r.Description, Active: r.Active,
 		Unit:     Ref{ID: r.UnitID, Name: r.UnitName},
@@ -380,8 +386,6 @@ func mapWriteErr(err error) error {
 	switch {
 	case uniqueViolation(err, "items_tenant_sku_key"):
 		return ErrCodeTaken
-	case uniqueViolation(err, "items_tenant_barcode_key"), uniqueViolation(err, "item_units_tenant_barcode_key"):
-		return ErrBarcodeTaken
 	case errors.As(err, &pgErr) && pgErr.Code == "23503": // master dirujuk hilang karena balapan hapus/tenant lain
 		field := map[string]string{"items_unit_fk": "unit_id", "items_category_fk": "category_id", "items_brand_fk": "brand_id",
 			"items_principal_fk": "principal_id", "items_supplier_fk": "supplier_id", "item_units_unit_fk": "units"}[pgErr.ConstraintName]
@@ -425,7 +429,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 			if op, ok := numeric(r.OutletPrice); ok {
 				price, override = op, true
 			}
-			out = append(out, Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Name: r.Name, Kind: r.Kind, Active: r.Active,
+			out = append(out, Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name, Kind: r.Kind, Active: r.Active,
 				Unit: r.UnitName, Category: r.CategoryName.String, Brand: r.BrandName.String,
 				Price: price.StringFixed(2), PriceOverride: override, MainImageID: uuidPtr(r.MainImageID)})
 			total = int(r.Total)
@@ -542,9 +546,6 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 		if err := checkRefs(ctx, q, a.TenantID, c, nil); err != nil {
 			return err
 		}
-		if err := lockAndCheckBarcodes(ctx, q, a.TenantID, uuid.Nil, barcodesOf(c)); err != nil {
-			return err
-		}
 		sku := c.sku
 		if sku == "" {
 			var err error
@@ -553,7 +554,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 			}
 		}
 		id, err := q.ItemCreate(ctx, gen.ItemCreateParams{
-			TenantID: a.TenantID, Sku: sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name,
+			TenantID: a.TenantID, Sku: sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name, Origin: c.origin,
 			WeightGrams: c.weight, Cost: c.cost, SellPrice: c.sell, UnitID: c.unit,
 			CategoryID: nz(c.category), BrandID: nz(c.brand), PrincipalID: nz(c.principal), SupplierID: nz(c.supplier),
 			Kind: c.kind, AllowNegativeStock: in.AllowNegativeStock, SellBelowCost: in.SellBelowCost, Description: c.desc,
@@ -624,9 +625,6 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		if err := checkRefs(ctx, q, a.TenantID, c, &cur); err != nil {
 			return err
 		}
-		if err := lockAndCheckBarcodes(ctx, q, a.TenantID, id, barcodesOf(c)); err != nil {
-			return err
-		}
 		if err := checkBaseUnitConflict(ctx, q, a.TenantID, id, c); err != nil {
 			return err
 		}
@@ -635,7 +633,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			return err
 		}
 		if err := q.ItemUpdate(ctx, gen.ItemUpdateParams{
-			TenantID: a.TenantID, ID: id, Sku: c.sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name,
+			TenantID: a.TenantID, ID: id, Sku: c.sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name, Origin: c.origin,
 			WeightGrams: c.weight, SellPrice: c.sell, UnitID: c.unit,
 			CategoryID: nz(c.category), BrandID: nz(c.brand), PrincipalID: nz(c.principal), SupplierID: nz(c.supplier),
 			Kind: c.kind, AllowNegativeStock: in.AllowNegativeStock, SellBelowCost: in.SellBelowCost, Description: c.desc,
@@ -691,6 +689,7 @@ func recordUpdate(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UUID, c
 	diff("sku", cur.Sku, c.sku)
 	diff("barcode", cur.Barcode.String, c.barcode)
 	diff("name", cur.Name, c.name)
+	diff("origin", cur.Origin, c.origin)
 	diff("weight_grams", cur.WeightGrams.String(), c.weight.String())
 	diff("unit_id", cur.UnitID.String(), c.unit.String())
 	diff("category_id", uid(cur.CategoryID), nid(c.category))
@@ -775,4 +774,18 @@ func uuidPtr(p pgtype.UUID) *uuid.UUID {
 	}
 	id := uuid.UUID(p.Bytes)
 	return &id
+}
+
+const maxOrigin = 100
+
+// originValue memvalidasi pembeda opsional (mis. negara asal): teks polos ≤ 100 karakter tanpa markup; kosong boleh.
+func originValue(raw string) (string, string) {
+	v, ok := sanitize.Text(raw)
+	switch {
+	case !ok, strings.ContainsAny(v, "<>"):
+		return "", sanitize.Invalid
+	case utf8.RuneCountInString(v) > maxOrigin:
+		return "", sanitize.TooLong
+	}
+	return v, ""
 }

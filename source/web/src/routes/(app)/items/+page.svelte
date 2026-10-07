@@ -170,7 +170,7 @@
                     <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-tertiary)]" aria-hidden="true"><i class="icon-image text-[15px]"></i></span>
                   {/if}
                   <div class="min-w-0">
-                    <a href="/items/{r.id}" class="font-semibold hover:underline">{r.name}</a>
+                    <a href="/items/{r.id}" class="font-semibold hover:underline">{r.name}</a>{#if r.origin}<span class="badge-soft badge-info ms-1.5 align-middle">{r.origin}</span>{/if}
                     {#if r.barcode}<div class="font-mono text-[11px] text-[var(--text-tertiary)]">{r.barcode}</div>{/if}
                   </div>
                 </div>

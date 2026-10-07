@@ -38,6 +38,8 @@ const items: Messages['items'] = {
     skuHint: 'Leave blank to auto-generate (ITM-000001, …). Letters, digits, dot, dash or slash.',
     barcode: 'Barcode / QR Code',
     barcodeHint: 'The value read by the scanner. Focus this field and scan the item.',
+    origin: 'Distinguisher',
+    originHint: 'Optional. Fill in when another item shares the barcode, e.g. country of origin, so the cashier can tell them apart.',
     name: 'Item name',
     weight: 'Weight (grams)',
     unit: 'Unit',
@@ -70,6 +72,14 @@ const items: Messages['items'] = {
     hint: 'Leave blank to use the default price. Fill in when an outlet has a different price.',
     placeholder: 'Default',
     empty: 'There are no outlets you can manage.'
+  },
+  barcodeShared: {
+    title: 'This barcode is also used by other items',
+    item: '{name}{origin} ({sku}) — barcode {code}',
+    unitMatch: 'as the barcode of unit {unit}',
+    confirm: 'Yes, this barcode is intentionally shared',
+    mustConfirm: 'Tick the confirmation that this barcode is intentionally shared.',
+    hint: 'When scanned at the register, a list of matching items is shown. Fill in Distinguisher to tell them apart.'
   },
   wholesale: {
     title: 'Wholesale pricing',

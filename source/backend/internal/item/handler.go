@@ -38,6 +38,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Route("/items", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/", h.List)
+		r.With(authz.Require(ModuleID, authz.ActView)).Get("/by-barcode", h.ByBarcode)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}", h.Get)
 		r.With(authz.Require(ModuleID, authz.ActCreate)).Post("/", h.Create)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}", h.Update)
@@ -88,6 +89,7 @@ func tiersInput(in []tierRequest) []TierInput {
 type request struct {
 	SKU                string                `json:"sku"`
 	Barcode            string                `json:"barcode"`
+	Origin             string                `json:"origin"`
 	Name               string                `json:"name"`
 	WeightGrams        json.Number           `json:"weight_grams"`
 	Cost               json.Number           `json:"cost"`
@@ -108,7 +110,7 @@ type request struct {
 
 func (q request) input() Input {
 	in := Input{
-		SKU: q.SKU, Barcode: q.Barcode, Name: q.Name, Weight: q.WeightGrams.String(), Cost: q.Cost.String(), SellPrice: q.SellPrice.String(),
+		SKU: q.SKU, Barcode: q.Barcode, Origin: q.Origin, Name: q.Name, Weight: q.WeightGrams.String(), Cost: q.Cost.String(), SellPrice: q.SellPrice.String(),
 		UnitID: q.UnitID, CategoryID: q.CategoryID, BrandID: q.BrandID, PrincipalID: q.PrincipalID, SupplierID: q.SupplierID,
 		Kind: q.Kind, AllowNegativeStock: q.AllowNegativeStock, SellBelowCost: q.SellBelowCost, Description: q.Description,
 	}
@@ -247,8 +249,6 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Item tidak ditemukan.")
 	case errors.Is(err, ErrCodeTaken):
 		httpx.Error(w, http.StatusConflict, "CODE_TAKEN", "Kode barang sudah dipakai.")
-	case errors.Is(err, ErrBarcodeTaken):
-		httpx.Error(w, http.StatusConflict, "BARCODE_TAKEN", "Barcode sudah dipakai barang lain.")
 	case errors.Is(err, ErrImageNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Gambar tidak ditemukan.")
 	case errors.Is(err, ErrImageLimit):
@@ -377,4 +377,19 @@ func (h *Handler) ImageFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	http.ServeContent(w, r, "", created, f)
+}
+
+// ByBarcode: GET /items/by-barcode?code=…&exclude_id=… → semua barang yang memakai barcode itu (boleh lebih dari satu).
+func (h *Handler) ByBarcode(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	exclude, err := uuid.Parse(qs.Get("exclude_id"))
+	if err != nil {
+		exclude = uuid.Nil // kosong/tidak valid = tidak ada yang dikecualikan
+	}
+	list, err := h.svc.ByBarcode(r.Context(), actor(r), qs.Get("code"), exclude)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": list})
 }

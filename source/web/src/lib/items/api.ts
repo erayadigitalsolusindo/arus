@@ -30,6 +30,7 @@ export type Item = {
   id: string;
   sku: string;
   barcode: string;
+  origin: string;
   name: string;
   weight_grams: string;
   last_cost: string;
@@ -57,6 +58,7 @@ export type Row = {
   id: string;
   sku: string;
   barcode: string;
+  origin: string;
   name: string;
   kind: ItemKind;
   active: boolean;
@@ -71,6 +73,8 @@ export type Row = {
 export type ItemInput = {
   sku: string;
   barcode: string;
+  /** Pembeda opsional (mis. negara asal) untuk barcode kembar. */
+  origin: string;
   name: string;
   weight_grams: string;
   /** HPP awal; hanya dipakai saat membuat. */
@@ -91,6 +95,19 @@ export type ItemInput = {
   wholesale?: { default: Tier[]; outlets: { outlet_id: string; tiers: Tier[] }[] };
   /** Hilang = satuan tambahan tidak diubah; ada = menggantikan seluruhnya. sell_price kosong = dihitung otomatis. */
   units?: { unit_id: string; factor: string; barcode: string; sell_price: string }[];
+};
+
+/** Satu barang yang memakai barcode yang dicari: matched "item" = barcode barang, "unit" = barcode satuan tambahan. */
+export type BarcodeMatch = {
+  id: string;
+  sku: string;
+  name: string;
+  origin: string;
+  active: boolean;
+  matched: 'item' | 'unit';
+  unit: string;
+  factor: string;
+  price: string;
 };
 
 export type ListQuery = { q?: string; active?: boolean; category_id?: string; limit?: number; offset?: number };
@@ -130,6 +147,10 @@ export const items = {
   create: (input: ItemInput) => api<Item>('/items/', { method: 'POST', body: body(input) }),
   update: (id: string, input: ItemInput) => api<Item>(`/items/${id}`, { method: 'PUT', body: body(input) }),
   setActive: (id: string, active: boolean) => api<Item>(`/items/${id}/active`, { method: 'PUT', body: JSON.stringify({ active }) }),
+
+  /** Barang yang memakai barcode ini (barcode boleh kembar). exclude = id item yang sedang diubah. */
+  byBarcode: (code: string, exclude?: string) =>
+    api<{ data: BarcodeMatch[] }>(`/items/by-barcode?code=${encodeURIComponent(code)}${exclude ? `&exclude_id=${exclude}` : ''}`).then((r) => r.data),
 
   /** Unggah satu gambar (multipart). Server memvalidasi isi, mengecilkan, dan mengubahnya menjadi JPG. */
   uploadImage: (id: string, file: File) => {

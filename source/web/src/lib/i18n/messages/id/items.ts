@@ -37,6 +37,8 @@ export default {
     skuHint: 'Kosongkan untuk dibuatkan otomatis (ITM-000001, …). Huruf, angka, titik, garis, atau garis miring.',
     barcode: 'Barcode / QR Code',
     barcodeHint: 'Nilai yang dibaca pemindai. Arahkan pemindai ke kolom ini lalu pindai barang.',
+    origin: 'Pembeda',
+    originHint: 'Opsional. Isi bila ada barang lain berbarcode sama, mis. negara asal, agar kasir bisa membedakannya.',
     name: 'Nama barang',
     weight: 'Berat (gram)',
     unit: 'Satuan',
@@ -69,6 +71,14 @@ export default {
     hint: 'Kosongkan untuk memakai harga default. Isi bila cabang tertentu punya harga berbeda.',
     placeholder: 'Default',
     empty: 'Tidak ada cabang yang bisa Anda atur.'
+  },
+  barcodeShared: {
+    title: 'Barcode ini juga dipakai barang lain',
+    item: '{name}{origin} ({sku}) — barcode {code}',
+    unitMatch: 'sebagai barcode satuan {unit}',
+    confirm: 'Ya, barcode ini memang kembar',
+    mustConfirm: 'Centang konfirmasi bahwa barcode ini memang kembar.',
+    hint: 'Saat dipindai di kasir, pilihan barang akan ditampilkan. Isi pembeda agar mudah dibedakan.'
   },
   wholesale: {
     title: 'Harga grosir',

@@ -6,7 +6,6 @@ package item
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
 
@@ -239,38 +239,6 @@ func checkVariantOutlets(a authz.Actor, c clean) error {
 	return nil
 }
 
-// lockAndCheckBarcodes memastikan setiap barcode (barcode item + barcode satuan tambahan) belum dipakai item LAIN,
-// lintas tabel items/item_units. Kunci advisory per (tenant, barcode), diambil terurut agar tidak deadlock, membuat
-// pemeriksaan ini aman dari dua transaksi bersamaan yang membawa barcode sama. itemID = uuid.Nil saat item baru.
-func lockAndCheckBarcodes(ctx context.Context, q *gen.Queries, tenant, itemID uuid.UUID, codes []string) error {
-	uniq := slices.Compact(slices.Sorted(slices.Values(slices.DeleteFunc(slices.Clone(codes), func(s string) bool { return s == "" }))))
-	for _, code := range uniq {
-		if err := q.ItemBarcodeLock(ctx, tenant.String()+":"+code); err != nil {
-			return err
-		}
-	}
-	for _, code := range uniq {
-		taken, err := q.ItemBarcodeTaken(ctx, gen.ItemBarcodeTakenParams{TenantID: tenant, Barcode: code, ItemID: itemID})
-		if err != nil {
-			return err
-		}
-		if taken.Bool {
-			return ErrBarcodeTaken
-		}
-	}
-	return nil
-}
-
-func barcodesOf(c clean) []string {
-	codes := []string{c.barcode}
-	if c.units != nil {
-		for _, u := range *c.units {
-			codes = append(codes, u.barcode)
-		}
-	}
-	return codes
-}
-
 // checkAltUnitRefs: satuan tambahan yang BARU harus ada dan aktif; yang sudah terpasang di item ini (existing)
 // boleh tetap walau kemudian diarsipkan.
 func checkAltUnitRefs(ctx context.Context, q *gen.Queries, tenant uuid.UUID, units []cleanUnit, existing map[uuid.UUID]bool) error {
@@ -435,4 +403,52 @@ func checkBaseUnitConflict(ctx context.Context, q *gen.Queries, tenant, itemID u
 		}
 	}
 	return nil
+}
+
+// BarcodeMatch = satu barang yang memakai barcode yang dicari. Matched "item" = barcode barang (satuan dasar);
+// "unit" = barcode satuan tambahan (Unit/Factor menunjuk satuan itu). Price = harga satu satuan yang cocok di
+// outlet aktif: harga satuan tambahan bila diisi, selain itu Factor × harga satuan dasar.
+type BarcodeMatch struct {
+	ID      uuid.UUID       `json:"id"`
+	SKU     string          `json:"sku"`
+	Name    string          `json:"name"`
+	Origin  string          `json:"origin"`
+	Active  bool            `json:"active"`
+	Matched string          `json:"matched"`
+	Unit    string          `json:"unit"`
+	Factor  decimal.Decimal `json:"factor"`
+	Price   decimal.Decimal `json:"price"`
+}
+
+// ByBarcode mencari semua barang yang memakai barcode `code` (barcode boleh kembar antar barang). Dipakai form item
+// (peringatan "barcode ini juga dipakai", dengan excludeID = item yang sedang diubah) dan nanti kasir (pilihan bila
+// hasilnya lebih dari satu). Hasil maksimal 20, barang aktif lebih dulu.
+func (s *Service) ByBarcode(ctx context.Context, a authz.Actor, code string, excludeID uuid.UUID) ([]BarcodeMatch, error) {
+	code, c := scanValue(code)
+	if c != "" {
+		return nil, FieldErrors{"code": c}
+	}
+	out := []BarcodeMatch{}
+	if code == "" {
+		return out, nil
+	}
+	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		rows, err := gen.New(tx).ItemByBarcode(ctx, gen.ItemByBarcodeParams{TenantID: a.TenantID, OutletID: a.OutletID, Barcode: code, ExcludeID: nz(excludeID)})
+		for _, r := range rows {
+			base := r.DefaultPrice
+			if p, ok := numeric(r.OutletPrice); ok {
+				base = p
+			}
+			price := base.Mul(r.Factor)
+			if r.Matched == "unit" {
+				if p, ok := numeric(r.UnitPrice); ok {
+					price = p
+				}
+			}
+			out = append(out, BarcodeMatch{ID: r.ID, SKU: r.Sku, Name: r.Name, Origin: r.Origin, Active: r.Active, Matched: r.Matched,
+				Unit: r.UnitName, Factor: r.Factor, Price: price.Round(2)})
+		}
+		return err
+	})
+	return out, err
 }
