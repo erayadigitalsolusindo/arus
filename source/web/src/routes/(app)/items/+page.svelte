@@ -8,6 +8,7 @@
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Combobox from '#lib/components/Combobox.svelte';
+  import AuthImage from '#lib/components/AuthImage.svelte';
 
   const PAGE = 20;
 
@@ -162,8 +163,17 @@
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="p-3 font-mono text-[12px]">{r.sku}</td>
               <td class="p-3">
-                <a href="/items/{r.id}" class="font-semibold hover:underline">{r.name}</a>
-                {#if r.barcode}<div class="font-mono text-[11px] text-[var(--text-tertiary)]">{r.barcode}</div>{/if}
+                <div class="flex items-center gap-2.5">
+                  {#if r.main_image_id}
+                    <AuthImage itemId={r.id} imageId={r.main_image_id} alt={r.name} class="size-10 shrink-0 rounded-md object-cover" />
+                  {:else}
+                    <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-tertiary)]" aria-hidden="true"><i class="icon-image text-[15px]"></i></span>
+                  {/if}
+                  <div class="min-w-0">
+                    <a href="/items/{r.id}" class="font-semibold hover:underline">{r.name}</a>
+                    {#if r.barcode}<div class="font-mono text-[11px] text-[var(--text-tertiary)]">{r.barcode}</div>{/if}
+                  </div>
+                </div>
               </td>
               <td class="p-3">{r.unit}</td>
               <td class="p-3">{r.category}</td>

@@ -54,6 +54,9 @@ export default {
     item_update: 'Mengubah item',
     item_price: 'Mengubah harga jual item',
     item_active: 'Mengubah status item',
+    item_image_add: 'Menambah gambar item',
+    item_image_main: 'Mengganti gambar utama item',
+    item_image_delete: 'Menghapus gambar item',
     platform_impersonate: 'Platform Admin melihat data tenant (hanya-baca)',
     platform_tenant_status: 'Platform Admin mengubah status tenant'
   }

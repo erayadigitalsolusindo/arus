@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"aciraba/internal/authz"
+	"aciraba/internal/platform/storage"
 )
 
 func TestValidate(t *testing.T) {
@@ -70,11 +71,13 @@ func TestLikeEscape(t *testing.T) {
 }
 
 type env struct {
-	svc     *Service
-	admin   *pgxpool.Pool
-	a, b    authz.Actor
-	outlet2 uuid.UUID // outlet kedua milik tenant A
-	tenants [2]uuid.UUID
+	svc       *Service
+	store     *storage.Local
+	storeRoot string
+	admin     *pgxpool.Pool
+	a, b      authz.Actor
+	outlet2   uuid.UUID // outlet kedua milik tenant A
+	tenants   [2]uuid.UUID
 }
 
 func (e *env) master(t *testing.T, table string, tenant uuid.UUID, name string, active bool) uuid.UUID {
@@ -104,7 +107,12 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(admin.Close)
 
-	e := &env{admin: admin, svc: NewService(app), outlet2: uuid.New()}
+	storeRoot := t.TempDir()
+	store, err := storage.NewLocal(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := &env{admin: admin, svc: NewService(app, store), store: store, storeRoot: storeRoot, outlet2: uuid.New()}
 	actors := make([]authz.Actor, 2)
 	for i := range actors {
 		tid, uid, oid := uuid.New(), uuid.New(), uuid.New()

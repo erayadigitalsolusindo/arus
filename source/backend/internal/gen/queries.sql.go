@@ -827,6 +827,36 @@ func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (i
 	return result.RowsAffected(), nil
 }
 
+const itemBarcodeLock = `-- name: ItemBarcodeLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))
+`
+
+// Mengunci (sampai transaksi selesai) satu nilai barcode di satu tenant: pemeriksaan "sudah dipakai?" lintas tabel
+// items/item_units lalu aman dari balapan (indeks unik hanya bisa menjaga satu tabel).
+func (q *Queries) ItemBarcodeLock(ctx context.Context, key string) error {
+	_, err := q.db.Exec(ctx, itemBarcodeLock, key)
+	return err
+}
+
+const itemBarcodeTaken = `-- name: ItemBarcodeTaken :one
+SELECT EXISTS (SELECT 1 FROM items i WHERE i.tenant_id = $1 AND i.barcode = $2::text AND i.id <> $3)
+    OR EXISTS (SELECT 1 FROM item_units iu WHERE iu.tenant_id = $1 AND iu.barcode = $2::text AND iu.item_id <> $3)
+`
+
+type ItemBarcodeTakenParams struct {
+	TenantID uuid.UUID
+	Barcode  string
+	ItemID   uuid.UUID
+}
+
+// Barcode sudah dipakai item LAIN (sebagai barcode item maupun barcode satuan)?
+func (q *Queries) ItemBarcodeTaken(ctx context.Context, arg ItemBarcodeTakenParams) (pgtype.Bool, error) {
+	row := q.db.QueryRow(ctx, itemBarcodeTaken, arg.TenantID, arg.Barcode, arg.ItemID)
+	var column_1 pgtype.Bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const itemCreate = `-- name: ItemCreate :one
 INSERT INTO items (tenant_id, sku, barcode, name, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
                    brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
@@ -1014,12 +1044,236 @@ func (q *Queries) ItemGetForUpdate(ctx context.Context, arg ItemGetForUpdatePara
 	return i, err
 }
 
+const itemImageClearMain = `-- name: ItemImageClearMain :exec
+UPDATE item_images SET is_main = false WHERE tenant_id = $1 AND item_id = $2 AND is_main
+`
+
+type ItemImageClearMainParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) ItemImageClearMain(ctx context.Context, arg ItemImageClearMainParams) error {
+	_, err := q.db.Exec(ctx, itemImageClearMain, arg.TenantID, arg.ItemID)
+	return err
+}
+
+const itemImageCount = `-- name: ItemImageCount :one
+SELECT count(*) FROM item_images WHERE tenant_id = $1 AND item_id = $2
+`
+
+type ItemImageCountParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) ItemImageCount(ctx context.Context, arg ItemImageCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, itemImageCount, arg.TenantID, arg.ItemID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const itemImageDelete = `-- name: ItemImageDelete :one
+DELETE FROM item_images WHERE tenant_id = $1 AND item_id = $2 AND id = $3 RETURNING is_main
+`
+
+type ItemImageDeleteParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ItemImageDelete(ctx context.Context, arg ItemImageDeleteParams) (bool, error) {
+	row := q.db.QueryRow(ctx, itemImageDelete, arg.TenantID, arg.ItemID, arg.ID)
+	var is_main bool
+	err := row.Scan(&is_main)
+	return is_main, err
+}
+
+const itemImageGet = `-- name: ItemImageGet :one
+SELECT id, position, is_main, width, height, full_bytes, thumb_bytes, created_at
+FROM item_images WHERE tenant_id = $1 AND item_id = $2 AND id = $3
+`
+
+type ItemImageGetParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+	ID       uuid.UUID
+}
+
+type ItemImageGetRow struct {
+	ID         uuid.UUID
+	Position   int32
+	IsMain     bool
+	Width      int32
+	Height     int32
+	FullBytes  int32
+	ThumbBytes int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) ItemImageGet(ctx context.Context, arg ItemImageGetParams) (ItemImageGetRow, error) {
+	row := q.db.QueryRow(ctx, itemImageGet, arg.TenantID, arg.ItemID, arg.ID)
+	var i ItemImageGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Position,
+		&i.IsMain,
+		&i.Width,
+		&i.Height,
+		&i.FullBytes,
+		&i.ThumbBytes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const itemImageInsert = `-- name: ItemImageInsert :one
+INSERT INTO item_images (id, tenant_id, item_id, position, is_main, width, height, full_bytes, thumb_bytes)
+SELECT $1, $2, $3,
+       coalesce((SELECT max(x.position) FROM item_images x WHERE x.tenant_id = $2 AND x.item_id = $3), 0) + 1,
+       NOT EXISTS (SELECT 1 FROM item_images y WHERE y.tenant_id = $2 AND y.item_id = $3),
+       $4, $5, $6, $7
+RETURNING id, position, is_main, width, height, full_bytes, thumb_bytes, created_at
+`
+
+type ItemImageInsertParams struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	ItemID     uuid.UUID
+	Width      int32
+	Height     int32
+	FullBytes  int32
+	ThumbBytes int32
+}
+
+type ItemImageInsertRow struct {
+	ID         uuid.UUID
+	Position   int32
+	IsMain     bool
+	Width      int32
+	Height     int32
+	FullBytes  int32
+	ThumbBytes int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+// Gambar pertama item otomatis menjadi gambar utama; posisi = urutan setelah yang terakhir.
+func (q *Queries) ItemImageInsert(ctx context.Context, arg ItemImageInsertParams) (ItemImageInsertRow, error) {
+	row := q.db.QueryRow(ctx, itemImageInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.ItemID,
+		arg.Width,
+		arg.Height,
+		arg.FullBytes,
+		arg.ThumbBytes,
+	)
+	var i ItemImageInsertRow
+	err := row.Scan(
+		&i.ID,
+		&i.Position,
+		&i.IsMain,
+		&i.Width,
+		&i.Height,
+		&i.FullBytes,
+		&i.ThumbBytes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const itemImageList = `-- name: ItemImageList :many
+SELECT id, position, is_main, width, height, full_bytes, thumb_bytes, created_at
+FROM item_images WHERE tenant_id = $1 AND item_id = $2
+ORDER BY is_main DESC, position, created_at
+`
+
+type ItemImageListParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+type ItemImageListRow struct {
+	ID         uuid.UUID
+	Position   int32
+	IsMain     bool
+	Width      int32
+	Height     int32
+	FullBytes  int32
+	ThumbBytes int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) ItemImageList(ctx context.Context, arg ItemImageListParams) ([]ItemImageListRow, error) {
+	rows, err := q.db.Query(ctx, itemImageList, arg.TenantID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemImageListRow
+	for rows.Next() {
+		var i ItemImageListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Position,
+			&i.IsMain,
+			&i.Width,
+			&i.Height,
+			&i.FullBytes,
+			&i.ThumbBytes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemImagePromote = `-- name: ItemImagePromote :exec
+UPDATE item_images SET is_main = true
+WHERE id = (SELECT z.id FROM item_images z WHERE z.tenant_id = $1 AND z.item_id = $2 ORDER BY z.position, z.created_at LIMIT 1)
+`
+
+type ItemImagePromoteParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+// Setelah gambar utama dihapus: gambar dengan posisi terkecil menjadi utama.
+func (q *Queries) ItemImagePromote(ctx context.Context, arg ItemImagePromoteParams) error {
+	_, err := q.db.Exec(ctx, itemImagePromote, arg.TenantID, arg.ItemID)
+	return err
+}
+
+const itemImageSetMain = `-- name: ItemImageSetMain :exec
+UPDATE item_images SET is_main = true WHERE tenant_id = $1 AND item_id = $2 AND id = $3
+`
+
+type ItemImageSetMainParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ItemImageSetMain(ctx context.Context, arg ItemImageSetMainParams) error {
+	_, err := q.db.Exec(ctx, itemImageSetMain, arg.TenantID, arg.ItemID, arg.ID)
+	return err
+}
+
 const itemList = `-- name: ItemList :many
 SELECT i.id, i.sku, i.barcode, i.name, i.kind, i.active,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
+       mi.id AS main_image_id,
        count(*) OVER () AS total
 FROM items i
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
 JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
@@ -1054,6 +1308,7 @@ type ItemListRow struct {
 	UnitName     string
 	CategoryName pgtype.Text
 	BrandName    pgtype.Text
+	MainImageID  pgtype.UUID
 	Total        int64
 }
 
@@ -1087,6 +1342,7 @@ func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListR
 			&i.UnitName,
 			&i.CategoryName,
 			&i.BrandName,
+			&i.MainImageID,
 			&i.Total,
 		); err != nil {
 			return nil, err
@@ -1282,6 +1538,223 @@ func (q *Queries) ItemSkuExists(ctx context.Context, arg ItemSkuExistsParams) (b
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const itemTierDeleteDefault = `-- name: ItemTierDeleteDefault :exec
+DELETE FROM item_wholesale_tiers WHERE tenant_id = $1 AND item_id = $2 AND outlet_id IS NULL
+`
+
+type ItemTierDeleteDefaultParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) ItemTierDeleteDefault(ctx context.Context, arg ItemTierDeleteDefaultParams) error {
+	_, err := q.db.Exec(ctx, itemTierDeleteDefault, arg.TenantID, arg.ItemID)
+	return err
+}
+
+const itemTierDeleteOutlets = `-- name: ItemTierDeleteOutlets :exec
+DELETE FROM item_wholesale_tiers
+WHERE tenant_id = $1 AND item_id = $2 AND outlet_id = ANY($3::uuid[])
+`
+
+type ItemTierDeleteOutletsParams struct {
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	OutletIds []uuid.UUID
+}
+
+// Menghapus set tier khusus cabang (kembali ke set default) untuk outlet yang boleh diakses pemanggil.
+func (q *Queries) ItemTierDeleteOutlets(ctx context.Context, arg ItemTierDeleteOutletsParams) error {
+	_, err := q.db.Exec(ctx, itemTierDeleteOutlets, arg.TenantID, arg.ItemID, arg.OutletIds)
+	return err
+}
+
+const itemTierInsert = `-- name: ItemTierInsert :exec
+INSERT INTO item_wholesale_tiers (tenant_id, item_id, outlet_id, min_qty, price)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type ItemTierInsertParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+	OutletID pgtype.UUID
+	MinQty   decimal.Decimal
+	Price    decimal.Decimal
+}
+
+func (q *Queries) ItemTierInsert(ctx context.Context, arg ItemTierInsertParams) error {
+	_, err := q.db.Exec(ctx, itemTierInsert,
+		arg.TenantID,
+		arg.ItemID,
+		arg.OutletID,
+		arg.MinQty,
+		arg.Price,
+	)
+	return err
+}
+
+const itemTierList = `-- name: ItemTierList :many
+SELECT outlet_id, min_qty, price FROM item_wholesale_tiers
+WHERE tenant_id = $1 AND item_id = $2
+ORDER BY outlet_id NULLS FIRST, min_qty
+`
+
+type ItemTierListParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+type ItemTierListRow struct {
+	OutletID pgtype.UUID
+	MinQty   decimal.Decimal
+	Price    decimal.Decimal
+}
+
+func (q *Queries) ItemTierList(ctx context.Context, arg ItemTierListParams) ([]ItemTierListRow, error) {
+	rows, err := q.db.Query(ctx, itemTierList, arg.TenantID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemTierListRow
+	for rows.Next() {
+		var i ItemTierListRow
+		if err := rows.Scan(&i.OutletID, &i.MinQty, &i.Price); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemUnitDeleteAll = `-- name: ItemUnitDeleteAll :exec
+DELETE FROM item_units WHERE tenant_id = $1 AND item_id = $2
+`
+
+type ItemUnitDeleteAllParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) ItemUnitDeleteAll(ctx context.Context, arg ItemUnitDeleteAllParams) error {
+	_, err := q.db.Exec(ctx, itemUnitDeleteAll, arg.TenantID, arg.ItemID)
+	return err
+}
+
+const itemUnitInsert = `-- name: ItemUnitInsert :exec
+INSERT INTO item_units (tenant_id, item_id, unit_id, factor, barcode, sell_price, position)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type ItemUnitInsertParams struct {
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	UnitID    uuid.UUID
+	Factor    decimal.Decimal
+	Barcode   pgtype.Text
+	SellPrice pgtype.Numeric
+	Position  int32
+}
+
+func (q *Queries) ItemUnitInsert(ctx context.Context, arg ItemUnitInsertParams) error {
+	_, err := q.db.Exec(ctx, itemUnitInsert,
+		arg.TenantID,
+		arg.ItemID,
+		arg.UnitID,
+		arg.Factor,
+		arg.Barcode,
+		arg.SellPrice,
+		arg.Position,
+	)
+	return err
+}
+
+const itemUnitList = `-- name: ItemUnitList :many
+SELECT iu.unit_id, u.name AS unit_name, iu.factor, iu.barcode, iu.sell_price, iu.position
+FROM item_units iu
+JOIN units u ON u.tenant_id = iu.tenant_id AND u.id = iu.unit_id
+WHERE iu.tenant_id = $1 AND iu.item_id = $2
+ORDER BY iu.position
+`
+
+type ItemUnitListParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+type ItemUnitListRow struct {
+	UnitID    uuid.UUID
+	UnitName  string
+	Factor    decimal.Decimal
+	Barcode   pgtype.Text
+	SellPrice pgtype.Numeric
+	Position  int32
+}
+
+func (q *Queries) ItemUnitList(ctx context.Context, arg ItemUnitListParams) ([]ItemUnitListRow, error) {
+	rows, err := q.db.Query(ctx, itemUnitList, arg.TenantID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemUnitListRow
+	for rows.Next() {
+		var i ItemUnitListRow
+		if err := rows.Scan(
+			&i.UnitID,
+			&i.UnitName,
+			&i.Factor,
+			&i.Barcode,
+			&i.SellPrice,
+			&i.Position,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemUnitStates = `-- name: ItemUnitStates :many
+SELECT id, active FROM units WHERE tenant_id = $1 AND id = ANY($2::uuid[])
+`
+
+type ItemUnitStatesParams struct {
+	TenantID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type ItemUnitStatesRow struct {
+	ID     uuid.UUID
+	Active bool
+}
+
+func (q *Queries) ItemUnitStates(ctx context.Context, arg ItemUnitStatesParams) ([]ItemUnitStatesRow, error) {
+	rows, err := q.db.Query(ctx, itemUnitStates, arg.TenantID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemUnitStatesRow
+	for rows.Next() {
+		var i ItemUnitStatesRow
+		if err := rows.Scan(&i.ID, &i.Active); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const itemUpdate = `-- name: ItemUpdate :exec

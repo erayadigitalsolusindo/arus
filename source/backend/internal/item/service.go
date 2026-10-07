@@ -25,6 +25,7 @@ import (
 	gen "aciraba/internal/gen"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/platform/storage"
 )
 
 var (
@@ -90,23 +91,27 @@ type Item struct {
 	Principal          *Ref          `json:"principal"`
 	Supplier           *Ref          `json:"supplier"`
 	OutletPrices       []OutletPrice `json:"outlet_prices"`
+	Images             []Image       `json:"images"`
+	Wholesale          Wholesale     `json:"wholesale"`
+	Units              []AltUnit     `json:"units"`
 	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at"`
 }
 
 // Row = baris daftar item. Price = harga efektif untuk outlet aktif sesi (harga cabang bila ada, selain itu default).
 type Row struct {
-	ID            uuid.UUID `json:"id"`
-	SKU           string    `json:"sku"`
-	Barcode       string    `json:"barcode"`
-	Name          string    `json:"name"`
-	Kind          string    `json:"kind"`
-	Active        bool      `json:"active"`
-	Unit          string    `json:"unit"`
-	Category      string    `json:"category"`
-	Brand         string    `json:"brand"`
-	Price         string    `json:"price"`
-	PriceOverride bool      `json:"price_override"`
+	ID            uuid.UUID  `json:"id"`
+	SKU           string     `json:"sku"`
+	Barcode       string     `json:"barcode"`
+	Name          string     `json:"name"`
+	Kind          string     `json:"kind"`
+	Active        bool       `json:"active"`
+	Unit          string     `json:"unit"`
+	Category      string     `json:"category"`
+	Brand         string     `json:"brand"`
+	Price         string     `json:"price"`
+	PriceOverride bool       `json:"price_override"`
+	MainImageID   *uuid.UUID `json:"main_image_id"`
 }
 
 // OutletPriceInput = harga khusus satu cabang dari klien (string desimal).
@@ -135,6 +140,10 @@ type Input struct {
 	SellBelowCost      bool
 	Description        string
 	OutletPrices       *[]OutletPriceInput
+	// Wholesale nil = grosir tidak disentuh; selain itu menggantikan set default dan set cabang (yang boleh diakses pemanggil).
+	Wholesale *WholesaleInput
+	// Units nil = satuan tambahan tidak disentuh; selain itu daftar ini menggantikan seluruhnya.
+	Units *[]UnitInput
 }
 
 type ListParams struct {
@@ -152,11 +161,18 @@ type clean struct {
 	category, brand, principal     uuid.UUID
 	supplier                       uuid.UUID
 	prices                         map[uuid.UUID]decimal.Decimal // nil = tidak disentuh
+	wholesale                      *cleanWholesale               // nil = tidak disentuh
+	units                          *[]cleanUnit                  // nil = tidak disentuh
 }
 
-type Service struct{ pool *pgxpool.Pool }
+type Service struct {
+	pool  *pgxpool.Pool
+	store storage.Store // penyimpanan gambar; nil = fitur gambar mati (ErrNoStorage)
+}
 
-func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+func NewService(pool *pgxpool.Pool, store storage.Store) *Service {
+	return &Service{pool: pool, store: store}
+}
 
 // ---- validasi ----
 
@@ -308,6 +324,7 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 			}
 		}
 	}
+	validateVariants(in, &c, f)
 	if len(f) > 0 {
 		return clean{}, f
 	}
@@ -340,8 +357,8 @@ func itemOf(r gen.ItemGetRow) Item {
 		Unit:     Ref{ID: r.UnitID, Name: r.UnitName},
 		Category: ref(r.CategoryID, r.CategoryName), Brand: ref(r.BrandID, r.BrandName),
 		Principal: ref(r.PrincipalID, r.PrincipalName), Supplier: ref(r.SupplierID, r.SupplierName),
-		OutletPrices: []OutletPrice{},
-		CreatedAt:    r.CreatedAt.Time, UpdatedAt: r.UpdatedAt.Time,
+		OutletPrices: []OutletPrice{}, Images: []Image{}, Units: []AltUnit{}, Wholesale: Wholesale{Default: []Tier{}, Outlets: []OutletTiers{}},
+		CreatedAt: r.CreatedAt.Time, UpdatedAt: r.UpdatedAt.Time,
 	}
 }
 
@@ -363,11 +380,11 @@ func mapWriteErr(err error) error {
 	switch {
 	case uniqueViolation(err, "items_tenant_sku_key"):
 		return ErrCodeTaken
-	case uniqueViolation(err, "items_tenant_barcode_key"):
+	case uniqueViolation(err, "items_tenant_barcode_key"), uniqueViolation(err, "item_units_tenant_barcode_key"):
 		return ErrBarcodeTaken
 	case errors.As(err, &pgErr) && pgErr.Code == "23503": // master dirujuk hilang karena balapan hapus/tenant lain
 		field := map[string]string{"items_unit_fk": "unit_id", "items_category_fk": "category_id", "items_brand_fk": "brand_id",
-			"items_principal_fk": "principal_id", "items_supplier_fk": "supplier_id"}[pgErr.ConstraintName]
+			"items_principal_fk": "principal_id", "items_supplier_fk": "supplier_id", "item_units_unit_fk": "units"}[pgErr.ConstraintName]
 		if field != "" {
 			return FieldErrors{field: sanitize.Invalid}
 		}
@@ -410,7 +427,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 			}
 			out = append(out, Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Name: r.Name, Kind: r.Kind, Active: r.Active,
 				Unit: r.UnitName, Category: r.CategoryName.String, Brand: r.BrandName.String,
-				Price: price.StringFixed(2), PriceOverride: override})
+				Price: price.StringFixed(2), PriceOverride: override, MainImageID: uuidPtr(r.MainImageID)})
 			total = int(r.Total)
 		}
 		return err
@@ -454,6 +471,12 @@ func (s *Service) load(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UU
 			op.SellPrice = &d
 		}
 		it.OutletPrices = append(it.OutletPrices, op)
+	}
+	if it.Images, err = s.listImages(ctx, q, a, id); err != nil {
+		return Item{}, err
+	}
+	if err := s.loadVariants(ctx, q, a, &it); err != nil {
+		return Item{}, err
 	}
 	return it, nil
 }
@@ -510,10 +533,16 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 	if err := s.checkOutlets(a, c.prices); err != nil {
 		return nil, err
 	}
+	if err := checkVariantOutlets(a, c); err != nil {
+		return nil, err
+	}
 	var it Item
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
 		if err := checkRefs(ctx, q, a.TenantID, c, nil); err != nil {
+			return err
+		}
+		if err := lockAndCheckBarcodes(ctx, q, a.TenantID, uuid.Nil, barcodesOf(c)); err != nil {
 			return err
 		}
 		sku := c.sku
@@ -536,6 +565,9 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 			if err := q.ItemOutletPriceUpsert(ctx, gen.ItemOutletPriceUpsertParams{TenantID: a.TenantID, ItemID: id, OutletID: oid, SellPrice: price}); err != nil {
 				return err
 			}
+		}
+		if err := s.writeVariants(ctx, tx, a, id, sku, c.name, c); err != nil {
+			return err
 		}
 		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionItemCreate, Entity: audit.EntityItem, EntityID: id.String(),
@@ -579,6 +611,9 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 	if err := s.checkOutlets(a, c.prices); err != nil {
 		return nil, err
 	}
+	if err := checkVariantOutlets(a, c); err != nil {
+		return nil, err
+	}
 	var it Item
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
@@ -587,6 +622,12 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			return err
 		}
 		if err := checkRefs(ctx, q, a.TenantID, c, &cur); err != nil {
+			return err
+		}
+		if err := lockAndCheckBarcodes(ctx, q, a.TenantID, id, barcodesOf(c)); err != nil {
+			return err
+		}
+		if err := checkBaseUnitConflict(ctx, q, a.TenantID, id, c); err != nil {
 			return err
 		}
 		beforePrices, err := q.ItemOutletPrices(ctx, gen.ItemOutletPricesParams{TenantID: a.TenantID, ItemID: id, OutletIds: outletIDs(a)})
@@ -612,6 +653,9 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			}
 		}
 		if err := recordUpdate(ctx, tx, a, id, cur, c, in, beforePrices); err != nil {
+			return err
+		}
+		if err := s.writeVariants(ctx, tx, a, id, c.sku, c.name, c); err != nil {
 			return err
 		}
 		it, err = s.load(ctx, tx, a, id)
@@ -723,4 +767,12 @@ func (s *Service) SetActive(ctx context.Context, a authz.Actor, id uuid.UUID, ac
 		return nil, err
 	}
 	return &it, nil
+}
+
+func uuidPtr(p pgtype.UUID) *uuid.UUID {
+	if !p.Valid {
+		return nil
+	}
+	id := uuid.UUID(p.Bytes)
+	return &id
 }

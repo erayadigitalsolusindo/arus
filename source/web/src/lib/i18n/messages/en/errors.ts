@@ -24,6 +24,11 @@ const errors: Messages['errors'] = {
   NAME_TAKEN: 'This name is already taken.',
   CODE_TAKEN: 'This code is already taken.',
   BARCODE_TAKEN: 'This barcode is already used by another item.',
+  IMAGE_LIMIT: 'The item already has the maximum number of images.',
+  IMAGE_TOO_LARGE: 'The image is larger than 10 MB.',
+  IMAGE_UNSUPPORTED: 'Unsupported image format. Use JPG, PNG, or WebP.',
+  IMAGE_DIMENSIONS: 'The image dimensions are too large.',
+  IMAGE_CORRUPT: 'The image is corrupt or cannot be read.',
   LAST_OWNER: 'The last active owner cannot be deactivated or have their role changed.',
   SELF_CHANGE: 'You cannot deactivate your own account or change its role.',
   INVALID_TOKEN: 'The link is invalid or has expired. Request a new one.',
@@ -50,7 +55,10 @@ const errors: Messages['errors'] = {
   FIELD_INVALID: 'Invalid value or contains disallowed characters.',
   FIELD_TOO_LONG: 'Too long.',
   FIELD_TOO_SHORT: 'Too short.',
-  FIELD_WEAK: 'Too weak: use a mix of letters and numbers.'
+  FIELD_WEAK: 'Too weak: use a mix of letters and numbers.',
+  FIELD_TOO_MANY: 'Too many rows.',
+  FIELD_DUPLICATE: 'Duplicate entries (same quantity, unit, or barcode).',
+  FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.'
 };
 
 export default errors;

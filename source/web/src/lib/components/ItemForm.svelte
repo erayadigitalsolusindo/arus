@@ -6,19 +6,23 @@
   import { items as api, type Item, type ItemInput, type ItemKind } from '#lib/items/api.ts';
   import { lookup, type LookupKind } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
+  import { guard } from '#lib/tabs/guard.svelte.ts';
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
   import { renderMarkdown } from '#lib/markdown.ts';
   import Combobox from '#lib/components/Combobox.svelte';
   import Switch from '#lib/components/Switch.svelte';
+  import ItemImages, { type PendingImage } from '#lib/components/ItemImages.svelte';
+  import WholesaleTiers, { type TierRow, type OutletTierSet, MAX_TIERS } from '#lib/components/WholesaleTiers.svelte';
+  import ItemUnits, { type UnitRow, MAX_UNITS } from '#lib/components/ItemUnits.svelte';
 
   type Outlet = { id: string; name: string };
   let { item, outlets }: { item: Item | null; outlets: Outlet[] } = $props();
 
   type Field =
     | 'sku' | 'barcode' | 'name' | 'weight_grams' | 'cost' | 'sell_price' | 'unit_id'
-    | 'category_id' | 'brand_id' | 'principal_id' | 'supplier_id' | 'kind' | 'description' | 'outlet_prices';
+    | 'category_id' | 'brand_id' | 'principal_id' | 'supplier_id' | 'kind' | 'description' | 'outlet_prices' | 'wholesale' | 'units';
 
   const SKU_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/;
   const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/;
@@ -42,6 +46,11 @@
   let description = $state(init?.description ?? '');
   let tab = $state<'write' | 'preview'>('write');
 
+  // Gambar: mode ubah memakai daftar dari server; mode tambah mengumpulkan file untuk diunggah setelah item tersimpan.
+  let images = $state(init?.images ?? []);
+  let pending = $state<PendingImage[]>([]);
+  let mainIndex = $state(0);
+
   let unitId = $state(init?.unit.id ?? '');
   let unitLabel = $state(init?.unit.name ?? '');
   let categoryId = $state(init?.category?.id ?? '');
@@ -59,9 +68,32 @@
     (init ? init.outlet_prices.map((p) => ({ id: p.outlet_id, name: p.outlet_name, value: p.sell_price === null ? '' : trimZeros(String(p.sell_price)) })) : outlets.map((o) => ({ id: o.id, name: o.name, value: '' })))
   );
 
+  // Grosir dan satuan tambahan (nilai dari server → string tanpa nol di belakang koma).
+  const toRows = (ts: { min_qty: string; price: string }[]): TierRow[] => ts.map((x) => ({ min: trimZeros(String(x.min_qty)), price: trimZeros(String(x.price)) }));
+  let defaultTiers = $state<TierRow[]>(toRows(init?.wholesale.default ?? []));
+  let outletTierSets = $state<OutletTierSet[]>((init?.wholesale.outlets ?? []).map((o) => ({ outletId: o.outlet_id, name: o.outlet_name, tiers: toRows(o.tiers) })));
+  let unitRows = $state<UnitRow[]>(
+    (init?.units ?? []).map((u) => ({ unitId: u.unit_id, unitLabel: u.unit_name, factor: trimZeros(String(u.factor)), barcode: u.barcode, price: u.sell_price === null ? '' : trimZeros(String(u.sell_price)) }))
+  );
+  // Cabang yang boleh diatur pemanggil (dari harga cabang di item, atau daftar outlet saat item baru).
+  /* svelte-ignore state_referenced_locally */
+  const manageable = init ? init.outlet_prices.map((p) => ({ id: p.outlet_id, name: p.outlet_name })) : outlets;
+
   let saving = $state(false);
   let error = $state('');
   let errors = $state<Partial<Record<Field, string>>>({});
+
+  // Penjaga perubahan belum disimpan: bandingkan isian sekarang dengan keadaan awal. Daftar `images` tidak ikut
+  // (di mode ubah, gambar langsung tersimpan ke server). Tambahkan field baru ke sini bila form bertambah isian.
+  const snapshot = () =>
+    JSON.stringify([
+      sku, barcode, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
+      unitId, categoryId, brandId, principalId, supplierId, outletPrices.map((p) => p.value), pending.length, mainIndex,
+      defaultTiers, outletTierSets, unitRows
+    ]);
+  const initialSnapshot = snapshot();
+  let saved = false;
+  $effect(() => guard.register(() => canWrite && !saved && snapshot() !== initialSnapshot));
 
   /** "1500.00" → "1500", "12.50" → "12.5" (tampilan input; server menerima kedua bentuk). */
   function trimZeros(s: string): string {
@@ -76,6 +108,59 @@
   const searchSuppliers = search('suppliers');
 
   const CONTROL = /[\p{Cc}\p{Cf}\p{Co}�]/u;
+  const QTY_RE = /^\d{1,9}(\.\d{1,3})?$/;
+  const FACTOR_RE = /^\d{1,9}(\.\d{1,6})?$/;
+
+  /** Baris tier yang ikut disimpan: baris yang sama sekali kosong dibuang. */
+  const blankRow = (r: TierRow) => r.min.trim() !== '' || r.price.trim() !== '';
+
+  /** Umpan balik cepat untuk satu set tier (aturan sama dengan server): kode galat atau ''. */
+  function tierCode(rows: TierRow[]): string {
+    const used = rows.filter(blankRow);
+    if (used.length > MAX_TIERS) return 'TOO_MANY';
+    const parsed: { min: number; price: number }[] = [];
+    for (const r of used) {
+      const min = r.min.trim();
+      const price = r.price.trim();
+      if (!QTY_RE.test(min) || Number(min) <= 0 || !MONEY_RE.test(price)) return 'INVALID';
+      parsed.push({ min: Number(min), price: Number(price) });
+    }
+    parsed.sort((a, b) => a.min - b.min);
+    for (let i = 1; i < parsed.length; i++) {
+      if (parsed[i].min === parsed[i - 1].min) return 'DUPLICATE';
+      if (parsed[i].price > parsed[i - 1].price) return 'NOT_DECREASING';
+    }
+    return '';
+  }
+
+  function checkWholesale(): string {
+    for (const rows of [defaultTiers, ...outletTierSets.map((s) => s.tiers)]) {
+      const code = tierCode(rows);
+      if (code) return code;
+    }
+    return '';
+  }
+
+  /** Baris satuan yang sama sekali kosong (ditambah lalu tidak diisi) diabaikan. */
+  const usedUnits = () => unitRows.filter((u) => u.unitId || u.factor.trim() || u.barcode.trim() || u.price.trim());
+
+  function checkUnits(): string {
+    if (usedUnits().length > MAX_UNITS) return 'TOO_MANY';
+    const seen = new Set<string>();
+    const codes = new Set<string>(barcode.trim() ? [barcode.trim()] : []);
+    for (const u of usedUnits()) {
+      if (!u.unitId || !FACTOR_RE.test(u.factor.trim()) || Number(u.factor) <= 0 || u.unitId === unitId) return 'INVALID';
+      if (u.price.trim() && !MONEY_RE.test(u.price.trim())) return 'INVALID';
+      if (seen.has(u.unitId)) return 'DUPLICATE';
+      seen.add(u.unitId);
+      const bc = u.barcode.trim();
+      if (bc) {
+        if (codes.has(bc)) return 'DUPLICATE';
+        codes.add(bc);
+      }
+    }
+    return '';
+  }
 
   async function save(ev: SubmitEvent) {
     ev.preventDefault();
@@ -105,10 +190,15 @@
         break;
       }
     }
+    const wsCode = checkWholesale();
+    if (wsCode) next.wholesale = fieldMessage(wsCode);
+    const unitCode = checkUnits();
+    if (unitCode) next.units = fieldMessage(unitCode);
     errors = next;
     if (Object.values(next).some(Boolean)) return;
 
-    const filled = outletPrices.filter((p) => p.value.trim()).map((p) => ({ outlet_id: p.id, sell_price: p.value.trim() }));
+    const tiersOf = (rows: TierRow[]) => rows.filter(blankRow).map((r) => ({ min_qty: r.min.trim(), price: r.price.trim() }));
+    const filled =outletPrices.filter((p) => p.value.trim()).map((p) => ({ outlet_id: p.id, sell_price: p.value.trim() }));
     const body: ItemInput = {
       sku: code,
       barcode: bc,
@@ -123,17 +213,40 @@
       kind,
       allow_negative_stock: allowNegative,
       sell_below_cost: belowCost,
-      description: desc
+      description: desc,
+      wholesale: {
+        default: tiersOf(defaultTiers),
+        outlets: outletTierSets.map((s) => ({ outlet_id: s.outletId, tiers: tiersOf(s.tiers) })).filter((s) => s.tiers.length)
+      },
+      units: usedUnits().map((u) => ({ unit_id: u.unitId, factor: u.factor, barcode: u.barcode.trim(), sell_price: u.price }))
     };
     saving = true;
     try {
       if (init) {
         await api.update(init.id, { ...body, outlet_prices: filled });
         if (active !== init.active) await api.setActive(init.id, active);
+        saved = true;
         await goto('/items?notice=saved');
       } else {
         const created = await api.create({ ...body, cost: cost.trim(), ...(filled.length ? { outlet_prices: filled } : {}) });
+        saved = true; // item sudah dibuat di server; keluar dari halaman ini tidak lagi membuang apa pun
         if (!active) await api.setActive(created.id, false);
+        // Item sudah tersimpan; gambar diunggah satu per satu. Kegagalan sebagian tidak membatalkan item: pengguna
+        // dibawa ke halaman ubah untuk mengunggah ulang yang gagal.
+        const uploaded: (string | null)[] = [];
+        for (const p of pending) {
+          try {
+            uploaded.push((await api.uploadImage(created.id, p.file)).id);
+          } catch {
+            uploaded.push(null);
+          }
+        }
+        const mainId = uploaded[mainIndex];
+        if (mainId && mainIndex > 0) await api.setMainImage(created.id, mainId).catch(() => {});
+        if (uploaded.includes(null)) {
+          await goto(`/items/${created.id}?notice=images_failed`);
+          return;
+        }
         await goto('/items?notice=created');
       }
     } catch (err) {
@@ -246,6 +359,23 @@
             {#if errors.outlet_prices}<p class={errClass}>{errors.outlet_prices}</p>{/if}
           {/if}
         </div>
+      </section>
+
+      <section class="surface-card !p-4 space-y-3">
+        <h3 class="font-display font-bold text-[14px]">{t('items.wholesale.title')}</h3>
+        <WholesaleTiers bind:defaultTiers bind:outletSets={outletTierSets} outlets={manageable} baseUnit={unitLabel} readOnly={!canWrite} />
+        {#if errors.wholesale}<p class={errClass}>{errors.wholesale}</p>{/if}
+      </section>
+
+      <section class="surface-card !p-4 space-y-3">
+        <h3 class="font-display font-bold text-[14px]">{t('items.units.title')}</h3>
+        <ItemUnits bind:rows={unitRows} baseUnit={unitLabel} readOnly={!canWrite} />
+        {#if errors.units}<p class={errClass}>{errors.units}</p>{/if}
+      </section>
+
+      <section class="surface-card !p-4 space-y-3">
+        <h3 class="font-display font-bold text-[14px]">{t('items.images.title')}</h3>
+        <ItemImages itemId={init?.id ?? null} itemName={name} bind:images bind:pending bind:mainIndex readOnly={!canWrite} />
       </section>
 
       <section class="surface-card !p-4 space-y-2.5">

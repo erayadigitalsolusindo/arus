@@ -57,7 +57,8 @@ export async function request<T>(path: string, init: RequestInit, token: string 
       credentials: 'include',
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        // FormData: biarkan browser menetapkan Content-Type multipart beserta boundary-nya.
+        ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         'Accept-Language': i18n.locale,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers
@@ -114,12 +115,30 @@ export const setImpersonationEndListener = (fn: () => void) => (onImpersonationE
 // Endpoint yang menerbitkan/mencabut sesi tidak boleh memicu refresh (mencegah loop). /auth/me tetap ikut.
 const NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout']);
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Permintaan yang mengembalikan berkas (mis. gambar) sebagai Blob; error API tetap dilempar sebagai ApiError. */
+async function requestBlob(path: string, token: string | null = accessToken): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
+      headers: { 'Accept-Language': i18n.locale, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    });
+  } catch {
+    throw new ApiError(0, 'NETWORK', 'Network error');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`);
+  }
+  return res.blob();
+}
+
+// Menjalankan `run`; bila token akses kedaluwarsa (401) refresh sekali lalu ulangi. Endpoint penerbit sesi dikecualikan.
+async function withRefresh<T>(path: string, run: () => Promise<T>): Promise<T> {
   const sentWith = accessToken;
   try {
-    return await request<T>(path, init);
+    return await run();
   } catch (err) {
-    // Token akses kedaluwarsa: refresh sekali lalu ulangi. Endpoint penerbit sesi dikecualikan (NO_RETRY).
     if (!(err instanceof ApiError) || err.status !== 401 || sentWith === null || NO_RETRY.has(path)) throw err;
     if (impersonating) {
       onImpersonationEnd();
@@ -127,6 +146,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     // Bila permintaan lain sudah menyegarkan token, cukup ulangi dengan token yang baru.
     if (accessToken === sentWith && !(await refreshSession())) throw err;
-    return request<T>(path, init);
+    return run();
   }
 }
+
+export const api = <T>(path: string, init: RequestInit = {}): Promise<T> => withRefresh(path, () => request<T>(path, init));
+
+/** Mengunduh berkas yang butuh autentikasi (token ada di header, bukan cookie, jadi <img src> langsung tidak bisa). */
+export const apiBlob = (path: string): Promise<Blob> => withRefresh(path, () => requestBlob(path));

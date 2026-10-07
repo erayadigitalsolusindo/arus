@@ -3,8 +3,10 @@
 SELECT i.id, i.sku, i.barcode, i.name, i.kind, i.active,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
+       mi.id AS main_image_id,
        count(*) OVER () AS total
 FROM items i
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
 JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
@@ -89,3 +91,82 @@ SELECT
   coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM brands     x WHERE x.tenant_id = @tenant_id AND x.id = sqlc.narg('brand_id')),     'missing')::text AS brand_state,
   coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM principals x WHERE x.tenant_id = @tenant_id AND x.id = sqlc.narg('principal_id')), 'missing')::text AS principal_state,
   coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM suppliers  x WHERE x.tenant_id = @tenant_id AND x.id = sqlc.narg('supplier_id')),  'missing')::text AS supplier_state;
+
+-- name: ItemImageList :many
+SELECT id, position, is_main, width, height, full_bytes, thumb_bytes, created_at
+FROM item_images WHERE tenant_id = $1 AND item_id = $2
+ORDER BY is_main DESC, position, created_at;
+
+-- name: ItemImageCount :one
+SELECT count(*) FROM item_images WHERE tenant_id = $1 AND item_id = $2;
+
+-- name: ItemImageInsert :one
+-- Gambar pertama item otomatis menjadi gambar utama; posisi = urutan setelah yang terakhir.
+INSERT INTO item_images (id, tenant_id, item_id, position, is_main, width, height, full_bytes, thumb_bytes)
+SELECT @id, @tenant_id, @item_id,
+       coalesce((SELECT max(x.position) FROM item_images x WHERE x.tenant_id = @tenant_id AND x.item_id = @item_id), 0) + 1,
+       NOT EXISTS (SELECT 1 FROM item_images y WHERE y.tenant_id = @tenant_id AND y.item_id = @item_id),
+       @width, @height, @full_bytes, @thumb_bytes
+RETURNING id, position, is_main, width, height, full_bytes, thumb_bytes, created_at;
+
+-- name: ItemImageGet :one
+SELECT id, position, is_main, width, height, full_bytes, thumb_bytes, created_at
+FROM item_images WHERE tenant_id = $1 AND item_id = $2 AND id = $3;
+
+-- name: ItemImageClearMain :exec
+UPDATE item_images SET is_main = false WHERE tenant_id = $1 AND item_id = $2 AND is_main;
+
+-- name: ItemImageSetMain :exec
+UPDATE item_images SET is_main = true WHERE tenant_id = $1 AND item_id = $2 AND id = $3;
+
+-- name: ItemImageDelete :one
+DELETE FROM item_images WHERE tenant_id = $1 AND item_id = $2 AND id = $3 RETURNING is_main;
+
+-- name: ItemImagePromote :exec
+-- Setelah gambar utama dihapus: gambar dengan posisi terkecil menjadi utama.
+UPDATE item_images SET is_main = true
+WHERE id = (SELECT z.id FROM item_images z WHERE z.tenant_id = @tenant_id AND z.item_id = @item_id ORDER BY z.position, z.created_at LIMIT 1);
+
+-- name: ItemTierList :many
+SELECT outlet_id, min_qty, price FROM item_wholesale_tiers
+WHERE tenant_id = $1 AND item_id = $2
+ORDER BY outlet_id NULLS FIRST, min_qty;
+
+-- name: ItemTierDeleteDefault :exec
+DELETE FROM item_wholesale_tiers WHERE tenant_id = $1 AND item_id = $2 AND outlet_id IS NULL;
+
+-- name: ItemTierDeleteOutlets :exec
+-- Menghapus set tier khusus cabang (kembali ke set default) untuk outlet yang boleh diakses pemanggil.
+DELETE FROM item_wholesale_tiers
+WHERE tenant_id = @tenant_id AND item_id = @item_id AND outlet_id = ANY(@outlet_ids::uuid[]);
+
+-- name: ItemTierInsert :exec
+INSERT INTO item_wholesale_tiers (tenant_id, item_id, outlet_id, min_qty, price)
+VALUES (@tenant_id, @item_id, sqlc.narg('outlet_id'), @min_qty, @price);
+
+-- name: ItemUnitList :many
+SELECT iu.unit_id, u.name AS unit_name, iu.factor, iu.barcode, iu.sell_price, iu.position
+FROM item_units iu
+JOIN units u ON u.tenant_id = iu.tenant_id AND u.id = iu.unit_id
+WHERE iu.tenant_id = $1 AND iu.item_id = $2
+ORDER BY iu.position;
+
+-- name: ItemUnitDeleteAll :exec
+DELETE FROM item_units WHERE tenant_id = $1 AND item_id = $2;
+
+-- name: ItemUnitInsert :exec
+INSERT INTO item_units (tenant_id, item_id, unit_id, factor, barcode, sell_price, position)
+VALUES (@tenant_id, @item_id, @unit_id, @factor, sqlc.narg('barcode'), sqlc.narg('sell_price'), @position);
+
+-- name: ItemUnitStates :many
+SELECT id, active FROM units WHERE tenant_id = @tenant_id AND id = ANY(@ids::uuid[]);
+
+-- name: ItemBarcodeLock :exec
+-- Mengunci (sampai transaksi selesai) satu nilai barcode di satu tenant: pemeriksaan "sudah dipakai?" lintas tabel
+-- items/item_units lalu aman dari balapan (indeks unik hanya bisa menjaga satu tabel).
+SELECT pg_advisory_xact_lock(hashtextextended(@key::text, 0));
+
+-- name: ItemBarcodeTaken :one
+-- Barcode sudah dipakai item LAIN (sebagai barcode item maupun barcode satuan)?
+SELECT EXISTS (SELECT 1 FROM items i WHERE i.tenant_id = @tenant_id AND i.barcode = @barcode::text AND i.id <> @item_id)
+    OR EXISTS (SELECT 1 FROM item_units iu WHERE iu.tenant_id = @tenant_id AND iu.barcode = @barcode::text AND iu.item_id <> @item_id);

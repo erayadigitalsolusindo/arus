@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -41,12 +42,46 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleID, authz.ActCreate)).Post("/", h.Create)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}", h.Update)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}/active", h.SetActive)
+		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}/images/{imageId}/file", h.ImageFile)
+		r.With(authz.Require(ModuleID, authz.ActUpdate)).Post("/{id}/images", h.UploadImage)
+		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}/images/{imageId}/main", h.SetMainImage)
+		r.With(authz.Require(ModuleID, authz.ActUpdate)).Delete("/{id}/images/{imageId}", h.DeleteImage)
 	})
 }
 
 type outletPriceRequest struct {
 	OutletID  string      `json:"outlet_id"`
 	SellPrice json.Number `json:"sell_price"`
+}
+
+type tierRequest struct {
+	MinQty json.Number `json:"min_qty"`
+	Price  json.Number `json:"price"`
+}
+
+type outletTiersRequest struct {
+	OutletID string        `json:"outlet_id"`
+	Tiers    []tierRequest `json:"tiers"`
+}
+
+type wholesaleRequest struct {
+	Default []tierRequest        `json:"default"`
+	Outlets []outletTiersRequest `json:"outlets"`
+}
+
+type unitRequest struct {
+	UnitID    string      `json:"unit_id"`
+	Factor    json.Number `json:"factor"`
+	Barcode   string      `json:"barcode"`
+	SellPrice json.Number `json:"sell_price"`
+}
+
+func tiersInput(in []tierRequest) []TierInput {
+	out := make([]TierInput, 0, len(in))
+	for _, t := range in {
+		out = append(out, TierInput{MinQty: t.MinQty.String(), Price: t.Price.String()})
+	}
+	return out
 }
 
 // request: angka sebagai json.Number agar presisi desimal terjaga (tidak lewat float64); id master "" = tidak diisi.
@@ -67,6 +102,8 @@ type request struct {
 	SellBelowCost      bool                  `json:"sell_below_cost"`
 	Description        string                `json:"description"`
 	OutletPrices       *[]outletPriceRequest `json:"outlet_prices"`
+	Wholesale          *wholesaleRequest     `json:"wholesale"`
+	Units              *[]unitRequest        `json:"units"`
 }
 
 func (q request) input() Input {
@@ -81,6 +118,20 @@ func (q request) input() Input {
 			list = append(list, OutletPriceInput{OutletID: p.OutletID, SellPrice: p.SellPrice.String()})
 		}
 		in.OutletPrices = &list
+	}
+	if q.Wholesale != nil {
+		w := &WholesaleInput{Default: tiersInput(q.Wholesale.Default)}
+		for _, o := range q.Wholesale.Outlets {
+			w.Outlets = append(w.Outlets, OutletTiersInput{OutletID: o.OutletID, Tiers: tiersInput(o.Tiers)})
+		}
+		in.Wholesale = w
+	}
+	if q.Units != nil {
+		units := make([]UnitInput, 0, len(*q.Units))
+		for _, u := range *q.Units {
+			units = append(units, UnitInput{UnitID: u.UnitID, Factor: u.Factor.String(), Barcode: u.Barcode, SellPrice: u.SellPrice.String()})
+		}
+		in.Units = &units
 	}
 	return in
 }
@@ -198,10 +249,132 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "CODE_TAKEN", "Kode barang sudah dipakai.")
 	case errors.Is(err, ErrBarcodeTaken):
 		httpx.Error(w, http.StatusConflict, "BARCODE_TAKEN", "Barcode sudah dipakai barang lain.")
+	case errors.Is(err, ErrImageNotFound):
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Gambar tidak ditemukan.")
+	case errors.Is(err, ErrImageLimit):
+		httpx.Error(w, http.StatusConflict, "IMAGE_LIMIT", "Jumlah gambar item sudah maksimal.")
+	case errors.Is(err, ErrImageTooLarge):
+		httpx.Error(w, http.StatusRequestEntityTooLarge, "IMAGE_TOO_LARGE", "Ukuran gambar terlalu besar.")
+	case errors.Is(err, ErrImageUnsupported):
+		httpx.Error(w, http.StatusUnsupportedMediaType, "IMAGE_UNSUPPORTED", "Format gambar tidak didukung. Gunakan JPG, PNG, atau WebP.")
+	case errors.Is(err, ErrImageDimensions):
+		httpx.Error(w, http.StatusUnprocessableEntity, "IMAGE_DIMENSIONS", "Dimensi gambar terlalu besar.")
+	case errors.Is(err, ErrImageCorrupt):
+		httpx.Error(w, http.StatusUnprocessableEntity, "IMAGE_CORRUPT", "Gambar rusak atau tidak dapat dibaca.")
+	case errors.Is(err, ErrNoStorage):
+		httpx.Error(w, http.StatusServiceUnavailable, "UNAVAILABLE", "Penyimpanan gambar belum tersedia.")
 	case errors.Is(err, ErrOutletForbidden):
 		httpx.Error(w, http.StatusForbidden, "OUTLET_FORBIDDEN", "Anda tidak memiliki akses ke outlet yang dipilih.")
 	default:
 		h.log.Error("item gagal", "err", err, "req_id", middleware.GetReqID(r.Context()))
 		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
 	}
+}
+
+// ---- gambar ----
+
+// maxUploadBody = batas body multipart: ukuran gambar + sedikit ruang untuk header bagian.
+const maxUploadBody = MaxUploadBytes + 1<<20
+
+func imageID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	id, err := uuid.Parse(chi.URLParam(r, "imageId"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+// UploadImage: multipart/form-data dengan satu bagian "file". Dibaca streaming (tidak ada ParseMultipartForm yang
+// menampung seluruh body di memori/disk sementara) dan dibatasi MaxBytesReader.
+func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	// Server punya ReadTimeout pendek (30 dtk) untuk API JSON; unggahan dari jaringan seluler butuh lebih lama.
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(2 * time.Minute))
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBody)
+	mr, err := r.MultipartReader()
+	if err != nil {
+		httpx.Error(w, http.StatusUnsupportedMediaType, "UNSUPPORTED_MEDIA_TYPE", "Content-Type harus multipart/form-data.")
+		return
+	}
+	for {
+		part, err := mr.NextPart()
+		if err != nil { // io.EOF = tidak ada bagian "file"; selain itu body rusak/terlalu besar
+			var tooBig *http.MaxBytesError
+			if errors.As(err, &tooBig) {
+				h.fail(w, r, ErrImageTooLarge)
+				return
+			}
+			httpx.ValidationError(w, map[string]string{"file": "REQUIRED"})
+			return
+		}
+		if part.FormName() != "file" {
+			continue
+		}
+		img, err := h.svc.AddImage(r.Context(), actor(r), id, part)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		httpx.JSON(w, http.StatusCreated, img)
+		return
+	}
+}
+
+func (h *Handler) SetMainImage(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	iid, ok := imageID(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.SetMainImage(r.Context(), actor(r), id, iid); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	iid, ok := imageID(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.DeleteImage(r.Context(), actor(r), id, iid); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ImageFile menyajikan berkas gambar (?size=thumb|full, bawaan full). Isi gambar tidak pernah berubah untuk id yang
+// sama, jadi boleh di-cache lama oleh browser (private: hanya cache pengguna).
+func (h *Handler) ImageFile(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	iid, ok := imageID(w, r)
+	if !ok {
+		return
+	}
+	f, created, err := h.svc.OpenImage(r.Context(), actor(r), id, iid, r.URL.Query().Get("size") == "thumb")
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	defer f.Close()
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", created, f)
 }
