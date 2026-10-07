@@ -1,6 +1,8 @@
 <script lang="ts">
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
+  import { session, logout } from '#lib/auth/session.svelte.ts';
+  import { initials } from '#lib/auth/initials.ts';
 
   let { onmenu }: { onmenu: () => void } = $props();
 
@@ -46,7 +48,7 @@
     </button>
 
     <a href="/dashboard" class="lg:hidden shrink-0" aria-label="ACIRABA">
-      <img src="/mark.svg" alt="ACIRABA" class="size-8 object-contain" />
+      <img src="/logo_tanpa_text-no-bg.svg" alt="ARUS" class="h-8 w-auto object-contain" />
     </a>
 
     <!-- Pencarian global (palet perintah menyusul) -->
@@ -151,10 +153,10 @@
             toggle('user');
           }}
         >
-          <span class="grid place-items-center size-8 rounded-full bg-[var(--color-primary-600)] text-white text-[12px] font-bold">AC</span>
+          <span class="grid place-items-center size-8 rounded-full bg-[var(--color-primary-600)] text-white text-[12px] font-bold">{initials(session.user?.name)}</span>
           <span class="hidden md:block text-start leading-tight">
-            <span class="block text-[12.5px] font-semibold">{t('shell.notSignedIn')}</span>
-            <span class="block text-[10.5px] text-[var(--text-tertiary)]">{t('shell.guest')}</span>
+            <span class="block text-[12.5px] font-semibold max-w-40 truncate">{session.user?.name}</span>
+            <span class="block text-[10.5px] max-w-40 truncate text-[var(--text-tertiary)]">{session.tenant?.name}</span>
           </span>
           <i class="icon-chevron-down text-[10px] text-[var(--text-tertiary)]"></i>
         </button>
@@ -162,7 +164,7 @@
           <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
             <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
             <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</a>
-            <a href="/login" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</a>
+            <button type="button" onclick={logout} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</button>
           </div>
         {/if}
       </div>

@@ -15,36 +15,81 @@ export type NavGroup = { titleKey: MessageKey; items: NavItem[] };
 export const nav: NavGroup[] = [
   {
     titleKey: 'nav.group.main',
-    items: [{ id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' }]
-  },
-  {
-    titleKey: 'nav.group.operations',
     items: [
-      { id: 'pos', labelKey: 'nav.pos', icon: 'shopping-cart' },
-      {
-        id: 'master',
-        labelKey: 'nav.masterData',
-        icon: 'package',
-        children: [
-          { labelKey: 'nav.items' },
-          { labelKey: 'nav.categories' },
-          { labelKey: 'nav.customers' },
-          { labelKey: 'nav.suppliers' }
-        ]
-      },
-      { id: 'stock', labelKey: 'nav.stock', icon: 'warehouse' },
-      { id: 'purchasing', labelKey: 'nav.purchasing', icon: 'truck' }
+      { id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' },
+      { id: 'siak', labelKey: 'nav.siak', icon: 'book-open' }
     ]
   },
   {
-    titleKey: 'nav.group.analysis',
-    items: [{ id: 'reports', labelKey: 'nav.reports', icon: 'chart-column' }]
+    titleKey: 'nav.group.masterData',
+    items: [
+      {
+        id: 'items',
+        labelKey: 'nav.itemList',
+        icon: 'package',
+        children: [{ labelKey: 'nav.itemList' }, { labelKey: 'nav.stockCard' }, { labelKey: 'nav.coupons' }]
+      },
+      {
+        id: 'people',
+        labelKey: 'nav.people',
+        icon: 'contact-round',
+        children: [{ labelKey: 'nav.suppliers' }, { labelKey: 'nav.members' }, { labelKey: 'nav.salespeople' }]
+      },
+      {
+        id: 'support',
+        labelKey: 'nav.support',
+        icon: 'database',
+        children: [
+          { labelKey: 'nav.units' },
+          { labelKey: 'nav.categories' },
+          { labelKey: 'nav.memberCategories' },
+          { labelKey: 'nav.paymentMethods' },
+          { labelKey: 'nav.brands' },
+          { labelKey: 'nav.principals' }
+        ]
+      }
+    ]
   },
   {
-    titleKey: 'nav.group.system',
+    titleKey: 'nav.group.sales',
     items: [
-      { id: 'users', labelKey: 'nav.users', icon: 'users' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'settings' }
+      {
+        id: 'salesOrders',
+        labelKey: 'nav.salesOrdersReturns',
+        icon: 'shopping-cart',
+        children: [{ labelKey: 'nav.salesReturns' }]
+      },
+      {
+        id: 'salesData',
+        labelKey: 'nav.salesData',
+        icon: 'file-text',
+        children: [{ labelKey: 'nav.salesList' }, { labelKey: 'nav.sellPriceHistory' }, { labelKey: 'nav.memberReceivables' }]
+      },
+      { id: 'orderList', labelKey: 'nav.orderList', icon: 'clipboard-list' }
+    ]
+  },
+  {
+    titleKey: 'nav.group.purchasing',
+    items: [
+      {
+        id: 'purchaseInvoices',
+        labelKey: 'nav.purchaseInvoicesReturns',
+        icon: 'receipt',
+        children: [{ labelKey: 'nav.purchaseReturns' }]
+      },
+      {
+        id: 'purchaseData',
+        labelKey: 'nav.purchaseData',
+        icon: 'truck',
+        children: [{ labelKey: 'nav.purchaseList' }, { labelKey: 'nav.buyPriceHistory' }, { labelKey: 'nav.supplierPayables' }]
+      }
+    ]
+  },
+  {
+    titleKey: 'nav.group.adjustments',
+    items: [
+      { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check' },
+      { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right' }
     ]
   }
 ];

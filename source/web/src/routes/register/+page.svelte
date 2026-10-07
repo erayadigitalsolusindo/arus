@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { api, ApiError, setAccessToken } from '#lib/api/client.ts';
+  import { api, ApiError, type AuthResponse } from '#lib/api/client.ts';
+  import { startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName, checkEmail, checkPhone, checkPassword, passwordStrength } from '#lib/validation.ts';
@@ -57,7 +58,7 @@
 
     loading = true;
     try {
-      const res = await api<{ access_token: string }>('/auth/register', {
+      const res = await api<AuthResponse>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           business_name: biz.value,
@@ -68,7 +69,7 @@
           password
         })
       });
-      setAccessToken(res.access_token);
+      startSession(res);
       password = confirm = '';
       await goto('/dashboard');
     } catch (err) {
