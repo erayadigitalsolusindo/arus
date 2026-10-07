@@ -35,10 +35,10 @@ export const iam = {
 
   roles: () => api<{ roles: Role[] }>('/iam/roles').then((r) => r.roles),
   assignableRoles: () => api<{ roles: Role[] }>('/iam/assignable-roles').then((r) => r.roles),
-  createRole: (name: string, permissions: Record<string, string[]>, administrator = false) =>
-    api<Role>('/iam/roles', { method: 'POST', body: json({ name, permissions, administrator }) }),
-  updateRole: (id: string, name: string, permissions: Record<string, string[]>, administrator = false) =>
-    api<Role>(`/iam/roles/${id}`, { method: 'PUT', body: json({ name, permissions, administrator }) }),
+  createRole: (name: string, permissions: Record<string, string[]>) =>
+    api<Role>('/iam/roles', { method: 'POST', body: json({ name, permissions }) }),
+  updateRole: (id: string, name: string, permissions: Record<string, string[]>) =>
+    api<Role>(`/iam/roles/${id}`, { method: 'PUT', body: json({ name, permissions }) }),
   deleteRole: (id: string) => api<null>(`/iam/roles/${id}`, { method: 'DELETE' }),
 
   users: () => api<{ users: User[] }>('/iam/users').then((r) => r.users),

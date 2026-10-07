@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { platformApi, type AdminRow } from '#lib/platform/api.ts';
-  import { platform, platformLogout } from '#lib/platform/session.svelte.ts';
+  import { papi, platform, platformLogout } from '#lib/platform/session.svelte.ts';
   import { t, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
@@ -76,6 +76,21 @@
     }
   }
 
+  async function resetMfa(a: AdminRow) {
+    if (!confirm(t('platform.admins.resetMfaConfirm', { name: a.name }))) return;
+    busyId = a.id;
+    error = notice = '';
+    try {
+      await papi(`/platform/admins/${a.id}/reset-2fa`, { method: 'POST', body: '{}' });
+      notice = t('platform.admins.mfaReset');
+      await load();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      busyId = '';
+    }
+  }
+
   const inputClass = 'mt-1.5 w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered';
   const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
 </script>
@@ -103,6 +118,7 @@
           <th class="p-3 text-start" scope="col">{t('platform.admins.name')}</th>
           <th class="p-3 text-start" scope="col">{t('platform.admins.lastLogin')}</th>
           <th class="p-3 text-start" scope="col">{t('platform.admins.status')}</th>
+          <th class="p-3 text-start" scope="col">2FA</th>
           <th class="p-3 text-end" scope="col"><span class="sr-only">…</span></th>
         </tr>
       </thead>
@@ -116,9 +132,11 @@
             </td>
             <td class="p-3 whitespace-nowrap">{a.last_login_at ? formatDateTime(a.last_login_at, { dateStyle: 'medium', timeStyle: 'short' }) : t('platform.tenants.never')}</td>
             <td class="p-3"><span class="rounded-md px-2 py-0.5 text-[11px] font-semibold {a.active ? 'badge-success' : 'badge-danger'}">{a.active ? t('platform.tenants.active') : t('platform.tenants.inactive')}</span></td>
+            <td class="p-3"><span class="rounded-md px-2 py-0.5 text-[11px] font-semibold {a.mfa_enabled ? 'badge-success' : 'badge-warning'}">{a.mfa_enabled ? t('platform.security.on') : t('platform.security.off')}</span></td>
             <td class="p-3 text-end whitespace-nowrap">
               <button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openPassword(a)}>{t('platform.admins.resetPassword')}</button>
               {#if a.id !== platform.admin?.id}
+                {#if a.mfa_enabled}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetMfa(a)}>{t('platform.admins.resetMfa')}</button>{/if}
                 <button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60 {a.active ? '!text-[var(--color-danger-600)]' : ''}" disabled={busyId === a.id} onclick={() => toggle(a)}>
                   {a.active ? t('platform.admins.disable') : t('platform.admins.enable')}
                 </button>
@@ -126,7 +144,7 @@
             </td>
           </tr>
         {:else}
-          <tr><td colspan="4" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? t('platform.tenants.loading') : t('platform.tenants.empty')}</td></tr>
+          <tr><td colspan="5" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? t('platform.tenants.loading') : t('platform.tenants.empty')}</td></tr>
         {/each}
       </tbody>
     </table>

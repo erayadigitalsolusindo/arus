@@ -101,10 +101,6 @@ const iam: Messages['iam'] = {
     deleted: 'Role deleted.',
     empty: 'No roles yet.',
     loadFailed: 'Failed to load roles.',
-    administrator: 'Administrator (full access)',
-    administratorHint: 'Access to every menu and action (including ones added later) and every outlet, with no filtering. Only an Administrator can grant or change this role.',
-    administratorBadge: 'Administrator',
-    administratorOnly: 'Only an Administrator can create or change full-access roles.',
     notYours: 'Beyond your permissions'
   }
 };

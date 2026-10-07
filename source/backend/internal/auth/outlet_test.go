@@ -129,47 +129,18 @@ func TestUserWithoutAssignedOutletCannotSwitchOrLogin(t *testing.T) {
 	}
 }
 
-// Administrator = role dengan izin "*" (bukan hanya role sistem): login dan pindah outlet tanpa penugasan user_outlets.
-func TestAdministratorRoleAccessesEveryOutletWithoutAssignment(t *testing.T) {
+// Owner (role sistem, izin "*") mengakses semua outlet aktif tanpa penugasan user_outlets, termasuk outlet yang baru ditambah.
+func TestOwnerAccessesEveryOutletWithoutAssignment(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	_, owner := registered(t, h, "Admin")
 	out2 := addOutlet(t, h, owner.Tenant.ID, "Cabang 2")
 
-	hash, err := pauth.HashPassword("admin-pass-123")
-	if err != nil {
-		t.Fatal(err)
-	}
-	roleID, userID := uuid.New(), uuid.New()
-	email := fmt.Sprintf("adm-penuh-%d@rec.test", os.Getpid())
-	for _, q := range []struct {
-		sql  string
-		args []any
-	}{
-		{`INSERT INTO roles (id, tenant_id, name, permissions) VALUES ($1, $2, 'Administrator', '{"*":true}')`, []any{roleID, owner.Tenant.ID}},
-		{`INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, 'Admin', $5)`, []any{userID, owner.Tenant.ID, roleID, email, hash}},
-	} {
-		if _, err := h.admin.Exec(ctx, q.sql, q.args...); err != nil {
-			t.Fatal(err)
-		}
-	}
-	login, err := h.svc.Login(ctx, LoginInput{Email: email, Password: "admin-pass-123"})
-	if err != nil {
-		t.Fatalf("administrator tanpa penugasan outlet harus bisa masuk: %v", err)
-	}
-	a := actorOf(t, h, login)
+	a := actorOf(t, h, owner)
 	if !a.Perms.All || !a.Outlets[out2] || !a.Outlets[uuid.MustParse(owner.Outlet.ID)] {
-		t.Fatalf("akses administrator: all=%v outlets=%v", a.Perms.All, a.Outlets)
+		t.Fatalf("akses owner: all=%v outlets=%v", a.Perms.All, a.Outlets)
 	}
-	if sw, err := h.svc.SwitchOutlet(ctx, a, login.RefreshToken, out2); err != nil || sw.Outlet.ID != out2.String() {
-		t.Errorf("administrator pindah ke outlet mana pun: %v", err)
-	}
-
-	// Diturunkan menjadi role biasa tanpa penugasan: tidak punya outlet lagi (login ditolak dengan alasan khusus).
-	if _, err := h.admin.Exec(ctx, `UPDATE roles SET permissions = '{"items":["view"]}' WHERE id = $1`, roleID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.svc.Login(ctx, LoginInput{Email: email, Password: "admin-pass-123"}); !errors.Is(err, ErrNoOutlet) {
-		t.Errorf("setelah diturunkan: err = %v, want ErrNoOutlet", err)
+	if sw, err := h.svc.SwitchOutlet(ctx, a, owner.RefreshToken, out2); err != nil || sw.Outlet.ID != out2.String() {
+		t.Errorf("owner pindah ke outlet mana pun: %v", err)
 	}
 }

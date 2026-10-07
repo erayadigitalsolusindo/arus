@@ -90,7 +90,7 @@ func (e *env) mail(name string) string { return fmt.Sprintf("%s-%s@iam.test", na
 
 func (e *env) role(t *testing.T, actor authz.Actor, name string, perms map[string][]string) *Role {
 	t.Helper()
-	r, err := e.svc.CreateRole(context.Background(), actor, name, perms, false)
+	r, err := e.svc.CreateRole(context.Background(), actor, name, perms)
 	if err != nil {
 		t.Fatalf("buat role %s: %v", name, err)
 	}

@@ -44,7 +44,7 @@ func TestUserRulesAndResolver(t *testing.T) {
 	if err != nil || !acc.Perms.Has("items", "view") || acc.Perms.Has("items", "create") || !acc.Outlets[e.outlet] {
 		t.Fatalf("hak akses kasir: %+v %v", acc, err)
 	}
-	if _, err := e.svc.UpdateRole(ctx, e.owner, kasirRole.ID, "Kasir", map[string][]string{"items": {"view", "create"}}, false); err != nil {
+	if _, err := e.svc.UpdateRole(ctx, e.owner, kasirRole.ID, "Kasir", map[string][]string{"items": {"view", "create"}}); err != nil {
 		t.Fatal(err)
 	}
 	if acc, _ = e.res.For(ctx, e.tenant, kasir.ID); !acc.Perms.Has("items", "create") {

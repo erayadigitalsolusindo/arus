@@ -22,14 +22,13 @@ export type UserRow = {
   email: string;
   active: boolean;
   role_name: string;
-  administrator: boolean;
   last_login_at: string | null;
   email_verified: boolean;
   created_at: string;
 };
 export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; outlets: OutletRow[]; users: UserRow[] };
 
-export type AdminRow = { id: string; email: string; name: string; active: boolean; last_login_at: string | null; created_at: string };
+export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string };
 
 export type TenantAuditItem = {
   id: number;

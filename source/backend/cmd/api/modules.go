@@ -31,7 +31,7 @@ type appDeps struct {
 
 // mountModules merakit tiap modul (layanan + handler) dan memasang rutenya. Modul baru = satu blok di sini.
 // Urutan: authz (izin) → audit → modul yang memakainya.
-func mountModules(r chi.Router, d appDeps) {
+func mountModules(r chi.Router, d appDeps) error {
 	tokens := pauth.NewTokenIssuer(d.Cfg.JWTSecret)
 	sessions := pauth.NewSessions(d.Redis)
 	perms := authz.NewResolver(d.Pool)
@@ -48,9 +48,13 @@ func mountModules(r chi.Router, d appDeps) {
 	}).Routes(r)
 
 	// Platform Admin (operator ACIRABA): token & cookie terpisah; lockout login memakai kebijakan yang sama.
+	totpBox, err := pauth.NewTOTPBox(d.Cfg.JWTSecret)
+	if err != nil {
+		return err
+	}
 	platformSvc := platformadmin.NewService(platformadmin.Deps{
 		Pool: d.Pool, Tokens: tokens, PTokens: pauth.NewPlatformTokenIssuer(d.Cfg.JWTSecret), Sessions: sessions,
-		Perms: perms, SetupToken: d.Cfg.PlatformSetupToken,
+		OneTime: pauth.NewOneTime(d.Redis), TOTP: totpBox, Perms: perms, SetupToken: d.Cfg.PlatformSetupToken,
 	})
 	perms.WithPlatform(platformSvc) // menerima token "masuk sebagai" (hanya-baca) milik Platform Admin
 	platformadmin.NewHandler(platformadmin.HandlerDeps{
@@ -62,4 +66,5 @@ func mountModules(r chi.Router, d appDeps) {
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
 	audit.NewHandler(audit.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	return nil
 }

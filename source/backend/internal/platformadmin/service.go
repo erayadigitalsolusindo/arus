@@ -46,6 +46,8 @@ type Deps struct {
 	Tokens   *pauth.TokenIssuer // penerbit token tenant (token "masuk sebagai")
 	PTokens  *pauth.TokenIssuer // penerbit token Platform Admin
 	Sessions *pauth.Sessions
+	OneTime  *pauth.OneTime  // tantangan login 2FA
+	TOTP     *pauth.TOTPBox  // enkripsi rahasia TOTP di DB
 	Perms    *authz.Resolver // dibuang cache-nya saat status tenant berubah
 	// SetupToken = rahasia dari lingkungan server untuk membuat Platform Admin pertama; kosong = setup mati.
 	SetupToken string
@@ -89,7 +91,7 @@ func (s *Service) Admin(ctx context.Context, id uuid.UUID) (authz.PlatformAdmin,
 	case !row.Active:
 		err = authz.ErrInactive
 	default:
-		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time}
+		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time, MFA: row.TotpEnabledAt.Valid}
 	}
 	s.mu.Lock()
 	if len(s.cache) > 1000 {

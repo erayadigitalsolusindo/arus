@@ -33,9 +33,10 @@ const (
 )
 
 type Profile struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	MFAEnabled bool   `json:"mfa_enabled"`
 }
 
 type Session struct {
@@ -51,6 +52,7 @@ type Session struct {
 type Actor struct {
 	ID   uuid.UUID
 	Name string
+	MFA  bool // 2FA aktif; tanpa ini hanya halaman keamanan yang boleh diakses
 }
 
 type actorKey struct{}
@@ -80,18 +82,18 @@ func (s *Service) newSession(ctx context.Context, row gen.PlatformAdmin, refresh
 	}
 	return &Session{
 		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()),
-		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email},
+		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid},
 		RefreshToken: refresh, Remember: remember,
 	}, nil
 }
 
 // Login memverifikasi kredensial Platform Admin. Email salah/password salah/akun tak ada = ErrInvalidCredentials
 // (hash dummy menyamakan waktu respons); ErrAccountDisabled hanya setelah password terbukti benar.
-func (s *Service) Login(ctx context.Context, email, password string, remember bool) (*Session, error) {
+func (s *Service) Login(ctx context.Context, email, password string, remember bool) (*Session, string, error) {
 	row, err := gen.New(s.Pool).PlatformAdminByEmail(ctx, email)
 	found := err == nil
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return nil, err
+		return nil, "", err
 	}
 	hash := dummyHash()
 	if found {
@@ -99,20 +101,35 @@ func (s *Service) Login(ctx context.Context, email, password string, remember bo
 	}
 	ok, err := s.verify(ctx, password, hash)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !found || !ok {
-		return nil, ErrInvalidCredentials
+		return nil, "", ErrInvalidCredentials
 	}
 	if !row.Active {
-		return nil, ErrAccountDisabled
+		return nil, "", ErrAccountDisabled
 	}
+	if row.TotpEnabledAt.Valid {
+		// Password benar tetapi belum cukup: kembalikan tantangan 2FA (token sekali pakai, 5 menit). Sesi baru terbit di LoginMFA.
+		r := "0"
+		if remember {
+			r = "1"
+		}
+		tok, err := s.OneTime.Issue(ctx, pauth.PurposePlatformMFA, row.ID.String()+"|"+r, pauth.PlatformMFATTL)
+		return nil, tok, err
+	}
+	sess, err := s.finishLogin(ctx, row, remember)
+	return sess, "", err
+}
+
+// finishLogin menerbitkan sesi setelah semua faktor terpenuhi.
+func (s *Service) finishLogin(ctx context.Context, row gen.PlatformAdmin, remember bool) (*Session, error) {
 	sess, err := s.newSession(ctx, row, "", remember, true)
 	if err != nil {
 		return nil, err
 	}
 	_, _ = s.Pool.Exec(ctx, `SELECT platform_admin_touch_login($1, $2)`, row.ID, s.now())
-	s.record(ctx, Actor{ID: row.ID, Name: row.Name}, ActionLogin, uuid.Nil, "", nil)
+	s.record(ctx, Actor{ID: row.ID, Name: row.Name}, ActionLogin, uuid.Nil, "", map[string]any{"mfa": row.TotpEnabledAt.Valid})
 	return sess, nil
 }
 
@@ -172,7 +189,7 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 			httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi dicabut. Silakan masuk kembali.")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name})))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA})))
 	})
 }
 
@@ -185,7 +202,7 @@ func (s *Service) Me(ctx context.Context, a Actor) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email}, nil
+	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid}, nil
 }
 
 // SetupRequired: setup hanya tersedia selama belum ada Platform Admin DAN SetupToken dikonfigurasi di server.

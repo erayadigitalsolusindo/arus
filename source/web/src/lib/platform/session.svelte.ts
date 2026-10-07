@@ -4,8 +4,8 @@ import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
 import { ApiError, CSRF_HEADERS, request } from '#lib/api/client.ts';
 
-export type PlatformAdmin = { id: string; name: string; email: string };
-type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
+export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean };
+export type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
 type Status = 'unknown' | 'authed' | 'anon';
 
 class PlatformState {
@@ -62,6 +62,11 @@ export function startPlatformSession(res: PlatformAuth) {
   apply(res);
 }
 
+/** Membuang sesi lokal (server sudah mencabutnya, mis. setelah 2FA dinonaktifkan). */
+export function endPlatformSession() {
+  apply(null);
+}
+
 let booting: Promise<void> | null = null;
 export function bootstrap(): Promise<void> {
   if (platform.status !== 'unknown') return Promise.resolve();
@@ -72,10 +77,14 @@ export function bootstrap(): Promise<void> {
   return booting;
 }
 
-/** Penjaga halaman panel: tanpa sesi platform diarahkan ke login platform. */
-export async function requirePlatform() {
+/**
+ * Penjaga halaman panel: tanpa sesi platform diarahkan ke login platform; admin yang belum mengaktifkan 2FA hanya boleh
+ * ke halaman keamanan (server juga menegakkan: MFA_ENROLL_REQUIRED).
+ */
+export async function requirePlatform(pathname = '') {
   await bootstrap();
   if (platform.status !== 'authed') redirect(307, '/platform/login');
+  if (platform.admin && !platform.admin.mfa_enabled && pathname !== '/platform/security') redirect(307, '/platform/security');
 }
 
 /** Penjaga halaman login/setup: yang sudah masuk diarahkan ke panel. */

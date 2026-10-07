@@ -7,7 +7,7 @@ SELECT *
 FROM platform_admins WHERE id = $1;
 
 -- name: PlatformAdminList :many
-SELECT id, email, name, active, last_login_at, created_at, created_by
+SELECT id, email, name, active, last_login_at, created_at, created_by, (totp_enabled_at IS NOT NULL)::boolean AS mfa_enabled
 FROM platform_admins ORDER BY created_at, id;
 
 -- name: PlatformAdminCount :one
@@ -39,7 +39,10 @@ UPDATE tenants SET active = sqlc.arg(active) WHERE id = sqlc.arg(id);
 SELECT id, code, name, active FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code;
 
 -- name: PlatformTenantUsers :many
-SELECT u.id, u.name, u.email, u.active, r.name AS role_name, COALESCE((r.permissions->>'*')::boolean, false)::boolean AS administrator,
+SELECT u.id, u.name, u.email, u.active, r.name AS role_name,
        u.last_login_at, (u.email_verified_at IS NOT NULL)::boolean AS email_verified, u.created_at
 FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE u.tenant_id = $1 ORDER BY u.created_at, u.id;
+
+-- name: PlatformRecoveryRemaining :one
+SELECT count(*) FROM platform_recovery_codes WHERE admin_id = $1 AND used_at IS NULL;

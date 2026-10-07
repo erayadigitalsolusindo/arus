@@ -62,7 +62,7 @@
     return cur && !roles.some((r) => r.id === cur.role_id) ? [{ id: cur.role_id, name: cur.role_name, is_system: cur.role_is_system, permissions: cur.all_outlets ? { '*': true } : {} } as Role, ...roles] : roles;
   });
   const roleLocked = $derived(!!editor && editor.id !== null && (isSelf({ id: editor.id }) || !roles.some((r) => r.id === users.find((u) => u.id === editor!.id)?.role_id)));
-  // Administrator (role berizin "*": Owner atau role akses penuh) otomatis mengakses semua outlet: pilihan outlet disembunyikan.
+  // Owner (role berizin "*") otomatis mengakses semua outlet: pilihan outlet disembunyikan.
   const roleAllAccess = $derived(!!editor && roleOptions.find((r) => r.id === editor!.roleId)?.permissions['*'] === true);
   const accessible = $derived(new Set(outlets.map((o) => o.id)));
   const outletName = (id: string) => outlets.find((o) => o.id === id)?.name;

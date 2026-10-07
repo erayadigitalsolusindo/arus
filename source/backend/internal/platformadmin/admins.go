@@ -21,6 +21,7 @@ type AdminRow struct {
 	Active      bool       `json:"active"`
 	LastLoginAt *time.Time `json:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at"`
+	MFAEnabled  bool       `json:"mfa_enabled"`
 }
 
 func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
@@ -30,7 +31,7 @@ func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
 	}
 	out := make([]AdminRow, 0, len(rows))
 	for _, r := range rows {
-		a := AdminRow{ID: r.ID, Email: r.Email, Name: r.Name, Active: r.Active, CreatedAt: r.CreatedAt.Time}
+		a := AdminRow{ID: r.ID, Email: r.Email, Name: r.Name, Active: r.Active, CreatedAt: r.CreatedAt.Time, MFAEnabled: r.MfaEnabled}
 		if r.LastLoginAt.Valid {
 			t := r.LastLoginAt.Time
 			a.LastLoginAt = &t

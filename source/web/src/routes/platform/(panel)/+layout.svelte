@@ -11,7 +11,8 @@
   const links = [
     { href: '/platform/tenants', key: 'platform.nav.tenants', icon: 'store' },
     { href: '/platform/admins', key: 'platform.nav.admins', icon: 'shield-check' },
-    { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' }
+    { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' },
+    { href: '/platform/security', key: 'platform.nav.security', icon: 'key-round' }
   ] as const;
 
   // Sesi berakhir (refresh gagal): kembali ke login platform.

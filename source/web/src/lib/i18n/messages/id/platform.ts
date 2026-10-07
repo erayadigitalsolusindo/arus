@@ -5,7 +5,7 @@ export default {
     text: 'Mode Platform Admin (hanya-baca): {tenant} · {outlet}. Perubahan data dinonaktifkan.',
     exit: 'Keluar dari mode ini'
   },
-  nav: { tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
+  nav: { security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',
@@ -14,6 +14,11 @@ export default {
     remember: 'Tetap masuk',
     submit: 'Masuk',
     emailRequired: 'Email wajib diisi.',
+    mfaPrompt: 'Password benar. Masukkan kode 6 digit dari aplikasi autentikator Anda (atau salah satu kode pemulihan).',
+    code: 'Kode 2FA',
+    codeHelp: 'Hilang akses ke aplikasi? Pakai kode pemulihan (format ABCDE-FGHJK).',
+    verify: 'Verifikasi',
+    back: 'Kembali',
     passwordRequired: 'Password wajib diisi.'
   },
   setup: {
@@ -67,13 +72,40 @@ export default {
     userName: 'Nama',
     verified: 'Terverifikasi',
     unverified: 'Belum diverifikasi',
-    administrator: 'Administrator',
     noOutlets: 'Belum ada outlet.',
     noUsers: 'Belum ada pengguna.',
     auditTitle: 'Aktivitas terbaru tenant',
     auditEmpty: 'Belum ada catatan.',
     loadMore: 'Muat lebih banyak',
     noActiveOutlet: 'Tenant ini tidak punya outlet aktif.'
+  },
+  security: {
+    title: 'Keamanan Akun',
+    subtitle: 'Verifikasi dua langkah (2FA) wajib untuk Platform Admin karena akun ini dapat melihat semua data tenant.',
+    required: 'Aktifkan 2FA untuk membuka panel. Sampai selesai, hanya halaman ini yang dapat diakses.',
+    totpTitle: 'Aplikasi autentikator (TOTP)',
+    on: 'Aktif',
+    off: 'Belum aktif',
+    enableHelp: 'Gunakan Google Authenticator, Authy, 1Password, atau aplikasi TOTP lain. Anda akan diminta kode 6 digit setiap kali masuk.',
+    start: 'Mulai aktifkan 2FA',
+    step1: 'Pindai kode QR dengan aplikasi autentikator (atau ketik kunci manual).',
+    step2: 'Masukkan kode 6 digit yang muncul untuk mengonfirmasi.',
+    qrAlt: 'Kode QR untuk aplikasi autentikator',
+    manualKey: 'Kunci manual',
+    code: 'Kode',
+    confirm: 'Konfirmasi dan aktifkan',
+    invalidCode: 'Kode salah atau sudah dipakai. Tunggu kode berikutnya lalu coba lagi.',
+    recoveryTitle: 'Simpan kode pemulihan',
+    recoveryHelp: 'Tiap kode hanya berlaku sekali dan hanya ditampilkan sekarang. Simpan di tempat aman (pengelola password / brankas). Kode ini satu-satunya jalan masuk bila ponsel hilang.',
+    copy: 'Salin',
+    copied: 'Kode pemulihan disalin.',
+    download: 'Unduh .txt',
+    savedIt: 'Sudah saya simpan',
+    recoveryLeft: { one: '{count} kode pemulihan tersisa.', other: '{count} kode pemulihan tersisa.' },
+    regen: 'Buat ulang kode pemulihan',
+    regenHelp: 'Masukkan kode dari aplikasi autentikator. Semua kode pemulihan lama langsung hangus.',
+    disable: 'Nonaktifkan 2FA',
+    disableHelp: 'Butuh password dan kode. Semua sesi Anda dikeluarkan dan Anda wajib mendaftarkan 2FA lagi saat masuk berikutnya.'
   },
   admins: {
     title: 'Platform Admin',
@@ -94,6 +126,9 @@ export default {
     created: 'Platform Admin ditambahkan.',
     passwordChanged: 'Password diubah dan semua sesinya dicabut.',
     disableConfirm: 'Nonaktifkan {name}? Semua sesinya langsung dicabut.',
+    resetMfa: 'Reset 2FA',
+    resetMfaConfirm: 'Reset 2FA milik {name}? Sesinya dicabut dan ia wajib mendaftarkan 2FA lagi. Lakukan hanya bila perangkatnya hilang.',
+    mfaReset: '2FA direset.',
     selfPasswordNote: 'Mengganti password Anda sendiri akan mengeluarkan Anda dari semua perangkat.'
   },
   audit: {
@@ -108,6 +143,10 @@ export default {
     empty: 'Belum ada catatan.',
     loadMore: 'Muat lebih banyak',
     actions: {
+      platform_mfa_enable: 'Mengaktifkan 2FA',
+      platform_mfa_disable: 'Menonaktifkan 2FA',
+      platform_mfa_reset: 'Mereset 2FA admin lain',
+      platform_mfa_recovery: 'Membuat ulang kode pemulihan',
       platform_setup: 'Setup admin pertama',
       platform_login: 'Masuk',
       platform_admin_create: 'Menambah Platform Admin',
