@@ -10,6 +10,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type AppSetting struct {
+	Key         string
+	Value       []byte
+	Description string
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Outlet struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

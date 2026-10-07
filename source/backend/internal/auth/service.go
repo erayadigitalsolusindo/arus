@@ -1,4 +1,4 @@
-// Package auth: pendaftaran tenant baru dan (nanti) login. Use-case = satu transaksi DB (AGENTS.md §3.2).
+// Package auth: pendaftaran tenant baru, login, refresh, dan logout. Use-case = satu transaksi DB (AGENTS.md §3.2).
 package auth
 
 import (
@@ -94,14 +94,20 @@ type Identity struct {
 	Email string `json:"email,omitempty"`
 }
 
+// Profile = identitas pengguna yang sedang masuk (dipakai klien untuk tampilan; bukan sumber otorisasi).
+type Profile struct {
+	User   Identity `json:"user"`
+	Tenant Identity `json:"tenant"`
+	Outlet Identity `json:"outlet"`
+}
+
 type Session struct {
-	AccessToken  string        `json:"access_token"`
-	ExpiresIn    int           `json:"expires_in"`
-	User         Identity      `json:"user"`
-	Tenant       Identity      `json:"tenant"`
-	Outlet       Identity      `json:"outlet"`
-	RefreshToken string        `json:"-"`
-	RefreshTTL   time.Duration `json:"-"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	Profile
+	// RefreshToken kosong pada jendela grace (cookie baru sudah dikirim oleh permintaan lain).
+	RefreshToken string `json:"-"`
+	Remember     bool   `json:"-"`
 }
 
 // Register membuat tenant + outlet pertama + role Owner + user Owner dalam satu transaksi,
@@ -167,26 +173,33 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 	if err != nil {
 		return nil, err
 	}
-	refresh, err := s.sessions.Create(ctx, user.ID.String(), pauth.RefreshTTLRemember)
+	refresh, err := s.sessions.Create(ctx, user.ID.String(), true)
 	if err != nil {
 		return nil, err
 	}
-	return &Session{
-		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()),
-		User:         Identity{ID: user.ID.String(), Name: user.Name, Email: user.Email},
-		Tenant:       Identity{ID: tenant.ID.String(), Code: tenant.Code, Name: tenant.Name},
-		Outlet:       Identity{ID: outlet.ID.String(), Code: outlet.Code, Name: outlet.Name},
-		RefreshToken: refresh, RefreshTTL: pauth.RefreshTTLRemember,
-	}, nil
+	return buildSession(account{
+		UserID: user.ID, UserName: user.Name, Email: user.Email, RoleName: role.Name,
+		TenantID: tenant.ID, TenantCode: tenant.Code, TenantName: tenant.Name,
+		OutletID: outlet.ID, OutletCode: outlet.Code, OutletName: outlet.Name,
+	}, access, refresh, true), nil
 }
 
-func (s *Service) hash(ctx context.Context, password string) (string, error) {
+func (s *Service) acquire(ctx context.Context) error {
 	select {
 	case s.hashSem <- struct{}{}:
-		defer func() { <-s.hashSem }()
+		return nil
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return ctx.Err()
 	}
+}
+
+func (s *Service) release() { <-s.hashSem }
+
+func (s *Service) hash(ctx context.Context, password string) (string, error) {
+	if err := s.acquire(ctx); err != nil {
+		return "", err
+	}
+	defer s.release()
 	return pauth.HashPassword(password)
 }
 

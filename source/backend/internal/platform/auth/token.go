@@ -13,6 +13,11 @@ const AccessTTL = 15 * time.Minute
 
 const issuer = "aciraba"
 
+var (
+	ErrTokenExpired = errors.New("token kedaluwarsa")
+	ErrTokenInvalid = errors.New("token tidak valid")
+)
+
 // Claims: sub = user, tid = tenant, oid = outlet aktif, role = nama role.
 type Claims struct {
 	TenantID string `json:"tid"`
@@ -45,8 +50,11 @@ func (t *TokenIssuer) Parse(token string) (*Claims, error) {
 	var c Claims
 	_, err := jwt.ParseWithClaims(token, &c, func(*jwt.Token) (any, error) { return t.secret, nil },
 		jwt.WithValidMethods([]string{"HS256"}), jwt.WithIssuer(issuer), jwt.WithExpirationRequired())
+	if errors.Is(err, jwt.ErrTokenExpired) {
+		return nil, ErrTokenExpired
+	}
 	if err != nil {
-		return nil, errors.New("token tidak valid")
+		return nil, ErrTokenInvalid
 	}
 	return &c, nil
 }
