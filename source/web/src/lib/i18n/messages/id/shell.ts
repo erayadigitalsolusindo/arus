@@ -3,6 +3,14 @@ export default {
   closeMenu: 'Tutup menu',
   expandSidebar: 'Perluas sidebar',
   collapseSidebar: 'Ciutkan sidebar',
+  tabs: 'Tab halaman',
+  closeTab: 'Tutup tab',
+  unsaved: {
+    title: 'Perubahan belum disimpan',
+    body: 'Isian form ini belum disimpan dan akan hilang jika Anda meninggalkan halaman. Buang perubahan?',
+    stay: 'Tetap di sini',
+    discard: 'Buang perubahan'
+  },
   mainNav: 'Navigasi utama',
   sidebar: 'Sidebar',
   search: 'Cari barang, nota, pelanggan…',
