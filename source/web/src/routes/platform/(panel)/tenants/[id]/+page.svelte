@@ -158,7 +158,7 @@
                   <span class="font-semibold">{u.name}</span>
                   <span class="block text-[11px] text-[var(--text-tertiary)]">{u.email} · {u.email_verified ? t('platform.tenant.verified') : t('platform.tenant.unverified')}</span>
                 </td>
-                <td class="p-3">{u.role_name}{#if u.administrator} <span class="badge-warning rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold">{t('platform.tenant.administrator')}</span>{/if}</td>
+                <td class="p-3">{u.role_name}</td>
                 <td class="p-3 whitespace-nowrap">{u.last_login_at ? formatDateTime(u.last_login_at, { dateStyle: 'medium', timeStyle: 'short' }) : t('platform.tenants.never')}</td>
                 <td class="p-3"><span class="rounded-md px-2 py-0.5 text-[11px] font-semibold {u.active ? 'badge-success' : 'badge-danger'}">{u.active ? t('platform.tenants.active') : t('platform.tenants.inactive')}</span></td>
               </tr>

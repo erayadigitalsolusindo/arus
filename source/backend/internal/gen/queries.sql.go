@@ -224,7 +224,7 @@ type AuthzListAccessibleOutletsParams struct {
 	UserID     uuid.UUID
 }
 
-// Outlet aktif yang boleh diakses pengguna: semua bila Administrator (izin `*`), selain itu yang ditugaskan di user_outlets.
+// Outlet aktif yang boleh diakses pengguna: semua bila Owner (izin `*`), selain itu yang ditugaskan di user_outlets.
 func (q *Queries) AuthzListAccessibleOutlets(ctx context.Context, arg AuthzListAccessibleOutletsParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, authzListAccessibleOutlets, arg.TenantID, arg.AllOutlets, arg.UserID)
 	if err != nil {
@@ -1051,7 +1051,7 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 }
 
 const platformAdminByEmail = `-- name: PlatformAdminByEmail :one
-SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at
+SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at, totp_secret_enc, totp_enabled_at, totp_last_step
 FROM platform_admins WHERE lower(email) = lower($1)
 `
 
@@ -1069,12 +1069,15 @@ func (q *Queries) PlatformAdminByEmail(ctx context.Context, email string) (Platf
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecretEnc,
+		&i.TotpEnabledAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }
 
 const platformAdminByID = `-- name: PlatformAdminByID :one
-SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at
+SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at, totp_secret_enc, totp_enabled_at, totp_last_step
 FROM platform_admins WHERE id = $1
 `
 
@@ -1092,6 +1095,9 @@ func (q *Queries) PlatformAdminByID(ctx context.Context, id uuid.UUID) (Platform
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecretEnc,
+		&i.TotpEnabledAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }
@@ -1108,7 +1114,7 @@ func (q *Queries) PlatformAdminCount(ctx context.Context) (int64, error) {
 }
 
 const platformAdminList = `-- name: PlatformAdminList :many
-SELECT id, email, name, active, last_login_at, created_at, created_by
+SELECT id, email, name, active, last_login_at, created_at, created_by, (totp_enabled_at IS NOT NULL)::boolean AS mfa_enabled
 FROM platform_admins ORDER BY created_at, id
 `
 
@@ -1120,6 +1126,7 @@ type PlatformAdminListRow struct {
 	LastLoginAt pgtype.Timestamptz
 	CreatedAt   pgtype.Timestamptz
 	CreatedBy   pgtype.UUID
+	MfaEnabled  bool
 }
 
 func (q *Queries) PlatformAdminList(ctx context.Context) ([]PlatformAdminListRow, error) {
@@ -1139,6 +1146,7 @@ func (q *Queries) PlatformAdminList(ctx context.Context) ([]PlatformAdminListRow
 			&i.LastLoginAt,
 			&i.CreatedAt,
 			&i.CreatedBy,
+			&i.MfaEnabled,
 		); err != nil {
 			return nil, err
 		}
@@ -1237,6 +1245,17 @@ func (q *Queries) PlatformAuditList(ctx context.Context, arg PlatformAuditListPa
 	return items, nil
 }
 
+const platformRecoveryRemaining = `-- name: PlatformRecoveryRemaining :one
+SELECT count(*) FROM platform_recovery_codes WHERE admin_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) PlatformRecoveryRemaining(ctx context.Context, adminID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, platformRecoveryRemaining, adminID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const platformTenantGet = `-- name: PlatformTenantGet :one
 SELECT id, code, name, active, created_at FROM tenants WHERE id = $1
 `
@@ -1317,7 +1336,7 @@ func (q *Queries) PlatformTenantSetActive(ctx context.Context, arg PlatformTenan
 }
 
 const platformTenantUsers = `-- name: PlatformTenantUsers :many
-SELECT u.id, u.name, u.email, u.active, r.name AS role_name, COALESCE((r.permissions->>'*')::boolean, false)::boolean AS administrator,
+SELECT u.id, u.name, u.email, u.active, r.name AS role_name,
        u.last_login_at, (u.email_verified_at IS NOT NULL)::boolean AS email_verified, u.created_at
 FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE u.tenant_id = $1 ORDER BY u.created_at, u.id
@@ -1329,7 +1348,6 @@ type PlatformTenantUsersRow struct {
 	Email         string
 	Active        bool
 	RoleName      string
-	Administrator bool
 	LastLoginAt   pgtype.Timestamptz
 	EmailVerified bool
 	CreatedAt     pgtype.Timestamptz
@@ -1350,7 +1368,6 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 			&i.Email,
 			&i.Active,
 			&i.RoleName,
-			&i.Administrator,
 			&i.LastLoginAt,
 			&i.EmailVerified,
 			&i.CreatedAt,

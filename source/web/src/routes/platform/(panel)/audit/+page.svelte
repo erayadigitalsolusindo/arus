@@ -4,7 +4,7 @@
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
-  const ACTIONS = ['platform.login', 'platform.impersonate', 'platform.tenant_status', 'platform.admin_create', 'platform.admin_status', 'platform.admin_password', 'platform.setup'] as const;
+  const ACTIONS = ['platform.login', 'platform.impersonate', 'platform.tenant_status', 'platform.admin_create', 'platform.admin_status', 'platform.admin_password', 'platform.mfa_enable', 'platform.mfa_disable', 'platform.mfa_reset', 'platform.mfa_recovery', 'platform.setup'] as const;
 
   let action = $state('');
   let items = $state<PlatformAuditItem[]>([]);

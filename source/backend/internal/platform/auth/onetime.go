@@ -13,12 +13,14 @@ import (
 const (
 	PurposeVerifyEmail   = "verify_email"
 	PurposePasswordReset = "password_reset"
+	PurposePlatformMFA   = "platform_mfa" // tantangan login Platform Admin setelah password benar (menunggu kode TOTP)
 )
 
 // Umur token.
 const (
 	VerifyEmailTTL   = 24 * time.Hour
 	PasswordResetTTL = 30 * time.Minute
+	PlatformMFATTL   = 5 * time.Minute
 )
 
 // ErrInvalidToken: token tidak dikenal, sudah dipakai, atau kedaluwarsa (sengaja tidak dibedakan).

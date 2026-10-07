@@ -74,7 +74,7 @@ func (r *Resolver) For(ctx context.Context, tenantID, userID uuid.UUID) (Access,
 			return ErrInactive
 		}
 		perms := ParseStored(row.Permissions)
-		// Administrator (izin `*`) mengakses semua outlet aktif tanpa penugasan; yang lain hanya outlet yang ditugaskan.
+		// Owner (izin `*`) mengakses semua outlet aktif tanpa penugasan; yang lain hanya outlet yang ditugaskan.
 		ids, err := q.AuthzListAccessibleOutlets(ctx, gen.AuthzListAccessibleOutletsParams{TenantID: tenantID, AllOutlets: perms.All, UserID: userID})
 		if err != nil {
 			return err

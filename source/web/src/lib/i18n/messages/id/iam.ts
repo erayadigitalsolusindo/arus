@@ -99,10 +99,6 @@ export default {
     deleted: 'Role dihapus.',
     empty: 'Belum ada role.',
     loadFailed: 'Gagal memuat data role.',
-    administrator: 'Administrator (akses penuh)',
-    administratorHint: 'Akses ke semua menu dan aksi (termasuk menu yang ditambahkan nanti) serta semua outlet, tanpa filter. Hanya Administrator yang dapat memberikan atau mengubah role ini.',
-    administratorBadge: 'Administrator',
-    administratorOnly: 'Hanya Administrator yang dapat membuat atau mengubah role akses penuh.',
     notYours: 'Di luar izin Anda'
   }
 };

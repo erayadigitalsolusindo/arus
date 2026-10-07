@@ -9,8 +9,6 @@ import (
 type roleRequest struct {
 	Name        string              `json:"name"`
 	Permissions map[string][]string `json:"permissions"`
-	// Administrator: role akses penuh (semua menu/aksi + semua outlet). Hanya Administrator yang boleh memberikannya.
-	Administrator bool `json:"administrator"`
 }
 
 func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +34,7 @@ func (h *Handler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	role, err := h.svc.CreateRole(r.Context(), actor(r), req.Name, req.Permissions, req.Administrator)
+	role, err := h.svc.CreateRole(r.Context(), actor(r), req.Name, req.Permissions)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -53,7 +51,7 @@ func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	role, err := h.svc.UpdateRole(r.Context(), actor(r), id, req.Name, req.Permissions, req.Administrator)
+	role, err := h.svc.UpdateRole(r.Context(), actor(r), id, req.Name, req.Permissions)
 	if err != nil {
 		h.fail(w, r, err)
 		return

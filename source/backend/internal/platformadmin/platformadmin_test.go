@@ -33,6 +33,9 @@ type env struct {
 	router http.Handler
 	perms  *authz.Resolver
 	tokens *pauth.TokenIssuer
+	// clock = jam layanan (dimajukan test agar kode TOTP berikutnya berada di periode baru; periode yang sama ditolak sebagai replay).
+	clock   time.Time
+	secrets map[string]string // email → rahasia TOTP
 }
 
 // newEnv = layanan sungguhan di atas DB/Redis uji (TEST_DATABASE_URL = role aplikasi, TEST_ADMIN_DATABASE_URL = pemilik).
@@ -62,10 +65,17 @@ func newEnv(t *testing.T, setupToken string) *env {
 
 	tokens := pauth.NewTokenIssuer(testSecret)
 	perms := authz.NewResolver(app)
-	svc := NewService(Deps{
+	box, err := pauth.NewTOTPBox(testSecret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := &env{app: app, admin: admin, perms: perms, tokens: tokens, clock: time.Now(), secrets: map[string]string{}}
+	e.svc = NewService(Deps{
 		Pool: app, Tokens: tokens, PTokens: pauth.NewPlatformTokenIssuer(testSecret), Sessions: pauth.NewSessions(rdb),
-		Perms: perms, SetupToken: setupToken,
+		OneTime: pauth.NewOneTime(rdb), TOTP: box, Perms: perms, SetupToken: setupToken,
 	})
+	e.svc.now = func() time.Time { return e.clock }
+	svc := e.svc
 	perms.WithPlatform(svc)
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -80,7 +90,8 @@ func newEnv(t *testing.T, setupToken string) *env {
 		a, _ := authz.ActorFrom(req.Context())
 		httpx.JSON(w, http.StatusOK, map[string]any{"name": a.Name, "outlets": len(a.Outlets), "all": a.Perms.All})
 	})
-	return &env{svc: svc, app: app, admin: admin, router: r, perms: perms, tokens: tokens}
+	e.router = r
+	return e
 }
 
 // dropAdmin menghapus admin uji beserta jejak auditnya.
@@ -102,7 +113,32 @@ func (e *env) newAdmin(t *testing.T, name string) (id uuid.UUID, email, password
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { e.dropAdmin(id) })
+	e.enroll(t, id, name, email)
 	return id, email, "sandi-aman-123"
+}
+
+// enroll mendaftarkan 2FA lewat layanan (alur sebenarnya) dan menyimpan rahasianya untuk membuat kode login.
+func (e *env) enroll(t *testing.T, id uuid.UUID, name, email string) []string {
+	t.Helper()
+	a := Actor{ID: id, Name: name}
+	setup, err := e.svc.BeginMFA(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _ := pauth.TOTPCode(setup.Secret, e.clock)
+	codes, err := e.svc.EnableMFA(context.Background(), a, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.secrets[email] = setup.Secret
+	return codes
+}
+
+// nextCode memajukan jam layanan satu periode lalu membuat kode untuk rahasia email itu.
+func (e *env) nextCode(email string) string {
+	e.clock = e.clock.Add(31 * time.Second)
+	c, _ := pauth.TOTPCode(e.secrets[email], e.clock)
+	return c
 }
 
 type tenantFixture struct {
@@ -150,9 +186,14 @@ func (e *env) do(method, path, token string, body string) *httptest.ResponseReco
 
 func (e *env) loginToken(t *testing.T, email, password string) string {
 	t.Helper()
-	s, err := e.svc.Login(context.Background(), email, password, false)
+	s, mfa, err := e.svc.Login(context.Background(), email, password, false)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if mfa != "" {
+		if s, err = e.svc.LoginMFA(context.Background(), mfa, e.nextCode(email)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return s.AccessToken
 }
@@ -327,7 +368,7 @@ func TestKelolaAdminDanTenant(t *testing.T) {
 	if rec := e.do("GET", "/platform/auth/me", tok2, ""); rec.Code != 401 {
 		t.Errorf("token admin nonaktif: %d, want 401", rec.Code)
 	}
-	if _, err := e.svc.Login(ctx, newEmail, "sandi-aman-456", false); !errors.Is(err, ErrAccountDisabled) {
+	if _, _, err := e.svc.Login(ctx, newEmail, "sandi-aman-456", false); !errors.Is(err, ErrAccountDisabled) {
 		t.Errorf("login admin nonaktif: %v", err)
 	}
 	// Admin aktif terakhir tidak boleh dinonaktifkan (oleh admin lain): aktifkan 2 dulu, nonaktifkan 1 oleh 2 → ok; lalu 2 sisa.
@@ -338,10 +379,10 @@ func TestKelolaAdminDanTenant(t *testing.T) {
 	if rec := e.do("PUT", "/platform/admins/"+id2.String()+"/password", tok, `{"password":"sandi-baru-789"}`); rec.Code != 204 {
 		t.Fatalf("reset password: %d %s", rec.Code, rec.Body)
 	}
-	if _, err := e.svc.Login(ctx, newEmail, "sandi-aman-456", false); !errors.Is(err, ErrInvalidCredentials) {
+	if _, _, err := e.svc.Login(ctx, newEmail, "sandi-aman-456", false); !errors.Is(err, ErrInvalidCredentials) {
 		t.Errorf("password lama: %v", err)
 	}
-	if _, err := e.svc.Login(ctx, newEmail, "sandi-baru-789", false); err != nil {
+	if _, _, err := e.svc.Login(ctx, newEmail, "sandi-baru-789", false); err != nil {
 		t.Errorf("password baru: %v", err)
 	}
 

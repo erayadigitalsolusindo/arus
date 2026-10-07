@@ -74,7 +74,9 @@ func run() error {
 	jobs := background.New(log, 16, 30*time.Second)
 	defer jobs.Wait() // email yang sedang dikirim diselesaikan dulu saat shutdown
 
-	mountModules(r, appDeps{Cfg: cfg, Log: log, Pool: pool, Redis: rdb, Mailer: mail, Jobs: jobs})
+	if err := mountModules(r, appDeps{Cfg: cfg, Log: log, Pool: pool, Redis: rdb, Mailer: mail, Jobs: jobs}); err != nil {
+		return err
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

@@ -20,33 +20,33 @@ func TestRoleLifecycleAndEscalation(t *testing.T) {
 	if !kasir.Permissions.Has("sales_orders", "view") {
 		t.Error("view harus otomatis menyertai aksi lain")
 	}
-	if _, err := e.svc.CreateRole(ctx, e.owner, "Kasir", nil, false); !errors.Is(err, ErrNameTaken) {
+	if _, err := e.svc.CreateRole(ctx, e.owner, "Kasir", nil); !errors.Is(err, ErrNameTaken) {
 		t.Errorf("nama ganda err = %v, want ErrNameTaken", err)
 	}
 	var fe FieldErrors
-	if _, err := e.svc.CreateRole(ctx, e.owner, "X", map[string][]string{"*": {"view"}}, false); !errors.As(err, &fe) || fe["permissions"] == "" {
+	if _, err := e.svc.CreateRole(ctx, e.owner, "X", map[string][]string{"*": {"view"}}); !errors.As(err, &fe) || fe["permissions"] == "" {
 		t.Errorf("wildcard lewat API harus ditolak sebagai VALIDATION, err = %v", err)
 	}
-	if _, err := e.svc.CreateRole(ctx, e.owner, "", nil, false); !errors.As(err, &fe) || fe["name"] == "" {
+	if _, err := e.svc.CreateRole(ctx, e.owner, "", nil); !errors.As(err, &fe) || fe["name"] == "" {
 		t.Errorf("nama kosong harus ditolak, err = %v", err)
 	}
 
 	// Admin (bukan Owner) hanya boleh memberi izin yang ia miliki.
 	adminRole := e.role(t, e.owner, "Admin", map[string][]string{"items": {"view", "create"}, "roles": {"create", "update", "delete"}, "users": {"create", "update"}})
 	admin := e.actor(uuid.New(), adminRole.Permissions)
-	if _, err := e.svc.CreateRole(ctx, admin, "Curang", map[string][]string{"items": {"delete"}}, false); !errors.Is(err, ErrEscalation) {
+	if _, err := e.svc.CreateRole(ctx, admin, "Curang", map[string][]string{"items": {"delete"}}); !errors.Is(err, ErrEscalation) {
 		t.Errorf("admin memberi izin di luar miliknya: err = %v, want ErrEscalation", err)
 	}
 	magang := e.role(t, e.owner, "Magang", map[string][]string{"items": {"view"}})
-	if _, err := e.svc.UpdateRole(ctx, admin, magang.ID, "Magang", map[string][]string{"items": {"view", "create"}}, false); err != nil {
+	if _, err := e.svc.UpdateRole(ctx, admin, magang.ID, "Magang", map[string][]string{"items": {"view", "create"}}); err != nil {
 		t.Errorf("admin mengubah role dalam jangkauannya: %v", err)
 	}
 	// Kasir punya izin yang tidak dimiliki admin (sales_orders): di luar jangkauan.
-	if _, err := e.svc.UpdateRole(ctx, admin, kasir.ID, "Kasir", nil, false); !errors.Is(err, ErrEscalation) {
+	if _, err := e.svc.UpdateRole(ctx, admin, kasir.ID, "Kasir", nil); !errors.Is(err, ErrEscalation) {
 		t.Errorf("mengubah role di luar jangkauan: err = %v, want ErrEscalation", err)
 	}
 	super := e.role(t, e.owner, "Super", map[string][]string{"items": {"delete"}})
-	if _, err := e.svc.UpdateRole(ctx, admin, super.ID, "Super", map[string][]string{}, false); !errors.Is(err, ErrEscalation) {
+	if _, err := e.svc.UpdateRole(ctx, admin, super.ID, "Super", map[string][]string{}); !errors.Is(err, ErrEscalation) {
 		t.Errorf("mengubah role atasan: err = %v, want ErrEscalation", err)
 	}
 	if err := e.svc.DeleteRole(ctx, admin, super.ID); !errors.Is(err, ErrEscalation) {
@@ -54,7 +54,7 @@ func TestRoleLifecycleAndEscalation(t *testing.T) {
 	}
 
 	// Role sistem Owner kebal.
-	if _, err := e.svc.UpdateRole(ctx, e.owner, e.ownerRol, "Owner", map[string][]string{"items": {"view"}}, false); !errors.Is(err, ErrSystemRole) {
+	if _, err := e.svc.UpdateRole(ctx, e.owner, e.ownerRol, "Owner", map[string][]string{"items": {"view"}}); !errors.Is(err, ErrSystemRole) {
 		t.Errorf("ubah Owner: err = %v, want ErrSystemRole", err)
 	}
 	if err := e.svc.DeleteRole(ctx, e.owner, e.ownerRol); !errors.Is(err, ErrSystemRole) {
@@ -106,7 +106,7 @@ func TestTenantIsolationOfIAM(t *testing.T) {
 	userB := b.user(t, b.owner, fmt.Sprintf("b-%d-%s@iam.test", os.Getpid(), b.tenant.String()[:6]), roleB.ID)
 
 	// Pemilik tenant A tidak dapat melihat, mengubah, atau memakai data tenant B walaupun mengetahui id-nya.
-	if _, err := a.svc.UpdateRole(ctx, a.owner, roleB.ID, "Diretas", nil, false); !errors.Is(err, ErrNotFound) {
+	if _, err := a.svc.UpdateRole(ctx, a.owner, roleB.ID, "Diretas", nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("update role tenant lain: err = %v, want ErrNotFound", err)
 	}
 	if err := a.svc.DeleteRole(ctx, a.owner, roleB.ID); !errors.Is(err, ErrNotFound) {
@@ -132,5 +132,18 @@ func TestTenantIsolationOfIAM(t *testing.T) {
 	// Menugaskan outlet milik tenant lain ditolak (aplikasi dan FK komposit).
 	if _, err := a.svc.CreateUser(ctx, a.owner, CreateUserInput{Name: "X", Email: fmt.Sprintf("d-%d@iam.test", os.Getpid()), Password: goodPassword, RoleID: a.role(t, a.owner, "K", nil).ID, OutletIDs: []uuid.UUID{b.outlet}}); err == nil {
 		t.Error("outlet tenant lain seharusnya ditolak")
+	}
+}
+
+// Izin penuh ("*") hanya untuk role sistem Owner: tak bisa dibuat lewat API maupun langsung ke DB.
+func TestWildcardOnlyForSystemRole(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	var fe FieldErrors
+	if _, err := e.svc.CreateRole(ctx, e.owner, "Curang", map[string][]string{"*": {"view"}}); !errors.As(err, &fe) || fe["permissions"] == "" {
+		t.Errorf("wildcard lewat API: %v, want VALIDATION permissions", err)
+	}
+	if _, err := e.admin.Exec(ctx, `INSERT INTO roles (tenant_id, name, permissions) VALUES ($1, 'Dewa', '{"*":true}')`, e.tenant); err == nil {
+		t.Error("DB harus menolak role non-sistem berizin *")
 	}
 }

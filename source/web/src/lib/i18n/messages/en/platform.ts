@@ -7,7 +7,7 @@ const platform: Messages['platform'] = {
     text: 'Platform Admin mode (read-only): {tenant} · {outlet}. Data changes are disabled.',
     exit: 'Exit this mode'
   },
-  nav: { tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
+  nav: { security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',
@@ -16,6 +16,11 @@ const platform: Messages['platform'] = {
     remember: 'Keep me signed in',
     submit: 'Sign in',
     emailRequired: 'Email is required.',
+    mfaPrompt: 'Password accepted. Enter the 6-digit code from your authenticator app (or one of your recovery codes).',
+    code: '2FA code',
+    codeHelp: 'Lost access to the app? Use a recovery code (format ABCDE-FGHJK).',
+    verify: 'Verify',
+    back: 'Back',
     passwordRequired: 'Password is required.'
   },
   setup: {
@@ -69,13 +74,40 @@ const platform: Messages['platform'] = {
     userName: 'Name',
     verified: 'Verified',
     unverified: 'Not verified',
-    administrator: 'Administrator',
     noOutlets: 'No outlets yet.',
     noUsers: 'No users yet.',
     auditTitle: 'Recent tenant activity',
     auditEmpty: 'No records yet.',
     loadMore: 'Load more',
     noActiveOutlet: 'This tenant has no active outlet.'
+  },
+  security: {
+    title: 'Account security',
+    subtitle: 'Two-step verification (2FA) is required for Platform Admins because this account can see all tenant data.',
+    required: 'Enable 2FA to open the panel. Until then, only this page is available.',
+    totpTitle: 'Authenticator app (TOTP)',
+    on: 'On',
+    off: 'Not enabled',
+    enableHelp: 'Use Google Authenticator, Authy, 1Password, or any other TOTP app. You will be asked for a 6-digit code every time you sign in.',
+    start: 'Start enabling 2FA',
+    step1: 'Scan the QR code with your authenticator app (or type the manual key).',
+    step2: 'Enter the 6-digit code it shows to confirm.',
+    qrAlt: 'QR code for the authenticator app',
+    manualKey: 'Manual key',
+    code: 'Code',
+    confirm: 'Confirm and enable',
+    invalidCode: 'The code is wrong or already used. Wait for the next code and try again.',
+    recoveryTitle: 'Save your recovery codes',
+    recoveryHelp: 'Each code works once and is only shown now. Keep them somewhere safe (password manager / vault). They are your only way in if you lose your phone.',
+    copy: 'Copy',
+    copied: 'Recovery codes copied.',
+    download: 'Download .txt',
+    savedIt: 'I have saved them',
+    recoveryLeft: { one: '{count} recovery code left.', other: '{count} recovery codes left.' },
+    regen: 'Regenerate recovery codes',
+    regenHelp: 'Enter a code from your authenticator app. All old recovery codes stop working immediately.',
+    disable: 'Disable 2FA',
+    disableHelp: 'Requires your password and a code. All your sessions are signed out and you must enroll 2FA again at next sign-in.'
   },
   admins: {
     title: 'Platform Admins',
@@ -96,6 +128,9 @@ const platform: Messages['platform'] = {
     created: 'Platform Admin added.',
     passwordChanged: 'Password changed and all sessions revoked.',
     disableConfirm: 'Deactivate {name}? All their sessions are revoked immediately.',
+    resetMfa: 'Reset 2FA',
+    resetMfaConfirm: 'Reset {name}\x27s 2FA? Their sessions are revoked and they must enroll 2FA again. Only do this if their device is lost.',
+    mfaReset: '2FA reset.',
     selfPasswordNote: 'Changing your own password signs you out of all devices.'
   },
   audit: {
@@ -110,6 +145,10 @@ const platform: Messages['platform'] = {
     empty: 'No records yet.',
     loadMore: 'Load more',
     actions: {
+      platform_mfa_enable: 'Enabled 2FA',
+      platform_mfa_disable: 'Disabled 2FA',
+      platform_mfa_reset: 'Reset another admin\x27s 2FA',
+      platform_mfa_recovery: 'Regenerated recovery codes',
       platform_setup: 'First admin setup',
       platform_login: 'Signed in',
       platform_admin_create: 'Added Platform Admin',

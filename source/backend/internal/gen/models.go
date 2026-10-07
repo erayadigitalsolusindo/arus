@@ -56,6 +56,9 @@ type PlatformAdmin struct {
 	CreatedBy        pgtype.UUID
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	TotpSecretEnc    pgtype.Text
+	TotpEnabledAt    pgtype.Timestamptz
+	TotpLastStep     int64
 }
 
 type PlatformAuditLog struct {
@@ -69,6 +72,12 @@ type PlatformAuditLog struct {
 	Ip         string
 	RequestID  string
 	CreatedAt  pgtype.Timestamptz
+}
+
+type PlatformRecoveryCode struct {
+	AdminID  uuid.UUID
+	CodeHash string
+	UsedAt   pgtype.Timestamptz
 }
 
 type Role struct {

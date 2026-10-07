@@ -88,7 +88,6 @@ type UserRow struct {
 	Email         string     `json:"email"`
 	Active        bool       `json:"active"`
 	RoleName      string     `json:"role_name"`
-	Administrator bool       `json:"administrator"`
 	LastLoginAt   *time.Time `json:"last_login_at"`
 	EmailVerified bool       `json:"email_verified"`
 	CreatedAt     time.Time  `json:"created_at"`
@@ -127,7 +126,7 @@ func (s *Service) Tenant(ctx context.Context, id uuid.UUID) (*TenantDetail, erro
 			out.Outlets = append(out.Outlets, OutletRow{ID: o.ID, Code: o.Code, Name: o.Name, Active: o.Active})
 		}
 		for _, u := range users {
-			row := UserRow{ID: u.ID, Name: u.Name, Email: u.Email, Active: u.Active, RoleName: u.RoleName, Administrator: u.Administrator,
+			row := UserRow{ID: u.ID, Name: u.Name, Email: u.Email, Active: u.Active, RoleName: u.RoleName,
 				EmailVerified: u.EmailVerified, CreatedAt: u.CreatedAt.Time}
 			if u.LastLoginAt.Valid {
 				t := u.LastLoginAt.Time

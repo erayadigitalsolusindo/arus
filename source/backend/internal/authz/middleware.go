@@ -32,6 +32,7 @@ type Actor struct {
 type PlatformAdmin struct {
 	Name       string
 	ValidAfter time.Time
+	MFA        bool // 2FA (TOTP) sudah aktif
 }
 
 // PlatformChecker dipasang di Resolver (WithPlatform) oleh modul platformadmin; authz tidak mengimpornya (hindari siklus).

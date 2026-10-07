@@ -52,6 +52,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Get("/platform/setup/status", h.SetupStatus)
 	r.With(httpx.RateLimit(h.Redis, "platform-setup", 10, time.Hour)).Post("/platform/setup", h.Setup)
 	r.With(httpx.RateLimit(h.Redis, "platform-login", 30, 15*time.Minute)).Post("/platform/auth/login", h.Login)
+	r.With(httpx.RateLimit(h.Redis, "platform-login-mfa", 30, 15*time.Minute)).Post("/platform/auth/login/mfa", h.LoginMFA)
 	r.With(csrf, httpx.RateLimit(h.Redis, "platform-refresh", 600, time.Hour)).Post("/platform/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/platform/auth/logout", h.Logout)
 
@@ -59,18 +60,30 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(authed, h.svc.Authenticate)
 		r.Get("/platform/auth/me", h.Me)
 
-		r.Get("/platform/tenants", h.ListTenants)
-		r.Get("/platform/tenants/{id}", h.GetTenant)
-		r.Patch("/platform/tenants/{id}", h.PatchTenant)
-		r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
-		r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
+		// Keamanan akun (2FA): satu-satunya area yang terbuka bagi admin yang belum mendaftarkan 2FA.
+		r.Get("/platform/security", h.MFAStatus)
+		r.Post("/platform/security/totp/begin", h.MFABegin)
+		r.Post("/platform/security/totp/enable", h.MFAEnable)
+		r.Post("/platform/security/totp/disable", h.MFADisable)
+		r.Post("/platform/security/recovery-codes", h.MFARecovery)
 
-		r.Get("/platform/admins", h.ListAdmins)
-		r.Post("/platform/admins", h.CreateAdmin)
-		r.Patch("/platform/admins/{id}", h.PatchAdmin)
-		r.Put("/platform/admins/{id}/password", h.SetPassword)
+		// Selebihnya wajib 2FA aktif (Platform Admin = akses ke semua data pelanggan).
+		r.Group(func(r chi.Router) {
+			r.Use(requireMFA)
+			r.Get("/platform/tenants", h.ListTenants)
+			r.Get("/platform/tenants/{id}", h.GetTenant)
+			r.Patch("/platform/tenants/{id}", h.PatchTenant)
+			r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
+			r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
 
-		r.Get("/platform/audit", h.Audit)
+			r.Get("/platform/admins", h.ListAdmins)
+			r.Post("/platform/admins", h.CreateAdmin)
+			r.Patch("/platform/admins/{id}", h.PatchAdmin)
+			r.Put("/platform/admins/{id}/password", h.SetPassword)
+
+			r.Get("/platform/audit", h.Audit)
+			r.Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
+		})
 	})
 }
 
@@ -207,7 +220,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.Retry(w, "ACCOUNT_LOCKED", "Terlalu banyak percobaan gagal. Coba lagi nanti.", locked)
 		return
 	}
-	sess, err := h.svc.Login(r.Context(), email, req.Password, req.Remember)
+	sess, mfaToken, err := h.svc.Login(r.Context(), email, req.Password, req.Remember)
 	switch {
 	case errors.Is(err, ErrInvalidCredentials):
 		res, lerr := h.Lockout.RecordFailure(r.Context(), ip, emailHash)
@@ -228,6 +241,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Lockout.Reset(r.Context(), ip, emailHash); err != nil {
 		h.Log.Error("reset kunci login platform", "err", err)
+	}
+	if mfaToken != "" {
+		// Password benar, 2FA aktif: belum ada sesi. Klien melanjutkan ke /platform/auth/login/mfa.
+		httpx.JSON(w, http.StatusOK, map[string]any{"mfa_required": true, "mfa_token": mfaToken})
+		return
 	}
 	h.setRefreshCookie(w, sess)
 	httpx.JSON(w, http.StatusOK, sess)

@@ -52,18 +52,15 @@ func (s *Service) AssignableRoles(ctx context.Context, actor authz.Actor) ([]Rol
 	return out, nil
 }
 
-// validRoleInput memvalidasi input role. administrator=true menjadikan role akses penuh (`{"*":true}`): semua menu/aksi dan
-// semua outlet tanpa filter; `perms` diabaikan. Wildcard hanya bisa dibuat lewat flag ini (Normalize menolak "*").
-func validRoleInput(name string, perms map[string][]string, administrator bool) (string, authz.Permissions, FieldErrors) {
+// validRoleInput memvalidasi input role. Wildcard ("*", akses penuh) tidak pernah bisa dibuat lewat API: hanya role sistem
+// Owner yang memilikinya (Normalize menolak "*"; DB menjaga dengan CHECK roles_wildcard_only_system).
+func validRoleInput(name string, perms map[string][]string) (string, authz.Permissions, FieldErrors) {
 	f := FieldErrors{}
 	n, code := sanitize.Name(name, maxRoleName)
 	setCode(f, "name", code)
-	p := authz.Permissions{All: true}
-	if !administrator {
-		var err error
-		if p, err = authz.Normalize(perms); err != nil {
-			f["permissions"] = "INVALID"
-		}
+	p, err := authz.Normalize(perms)
+	if err != nil {
+		f["permissions"] = "INVALID"
 	}
 	if len(f) > 0 {
 		return "", authz.Permissions{}, f
@@ -71,8 +68,8 @@ func validRoleInput(name string, perms map[string][]string, administrator bool) 
 	return n, p, nil
 }
 
-func (s *Service) CreateRole(ctx context.Context, actor authz.Actor, name string, perms map[string][]string, administrator bool) (*Role, error) {
-	n, p, f := validRoleInput(name, perms, administrator)
+func (s *Service) CreateRole(ctx context.Context, actor authz.Actor, name string, perms map[string][]string) (*Role, error) {
+	n, p, f := validRoleInput(name, perms)
 	if f != nil {
 		return nil, f
 	}
@@ -89,7 +86,7 @@ func (s *Service) CreateRole(ctx context.Context, actor authz.Actor, name string
 		}
 		return audit.Record(ctx, tx, audit.FromActor(actor), audit.Entry{
 			Action: audit.ActionRoleCreate, Entity: audit.EntityRole, EntityID: row.ID.String(),
-			Details: map[string]any{"name": n, "permissions": p.Grants, "administrator": p.All},
+			Details: map[string]any{"name": n, "permissions": p.Grants},
 		})
 	})
 	if isUnique(err, "roles_tenant_name_key") {
@@ -102,8 +99,8 @@ func (s *Service) CreateRole(ctx context.Context, actor authz.Actor, name string
 	return &Role{ID: row.ID, Name: row.Name, Permissions: p, IsSystem: row.IsSystem}, nil
 }
 
-func (s *Service) UpdateRole(ctx context.Context, actor authz.Actor, id uuid.UUID, name string, perms map[string][]string, administrator bool) (*Role, error) {
-	n, p, f := validRoleInput(name, perms, administrator)
+func (s *Service) UpdateRole(ctx context.Context, actor authz.Actor, id uuid.UUID, name string, perms map[string][]string) (*Role, error) {
+	n, p, f := validRoleInput(name, perms)
 	if f != nil {
 		return nil, f
 	}
@@ -133,8 +130,8 @@ func (s *Service) UpdateRole(ctx context.Context, actor authz.Actor, id uuid.UUI
 		return audit.Record(ctx, tx, audit.FromActor(actor), audit.Entry{
 			Action: audit.ActionRoleUpdate, Entity: audit.EntityRole, EntityID: id.String(),
 			Details: map[string]any{
-				"before": map[string]any{"name": cur.Name, "permissions": curPerms.Grants, "administrator": curPerms.All},
-				"after":  map[string]any{"name": n, "permissions": p.Grants, "administrator": p.All},
+				"before": map[string]any{"name": cur.Name, "permissions": curPerms.Grants},
+				"after":  map[string]any{"name": n, "permissions": p.Grants},
 			},
 		})
 	})
