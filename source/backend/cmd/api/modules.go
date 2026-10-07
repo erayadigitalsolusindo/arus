@@ -10,7 +10,9 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
 	"aciraba/internal/authz"
+	"aciraba/internal/catalog"
 	"aciraba/internal/iam"
+	"aciraba/internal/item"
 	"aciraba/internal/outlet"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
@@ -66,5 +68,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
 	audit.NewHandler(audit.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	catalog.NewHandler(catalog.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	item.NewHandler(item.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

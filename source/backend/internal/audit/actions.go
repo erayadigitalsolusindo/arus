@@ -38,3 +38,42 @@ const (
 	ActionPlatformImpersonate  = "platform.impersonate"
 	ActionPlatformTenantStatus = "platform.tenant_status"
 )
+
+// Master pendukung katalog (Fase 3.1). Aksi `<entitas>.active` = arsip/aktifkan kembali.
+const (
+	EntityUnit      = "unit"
+	EntityCategory  = "category"
+	EntityBrand     = "brand"
+	EntityPrincipal = "principal"
+	EntitySupplier  = "supplier"
+
+	ActionUnitCreate = "unit.create"
+	ActionUnitUpdate = "unit.update"
+	ActionUnitActive = "unit.active"
+
+	ActionCategoryCreate = "category.create"
+	ActionCategoryUpdate = "category.update"
+	ActionCategoryActive = "category.active"
+
+	ActionBrandCreate = "brand.create"
+	ActionBrandUpdate = "brand.update"
+	ActionBrandActive = "brand.active"
+
+	ActionPrincipalCreate = "principal.create"
+	ActionPrincipalUpdate = "principal.update"
+	ActionPrincipalActive = "principal.active"
+
+	ActionSupplierCreate = "supplier.create"
+	ActionSupplierUpdate = "supplier.update"
+	ActionSupplierActive = "supplier.active"
+)
+
+// Daftar item (Fase 3.2). `item.price` mencatat perubahan harga jual (default/cabang) terpisah dari `item.update`.
+const (
+	EntityItem = "item"
+
+	ActionItemCreate = "item.create"
+	ActionItemUpdate = "item.update"
+	ActionItemPrice  = "item.price"
+	ActionItemActive = "item.active"
+)

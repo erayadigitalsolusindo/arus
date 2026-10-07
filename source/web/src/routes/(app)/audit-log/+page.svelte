@@ -4,7 +4,7 @@
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
-  const ENTITIES = ['user', 'role', 'outlet', 'session', 'tenant'] as const;
+  const ENTITIES = ['user', 'role', 'outlet', 'session', 'tenant', 'unit', 'category', 'brand', 'principal', 'supplier', 'item'] as const;
   const ACTIONS = [
     'auth.register', 'auth.login', 'auth.password_reset', 'auth.password_change', 'auth.email_verified', 'auth.outlet_switch',
     'user.create', 'user.update', 'user.password_reset', 'role.create', 'role.update', 'role.delete', 'outlet.create', 'outlet.update', 'platform.impersonate', 'platform.tenant_status'

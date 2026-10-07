@@ -10,6 +10,8 @@ import outlets from './outlets.ts';
 import audit from './audit.ts';
 import legal from './legal.ts';
 import platform from './platform.ts';
+import catalog from './catalog.ts';
+import items from './items.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items };

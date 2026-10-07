@@ -33,7 +33,7 @@ export const nav: NavGroup[] = [
         labelKey: 'nav.itemList',
         icon: 'package',
         children: [
-          { labelKey: 'nav.itemList', module: 'items' },
+          { labelKey: 'nav.itemList', module: 'items', href: '/items' },
           { labelKey: 'nav.stockCard', module: 'stock_card' },
           { labelKey: 'nav.coupons', module: 'coupons' }
         ]
@@ -43,7 +43,7 @@ export const nav: NavGroup[] = [
         labelKey: 'nav.people',
         icon: 'contact-round',
         children: [
-          { labelKey: 'nav.suppliers', module: 'suppliers' },
+          { labelKey: 'nav.suppliers', module: 'suppliers', href: '/suppliers' },
           { labelKey: 'nav.members', module: 'members' },
           { labelKey: 'nav.salespeople', module: 'salespeople' }
         ]
@@ -53,12 +53,12 @@ export const nav: NavGroup[] = [
         labelKey: 'nav.support',
         icon: 'database',
         children: [
-          { labelKey: 'nav.units', module: 'units' },
-          { labelKey: 'nav.categories', module: 'categories' },
+          { labelKey: 'nav.units', module: 'units', href: '/units' },
+          { labelKey: 'nav.categories', module: 'categories', href: '/categories' },
           { labelKey: 'nav.memberCategories', module: 'member_categories' },
           { labelKey: 'nav.paymentMethods', module: 'payment_methods' },
-          { labelKey: 'nav.brands', module: 'brands' },
-          { labelKey: 'nav.principals', module: 'principals' }
+          { labelKey: 'nav.brands', module: 'brands', href: '/brands' },
+          { labelKey: 'nav.principals', module: 'principals', href: '/principals' }
         ]
       }
     ]

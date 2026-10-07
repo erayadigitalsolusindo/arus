@@ -32,6 +32,61 @@ type AuditLog struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Brand struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type Category struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type Item struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	WeightGrams        decimal.Decimal
+	LastCost           decimal.Decimal
+	AvgCost            decimal.Decimal
+	SellPrice          decimal.Decimal
+	UnitID             uuid.UUID
+	CategoryID         pgtype.UUID
+	BrandID            pgtype.UUID
+	PrincipalID        pgtype.UUID
+	SupplierID         pgtype.UUID
+	Kind               string
+	AllowNegativeStock bool
+	SellBelowCost      bool
+	Description        string
+	Active             bool
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+}
+
+type ItemCounter struct {
+	TenantID uuid.UUID
+	LastNo   int64
+}
+
+type ItemOutletPrice struct {
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	OutletID  uuid.UUID
+	SellPrice decimal.Decimal
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Outlet struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -80,12 +135,36 @@ type PlatformRecoveryCode struct {
 	UsedAt   pgtype.Timestamptz
 }
 
+type Principal struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Role struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
 	Name        string
 	Permissions []byte
 	IsSystem    bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type Supplier struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
 }
@@ -98,6 +177,15 @@ type Tenant struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	OnboardingCompletedAt pgtype.Timestamptz
+}
+
+type Unit struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }
 
 type User struct {
