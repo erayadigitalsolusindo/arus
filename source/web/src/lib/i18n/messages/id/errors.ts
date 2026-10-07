@@ -21,6 +21,8 @@ export default {
   SYSTEM_ROLE: 'Role sistem tidak dapat diubah atau dihapus.',
   ROLE_IN_USE: 'Role masih dipakai pengguna. Pindahkan penggunanya dulu.',
   NAME_TAKEN: 'Nama ini sudah dipakai.',
+  CODE_TAKEN: 'Kode ini sudah dipakai.',
+  BARCODE_TAKEN: 'Barcode ini sudah dipakai barang lain.',
   LAST_OWNER: 'Pemilik aktif terakhir tidak boleh dinonaktifkan atau diganti rolenya.',
   SELF_CHANGE: 'Anda tidak dapat menonaktifkan atau mengganti role akun sendiri.',
   INVALID_TOKEN: 'Tautan tidak valid atau sudah kedaluwarsa. Minta tautan baru.',

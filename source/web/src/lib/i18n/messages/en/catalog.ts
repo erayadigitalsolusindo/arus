@@ -1,0 +1,57 @@
+import type { Messages } from '../../types.ts';
+
+const catalog: Messages['catalog'] = {
+  search: 'Search name…',
+  filter: { all: 'All statuses', active: 'Active', inactive: 'Inactive' },
+  name: 'Name',
+  status: 'Status',
+  active: 'Active',
+  inactive: 'Inactive',
+  save: 'Save',
+  saving: 'Saving…',
+  cancel: 'Cancel',
+  close: 'Close',
+  edit: 'Edit',
+  view: 'View',
+  archive: 'Deactivate',
+  restore: 'Reactivate',
+  archived: '“{name}” was deactivated.',
+  restored: '“{name}” was reactivated.',
+  saved: 'Changes saved.',
+  created: 'Record added.',
+  empty: 'No records yet.',
+  emptySearch: 'No matching records.',
+  loadFailed: 'Failed to load data.',
+  range: 'Showing {from}–{to} of {total}',
+  prev: 'Previous',
+  next: 'Next',
+  archiveHint: 'Records are never permanently deleted; inactive ones are hidden from pickers but kept in history.',
+  units: { docTitle: 'Units | ACIRABA', title: 'Units', subtitle: 'Units of measure, e.g. pcs, box, kg.', add: 'Add Unit', edit: 'Edit Unit' },
+  categories: { docTitle: 'Categories | ACIRABA', title: 'Categories', subtitle: 'Item groupings, e.g. drinks, snacks.', add: 'Add Category', edit: 'Edit Category' },
+  brands: { docTitle: 'Brands | ACIRABA', title: 'Brands', subtitle: 'Item brands.', add: 'Add Brand', edit: 'Edit Brand' },
+  principals: { docTitle: 'Principals | ACIRABA', title: 'Principals', subtitle: 'Brand owners or rights holders.', add: 'Add Principal', edit: 'Edit Principal' },
+  suppliers: {
+    docTitle: 'Suppliers | ACIRABA',
+    title: 'Suppliers',
+    subtitle: 'Vendors you buy goods from.',
+    add: 'Add Supplier',
+    edit: 'Edit Supplier',
+    search: 'Search name or code…',
+    code: 'Code',
+    codeHint: 'Optional; letters, digits, dot, dash or slash (max 30).',
+    contact: 'Contact name',
+    phone: 'Phone',
+    email: 'Email',
+    address: 'Address',
+    note: 'Notes'
+  },
+  combobox: {
+    placeholder: 'Select…',
+    searching: 'Searching…',
+    noResults: 'No results.',
+    clear: 'Clear selection',
+    loadFailed: 'Failed to load options.'
+  }
+};
+
+export default catalog;

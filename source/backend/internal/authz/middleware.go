@@ -167,3 +167,22 @@ func Require(module, action string) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// RequireAny meneruskan permintaan bila pemanggil punya SALAH SATU izin (modul, aksi) yang diberikan.
+// Dipakai mis. untuk pencarian master pendukung yang boleh dibaca pemegang izin master itu atau izin item.
+func RequireAny(pairs ...[2]string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			a, ok := ActorFrom(req.Context())
+			if ok {
+				for _, p := range pairs {
+					if a.Perms.Has(p[0], p[1]) {
+						next.ServeHTTP(w, req)
+						return
+					}
+				}
+			}
+			httpx.Error(w, http.StatusForbidden, "FORBIDDEN", "Anda tidak memiliki izin untuk tindakan ini.")
+		})
+	}
+}

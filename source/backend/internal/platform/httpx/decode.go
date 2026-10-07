@@ -15,11 +15,16 @@ const MaxBodyBytes = 16 << 10
 // field tak dikenal ditolak, dan hanya satu nilai JSON yang diizinkan. Bila gagal, respons error
 // sudah ditulis dan false dikembalikan.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	return DecodeJSONLimit(w, r, dst, MaxBodyBytes)
+}
+
+// DecodeJSONLimit = DecodeJSON dengan batas ukuran sendiri, untuk body yang sah lebih besar (mis. teks keterangan item).
+func DecodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, maxBytes int64) bool {
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != "application/json" {
 		Error(w, http.StatusUnsupportedMediaType, "UNSUPPORTED_MEDIA_TYPE", "Content-Type harus application/json.")
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {

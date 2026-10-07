@@ -22,6 +22,8 @@ const errors: Messages['errors'] = {
   SYSTEM_ROLE: 'System roles cannot be edited or deleted.',
   ROLE_IN_USE: 'This role is still assigned to users. Reassign them first.',
   NAME_TAKEN: 'This name is already taken.',
+  CODE_TAKEN: 'This code is already taken.',
+  BARCODE_TAKEN: 'This barcode is already used by another item.',
   LAST_OWNER: 'The last active owner cannot be deactivated or have their role changed.',
   SELF_CHANGE: 'You cannot deactivate your own account or change its role.',
   INVALID_TOKEN: 'The link is invalid or has expired. Request a new one.',

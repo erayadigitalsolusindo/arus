@@ -827,6 +827,513 @@ func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (i
 	return result.RowsAffected(), nil
 }
 
+const itemCreate = `-- name: ItemCreate :one
+INSERT INTO items (tenant_id, sku, barcode, name, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
+                   brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
+VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14, $15, $16)
+RETURNING id
+`
+
+type ItemCreateParams struct {
+	TenantID           uuid.UUID
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	WeightGrams        decimal.Decimal
+	Cost               decimal.Decimal
+	SellPrice          decimal.Decimal
+	UnitID             uuid.UUID
+	CategoryID         pgtype.UUID
+	BrandID            pgtype.UUID
+	PrincipalID        pgtype.UUID
+	SupplierID         pgtype.UUID
+	Kind               string
+	AllowNegativeStock bool
+	SellBelowCost      bool
+	Description        string
+}
+
+func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, itemCreate,
+		arg.TenantID,
+		arg.Sku,
+		arg.Barcode,
+		arg.Name,
+		arg.WeightGrams,
+		arg.Cost,
+		arg.SellPrice,
+		arg.UnitID,
+		arg.CategoryID,
+		arg.BrandID,
+		arg.PrincipalID,
+		arg.SupplierID,
+		arg.Kind,
+		arg.AllowNegativeStock,
+		arg.SellBelowCost,
+		arg.Description,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const itemGet = `-- name: ItemGet :one
+SELECT i.id, i.sku, i.barcode, i.name, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
+       i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
+       i.unit_id, u.name AS unit_name,
+       i.category_id, c.name AS category_name,
+       i.brand_id, b.name AS brand_name,
+       i.principal_id, p.name AS principal_name,
+       i.supplier_id, s.name AS supplier_name
+FROM items i
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
+LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
+LEFT JOIN principals p ON p.tenant_id = i.tenant_id AND p.id = i.principal_id
+LEFT JOIN suppliers s ON s.tenant_id = i.tenant_id AND s.id = i.supplier_id
+WHERE i.tenant_id = $1 AND i.id = $2
+`
+
+type ItemGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ItemGetRow struct {
+	ID                 uuid.UUID
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	WeightGrams        decimal.Decimal
+	LastCost           decimal.Decimal
+	AvgCost            decimal.Decimal
+	SellPrice          decimal.Decimal
+	Kind               string
+	AllowNegativeStock bool
+	SellBelowCost      bool
+	Description        string
+	Active             bool
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	UnitID             uuid.UUID
+	UnitName           string
+	CategoryID         pgtype.UUID
+	CategoryName       pgtype.Text
+	BrandID            pgtype.UUID
+	BrandName          pgtype.Text
+	PrincipalID        pgtype.UUID
+	PrincipalName      pgtype.Text
+	SupplierID         pgtype.UUID
+	SupplierName       pgtype.Text
+}
+
+func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, error) {
+	row := q.db.QueryRow(ctx, itemGet, arg.TenantID, arg.ID)
+	var i ItemGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Barcode,
+		&i.Name,
+		&i.WeightGrams,
+		&i.LastCost,
+		&i.AvgCost,
+		&i.SellPrice,
+		&i.Kind,
+		&i.AllowNegativeStock,
+		&i.SellBelowCost,
+		&i.Description,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UnitID,
+		&i.UnitName,
+		&i.CategoryID,
+		&i.CategoryName,
+		&i.BrandID,
+		&i.BrandName,
+		&i.PrincipalID,
+		&i.PrincipalName,
+		&i.SupplierID,
+		&i.SupplierName,
+	)
+	return i, err
+}
+
+const itemGetForUpdate = `-- name: ItemGetForUpdate :one
+SELECT id, sku, barcode, name, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
+       unit_id, category_id, brand_id, principal_id, supplier_id
+FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type ItemGetForUpdateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ItemGetForUpdateRow struct {
+	ID                 uuid.UUID
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	WeightGrams        decimal.Decimal
+	SellPrice          decimal.Decimal
+	Kind               string
+	AllowNegativeStock bool
+	SellBelowCost      bool
+	Active             bool
+	UnitID             uuid.UUID
+	CategoryID         pgtype.UUID
+	BrandID            pgtype.UUID
+	PrincipalID        pgtype.UUID
+	SupplierID         pgtype.UUID
+}
+
+// Kunci baris item selama transaksi (ubah bersamaan tidak saling menimpa; audit "sebelum" selalu benar).
+func (q *Queries) ItemGetForUpdate(ctx context.Context, arg ItemGetForUpdateParams) (ItemGetForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, itemGetForUpdate, arg.TenantID, arg.ID)
+	var i ItemGetForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Barcode,
+		&i.Name,
+		&i.WeightGrams,
+		&i.SellPrice,
+		&i.Kind,
+		&i.AllowNegativeStock,
+		&i.SellBelowCost,
+		&i.Active,
+		&i.UnitID,
+		&i.CategoryID,
+		&i.BrandID,
+		&i.PrincipalID,
+		&i.SupplierID,
+	)
+	return i, err
+}
+
+const itemList = `-- name: ItemList :many
+SELECT i.id, i.sku, i.barcode, i.name, i.kind, i.active,
+       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
+       count(*) OVER () AS total
+FROM items i
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
+LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+WHERE i.tenant_id = $2
+  AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
+  AND ($4::boolean IS NULL OR i.active = $4)
+  AND ($5::uuid IS NULL OR i.category_id = $5)
+ORDER BY lower(i.name), i.id
+LIMIT $7 OFFSET $6
+`
+
+type ItemListParams struct {
+	OutletID   uuid.UUID
+	TenantID   uuid.UUID
+	Q          string
+	Active     pgtype.Bool
+	CategoryID pgtype.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type ItemListRow struct {
+	ID           uuid.UUID
+	Sku          string
+	Barcode      pgtype.Text
+	Name         string
+	Kind         string
+	Active       bool
+	DefaultPrice decimal.Decimal
+	OutletPrice  pgtype.Numeric
+	UnitName     string
+	CategoryName pgtype.Text
+	BrandName    pgtype.Text
+	Total        int64
+}
+
+// Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
+func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListRow, error) {
+	rows, err := q.db.Query(ctx, itemList,
+		arg.OutletID,
+		arg.TenantID,
+		arg.Q,
+		arg.Active,
+		arg.CategoryID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemListRow
+	for rows.Next() {
+		var i ItemListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Barcode,
+			&i.Name,
+			&i.Kind,
+			&i.Active,
+			&i.DefaultPrice,
+			&i.OutletPrice,
+			&i.UnitName,
+			&i.CategoryName,
+			&i.BrandName,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemNextNo = `-- name: ItemNextNo :one
+INSERT INTO item_counters (tenant_id, last_no) VALUES ($1, 1)
+ON CONFLICT (tenant_id) DO UPDATE SET last_no = item_counters.last_no + 1
+RETURNING last_no
+`
+
+func (q *Queries) ItemNextNo(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, itemNextNo, tenantID)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const itemOutletPriceDelete = `-- name: ItemOutletPriceDelete :exec
+DELETE FROM item_outlet_prices
+WHERE tenant_id = $1 AND item_id = $2 AND outlet_id = ANY($3::uuid[])
+`
+
+type ItemOutletPriceDeleteParams struct {
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	OutletIds []uuid.UUID
+}
+
+// Menghapus harga khusus cabang (kembali ke harga default) untuk outlet yang boleh diakses pemanggil.
+func (q *Queries) ItemOutletPriceDelete(ctx context.Context, arg ItemOutletPriceDeleteParams) error {
+	_, err := q.db.Exec(ctx, itemOutletPriceDelete, arg.TenantID, arg.ItemID, arg.OutletIds)
+	return err
+}
+
+const itemOutletPriceUpsert = `-- name: ItemOutletPriceUpsert :exec
+INSERT INTO item_outlet_prices (tenant_id, item_id, outlet_id, sell_price) VALUES ($1, $2, $3, $4)
+ON CONFLICT (item_id, outlet_id) DO UPDATE SET sell_price = EXCLUDED.sell_price
+`
+
+type ItemOutletPriceUpsertParams struct {
+	TenantID  uuid.UUID
+	ItemID    uuid.UUID
+	OutletID  uuid.UUID
+	SellPrice decimal.Decimal
+}
+
+func (q *Queries) ItemOutletPriceUpsert(ctx context.Context, arg ItemOutletPriceUpsertParams) error {
+	_, err := q.db.Exec(ctx, itemOutletPriceUpsert,
+		arg.TenantID,
+		arg.ItemID,
+		arg.OutletID,
+		arg.SellPrice,
+	)
+	return err
+}
+
+const itemOutletPrices = `-- name: ItemOutletPrices :many
+SELECT o.id AS outlet_id, o.name AS outlet_name, op.sell_price
+FROM outlets o
+LEFT JOIN item_outlet_prices op ON op.tenant_id = o.tenant_id AND op.outlet_id = o.id AND op.item_id = $1
+WHERE o.tenant_id = $2 AND o.id = ANY($3::uuid[])
+ORDER BY o.created_at, o.code
+`
+
+type ItemOutletPricesParams struct {
+	ItemID    uuid.UUID
+	TenantID  uuid.UUID
+	OutletIds []uuid.UUID
+}
+
+type ItemOutletPricesRow struct {
+	OutletID   uuid.UUID
+	OutletName string
+	SellPrice  pgtype.Numeric
+}
+
+// Harga khusus cabang untuk outlet yang boleh diakses pemanggil (satu baris per outlet; harga NULL = pakai default).
+func (q *Queries) ItemOutletPrices(ctx context.Context, arg ItemOutletPricesParams) ([]ItemOutletPricesRow, error) {
+	rows, err := q.db.Query(ctx, itemOutletPrices, arg.ItemID, arg.TenantID, arg.OutletIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemOutletPricesRow
+	for rows.Next() {
+		var i ItemOutletPricesRow
+		if err := rows.Scan(&i.OutletID, &i.OutletName, &i.SellPrice); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemRefState = `-- name: ItemRefState :one
+SELECT
+  coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM units      x WHERE x.tenant_id = $1 AND x.id = $2),      'missing')::text AS unit_state,
+  coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM categories x WHERE x.tenant_id = $1 AND x.id = $3),  'missing')::text AS category_state,
+  coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM brands     x WHERE x.tenant_id = $1 AND x.id = $4),     'missing')::text AS brand_state,
+  coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM principals x WHERE x.tenant_id = $1 AND x.id = $5), 'missing')::text AS principal_state,
+  coalesce((SELECT CASE WHEN x.active THEN 'active' ELSE 'archived' END FROM suppliers  x WHERE x.tenant_id = $1 AND x.id = $6),  'missing')::text AS supplier_state
+`
+
+type ItemRefStateParams struct {
+	TenantID    uuid.UUID
+	UnitID      pgtype.UUID
+	CategoryID  pgtype.UUID
+	BrandID     pgtype.UUID
+	PrincipalID pgtype.UUID
+	SupplierID  pgtype.UUID
+}
+
+type ItemRefStateRow struct {
+	UnitState      string
+	CategoryState  string
+	BrandState     string
+	PrincipalState string
+	SupplierState  string
+}
+
+// Status master yang dirujuk item (satu kueri untuk lima master): 'active' | 'archived' | 'missing'.
+func (q *Queries) ItemRefState(ctx context.Context, arg ItemRefStateParams) (ItemRefStateRow, error) {
+	row := q.db.QueryRow(ctx, itemRefState,
+		arg.TenantID,
+		arg.UnitID,
+		arg.CategoryID,
+		arg.BrandID,
+		arg.PrincipalID,
+		arg.SupplierID,
+	)
+	var i ItemRefStateRow
+	err := row.Scan(
+		&i.UnitState,
+		&i.CategoryState,
+		&i.BrandState,
+		&i.PrincipalState,
+		&i.SupplierState,
+	)
+	return i, err
+}
+
+const itemSetActive = `-- name: ItemSetActive :one
+UPDATE items SET active = $3 WHERE tenant_id = $1 AND id = $2 RETURNING id, sku, name, active
+`
+
+type ItemSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type ItemSetActiveRow struct {
+	ID     uuid.UUID
+	Sku    string
+	Name   string
+	Active bool
+}
+
+func (q *Queries) ItemSetActive(ctx context.Context, arg ItemSetActiveParams) (ItemSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, itemSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i ItemSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Active,
+	)
+	return i, err
+}
+
+const itemSkuExists = `-- name: ItemSkuExists :one
+SELECT EXISTS (SELECT 1 FROM items WHERE tenant_id = $1 AND lower(sku) = lower($2))
+`
+
+type ItemSkuExistsParams struct {
+	TenantID uuid.UUID
+	Lower    string
+}
+
+func (q *Queries) ItemSkuExists(ctx context.Context, arg ItemSkuExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, itemSkuExists, arg.TenantID, arg.Lower)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const itemUpdate = `-- name: ItemUpdate :exec
+UPDATE items SET sku = $1, barcode = $2, name = $3, weight_grams = $4, sell_price = $5,
+       unit_id = $6, category_id = $7, brand_id = $8, principal_id = $9,
+       supplier_id = $10, kind = $11, allow_negative_stock = $12,
+       sell_below_cost = $13, description = $14
+WHERE tenant_id = $15 AND id = $16
+`
+
+type ItemUpdateParams struct {
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	WeightGrams        decimal.Decimal
+	SellPrice          decimal.Decimal
+	UnitID             uuid.UUID
+	CategoryID         pgtype.UUID
+	BrandID            pgtype.UUID
+	PrincipalID        pgtype.UUID
+	SupplierID         pgtype.UUID
+	Kind               string
+	AllowNegativeStock bool
+	SellBelowCost      bool
+	Description        string
+	TenantID           uuid.UUID
+	ID                 uuid.UUID
+}
+
+// HPP (last_cost/avg_cost) sengaja tidak ada di sini: hanya diubah transaksi pembelian/stok.
+func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
+	_, err := q.db.Exec(ctx, itemUpdate,
+		arg.Sku,
+		arg.Barcode,
+		arg.Name,
+		arg.WeightGrams,
+		arg.SellPrice,
+		arg.UnitID,
+		arg.CategoryID,
+		arg.BrandID,
+		arg.PrincipalID,
+		arg.SupplierID,
+		arg.Kind,
+		arg.AllowNegativeStock,
+		arg.SellBelowCost,
+		arg.Description,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
+}
+
 const outletAssignUser = `-- name: OutletAssignUser :exec
 INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING
@@ -1380,6 +1887,277 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const supplierCreate = `-- name: SupplierCreate :one
+INSERT INTO suppliers (tenant_id, code, name, contact_name, phone, email, address, note)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, code, name, contact_name, phone, email, address, note, active, created_at
+`
+
+type SupplierCreateParams struct {
+	TenantID    uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+}
+
+type SupplierCreateRow struct {
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) SupplierCreate(ctx context.Context, arg SupplierCreateParams) (SupplierCreateRow, error) {
+	row := q.db.QueryRow(ctx, supplierCreate,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.ContactName,
+		arg.Phone,
+		arg.Email,
+		arg.Address,
+		arg.Note,
+	)
+	var i SupplierCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.ContactName,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.Note,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const supplierGet = `-- name: SupplierGet :one
+SELECT id, code, name, contact_name, phone, email, address, note, active, created_at
+FROM suppliers WHERE tenant_id = $1 AND id = $2
+`
+
+type SupplierGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SupplierGetRow struct {
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) SupplierGet(ctx context.Context, arg SupplierGetParams) (SupplierGetRow, error) {
+	row := q.db.QueryRow(ctx, supplierGet, arg.TenantID, arg.ID)
+	var i SupplierGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.ContactName,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.Note,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const supplierList = `-- name: SupplierList :many
+SELECT id, code, name, contact_name, phone, email, address, note, active, created_at,
+       count(*) OVER () AS total
+FROM suppliers
+WHERE tenant_id = $1
+  AND ($2::text = '' OR name ILIKE '%' || $2 || '%' OR coalesce(code, '') ILIKE '%' || $2 || '%')
+  AND ($3::boolean IS NULL OR active = $3)
+ORDER BY lower(name), id
+LIMIT $5 OFFSET $4
+`
+
+type SupplierListParams struct {
+	TenantID   uuid.UUID
+	Q          string
+	Active     pgtype.Bool
+	PageOffset int32
+	PageLimit  int32
+}
+
+type SupplierListRow struct {
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+	Total       int64
+}
+
+func (q *Queries) SupplierList(ctx context.Context, arg SupplierListParams) ([]SupplierListRow, error) {
+	rows, err := q.db.Query(ctx, supplierList,
+		arg.TenantID,
+		arg.Q,
+		arg.Active,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SupplierListRow
+	for rows.Next() {
+		var i SupplierListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ContactName,
+			&i.Phone,
+			&i.Email,
+			&i.Address,
+			&i.Note,
+			&i.Active,
+			&i.CreatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const supplierSetActive = `-- name: SupplierSetActive :one
+UPDATE suppliers SET active = $3
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, contact_name, phone, email, address, note, active, created_at
+`
+
+type SupplierSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type SupplierSetActiveRow struct {
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) SupplierSetActive(ctx context.Context, arg SupplierSetActiveParams) (SupplierSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, supplierSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i SupplierSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.ContactName,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.Note,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const supplierUpdate = `-- name: SupplierUpdate :one
+UPDATE suppliers SET code = $3, name = $4, contact_name = $5, phone = $6, email = $7, address = $8, note = $9
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, contact_name, phone, email, address, note, active, created_at
+`
+
+type SupplierUpdateParams struct {
+	TenantID    uuid.UUID
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+}
+
+type SupplierUpdateRow struct {
+	ID          uuid.UUID
+	Code        pgtype.Text
+	Name        string
+	ContactName string
+	Phone       string
+	Email       string
+	Address     string
+	Note        string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) SupplierUpdate(ctx context.Context, arg SupplierUpdateParams) (SupplierUpdateRow, error) {
+	row := q.db.QueryRow(ctx, supplierUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.Code,
+		arg.Name,
+		arg.ContactName,
+		arg.Phone,
+		arg.Email,
+		arg.Address,
+		arg.Note,
+	)
+	var i SupplierUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.ContactName,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.Note,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const touchLastLogin = `-- name: TouchLastLogin :exec

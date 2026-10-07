@@ -11,7 +11,9 @@ import outlets from './outlets.ts';
 import audit from './audit.ts';
 import legal from './legal.ts';
 import platform from './platform.ts';
+import catalog from './catalog.ts';
+import items from './items.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items };
 
 export default en;
