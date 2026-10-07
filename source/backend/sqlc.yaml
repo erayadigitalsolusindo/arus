@@ -1,0 +1,18 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    # Skema dibaca langsung dari migration goose (bagian Down diabaikan sqlc).
+    schema: "db/migrations"
+    # Setiap modul menaruh queries.sql di internal/<modul>/; seluruh kode hasil generate masuk satu paket internal/gen.
+    queries: "internal/*/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/gen"
+        sql_package: "pgx/v5"
+        emit_json_tags: false
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "pg_catalog.numeric"
+            go_type: "github.com/shopspring/decimal.Decimal"

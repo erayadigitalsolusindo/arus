@@ -12,6 +12,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"aciraba/internal/auth"
+	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/httpx"
@@ -57,11 +59,14 @@ func run() error {
 	}
 	defer rdb.Close()
 
-	r := httpx.NewRouter(log, cfg.CORSOrigins)
+	r := httpx.NewRouter(log, cfg.CORSOrigins, cfg.TrustProxy)
 	r.Get("/healthz", httpx.Healthz(map[string]httpx.Pinger{
 		"postgres": pool,
 		"redis":    redisPinger{rdb},
 	}))
+
+	authSvc := auth.NewService(pool, pauth.NewTokenIssuer(cfg.JWTSecret), pauth.NewSessions(rdb))
+	auth.NewHandler(authSvc, log, !cfg.IsDev()).Routes(r, rdb)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
