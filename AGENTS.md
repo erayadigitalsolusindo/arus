@@ -22,22 +22,24 @@ Bahasa komunikasi dengan pengguna: **Bahasa Indonesia**. Identifier kode: Bahasa
 | Frontend | **SvelteKit mode SPA** (`adapter-static`) memanggil API Go langsung. TanStack Query (svelte), **Tailwind v4**, bits-ui (headless) untuk komponen interaktif, zod. **Tidak ada lapisan CI4/PHP lagi.** |
 | UI/Visual | Template berbayar **Dreams Core** (Tailwind v4) di `reference/template/` = **acuan visual saja**. Yang ada adalah hasil build (HTML + asset ber-hash), bukan source. Porting ke komponen Svelte: ambil markup/class Tailwind & token warna (CSS variable `--sidebar-*` dll. di `assets/script-*.css`); **jangan** memakai JS bawaan template (vanilla/DOM manipulation). Lihat §5b. |
 | Printer | Satu **print-agent Go** (binary lokal di PC kasir, ESC/POS). Menggantikan `aciraba_printlocal` (Node) dan `aciraba_printer` (Python). |
-| Migrasi | **Per tenant**, bukan big-bang: ETL MySQL→Postgres, jalan paralel, rekonsiliasi laporan harian, lalu cutover. |
-| Verifikasi | **Golden test** dari nota nyata legacy: total, stok, poin, piutang, (jurnal) harus identik — kecuali bug legacy yang sengaja diperbaiki (§8). |
+| Data | **Aplikasi baru, data baru (diputuskan 2026-10-07).** Data legacy **tidak dimigrasikan**: tidak ada ETL, tidak ada sistem paralel, tidak ada kompatibilitas akun/password/format nota/skema dengan legacy. Toko mulai lewat **onboarding**: import barang (Excel/CSV), saldo awal stok (movement `OPENING`), saldo awal piutang/hutang (PRD §7.5b, §12). Legacy dipakai **hanya untuk memahami aturan bisnis**. |
+| Verifikasi | **Spec test**: contoh kasus perhitungan yang ditulis manual (input → total, pajak, kembalian, stok, poin, piutang) dan disetujui pengguna, disimpan di `source/tests/spec/`. Aturan mengikuti PRD (urutan hitung nota PRD §7.4), **bukan** meniru legacy — termasuk tidak meniru bug di §8. |
 
 ## 2. Status Saat Ini  ← PERBARUI SETIAP SESI
 
-- **Fase:** 0 — Fondasi, sebagian selesai (0.1, 0.2, 0.3, 0.5). Sisa: **0.4** (goose + sqlc + migration pertama). Roadmap: §2b.
+- **Fase:** 0 — Fondasi selesai (0.1–0.5). Fase 2.1 **sebagian**: pendaftaran (`POST /auth/register`) + halaman `/register` selesai; login/refresh/middleware/RLS belum. Roadmap: §2b.
 - **Toolchain di mesin pengguna (Windows 11, 2026-10-06):** Node v26 ✅, Docker ✅, **Go 1.27 ✅ (dipasang via winget; shell yang sudah terbuka perlu refresh PATH)**. psql/redis-cli lokal ❌ → pakai `docker exec`. Python ❌.
 - **Infra dev:** `cd source/deploy && docker compose --env-file .env up -d` → `aciraba_postgres` (PG16, `127.0.0.1:5433`) & `aciraba_redis` (Redis 7, `127.0.0.1:6380`). Port sengaja bukan default: di mesin ini sudah ada container proyek lain (`eds_postgres` :6969, `eds_redis` :6379, folder `erp-docker/`) — jangan disentuh. Kredensial dev di `deploy/.env` & `backend/.env` (di-gitignore; contoh di `.env.example`).
+- **DB dev:** migration goose `cd source/backend && goose -dir db/migrations postgres "$DATABASE_URL" up`; kode query dari `sqlc generate` (queries di `internal/<modul>/queries.sql`, hasil di `internal/gen`, dikomit). Mesin dev memakai Postgres `eds_postgres` :6969 (db `aciraba`) & Redis `eds_redis` db 1 (lihat `backend/.env`).
+- **Env backend baru:** `JWT_SECRET` (wajib, ≥32 karakter), `TRUST_PROXY` (default false; `true` hanya di belakang reverse proxy tepercaya — mengaktifkan `X-Forwarded-For` untuk IP klien/rate limit).
 - **Menjalankan:** API `cd source/backend && go run ./cmd/api` (:8080, `GET /healthz`); web: `.claude/launch.json` config `web` atau `cd source/web && npm run dev` (:5173). Test: `cd source/backend && go test ./...`, `cd source/web && npm run check`.
 - **Catatan SvelteKit 3 (terpasang 3.0.1, bukan 2):** konfigurasi adapter ada di `vite.config.ts` (tidak ada `svelte.config.js`); alias `$lib` dihapus → pakai `#lib/...` **dengan ekstensi** (`#lib/nav.ts`, `#lib/components/X.svelte`) lewat `imports` di `source/web/package.json`; butuh `typescript@6`.
 - **UI:** `source/web/src/lib/styles/dreams/dreams-core.css` = salinan build CSS template (token, komponen `.btn`/`.surface-card`/`.app-sidebar`, ikon lucide `icon-*` & phosphor `ph-*`) + font; 6 URL gambar demo diganti GIF 1px. Template menyembunyikan `<html>` sampai `data-theme` terpasang → di-set sinkron di `web/src/app.html`. Tailwind v4 (`@tailwindcss/vite`) hanya menambah utilitas baru. Logo ACIRABA = placeholder SVG di `web/static/`.
 - **Langkah berikutnya:**
-  1. 0.4: goose + sqlc, migration `tenants`, `outlets`, `users`, `roles` (desain §4).
-  2. Fase 2.1: login nyata (`POST /auth/login`). Halaman login sudah memanggilnya; sekarang API membalas 404 `NOT_FOUND` dan UI menampilkan pesannya. Route `(app)/*` belum dijaga auth; sidebar masih placeholder "Belum masuk".
-  3. Fase 1 (legacy discovery) bisa paralel.
-- **Belum dikerjakan:** pemetaan `kondisi` stored procedure yang masih dipakai (§9), golden test, ETL.
+  1. Fase 2.1 (sisa): `POST /auth/login` + `/auth/refresh` + logout (refresh token sudah dibuat saat register: cookie `refresh_token`, Path `/auth`, key Redis `refresh:<sha256>` → user id), middleware auth tenant/outlet dari JWT, RLS, penjaga route `(app)/*` di SPA, rotasi refresh token + CSRF untuk endpoint cookie. Halaman login sudah memanggil `/auth/login` (sekarang 404). Sidebar masih placeholder "Belum masuk".
+  2. Verifikasi email/OTP, halaman syarat layanan, trial/paket: belum diputuskan (register langsung aktif).
+  3. Fase 1 (aturan bisnis + spec test) bisa paralel.
+- **Belum dikerjakan:** daftar fitur IN/OUT scope, `docs/business-rules.md`, spec test.
 
 ## 2b. Roadmap Bertahap  ← centang `[x]` saat selesai; satu sesi = satu kotak (atau sebagian)
 
@@ -47,43 +49,45 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 - [x] 0.1 `git init`, `.gitignore` (termasuk `.env`, `reference/template/` bila repo akan publik — template berlisensi), struktur folder §5
 - [x] 0.2 `source/deploy/docker-compose.yml`: postgres 16, redis 7; `.env.example`
 - [x] 0.3 Install Go (atau dev container `golang`), `source/backend/` go module, `cmd/api` + `/healthz` (cek DB & Redis)
-- [ ] 0.4 goose + sqlc terpasang; migration pertama: `tenants`, `outlets`, `users`, `roles`
+- [x] 0.4 goose + sqlc terpasang; migration pertama: `tenants`, `outlets`, `users`, `roles`
 - [x] 0.5 `source/web/` SvelteKit SPA + Tailwind v4; layout shell (sidebar/topbar) diport dari `index.html` template; halaman `login` dari `login.html`
 
-**Fase 1 — Legacy discovery (paralel dengan Fase 0, tanpa menulis kode produk)**
-- [ ] 1.1 Daftar endpoint Node (205 route) + `KONDISI` SP yang benar-benar dipanggil CI4 → `docs/legacy-map.md`
-- [ ] 1.2 Tanyakan ke pengguna modul yang masih dipakai klien (§10) → tandai IN/OUT scope
-- [ ] 1.3 Ambil 10–20 nota nyata (tunai, kredit, split, retur, edit, grosir, diskon, resto) dari DB legacy → `source/tests/golden/` (anonimkan data pelanggan)
+**Fase 1 — Aturan bisnis & spec test (paralel dengan Fase 0, tanpa menulis kode produk)**
+- [ ] 1.1 Daftar fitur/menu legacy (dari `Routes.php` CI4 + router Node) → tanya pengguna mana yang dipakai → tandai IN/OUT scope di `docs/business-rules.md`
+- [ ] 1.2 Rangkum aturan perhitungan dari legacy (harga grosir, diskon, potongan, pajak toko/negara, biaya lain, pembulatan `PEMBULATANANGKA`, poin, piutang/DP, retur) ke `docs/business-rules.md`; tandai yang perlu keputusan pengguna (PRD Q6)
+- [ ] 1.3 Tulis 15–20 contoh kasus (tunai, split, kredit, grosir, diskon, pajak, biaya lain, edit, void, retur, saldo awal) dengan hasil yang dihitung manual → `source/tests/spec/*.yaml`; minta persetujuan pengguna
 
 **Fase 2 — Auth & Tenant**
-- [ ] 2.1 Login (bcrypt kompatibel hash legacy), JWT akses + refresh di Redis, middleware tenant/outlet, RLS
+- [ ] 2.1 Login email + password (akun baru, bukan migrasi), JWT akses + refresh di Redis, middleware tenant/outlet, RLS — **sebagian: register + JWT/argon2id/sesi refresh selesai (2026-10-07); login, refresh, middleware, RLS belum**
 - [ ] 2.2 Role & permission (port dari `JSONMENU`), UI dari `permission-matrix.html` / `role-builder.html`
 
 **Fase 3 — Master data**
 - [ ] 3.1 Satuan, kategori, brand, principal, supplier
 - [ ] 3.2 Barang + harga + grosir + diskon (UI `products-list.html`, `product-add.html`)
 - [ ] 3.3 Customer/member + poin
+- [ ] 3.4 Import barang & master pendukung dari Excel/CSV: template unduhan, pratinjau, validasi per baris, laporan error (PRD FR-ONB-01/02)
 
 **Fase 4 — Stok (inti)**
 - [ ] 4.1 `stock_balances` + `stock_movements` (3 bucket), service + test konkuren (2 kasir jual barang sama)
-- [ ] 4.2 Opname, mutasi antar outlet/bucket (UI `stock-transfer.html`), pecah satuan, kartu stok (UI `stock-movement-report.html`)
+- [ ] 4.2 Saldo awal stok (movement `OPENING`, manual + import) + kunci tanggal mulai operasional (FR-ONB-03, FR-ONB-07)
+- [ ] 4.3 Opname, mutasi antar outlet/bucket (UI `stock-transfer.html`), pecah satuan, kartu stok (UI `stock-movement-report.html`)
 
 **Fase 5 — Kasir/Penjualan (POS)**
 - [ ] 5.1 API simpan penjualan: harga dihitung server, idempotency, multi-payment, piutang otomatis, poin (tanpa bug §8)
-- [ ] 5.2 UI kasir (acuan `restaurant-pos.html`), keyboard-first; lulus golden test penjualan
-- [ ] 5.3 Edit/void nota, retur penjualan, pembayaran piutang
+- [ ] 5.2 UI kasir (acuan `restaurant-pos.html`), keyboard-first; lulus spec test penjualan
+- [ ] 5.3 Edit/void nota, retur penjualan, pembayaran piutang, saldo awal piutang (FR-ONB-04)
 - [ ] 5.4 print-agent Go + cetak struk
 
-**Fase 6 — Pembelian**: PO/pembelian, retur beli, hutang & pembayaran (UI `purchase-orders.html`, `suppliers.html`)
+**Fase 6 — Pembelian**: PO/pembelian, retur beli, hutang & pembayaran, saldo awal hutang (FR-ONB-05) (UI `purchase-orders.html`, `suppliers.html`)
 
 **Fase 7 — Laporan**: penjualan, pembelian, stok, piutang/hutang (UI `sales-report.html`, `stock-summary-report.html`, dll.) — query langsung/materialized view, bukan SP generik
 
-**Fase 8 — Modul opsional (sesuai scope 1.2)**: Resto/KDS (`table-floor-map.html`, `kds-queue.html`, Redis Pub/Sub), SIAK akuntansi (`ledger-explorer.html`, `accounting-dashboard.html`), Acipay, payment gateway
+**Fase 8 — Modul opsional (sesuai scope 1.1)**: Resto/KDS (`table-floor-map.html`, `kds-queue.html`, Redis Pub/Sub), SIAK akuntansi (`ledger-explorer.html`, `accounting-dashboard.html`), Acipay, payment gateway
 
-**Fase 9 — Migrasi data & cutover**
-- [ ] 9.1 `source/tools/legacy-etl`: MySQL → Postgres per tenant (mapping §4), validasi saldo stok & piutang
-- [ ] 9.2 Tenant pilot: jalan paralel 1–2 minggu, rekonsiliasi laporan harian
-- [ ] 9.3 Cutover bertahap tenant lain; legacy jadi read-only
+**Fase 9 — Onboarding & go-live (tanpa migrasi data, PRD §12)**
+- [ ] 9.1 Wizard setup tenant: profil → outlet (pajak, zona waktu, format nota) → user & role → import barang → saldo awal (FR-ONB-06)
+- [ ] 9.2 Checklist & panduan go-live toko pilot (opname malam H-1, ekspor laporan legacy untuk histori, pelatihan, rencana mundur)
+- [ ] 9.3 Toko pilot go-live; perbaikan minggu pertama; lalu onboarding toko lain bertahap
 
 ## 3. Prinsip Desain (invariant — wajib dipatuhi di semua modul)
 
@@ -98,6 +102,8 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 9. **Tanpa secret di repo.** `.env` di-gitignore; sediakan `.env.example`. Jangan salin kredensial/dump pelanggan dari legacy (legacy pernah meng-commit file service account Firebase/Google — jangan dibaca/disalin).
 
 ## 4. Desain Data Target (draf — boleh disempurnakan, tapi pertahankan invariant §3)
+
+Komentar `/* LEGACY */` di bawah hanya padanan istilah untuk membaca kode lama — **bukan** pemetaan migrasi; skema bebas didesain ulang. `stock_movements.ref_type` mencakup `OPENING` (saldo awal), `SALE`, `SALE_VOID`, `SALE_RETURN`, `PURCHASE`, `PURCHASE_RETURN`, `OPNAME`, `TRANSFER_OUT/IN`, `UNIT_CONVERSION`. Piutang/hutang saldo awal = dokumen bertipe `OPENING` tanpa nota sumber.
 
 ```
 tenants(id uuid pk, code text unique /*= legacy KODEUNIKMEMBER*/, name, ...)
@@ -129,6 +135,7 @@ aciraba_newgen/
   CLAUDE.md                ← pointer `@AGENTS.md` untuk Claude Code
   .cursor/rules/aciraba.mdc ← pointer alwaysApply untuk Cursor (cadangan)
   docs/PRD.md              ← Product Requirements Document (scope, FR/NFR, rilis R0–R5)
+  docs/business-rules.md   ← (Fase 1) aturan perhitungan & daftar fitur IN/OUT scope
   source/                  ← ROOT seluruh source code aplikasi (semua di bawah ini)
     backend/                 Go module
       cmd/api/               main.go
@@ -139,8 +146,8 @@ aciraba_newgen/
       sqlc.yaml
     web/                     SvelteKit SPA — src/routes/(auth)|(kasir)|(admin)|(laporan), src/lib/api, src/lib/stores
     print-agent/             Go — ESC/POS lokal
-    tools/legacy-etl/        ETL MySQL→Postgres + skrip rekonsiliasi
-    tests/golden/            fixture nota legacy + expected output
+    tools/                   skrip bantu dev (seed data demo, generator template import)
+    tests/spec/              contoh kasus perhitungan (YAML: input → expected) yang disetujui pengguna
     deploy/                  docker-compose.yml (postgres, redis, api, web), .env.example
 ```
 
@@ -171,13 +178,15 @@ Cara porting: buka HTML halaman terkait → salin struktur & class Tailwind ke k
 
 ## 6. Konvensi
 
-- Nama tabel/kolom/kode: **Inggris, snake_case** (`sale_lines`, `tenant_id`). Simpan pemetaan ke nama legacy di §7/§4 dan di `source/tools/legacy-etl`.
-- Teks UI dan pesan error untuk pengguna akhir: **Bahasa Indonesia**.
+- Nama tabel/kolom/kode: **Inggris, snake_case** (`sale_lines`, `tenant_id`). Padanan istilah legacy cukup di §4/§7.
+- Teks UI dan pesan error untuk pengguna akhir: **multi-bahasa (id = sumber kebenaran + fallback, en)**. **Dilarang menulis teks UI langsung di komponen** — pakai `t('domain.kunci')` dari `#lib/i18n/index.ts`. Kamus di `web/src/lib/i18n/messages/{id,en}/<domain>.ts`; `id` menentukan bentuk, bahasa lain bertipe `Messages` (kunci kurang/typo gagal di `npm run check`). Modul baru = satu file domain per bahasa + daftarkan di `index.ts`. Plural: `{ one, other }` + param `count`. Angka/uang/tanggal lewat `formatNumber/formatCurrency/formatDate/formatDateTime` (bukan `toLocaleString` manual). Error API: terjemahan lewat `errors.<CODE>` (`errorMessage()`), server cukup mengirim `code` stabil; klien mengirim `Accept-Language`. Bahasa baru: tambah di `locales.ts` + folder kamus.
 - Error API: JSON `{ "error": { "code": "STOCK_INSUFFICIENT", "message": "..." } }` + HTTP status yang benar (bukan selalu 200 seperti legacy).
 - Auth: access token JWT pendek (≤15 menit) + refresh token di Redis (httpOnly cookie). Klaim: `sub`, `tid` (tenant), `oid` (outlet aktif), `role`.
 - Setiap modul baru wajib punya test untuk invariant-nya (stok tidak minus, total = Σ lines − diskon + pajak + biaya lain, idempotensi).
 
 ## 7. Peta Legacy (buka hanya yang relevan)
+
+Tujuan membuka legacy: **memahami aturan bisnis**, bukan menyalin skema atau data.
 
 Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → Express/mysql2 (`aciraba_server`, port 1111; `apiaciraba_public.js` port 1112) → MySQL 8 (`kotakcantik.sql`, dump Navicat).
 
@@ -203,7 +212,7 @@ Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → 
 | Trigger legacy | Perilaku | Status di NewGen |
 |---|---|---|
 | `AFTERINSERTTRX` on `01_trs_barangkeluar` | Jika `ENUM_JENISTRANSAKSI='KREDIT'` → buat piutang, total = `-KEMBALIAN`, jatuh tempo = now + `JATUHTEMPO` hari. Jika `TIPETRANSAKSI=1` → catat DP. Tambah poin member `ROUND(TOTALBELANJA / MINIMALPOIN)`. | Implementasi ulang. **Perbaiki:** DP kolom kredit legacy memakai `NOMORKARTUKREDIT` (bug, harusnya nominal); bagi-nol bila `MINIMALPOIN=0`. |
-| `AFTEREDIT` on `01_trs_barangkeluar` | Hapus & buat ulang piutang; **tambah poin lagi tanpa mengurangi poin lama**. | **Bug legacy:** poin menggelembung setiap edit; piutang yang sudah dibayar sebagian kembali penuh. Desain baru: hitung selisih. Tandai di golden test sebagai perbedaan yang disengaja. |
+| `AFTEREDIT` on `01_trs_barangkeluar` | Hapus & buat ulang piutang; **tambah poin lagi tanpa mengurangi poin lama**. | **Bug legacy:** poin menggelembung setiap edit; piutang yang sudah dibayar sebagian kembali penuh. Desain baru: hitung selisih; buat spec test khusus edit nota. |
 | `AFTERDELETE` on `01_trs_barangkeluar` | Hapus beban, DP, pesanan meja; kurangi poin. | Implementasi ulang (lebih baik: void/soft-cancel + movement balik, bukan delete). |
 | `AFTERINESRT` / `AFTERUBAHPIUTANG` / `AFTERDELETEPIUTANG` on `01_tms_piutangkredit_detail` | `SISAKREDIT` ± `BAYAR`. (`AFTERUBAHPIUTANG` tanpa filter tenant.) | Saldo dihitung dari pembayaran, bukan kolom yang dimutasi. |
 | `AFIHUTANG` / `AUPBHUTANG` / `ADELBHUTANG` on `01_tms_hutangtoko_detail` | Sama untuk hutang supplier. | Idem. |
@@ -237,10 +246,19 @@ Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → 
 - Modul mana yang masih benar-benar dipakai klien? (Acipay, payment gateway, SIAK, resto — bisa ditunda/dibuang.)
 - Apakah ada **source** template Dreams Core (folder `src/`, file Tailwind config/partials)? Yang ada sekarang hasil build saja; source akan mempercepat porting.
 - Hosting target: VPS tunggal vs on-premise per toko (`01_set_onpremise` ada di legacy)?
-- Format nomor nota yang wajib dipertahankan (legacy: awalan nota + komputer lokal + tanggal; lihat `notamenupenjualan`).
-- Aturan pembulatan harga (fungsi legacy `PEMBULATANANGKA`) — belum dibaca.
+- Format nomor nota default NewGen (usulan `{OUTLET}-{YYMMDD}-{NNNN}`; tidak wajib sama dengan legacy) — PRD Q4.
+- Urutan perhitungan nota (PRD §7.4) & aturan pembulatan (fungsi legacy `PEMBULATANANGKA` belum dibaca) — PRD Q6.
+- Berapa lama legacy tetap bisa diakses baca-saja untuk histori toko yang sudah pindah — PRD Q6.
 
 ## 11. Log Sesi  ← TAMBAHKAN DI ATAS, terbaru dulu
+
+- **2026-10-07 (register tenant + sanitasi input)** — **Backend:** `POST /auth/register` (`internal/auth`): satu transaksi membuat tenant (kode = slug nama + 4 hex acak, retry bila bentrok), outlet `main`, role sistem **Owner** (`{"*":true}`), user pemilik; lalu token akses JWT HS256 (15 mnt; klaim `sub/tid/oid/role`) + refresh token acak 256-bit di Redis (hanya hash SHA-256 yang jadi key) via cookie httpOnly `refresh_token` (Path `/auth`, SameSite Lax, Secure di non-dev). Respons 201 `{access_token, expires_in, user, tenant, outlet}`; error `VALIDATION` (422, `fields` = kode per field: REQUIRED/INVALID/TOO_LONG/TOO_SHORT/WEAK), `EMAIL_TAKEN` (409; dijaga UNIQUE `users_email_key`, bukan SELECT-lalu-INSERT), `RATE_LIMITED` (429; 10/jam/IP, Redis, fail-closed), `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `BAD_REQUEST`. Migration `00002`: `users.phone`, `tenants.onboarding_completed_at` (untuk wizard 9.1), CHECK panjang/format. Paket baru: `platform/auth` (argon2id m=64MiB t=3 p=2; JWT menolak alg selain HS256), `platform/sanitize` (NFC, tolak karakter kontrol/zero-width/bidi dan `< >` pada nama; email ASCII polos; HP → `+62…`; password 10–128 huruf+angka), `platform/httpx` (`DecodeJSON` ketat: Content-Type, batas 16 KB, tolak field tak dikenal/data tambahan; `SecurityHeaders`: nosniff, CSP `default-src 'none'`, no-store; `RateLimit`). Hash argon2id dibatasi 4 bersamaan. **`middleware.RealIP` kini hanya aktif bila `TRUST_PROXY=true`** (header XFF bisa dipalsukan → bypass rate limit). `sqlc.yaml`: `queries: internal/*/queries.sql` (path direktori saja tidak terbaca). **Frontend:** halaman `/register` (acuan `register.html`; form: nama bisnis, outlet pertama, pemilik, email, HP, password + konfirmasi + indikator kekuatan), `#lib/validation.ts` (aturan sama dengan server; hanya UX), `fieldMessage()` di `i18n/errors.ts`, kamus `auth.register.*` + kode error baru (id/en), `api()` memuat `fields` dan token akses **hanya di memori** (`setAccessToken`; bukan localStorage). Output selalu lewat escape Svelte — jangan pakai `{@html}` untuk data pengguna. Tanpa checkbox syarat layanan (halamannya belum ada). **Verifikasi:** `go test ./...` (unit sanitasi/hash/token; integrasi register termasuk email ganda atomik + 6 pendaftaran bersamaan → 1 menang, jalan bila `TEST_DATABASE_URL` & `TEST_REDIS_URL` di-set; data uji dibersihkan), `npm run check` 0 error, `npm run build` sukses; uji curl (XSS, tipe salah, field asing, body besar, rate limit) dan uji form di browser pane sampai masuk dasbor. Proses `api` lama di :8080 dihentikan agar build baru berjalan.
+
+- **2026-10-07 (sesi sebelumnya: 0.4 + login)** — Fase 0.4 selesai: goose + sqlc terpasang, migration `00001_init_tenancy.sql` (`tenants`, `outlets`, `roles`, `users`; FK komposit (tenant_id, id) agar anak tak menunjuk tenant lain; email unik global case-insensitive; trigger `set_updated_at`). Tampilan login: latar ikon melayang, scanner barcode, feed transaksi, footer status server; i18n id/en (lihat entri berikutnya).
+
+- **2026-10-07 (i18n id/en)** — Inti multi-bahasa di `source/web/src/lib/i18n/` (tanpa library: rune Svelte 5 + `Intl`): `t()` bertipe & reaktif (ganti bahasa tanpa reload), fallback ke `id`, plural, interpolasi `{param}`, formatter angka/uang/tanggal, deteksi bahasa browser (fallback `id`) + simpan di `localStorage`, `<html lang>` ikut berubah, `LanguageSwitcher` di header & footer login. Seluruh teks login, shell (header/sidebar/footer), dasbor, dan klien API dimigrasi ke kamus; `nav.ts` memakai `labelKey`. Verifikasi: `npm run check` 0 error, `npm run build` sukses, uji ganti bahasa di browser pane. Catatan: pesan error/validasi form yang sudah tampil tidak diterjemahkan ulang saat bahasa diganti (hilang pada submit berikutnya). Sisi Go belum melokalkan apa pun — cukup kirim `code` stabil.
+
+- **2026-10-07 (keputusan data baru)** — Pengguna memutuskan NewGen = aplikasi baru dengan **data baru** (tanpa migrasi). §1 (Data, Verifikasi), §2b (Fase 1 → aturan bisnis + spec test; 2.1 tanpa kompat hash legacy; tambah 3.4 import, 4.2 saldo awal stok, saldo awal piutang/hutang di 5.3 & 6; Fase 9 → onboarding & go-live), §4, §5, §10 diperbarui. PRD → v0.2 (FR-ONB baru di §7.5b, urutan hitung nota default di §7.4, §12 strategi peluncuran tanpa ETL, Q4/Q6 diganti). Folder kosong `source/tools/legacy-etl` dihapus, `source/tests/golden` → `source/tests/spec`.
 
 - **2026-10-07 (login = template, font)** — Form login disamakan 100% dengan `login.html` (teks Inggris, field **email**, bukan username; body `POST /auth/login` = {email, password, remember}; pesan validasi tetap Indonesia; logo ACIRABA, panel kanan teks sendiri). **Font:** `@import` Google Fonts di CSS salinan hilang saat bundling Vite → Plus Jakarta Sans tidak termuat; diganti `<link>` di `app.html` (butuh internet; untuk kasir offline nanti self-host). Ikon Google/GitHub kosong juga di template asli (font FA tidak dimuat) → dibiarkan identik. Catatan: DB dev memakai role/db `aciraba` di container `eds_postgres` (:6969), Redis `eds_redis` db 1.
 
