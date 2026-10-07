@@ -8,10 +8,11 @@
   //   - tambah (itemId null): file dikumpulkan di `pending` (+ `mainIndex`) dan diunggah form setelah item tersimpan.
   // Validasi di sini hanya untuk umpan balik cepat; server memeriksa isi file sebenarnya dan mengubahnya menjadi JPG.
   import { onDestroy } from 'svelte';
-  import { items as api, imageUrl, type ItemImage } from '#lib/items/api.ts';
+  import { items as api, type ItemImage } from '#lib/items/api.ts';
   import { t } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
+  import ImageLightbox, { type Slide } from '#lib/components/ImageLightbox.svelte';
 
   let {
     itemId = null,
@@ -112,14 +113,12 @@
 
   onDestroy(() => pending.forEach((p) => URL.revokeObjectURL(p.url)));
 
-  async function openFull(img: ItemImage) {
-    if (!itemId) return;
-    try {
-      window.open(await imageUrl(itemId, img.id, 'full'), '_blank', 'noopener');
-    } catch (err) {
-      messages = [errorMessage(err)];
-    }
-  }
+  let viewer = $state<number | null>(null);
+  const slides = $derived<Slide[]>(
+    itemId
+      ? images.map((img, i) => ({ itemId, imageId: img.id, alt: t('items.images.alt', { n: i + 1, name: itemName }) }))
+      : pending.map((p) => ({ url: p.url, alt: p.file.name }))
+  );
 </script>
 
 <div class="space-y-3">
@@ -149,7 +148,7 @@
       {#if itemId}
         {#each images as img, i (img.id)}
           <li class="rounded-lg border p-1.5 space-y-1.5 {img.is_main ? 'border-[var(--color-primary-600)]' : 'border-[var(--border-subtle)]'}">
-            <button type="button" class="block w-full" onclick={() => openFull(img)} aria-label={t('items.images.alt', { n: i + 1, name: itemName })}>
+            <button type="button" class="block w-full" onclick={() => (viewer = i)} aria-label={t('items.images.alt', { n: i + 1, name: itemName })}>
               <AuthImage {itemId} imageId={img.id} alt={t('items.images.alt', { n: i + 1, name: itemName })} class="w-full aspect-square object-cover rounded-md" />
             </button>
             <div class="flex items-center justify-between gap-1">
@@ -169,7 +168,9 @@
       {:else}
         {#each pending as p, i (p.url)}
           <li class="rounded-lg border p-1.5 space-y-1.5 {i === mainIndex ? 'border-[var(--color-primary-600)]' : 'border-[var(--border-subtle)]'}">
-            <img src={p.url} alt={p.file.name} class="w-full aspect-square object-cover rounded-md" />
+            <button type="button" class="block w-full cursor-zoom-in" onclick={() => (viewer = i)} aria-label={t('items.images.view')}>
+              <img src={p.url} alt={p.file.name} class="w-full aspect-square object-cover rounded-md" />
+            </button>
             <div class="flex items-center justify-between gap-1">
               <label class="flex items-center gap-1 text-[11px] font-medium cursor-pointer">
                 <input type="radio" name="main-image" checked={i === mainIndex} onchange={() => (mainIndex = i)} />{t('items.images.main')}
@@ -184,3 +185,7 @@
     </ul>
   {/if}
 </div>
+
+{#if viewer !== null && slides.length}
+  <ImageLightbox {slides} index={viewer} onclose={() => (viewer = null)} />
+{/if}

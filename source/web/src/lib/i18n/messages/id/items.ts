@@ -11,7 +11,8 @@ export default {
   back: 'Kembali ke daftar',
   search: 'Cari nama, kode, atau barcode…',
   filter: { all: 'Semua status', active: 'Aktif', inactive: 'Nonaktif', allCategories: 'Semua kategori' },
-  col: { code: 'Kode', name: 'Nama', unit: 'Satuan', category: 'Kategori', brand: 'Brand', price: 'Harga jual', status: 'Status' },
+  col: { code: 'Kode', name: 'Nama', unit: 'Satuan', category: 'Kategori', brand: 'Brand', price: 'Harga jual', stock: 'Stok', stockTotal: 'Total stok', avgCost: 'Harga Rata', lastCost: 'Harga Beli Akhir', status: 'Status' },
+  stock: { display: 'Display', warehouse: 'Gudang', returns: 'Retur', none: 'Jasa, tanpa stok', negative: 'Stok minus' },
   priceOverride: 'Harga khusus cabang ini',
   priceDefault: 'Harga default',
   active: 'Aktif',
@@ -131,7 +132,15 @@ export default {
     tooLarge: '“{name}” lebih dari 10 MB.',
     failed: '“{name}”: {reason}',
     someFailed: 'Item tersimpan, tetapi sebagian gambar gagal diunggah. Unggah ulang di bagian Gambar.',
-    alt: 'Gambar {n} dari {name}'
+    alt: 'Gambar {n} dari {name}',
+    counter: '{n} / {total}',
+    zoomIn: 'Perbesar',
+    zoomOut: 'Perkecil',
+    zoomReset: 'Ukuran pas layar',
+    prev: 'Sebelumnya',
+    next: 'Berikutnya',
+    close: 'Tutup',
+    view: 'Lihat gambar'
   },
   readOnly: 'Anda hanya dapat melihat item ini.'
 };

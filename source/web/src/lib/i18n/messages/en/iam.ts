@@ -27,6 +27,7 @@ const iam: Messages['iam'] = {
     purchase_list: 'Purchase List',
     buy_price_history: 'Buying Price History',
     supplier_payables: 'Supplier Payables',
+    stock_opening: 'Opening Stock',
     stock_opname: 'Stock Count Transactions',
     stock_transfer: 'Stock Transfers',
     users: 'Users',

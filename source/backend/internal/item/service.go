@@ -112,7 +112,19 @@ type Row struct {
 	Brand         string     `json:"brand"`
 	Price         string     `json:"price"`
 	PriceOverride bool       `json:"price_override"`
+	AvgCost       string     `json:"avg_cost"`  // Harga rata (HPP rata-rata)
+	LastCost      string     `json:"last_cost"` // Harga beli akhir
 	MainImageID   *uuid.UUID `json:"main_image_id"`
+	// Stok outlet aktif sesi per bucket, dalam satuan dasar. Item jasa tidak punya stok (klien menampilkan "-").
+	Stock StockQty `json:"stock"`
+}
+
+// StockQty = stok satu item per bucket (string desimal).
+type StockQty struct {
+	Display   string `json:"display"`
+	Warehouse string `json:"warehouse"`
+	Returns   string `json:"returns"`
+	Total     string `json:"total"`
 }
 
 // OutletPriceInput = harga khusus satu cabang dari klien (string desimal).
@@ -431,7 +443,10 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 			}
 			out = append(out, Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name, Kind: r.Kind, Active: r.Active,
 				Unit: r.UnitName, Category: r.CategoryName.String, Brand: r.BrandName.String,
-				Price: price.StringFixed(2), PriceOverride: override, MainImageID: uuidPtr(r.MainImageID)})
+				Price: price.StringFixed(2), PriceOverride: override, MainImageID: uuidPtr(r.MainImageID),
+				AvgCost: r.AvgCost.StringFixed(2), LastCost: r.LastCost.StringFixed(2),
+				Stock: StockQty{Display: r.StockDisplay.String(), Warehouse: r.StockWarehouse.String(), Returns: r.StockReturns.String(),
+					Total: r.StockDisplay.Add(r.StockWarehouse).Add(r.StockReturns).String()}})
 			total = int(r.Total)
 		}
 		return err

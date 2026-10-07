@@ -84,3 +84,11 @@ const (
 	ActionItemImageMain   = "item.image_main"
 	ActionItemImageDelete = "item.image_delete"
 )
+
+// Stok (Fase 4.2). `stock.opening` = saldo awal satu barang/bucket diubah; `stock.opening_lock` = tanggal mulai operasional dikunci.
+const (
+	EntityStock = "stock"
+
+	ActionStockOpening     = "stock.opening"
+	ActionStockOpeningLock = "stock.opening_lock"
+)

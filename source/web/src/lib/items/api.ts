@@ -67,7 +67,11 @@ export type Row = {
   brand: string;
   price: string;
   price_override: boolean;
+  /** Harga rata (HPP rata-rata) dan harga beli akhir. */
+  avg_cost: string;
+  last_cost: string;
   main_image_id: string | null;
+  stock: { display: string; warehouse: string; returns: string; total: string };
 };
 
 export type ItemInput = {

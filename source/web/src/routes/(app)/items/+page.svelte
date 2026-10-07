@@ -5,10 +5,11 @@
   import { items as api, type Row } from '#lib/items/api.ts';
   import { lookup } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
-  import { t, formatCurrency } from '#lib/i18n/index.ts';
+  import { t, formatCurrency, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Combobox from '#lib/components/Combobox.svelte';
   import AuthImage from '#lib/components/AuthImage.svelte';
+  import ImageLightbox, { type Slide } from '#lib/components/ImageLightbox.svelte';
 
   const PAGE = 20;
 
@@ -24,7 +25,32 @@
   let categoryLabel = $state('');
   let busyId = $state<string | null>(null);
 
+  // Kolom stok per bucket (huruf pertama: D = display, G = gudang, R = retur) lalu Σ = total.
+  const STOCK_COLS = [
+    { bucket: 'display', label: 'D', key: 'items.stock.display' },
+    { bucket: 'warehouse', label: 'G', key: 'items.stock.warehouse' },
+    { bucket: 'returns', label: 'R', key: 'items.stock.returns' }
+  ] as const;
+  const stockText = (r: Row, v: string) => (r.kind === 'service' ? '-' : formatNumber(Number(v)));
+  const stockClass = (r: Row, v: string) =>
+    r.kind === 'service' ? 'text-[var(--text-tertiary)]' : Number(v) < 0 ? 'text-[var(--color-danger-600,#dc2626)]' : Number(v) === 0 ? 'text-[var(--text-tertiary)]' : '';
+
   const searchCategories = (s: string) => lookup('categories').search(s);
+
+  // Slide show semua gambar item: daftar hanya memuat gambar utama, jadi ambil detail item saat diklik.
+  let viewer = $state<{ slides: Slide[]; index: number } | null>(null);
+  async function openViewer(r: Row) {
+    try {
+      const imgs = (await api.get(r.id)).images;
+      if (!imgs.length) return;
+      viewer = {
+        slides: imgs.map((img, i) => ({ itemId: r.id, imageId: img.id, alt: t('items.images.alt', { n: i + 1, name: r.name }) })),
+        index: Math.max(0, imgs.findIndex((img) => img.is_main))
+      };
+    } catch (err) {
+      loadError = errorMessage(err);
+    }
+  }
 
   let seq = 0; // hanya respons permintaan terbaru yang dipakai
   async function load() {
@@ -144,28 +170,42 @@
       </div>
     </div>
 
+    {#snippet head()}
+      <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-secondary)]">
+        {#each STOCK_COLS as c (c.bucket)}
+          <th class="px-2 py-3 text-center w-12" scope="col" title={t(c.key)}>{c.label}</th>
+        {/each}
+        <th class="px-2 py-3 text-center w-14" scope="col" title={t('items.col.stockTotal')}>Σ</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.code')}</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.name')}</th>
+        <th class="p-3 text-end" scope="col">{t('items.col.price')}</th>
+        <th class="p-3 text-end" scope="col">{t('items.col.avgCost')}</th>
+        <th class="p-3 text-end" scope="col">{t('items.col.lastCost')}</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.unit')}</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.category')}</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.brand')}</th>
+        <th class="p-3 text-start" scope="col">{t('items.col.status')}</th>
+        <th class="p-3 text-end" scope="col"></th>
+      </tr>
+    {/snippet}
+
     <div class="overflow-x-auto scroll-thin">
-      <table class="w-full text-[12.5px] min-w-[860px]">
-        <thead>
-          <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
-            <th class="p-3 text-start" scope="col">{t('items.col.code')}</th>
-            <th class="p-3 text-start" scope="col">{t('items.col.name')}</th>
-            <th class="p-3 text-start" scope="col">{t('items.col.unit')}</th>
-            <th class="p-3 text-start" scope="col">{t('items.col.category')}</th>
-            <th class="p-3 text-start" scope="col">{t('items.col.brand')}</th>
-            <th class="p-3 text-end" scope="col">{t('items.col.price')}</th>
-            <th class="p-3 text-start" scope="col">{t('items.col.status')}</th>
-            <th class="p-3 text-end" scope="col"></th>
-          </tr>
-        </thead>
+      <table class="w-full text-[12.5px] min-w-[1180px]">
+        <thead>{@render head()}</thead>
         <tbody>
           {#each rows as r (r.id)}
-            <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
+            <tr class="border-t border-[var(--border-subtle)] odd:bg-[var(--surface-sunken)] hover:bg-[var(--surface-hover,var(--surface-sunken))]">
+              {#each STOCK_COLS as c (c.bucket)}
+                <td class="px-2 py-3 text-center tabular-nums {stockClass(r, r.stock[c.bucket])}">{stockText(r, r.stock[c.bucket])}</td>
+              {/each}
+              <td class="px-2 py-3 text-center font-semibold tabular-nums {stockClass(r, r.stock.total)}" title={r.kind !== 'service' && Number(r.stock.total) < 0 ? t('items.stock.negative') : undefined}>{stockText(r, r.stock.total)}</td>
               <td class="p-3 font-mono text-[12px]">{r.sku}</td>
               <td class="p-3">
                 <div class="flex items-center gap-2.5">
                   {#if r.main_image_id}
-                    <AuthImage itemId={r.id} imageId={r.main_image_id} alt={r.name} class="size-10 shrink-0 rounded-md object-cover" />
+                    <button type="button" class="shrink-0 cursor-zoom-in rounded-md" onclick={() => openViewer(r)} aria-label={t('items.images.view')} title={t('items.images.view')}>
+                      <AuthImage itemId={r.id} imageId={r.main_image_id} alt={r.name} class="size-10 rounded-md object-cover" />
+                    </button>
                   {:else}
                     <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-tertiary)]" aria-hidden="true"><i class="icon-image text-[15px]"></i></span>
                   {/if}
@@ -175,13 +215,15 @@
                   </div>
                 </div>
               </td>
-              <td class="p-3">{r.unit}</td>
-              <td class="p-3">{r.category}</td>
-              <td class="p-3">{r.brand}</td>
               <td class="p-3 text-end whitespace-nowrap">
                 {formatCurrency(Number(r.price))}
                 {#if r.price_override}<i class="icon-store text-[11px] ms-1 text-[var(--color-primary-600)]" title={t('items.priceOverride')} aria-label={t('items.priceOverride')}></i>{/if}
               </td>
+              <td class="p-3 text-end whitespace-nowrap">{formatCurrency(Number(r.avg_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
+              <td class="p-3 text-end whitespace-nowrap">{formatCurrency(Number(r.last_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
+              <td class="p-3">{r.unit}</td>
+              <td class="p-3">{r.category}</td>
+              <td class="p-3">{r.brand}</td>
               <td class="p-3"><span class="badge-soft {r.active ? 'badge-success' : 'badge-danger'}">{r.active ? t('items.active') : t('items.inactive')}</span></td>
               <td class="p-3 text-end whitespace-nowrap">
                 <a href="/items/{r.id}" class="header-icon-btn !size-8" aria-label={can('items', 'update') ? t('items.edit') : t('items.view')}>
@@ -202,9 +244,10 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="8" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' || categoryId ? t('items.emptySearch') : t('items.empty')}</td></tr>
+            <tr><td colspan="14" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' || categoryId ? t('items.emptySearch') : t('items.empty')}</td></tr>
           {/each}
         </tbody>
+        {#if rows.length > 8}<tfoot class="border-t border-[var(--border-subtle)]">{@render head()}</tfoot>{/if}
       </table>
     </div>
 
@@ -219,3 +262,7 @@
     {/if}
   </div>
 </main>
+
+{#if viewer}
+  <ImageLightbox slides={viewer.slides} index={viewer.index} onclose={() => (viewer = null)} />
+{/if}

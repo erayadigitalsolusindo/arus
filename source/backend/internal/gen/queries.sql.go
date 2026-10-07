@@ -1330,9 +1330,11 @@ func (q *Queries) ItemImageSetMain(ctx context.Context, arg ItemImageSetMainPara
 
 const itemList = `-- name: ItemList :many
 SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
-       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       i.sell_price AS default_price, op.sell_price AS outlet_price, i.avg_cost, i.last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
+       coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
+       coalesce(sb.returns, 0)::numeric AS stock_returns,
        count(*) OVER () AS total
 FROM items i
 LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
@@ -1340,6 +1342,13 @@ JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+LEFT JOIN LATERAL (
+    SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
+           sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
+           sum(qty) FILTER (WHERE bucket = 'returns') AS returns
+    FROM stock_balances s
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = $1 AND s.item_id = i.id
+) sb ON true
 WHERE i.tenant_id = $2
   AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
   AND ($4::boolean IS NULL OR i.active = $4)
@@ -1359,23 +1368,29 @@ type ItemListParams struct {
 }
 
 type ItemListRow struct {
-	ID           uuid.UUID
-	Sku          string
-	Barcode      pgtype.Text
-	Name         string
-	Origin       string
-	Kind         string
-	Active       bool
-	DefaultPrice decimal.Decimal
-	OutletPrice  pgtype.Numeric
-	UnitName     string
-	CategoryName pgtype.Text
-	BrandName    pgtype.Text
-	MainImageID  pgtype.UUID
-	Total        int64
+	ID             uuid.UUID
+	Sku            string
+	Barcode        pgtype.Text
+	Name           string
+	Origin         string
+	Kind           string
+	Active         bool
+	DefaultPrice   decimal.Decimal
+	OutletPrice    pgtype.Numeric
+	AvgCost        decimal.Decimal
+	LastCost       decimal.Decimal
+	UnitName       string
+	CategoryName   pgtype.Text
+	BrandName      pgtype.Text
+	MainImageID    pgtype.UUID
+	StockDisplay   decimal.Decimal
+	StockWarehouse decimal.Decimal
+	StockReturns   decimal.Decimal
+	Total          int64
 }
 
 // Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
+// Stok outlet aktif per bucket (tanpa baris saldo = 0).
 func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListRow, error) {
 	rows, err := q.db.Query(ctx, itemList,
 		arg.OutletID,
@@ -1403,10 +1418,15 @@ func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListR
 			&i.Active,
 			&i.DefaultPrice,
 			&i.OutletPrice,
+			&i.AvgCost,
+			&i.LastCost,
 			&i.UnitName,
 			&i.CategoryName,
 			&i.BrandName,
 			&i.MainImageID,
+			&i.StockDisplay,
+			&i.StockWarehouse,
+			&i.StockReturns,
 			&i.Total,
 		); err != nil {
 			return nil, err
@@ -2426,6 +2446,325 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const stockAddDelta = `-- name: StockAddDelta :one
+INSERT INTO stock_balances (tenant_id, outlet_id, item_id, bucket, qty)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, outlet_id, item_id, bucket) DO UPDATE SET qty = stock_balances.qty + EXCLUDED.qty
+RETURNING qty
+`
+
+type StockAddDeltaParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+	Delta    decimal.Decimal
+}
+
+// Penambahan (atau pengurangan pada item yang boleh minus): buat saldo bila belum ada, lalu tambah. Baris saldo
+// terkunci sampai commit sehingga transaksi bersamaan antre.
+func (q *Queries) StockAddDelta(ctx context.Context, arg StockAddDeltaParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockAddDelta,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.Delta,
+	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockBalanceGet = `-- name: StockBalanceGet :one
+SELECT qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3 AND bucket = $4
+`
+
+type StockBalanceGetParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+}
+
+func (q *Queries) StockBalanceGet(ctx context.Context, arg StockBalanceGetParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockBalanceGet,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockBalancesByItem = `-- name: StockBalancesByItem :many
+SELECT bucket, qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3 ORDER BY bucket
+`
+
+type StockBalancesByItemParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+type StockBalancesByItemRow struct {
+	Bucket string
+	Qty    decimal.Decimal
+}
+
+func (q *Queries) StockBalancesByItem(ctx context.Context, arg StockBalancesByItemParams) ([]StockBalancesByItemRow, error) {
+	rows, err := q.db.Query(ctx, stockBalancesByItem, arg.TenantID, arg.OutletID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockBalancesByItemRow
+	for rows.Next() {
+		var i StockBalancesByItemRow
+		if err := rows.Scan(&i.Bucket, &i.Qty); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockItemInfo = `-- name: StockItemInfo :one
+SELECT kind, allow_negative_stock FROM items WHERE tenant_id = $1 AND id = $2
+`
+
+type StockItemInfoParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockItemInfoRow struct {
+	Kind               string
+	AllowNegativeStock bool
+}
+
+func (q *Queries) StockItemInfo(ctx context.Context, arg StockItemInfoParams) (StockItemInfoRow, error) {
+	row := q.db.QueryRow(ctx, stockItemInfo, arg.TenantID, arg.ID)
+	var i StockItemInfoRow
+	err := row.Scan(&i.Kind, &i.AllowNegativeStock)
+	return i, err
+}
+
+const stockItemLock = `-- name: StockItemLock :one
+SELECT sku, name, kind FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type StockItemLockParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockItemLockRow struct {
+	Sku  string
+	Name string
+	Kind string
+}
+
+// Mengunci baris item: dua perubahan saldo awal pada item yang sama tidak saling menimpa.
+func (q *Queries) StockItemLock(ctx context.Context, arg StockItemLockParams) (StockItemLockRow, error) {
+	row := q.db.QueryRow(ctx, stockItemLock, arg.TenantID, arg.ID)
+	var i StockItemLockRow
+	err := row.Scan(&i.Sku, &i.Name, &i.Kind)
+	return i, err
+}
+
+const stockMovementInsert = `-- name: StockMovementInsert :one
+INSERT INTO stock_movements (tenant_id, outlet_id, item_id, bucket, qty_delta, balance_after, ref_type, ref_id, note, actor_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id
+`
+
+type StockMovementInsertParams struct {
+	TenantID     uuid.UUID
+	OutletID     uuid.UUID
+	ItemID       uuid.UUID
+	Bucket       string
+	QtyDelta     decimal.Decimal
+	BalanceAfter decimal.Decimal
+	RefType      string
+	RefID        pgtype.UUID
+	Note         string
+	ActorID      pgtype.UUID
+}
+
+func (q *Queries) StockMovementInsert(ctx context.Context, arg StockMovementInsertParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockMovementInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.QtyDelta,
+		arg.BalanceAfter,
+		arg.RefType,
+		arg.RefID,
+		arg.Note,
+		arg.ActorID,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const stockOpeningList = `-- name: StockOpeningList :many
+SELECT i.id, i.sku, i.name, u.name AS unit_name,
+       coalesce(sb.display, 0)::numeric AS display, coalesce(sb.warehouse, 0)::numeric AS warehouse,
+       coalesce(sb.returns, 0)::numeric AS returns,
+       count(*) OVER () AS total
+FROM items i
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN LATERAL (
+    SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
+           sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
+           sum(qty) FILTER (WHERE bucket = 'returns') AS returns
+    FROM stock_balances s
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = $1 AND s.item_id = i.id
+) sb ON true
+WHERE i.tenant_id = $2 AND i.kind = 'goods' AND i.active
+  AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
+ORDER BY lower(i.name), i.id
+LIMIT $5 OFFSET $4
+`
+
+type StockOpeningListParams struct {
+	OutletID   uuid.UUID
+	TenantID   uuid.UUID
+	Q          string
+	PageOffset int32
+	PageLimit  int32
+}
+
+type StockOpeningListRow struct {
+	ID        uuid.UUID
+	Sku       string
+	Name      string
+	UnitName  string
+	Display   decimal.Decimal
+	Warehouse decimal.Decimal
+	Returns   decimal.Decimal
+	Total     int64
+}
+
+// Barang bertipe goods yang aktif beserta stok outlet aktif per bucket.
+func (q *Queries) StockOpeningList(ctx context.Context, arg StockOpeningListParams) ([]StockOpeningListRow, error) {
+	rows, err := q.db.Query(ctx, stockOpeningList,
+		arg.OutletID,
+		arg.TenantID,
+		arg.Q,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockOpeningListRow
+	for rows.Next() {
+		var i StockOpeningListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+			&i.Display,
+			&i.Warehouse,
+			&i.Returns,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockOutletLock = `-- name: StockOutletLock :one
+UPDATE outlets SET stock_locked_at = now(), ops_start_date = $1
+WHERE tenant_id = $2 AND id = $3 AND stock_locked_at IS NULL
+RETURNING stock_locked_at, ops_start_date
+`
+
+type StockOutletLockParams struct {
+	StartDate pgtype.Date
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+}
+
+type StockOutletLockRow struct {
+	StockLockedAt pgtype.Timestamptz
+	OpsStartDate  pgtype.Date
+}
+
+func (q *Queries) StockOutletLock(ctx context.Context, arg StockOutletLockParams) (StockOutletLockRow, error) {
+	row := q.db.QueryRow(ctx, stockOutletLock, arg.StartDate, arg.TenantID, arg.OutletID)
+	var i StockOutletLockRow
+	err := row.Scan(&i.StockLockedAt, &i.OpsStartDate)
+	return i, err
+}
+
+const stockOutletLockState = `-- name: StockOutletLockState :one
+SELECT stock_locked_at, ops_start_date FROM outlets WHERE tenant_id = $1 AND id = $2 FOR SHARE
+`
+
+type StockOutletLockStateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockOutletLockStateRow struct {
+	StockLockedAt pgtype.Timestamptz
+	OpsStartDate  pgtype.Date
+}
+
+// FOR SHARE: penguncian (UPDATE) menunggu movement OPENING yang sedang berjalan, dan sebaliknya.
+func (q *Queries) StockOutletLockState(ctx context.Context, arg StockOutletLockStateParams) (StockOutletLockStateRow, error) {
+	row := q.db.QueryRow(ctx, stockOutletLockState, arg.TenantID, arg.ID)
+	var i StockOutletLockStateRow
+	err := row.Scan(&i.StockLockedAt, &i.OpsStartDate)
+	return i, err
+}
+
+const stockSubtractGuarded = `-- name: StockSubtractGuarded :one
+UPDATE stock_balances SET qty = qty + $1
+WHERE tenant_id = $2 AND outlet_id = $3 AND item_id = $4 AND bucket = $5 AND qty + $1 >= 0
+RETURNING qty
+`
+
+type StockSubtractGuardedParams struct {
+	Delta    decimal.Decimal
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+}
+
+// Pengurangan yang tidak boleh minus: satu UPDATE atomik dengan syarat saldo cukup. Tanpa baris hasil (saldo kurang
+// atau belum ada) = stok tidak cukup; tidak ada baris saldo yang dibuat.
+func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGuardedParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockSubtractGuarded,
+		arg.Delta,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
 }
 
 const supplierCreate = `-- name: SupplierCreate :one

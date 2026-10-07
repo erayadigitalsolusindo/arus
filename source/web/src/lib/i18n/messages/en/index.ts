@@ -13,7 +13,8 @@ import legal from './legal.ts';
 import platform from './platform.ts';
 import catalog from './catalog.ts';
 import items from './items.ts';
+import stock from './stock.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock };
 
 export default en;
