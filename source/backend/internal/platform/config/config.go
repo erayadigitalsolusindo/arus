@@ -16,6 +16,9 @@ type Config struct {
 	DatabaseURL string
 	RedisURL    string
 	CORSOrigins []string
+	JWTSecret   string
+	// TrustProxy: percayai X-Forwarded-For (hanya bila di belakang proxy tepercaya).
+	TrustProxy bool
 }
 
 func (c Config) IsDev() bool { return c.Env == "development" }
@@ -29,6 +32,8 @@ func Load() (Config, error) {
 		HTTPAddr:    getenv("HTTP_ADDR", ":8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    os.Getenv("REDIS_URL"),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
+		TrustProxy:  os.Getenv("TRUST_PROXY") == "true",
 	}
 	for _, o := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {
@@ -42,6 +47,9 @@ func Load() (Config, error) {
 	}
 	if c.RedisURL == "" {
 		errs = append(errs, errors.New("REDIS_URL wajib diisi"))
+	}
+	if len(c.JWTSecret) < 32 {
+		errs = append(errs, errors.New("JWT_SECRET wajib diisi, minimal 32 karakter"))
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, fmt.Errorf("konfigurasi tidak valid: %w", err)

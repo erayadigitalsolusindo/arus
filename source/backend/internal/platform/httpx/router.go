@@ -11,10 +11,15 @@ import (
 )
 
 // NewRouter menyiapkan chi dengan middleware dasar. Route modul didaftarkan pemanggil.
-func NewRouter(log *slog.Logger, corsOrigins []string) *chi.Mux {
+func NewRouter(log *slog.Logger, corsOrigins []string, trustProxy bool) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// RealIP memercayai X-Forwarded-For dari klien mana pun, sehingga bisa dipalsukan (bypass rate limit).
+	// Aktifkan hanya bila API di belakang reverse proxy tepercaya.
+	if trustProxy {
+		r.Use(middleware.RealIP)
+	}
+	r.Use(SecurityHeaders)
 	r.Use(requestLogger(log))
 	r.Use(recoverer(log))
 	r.Use(cors.Handler(cors.Options{

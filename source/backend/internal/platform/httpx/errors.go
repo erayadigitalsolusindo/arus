@@ -13,6 +13,8 @@ type errorBody struct {
 type errorDetail struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	// Fields: kode galat per field (mis. {"email":"INVALID"}) agar klien menerjemahkannya sendiri.
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 // JSON menulis respons JSON dengan status yang diberikan.
@@ -25,4 +27,13 @@ func JSON(w http.ResponseWriter, status int, v any) {
 // Error menulis error API: {"error":{"code","message"}} sesuai AGENTS.md §6.
 func Error(w http.ResponseWriter, status int, code, message string) {
 	JSON(w, status, errorBody{Error: errorDetail{Code: code, Message: message}})
+}
+
+// ValidationError menulis 422 VALIDATION dengan kode galat per field.
+func ValidationError(w http.ResponseWriter, fields map[string]string) {
+	JSON(w, http.StatusUnprocessableEntity, errorBody{Error: errorDetail{
+		Code:    "VALIDATION",
+		Message: "Data yang dikirim tidak valid.",
+		Fields:  fields,
+	}})
 }
