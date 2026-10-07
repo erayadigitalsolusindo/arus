@@ -1,15 +1,18 @@
 <script lang="ts">
+  import { t, type MessageKey } from '#lib/i18n/index.ts';
+  import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
+
   let { onmenu }: { onmenu: () => void } = $props();
 
   type Theme = 'light' | 'dark';
   let theme = $state<Theme>(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   let menu = $state<'' | 'quick' | 'notif' | 'user'>('');
 
-  const quickActions = [
-    { icon: 'shopping-cart', label: 'Transaksi Baru' },
-    { icon: 'package', label: 'Barang Baru' },
-    { icon: 'user-plus', label: 'Tambah Pelanggan' },
-    { icon: 'truck', label: 'Pembelian Baru' }
+  const quickActions: { icon: string; labelKey: MessageKey }[] = [
+    { icon: 'shopping-cart', labelKey: 'shell.quick.newSale' },
+    { icon: 'package', labelKey: 'shell.quick.newItem' },
+    { icon: 'user-plus', labelKey: 'shell.quick.newCustomer' },
+    { icon: 'truck', labelKey: 'shell.quick.newPurchase' }
   ];
 
   function toggle(name: 'quick' | 'notif' | 'user') {
@@ -38,7 +41,7 @@
   <div class="absolute inset-x-0 bottom-0 h-px pointer-events-none [background:linear-gradient(90deg,transparent,var(--color-primary-500)_20%,var(--color-accent-500)_50%,var(--color-primary-500)_80%,transparent)] opacity-[0.55]"></div>
 
   <div class="flex items-center gap-3 px-4 lg:px-6 h-16">
-    <button type="button" class="header-icon-btn lg:hidden" aria-label="Buka menu" onclick={onmenu}>
+    <button type="button" class="header-icon-btn lg:hidden" aria-label={t('shell.openMenu')} onclick={onmenu}>
       <i class="icon-menu text-[18px]"></i>
     </button>
 
@@ -54,7 +57,7 @@
       <span class="grid place-items-center size-7 rounded-full shrink-0 bg-[color-mix(in_oklab,var(--color-primary-500)_16%,transparent)] text-[var(--color-primary-600)]">
         <i class="icon-search text-[13px]"></i>
       </span>
-      <span class="text-[13px] flex-1 text-start truncate font-medium text-[var(--text-tertiary)]">Cari barang, nota, pelanggan…</span>
+      <span class="text-[13px] flex-1 text-start truncate font-medium text-[var(--text-tertiary)]">{t('shell.search')}</span>
       <kbd class="text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 bg-[var(--surface-raised)] text-[var(--text-tertiary)] border border-[var(--border-default)]">Ctrl K</kbd>
     </button>
 
@@ -72,13 +75,13 @@
           }}
         >
           <i class="icon-plus text-[13px]"></i>
-          <span>Buat Cepat</span>
+          <span>{t('shell.quickCreate')}</span>
           <i class="icon-chevron-down text-[9px] opacity-80"></i>
         </button>
         <button
           type="button"
           class="header-icon-btn sm:hidden"
-          aria-label="Buat cepat"
+          aria-label={t('shell.quickCreate')}
           onclick={(e) => {
             e.stopPropagation();
             toggle('quick');
@@ -88,20 +91,22 @@
         </button>
         {#if menu === 'quick'}
           <div class="absolute end-0 mt-2 w-56 surface-card p-1.5 z-50" role="menu">
-            {#each quickActions as a (a.label)}
+            {#each quickActions as a (a.labelKey)}
               <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem">
-                <i class="icon-{a.icon} text-[15px] text-[var(--color-primary-600)]"></i>{a.label}
+                <i class="icon-{a.icon} text-[15px] text-[var(--color-primary-600)]"></i>{t(a.labelKey)}
               </a>
             {/each}
           </div>
         {/if}
       </div>
 
+      <LanguageSwitcher />
+
       <!-- Tema -->
       <button
         type="button"
         class="grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]"
-        aria-label={theme === 'dark' ? 'Mode terang' : 'Mode gelap'}
+        aria-label={theme === 'dark' ? t('common.theme.light') : t('common.theme.dark')}
         onclick={toggleTheme}
       >
         <i class={theme === 'dark' ? 'icon-moon text-[13.5px]' : 'icon-sun-medium text-[13.5px]'}></i>
@@ -112,7 +117,7 @@
         <button
           type="button"
           class="header-icon-btn relative"
-          aria-label="Notifikasi"
+          aria-label={t('shell.notifications')}
           aria-haspopup="menu"
           aria-expanded={menu === 'notif'}
           onclick={(e) => {
@@ -125,10 +130,10 @@
         {#if menu === 'notif'}
           <div class="absolute end-0 mt-2 w-72 surface-card p-0 z-50 overflow-hidden" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
             <div class="px-4 py-3 border-b border-[var(--border-subtle)]">
-              <p class="font-display font-bold text-[14px]">Notifikasi</p>
+              <p class="font-display font-bold text-[14px]">{t('shell.notifications')}</p>
             </div>
             <div class="px-4 py-8 text-center text-[12.5px] text-[var(--text-tertiary)]">
-              <i class="icon-bell-off text-[22px] block mb-2"></i>Belum ada notifikasi.
+              <i class="icon-bell-off text-[22px] block mb-2"></i>{t('shell.noNotifications')}
             </div>
           </div>
         {/if}
@@ -148,16 +153,16 @@
         >
           <span class="grid place-items-center size-8 rounded-full bg-[var(--color-primary-600)] text-white text-[12px] font-bold">AC</span>
           <span class="hidden md:block text-start leading-tight">
-            <span class="block text-[12.5px] font-semibold">Belum masuk</span>
-            <span class="block text-[10.5px] text-[var(--text-tertiary)]">Tamu</span>
+            <span class="block text-[12.5px] font-semibold">{t('shell.notSignedIn')}</span>
+            <span class="block text-[10.5px] text-[var(--text-tertiary)]">{t('shell.guest')}</span>
           </span>
           <i class="icon-chevron-down text-[10px] text-[var(--text-tertiary)]"></i>
         </button>
         {#if menu === 'user'}
           <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
-            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>Profil</a>
-            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>Pengaturan</a>
-            <a href="/login" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>Keluar</a>
+            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
+            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</a>
+            <a href="/login" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</a>
           </div>
         {/if}
       </div>

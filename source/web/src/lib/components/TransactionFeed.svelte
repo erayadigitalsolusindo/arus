@@ -4,8 +4,9 @@
   import { flip } from 'svelte/animate';
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
+  import { t, formatCurrency } from '#lib/i18n/index.ts';
 
-  // Ilustrasi dekoratif untuk halaman login — bukan data nyata.
+  // Ilustrasi dekoratif untuk halaman login — bukan data nyata (nama contoh sengaja tidak diterjemahkan).
   type Sale = { id: number; no: string; item: string; method: string; icon: string; amount: number };
 
   const samples: Omit<Sale, 'id'>[] = [
@@ -26,8 +27,6 @@
   const total = new Tween(initial.reduce((s, x) => s + x.amount, 0), { duration: 700, easing: cubicOut });
   let count = $state(initial.length);
 
-  const rupiah = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
-
   onMount(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
@@ -45,14 +44,14 @@
 <div class="surface-card !bg-white/10 !border-white/15 p-4 mt-8 text-white" aria-hidden="true">
   <div class="flex items-center justify-between">
     <div>
-      <p class="text-[10.5px] uppercase tracking-wide font-semibold text-[rgb(255_255_255_/_0.6)]">Penjualan hari ini</p>
-      <p class="font-display font-extrabold text-[22px] leading-tight mt-0.5">{rupiah(total.current)}</p>
+      <p class="text-[10.5px] uppercase tracking-wide font-semibold text-[rgb(255_255_255_/_0.6)]">{t('auth.promo.salesToday')}</p>
+      <p class="font-display font-extrabold text-[22px] leading-tight mt-0.5">{formatCurrency(Math.round(total.current))}</p>
     </div>
     <div class="text-end">
       <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10.5px] font-semibold bg-[rgb(255_255_255_/_0.14)]">
-        <span class="live-dot size-1.5 rounded-full bg-[var(--color-success-400,#4ADE80)]"></span>Live
+        <span class="live-dot size-1.5 rounded-full bg-[var(--color-success-400,#4ADE80)]"></span>{t('common.live')}
       </span>
-      <p class="text-[11px] mt-1 text-[rgb(255_255_255_/_0.65)]">{count} transaksi</p>
+      <p class="text-[11px] mt-1 text-[rgb(255_255_255_/_0.65)]">{t('auth.promo.transactions', { count })}</p>
     </div>
   </div>
 
@@ -71,9 +70,9 @@
           <span class="block text-[10.5px] text-[rgb(255_255_255_/_0.65)]">{sale.no} · {sale.method}</span>
         </span>
         <span class="text-end shrink-0">
-          <span class="block text-[12px] font-bold">{rupiah(sale.amount)}</span>
+          <span class="block text-[12px] font-bold">{formatCurrency(sale.amount)}</span>
           <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--color-success-400,#4ADE80)]">
-            <i class="icon-check text-[10px]"></i>Lunas
+            <i class="icon-check text-[10px]"></i>{t('common.paid')}
           </span>
         </span>
       </li>

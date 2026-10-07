@@ -1,23 +1,27 @@
 <script lang="ts">
   import { z } from 'zod';
   import { goto } from '$app/navigation';
-  import { api, ApiError } from '#lib/api/client.ts';
+  import { api } from '#lib/api/client.ts';
+  import { t, type MessageKey } from '#lib/i18n/index.ts';
+  import { errorMessage } from '#lib/i18n/errors.ts';
   import TransactionFeed from '#lib/components/TransactionFeed.svelte';
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
 
-  const schema = z.object({
-    email: z.string().trim().min(1, 'Email wajib diisi.').pipe(z.email('Format email tidak valid.')),
-    password: z.string().min(1, 'Kata sandi wajib diisi.')
-  });
+  // Dibuat per submit agar pesan validasi mengikuti bahasa aktif.
+  const makeSchema = () =>
+    z.object({
+      email: z.string().trim().min(1, t('auth.login.emailRequired')).pipe(z.email(t('auth.login.emailInvalid'))),
+      password: z.string().min(1, t('auth.login.passwordRequired'))
+    });
 
-  const points = [
-    'Ekosistem dan Integrasi terlengkap untuk maksimalkan peluang usaha di level berikutnya.',
-    'Aplikasi kami membantu dalam melesatkan bisnis Anda.',
-    'Point of Sale dengan ragam fitur lengkap, mudah digunakan dan penyajian data akurat, pastikan strategi bisnis yang lebih tepat.',
-    'Whitelabel untuk membangun brand bisnis Anda sendiri.',
-    'Aciraba hadir untuk mendukung kemajuan bisnis UMKM.'
+  const points: MessageKey[] = [
+    'auth.promo.point1',
+    'auth.promo.point2',
+    'auth.promo.point3',
+    'auth.promo.point4',
+    'auth.promo.point5'
   ];
 
   let email = $state('');
@@ -33,7 +37,7 @@
     formError = '';
     fieldErrors = {};
 
-    const parsed = schema.safeParse({ email, password });
+    const parsed = makeSchema().safeParse({ email, password });
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as 'email' | 'password';
@@ -48,14 +52,14 @@
       await api('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
       await goto('/dashboard');
     } catch (err) {
-      formError = err instanceof ApiError ? err.message : 'Terjadi kesalahan tak terduga.';
+      formError = errorMessage(err);
     } finally {
       loading = false;
     }
   }
 </script>
 
-<svelte:head><title>Sign In | ACIRABA</title></svelte:head>
+<svelte:head><title>{t('auth.login.docTitle')}</title></svelte:head>
 
 <div class="min-h-screen grid lg:grid-cols-2 bg-base">
   <!-- Left: form -->
@@ -63,13 +67,8 @@
     <LoginBackdrop />
     <div class="relative flex-1 flex flex-col justify-center w-full max-w-[400px] mx-auto">
       <BarcodeScanner />
-
-      <a href="/" class="flex items-center gap-2.5 mb-10">
-        <img src="/logo-dark.svg" alt="ACIRABA logo" class="login-logo" />
-      </a>
-
-      <h1 class="font-display font-bold text-[22px]">Welcome back</h1>
-      <p class="text-[12.5px] mt-1.5 text-tertiary">Sign in to continue to your workspace</p>
+      <h1 class="flex flex-col justify-center items-center text-center font-display font-bold text-[22px]">{t('auth.login.titleLine1')} <br>{t('auth.login.titleLine2')}</h1>
+      <p class="flex justify-center items-center text-[12.5px] mt-1.5 text-tertiary">{t('auth.login.subtitle')}</p>
 
       <div class="grid grid-cols-2 gap-3 mt-6">
         <button type="button" class="btn btn-outline !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
@@ -78,7 +77,7 @@
 
       <div class="flex items-center gap-3 my-6">
         <span class="flex-1 h-px bg-border-subtle"></span>
-        <span class="text-[11px] font-medium text-tertiary">or sign in with email</span>
+        <span class="text-[11px] font-medium text-tertiary">{t('auth.login.orEmail')}</span>
         <span class="flex-1 h-px bg-border-subtle"></span>
       </div>
 
@@ -91,14 +90,14 @@
         {/if}
 
         <div>
-          <label for="email" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">Email address</label>
+          <label for="email" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">{t('auth.login.email')}</label>
           <div class="relative mt-1.5">
             <i class="icon-mail absolute top-1/2 -translate-y-1/2 start-3 text-[14px] text-tertiary"></i>
             <input
               id="email"
               type="email"
               bind:value={email}
-              placeholder="you@company.com"
+              placeholder={t('auth.login.emailPlaceholder')}
               autocomplete="username"
               aria-invalid={!!fieldErrors.email}
               class="w-full ps-9 pe-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered"
@@ -109,8 +108,8 @@
 
         <div>
           <div class="flex items-center justify-between">
-            <label for="password" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">Password</label>
-            <a href="/forgot-password" class="text-[11.5px] font-semibold text-primary-600">Forgot password?</a>
+            <label for="password" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">{t('auth.login.password')}</label>
+            <a href="/forgot-password" class="text-[11.5px] font-semibold text-primary-600">{t('auth.login.forgot')}</a>
           </div>
           <div class="relative mt-1.5">
             <i class="icon-lock absolute top-1/2 -translate-y-1/2 start-3 text-[14px] text-tertiary"></i>
@@ -123,7 +122,7 @@
               aria-invalid={!!fieldErrors.password}
               class="w-full ps-9 pe-9 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered"
             />
-            <button type="button" class="absolute top-1/2 -translate-y-1/2 end-3 text-tertiary" aria-label="View" onclick={() => (showPassword = !showPassword)}>
+            <button type="button" class="absolute top-1/2 -translate-y-1/2 end-3 text-tertiary" aria-label={showPassword ? t('auth.login.hidePassword') : t('auth.login.showPassword')} onclick={() => (showPassword = !showPassword)}>
               <i class={showPassword ? 'icon-eye-off text-[14px]' : 'icon-eye text-[14px]'}></i>
             </button>
           </div>
@@ -132,16 +131,16 @@
 
         <label class="flex items-center gap-2 text-[12px] font-medium">
           <input type="checkbox" class="size-3.5 rounded" bind:checked={remember} />
-          Keep me signed in
+          {t('auth.login.remember')}
         </label>
 
         <button type="submit" disabled={loading} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
-          Sign In<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
+          {t('auth.login.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
         </button>
       </form>
 
       <p class="text-center text-[12.5px] mt-6 text-tertiary">
-        Don't have an account? <a href="/register" class="font-semibold text-primary-600">Create one</a>
+        {t('auth.login.noAccount')} <a href="/register" class="font-semibold text-primary-600">{t('auth.login.createOne')}</a>
       </p>
     </div>
 
@@ -154,11 +153,11 @@
   <div class="hidden lg:flex relative items-center justify-center p-12 overflow-hidden u-background-linear-gradient-150deg-color-primary-700-color-pr">
     <div class="absolute inset-0 opacity-10 u-background-image-radial-gradient-circle-at-20-20-white-1px-t"></div>
     <div class="relative max-w-[440px] w-full">
-      <h2 class="font-display font-bold text-[24px] text-white">Wirausaha Membuka Lapangan Pekerjaan!</h2>
+      <h2 class="font-display font-bold text-[24px] text-white">{t('auth.promo.headline')}</h2>
       <div class="space-y-3 mt-5">
-        {#each points as line (line)}
+        {#each points as key (key)}
           <div class="flex items-start gap-2 text-[12.5px] text-white">
-            <i class="icon-check-circle-2 text-[15px] shrink-0 mt-px u-color-color-success-400"></i>{line}
+            <i class="icon-check-circle-2 text-[15px] shrink-0 mt-px u-color-color-success-400"></i>{t(key)}
           </div>
         {/each}
       </div>
