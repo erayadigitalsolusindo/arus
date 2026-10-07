@@ -31,6 +31,7 @@
   let showPassword = $state(false);
   let loading = $state(false);
   let formError = $state('');
+  let attemptsLeft = $state(0); // >0 hanya bila pesan kesalahan memuat sisa percobaan
   let fieldErrors = $state<{ email?: string; password?: string }>({});
   let lockedUntil = $state(0);
   let now = $state(Date.now());
@@ -51,6 +52,7 @@
     e.preventDefault();
     formError = '';
     fieldErrors = {};
+    attemptsLeft = 0;
     if (lockedSeconds > 0) return;
 
     const parsed = makeSchema().safeParse({ email, password });
@@ -72,6 +74,12 @@
       if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
         now = Date.now();
         lockedUntil = now + err.retryAfter * 1000;
+        return;
+      }
+      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS' && err.attemptsLeft > 0) {
+        // Beri tahu sisa percobaan sebelum akun dikunci; tinggal satu = peringatan.
+        attemptsLeft = err.attemptsLeft;
+        formError = t('errors.INVALID_CREDENTIALS_LEFT', { count: err.attemptsLeft });
         return;
       }
       formError = errorMessage(err);
@@ -108,7 +116,7 @@
 
       <form class="space-y-4" onsubmit={submit} novalidate>
         {#if lockedText || formError}
-          <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
+          <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger {attemptsLeft === 1 ? 'font-semibold' : ''}">
             <i class="icon-circle-alert text-[14px] mt-px shrink-0"></i>
             <span>{lockedText || formError}</span>
           </div>

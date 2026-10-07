@@ -10,7 +10,240 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
+
+const auditInsert = `-- name: AuditInsert :exec
+INSERT INTO audit_log (tenant_id, outlet_id, actor_id, actor_name, action, entity, entity_id, details, ip, request_id)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10)
+`
+
+type AuditInsertParams struct {
+	TenantID  uuid.UUID
+	OutletID  pgtype.UUID
+	ActorID   pgtype.UUID
+	ActorName string
+	Action    string
+	Entity    string
+	EntityID  string
+	Details   []byte
+	Ip        string
+	RequestID string
+}
+
+func (q *Queries) AuditInsert(ctx context.Context, arg AuditInsertParams) error {
+	_, err := q.db.Exec(ctx, auditInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ActorID,
+		arg.ActorName,
+		arg.Action,
+		arg.Entity,
+		arg.EntityID,
+		arg.Details,
+		arg.Ip,
+		arg.RequestID,
+	)
+	return err
+}
+
+const auditList = `-- name: AuditList :many
+SELECT id, outlet_id, actor_id, actor_name, action, entity, entity_id, details, ip, request_id, created_at
+FROM audit_log
+WHERE tenant_id = $1
+  AND ($2::text IS NULL OR entity = $2)
+  AND ($3::text IS NULL OR entity_id = $3)
+  AND ($4::text IS NULL OR action LIKE $4 || '%' ESCAPE '\')
+  AND ($5::uuid IS NULL OR actor_id = $5)
+  AND ($6::timestamptz IS NULL OR created_at >= $6)
+  AND ($7::timestamptz IS NULL OR created_at < $7)
+  AND ($8::timestamptz IS NULL OR (created_at, id) < ($8::timestamptz, $9::bigint))
+ORDER BY created_at DESC, id DESC
+LIMIT $10
+`
+
+type AuditListParams struct {
+	TenantID     uuid.UUID
+	Entity       pgtype.Text
+	EntityID     pgtype.Text
+	ActionPrefix pgtype.Text
+	ActorID      pgtype.UUID
+	FromAt       pgtype.Timestamptz
+	ToAt         pgtype.Timestamptz
+	CursorAt     pgtype.Timestamptz
+	CursorID     pgtype.Int8
+	MaxRows      int32
+}
+
+type AuditListRow struct {
+	ID        int64
+	OutletID  pgtype.UUID
+	ActorID   pgtype.UUID
+	ActorName string
+	Action    string
+	Entity    string
+	EntityID  string
+	Details   []byte
+	Ip        string
+	RequestID string
+	CreatedAt pgtype.Timestamptz
+}
+
+// Daftar terbaru dulu dengan keyset pagination (created_at, id). Semua filter opsional; `action_prefix` sudah di-escape pemanggil.
+func (q *Queries) AuditList(ctx context.Context, arg AuditListParams) ([]AuditListRow, error) {
+	rows, err := q.db.Query(ctx, auditList,
+		arg.TenantID,
+		arg.Entity,
+		arg.EntityID,
+		arg.ActionPrefix,
+		arg.ActorID,
+		arg.FromAt,
+		arg.ToAt,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuditListRow
+	for rows.Next() {
+		var i AuditListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OutletID,
+			&i.ActorID,
+			&i.ActorName,
+			&i.Action,
+			&i.Entity,
+			&i.EntityID,
+			&i.Details,
+			&i.Ip,
+			&i.RequestID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const authMarkEmailVerified = `-- name: AuthMarkEmailVerified :execrows
+UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE tenant_id = $1 AND id = $2
+`
+
+type AuthMarkEmailVerifiedParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) AuthMarkEmailVerified(ctx context.Context, arg AuthMarkEmailVerifiedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, authMarkEmailVerified, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const authSetPassword = `-- name: AuthSetPassword :execrows
+UPDATE users SET password_hash = $3, tokens_valid_after = $4::timestamptz, email_verified_at = COALESCE(email_verified_at, now())
+WHERE tenant_id = $1 AND id = $2
+`
+
+type AuthSetPasswordParams struct {
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+	PasswordHash string
+	ValidAfter   pgtype.Timestamptz
+}
+
+// Dipakai alur lupa password: mengganti password, mencabut token akses yang masih hidup, dan menandai email terverifikasi
+// (pemakai tautan di email terbukti memiliki alamatnya).
+func (q *Queries) AuthSetPassword(ctx context.Context, arg AuthSetPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, authSetPassword,
+		arg.TenantID,
+		arg.ID,
+		arg.PasswordHash,
+		arg.ValidAfter,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const authzGetUserAccess = `-- name: AuthzGetUserAccess :one
+SELECT r.permissions, u.name, u.active AS user_active, t.active AS tenant_active, u.tokens_valid_after
+FROM users u
+JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+JOIN tenants t ON t.id = u.tenant_id
+WHERE u.tenant_id = $1 AND u.id = $2
+`
+
+type AuthzGetUserAccessParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type AuthzGetUserAccessRow struct {
+	Permissions      []byte
+	Name             string
+	UserActive       bool
+	TenantActive     bool
+	TokensValidAfter pgtype.Timestamptz
+}
+
+func (q *Queries) AuthzGetUserAccess(ctx context.Context, arg AuthzGetUserAccessParams) (AuthzGetUserAccessRow, error) {
+	row := q.db.QueryRow(ctx, authzGetUserAccess, arg.TenantID, arg.ID)
+	var i AuthzGetUserAccessRow
+	err := row.Scan(
+		&i.Permissions,
+		&i.Name,
+		&i.UserActive,
+		&i.TenantActive,
+		&i.TokensValidAfter,
+	)
+	return i, err
+}
+
+const authzListAccessibleOutlets = `-- name: AuthzListAccessibleOutlets :many
+SELECT o.id FROM outlets o
+WHERE o.tenant_id = $1 AND o.active
+  AND ($2::boolean OR EXISTS (SELECT 1 FROM user_outlets uo WHERE uo.tenant_id = o.tenant_id AND uo.user_id = $3 AND uo.outlet_id = o.id))
+`
+
+type AuthzListAccessibleOutletsParams struct {
+	TenantID   uuid.UUID
+	AllOutlets bool
+	UserID     uuid.UUID
+}
+
+// Outlet aktif yang boleh diakses pengguna: semua bila Administrator (izin `*`), selain itu yang ditugaskan di user_outlets.
+func (q *Queries) AuthzListAccessibleOutlets(ctx context.Context, arg AuthzListAccessibleOutletsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, authzListAccessibleOutlets, arg.TenantID, arg.AllOutlets, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const createOutlet = `-- name: CreateOutlet :one
 INSERT INTO outlets (tenant_id, code, name) VALUES ($1, $2, $3)
@@ -60,6 +293,7 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (CreateR
 }
 
 const createTenant = `-- name: CreateTenant :one
+
 INSERT INTO tenants (id, code, name) VALUES ($1, $2, $3)
 RETURNING id, code, name
 `
@@ -76,6 +310,8 @@ type CreateTenantRow struct {
 	Name string
 }
 
+// Pencarian akun sebelum tenant diketahui (login, refresh) memakai fungsi SECURITY DEFINER dan ditulis
+// manual di accounts.go: sqlc tidak membaca tipe hasil fungsi RETURNS TABLE.
 func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (CreateTenantRow, error) {
 	row := q.db.QueryRow(ctx, createTenant, arg.ID, arg.Code, arg.Name)
 	var i CreateTenantRow
@@ -84,8 +320,8 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Cre
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (tenant_id, role_id, email, name, phone, password_hash)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO users (tenant_id, role_id, email, name, phone, password_hash, terms_accepted_at, terms_version)
+VALUES ($1, $2, $3, $4, $5, $6, now(), $7)
 RETURNING id, email, name
 `
 
@@ -96,6 +332,7 @@ type CreateUserParams struct {
 	Name         string
 	Phone        pgtype.Text
 	PasswordHash string
+	TermsVersion pgtype.Text
 }
 
 type CreateUserRow struct {
@@ -112,69 +349,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		arg.Name,
 		arg.Phone,
 		arg.PasswordHash,
+		arg.TermsVersion,
 	)
 	var i CreateUserRow
 	err := row.Scan(&i.ID, &i.Email, &i.Name)
-	return i, err
-}
-
-const getAccountInTenant = `-- name: GetAccountInTenant :one
-
-SELECT u.id AS user_id, u.name AS user_name, u.email, u.password_hash, u.active AS user_active,
-       r.name AS role_name,
-       t.id AS tenant_id, t.code AS tenant_code, t.name AS tenant_name, t.active AS tenant_active,
-       o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name
-FROM users u
-JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
-JOIN tenants t ON t.id = u.tenant_id
-JOIN outlets o ON o.tenant_id = u.tenant_id AND o.active
-WHERE u.tenant_id = $1 AND u.id = $2
-ORDER BY o.created_at, o.code
-LIMIT 1
-`
-
-type GetAccountInTenantParams struct {
-	TenantID uuid.UUID
-	ID       uuid.UUID
-}
-
-type GetAccountInTenantRow struct {
-	UserID       uuid.UUID
-	UserName     string
-	Email        string
-	PasswordHash string
-	UserActive   bool
-	RoleName     string
-	TenantID     uuid.UUID
-	TenantCode   string
-	TenantName   string
-	TenantActive bool
-	OutletID     uuid.UUID
-	OutletCode   string
-	OutletName   string
-}
-
-// Pencarian akun sebelum tenant diketahui (login, refresh) memakai fungsi SECURITY DEFINER dan ditulis
-// manual di accounts.go: sqlc tidak membaca tipe hasil fungsi RETURNS TABLE.
-// Dengan tenant yang sudah diketahui (token akses): query biasa, dibatasi RLS (app.tenant_id) dan filter eksplisit.
-func (q *Queries) GetAccountInTenant(ctx context.Context, arg GetAccountInTenantParams) (GetAccountInTenantRow, error) {
-	row := q.db.QueryRow(ctx, getAccountInTenant, arg.TenantID, arg.ID)
-	var i GetAccountInTenantRow
-	err := row.Scan(
-		&i.UserID,
-		&i.UserName,
-		&i.Email,
-		&i.PasswordHash,
-		&i.UserActive,
-		&i.RoleName,
-		&i.TenantID,
-		&i.TenantCode,
-		&i.TenantName,
-		&i.TenantActive,
-		&i.OutletID,
-		&i.OutletCode,
-		&i.OutletName,
-	)
 	return i, err
 }
 
@@ -187,6 +365,21 @@ func (q *Queries) GetAppSetting(ctx context.Context, key string) ([]byte, error)
 	var value []byte
 	err := row.Scan(&value)
 	return value, err
+}
+
+const iamAssignUserOutlet = `-- name: IamAssignUserOutlet :exec
+INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+`
+
+type IamAssignUserOutletParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	OutletID uuid.UUID
+}
+
+func (q *Queries) IamAssignUserOutlet(ctx context.Context, arg IamAssignUserOutletParams) error {
+	_, err := q.db.Exec(ctx, iamAssignUserOutlet, arg.TenantID, arg.UserID, arg.OutletID)
+	return err
 }
 
 const iamCreateRole = `-- name: IamCreateRole :one
@@ -265,6 +458,20 @@ func (q *Queries) IamDeleteRole(ctx context.Context, arg IamDeleteRoleParams) (i
 	return result.RowsAffected(), nil
 }
 
+const iamDeleteUserOutlets = `-- name: IamDeleteUserOutlets :exec
+DELETE FROM user_outlets WHERE tenant_id = $1 AND user_id = $2
+`
+
+type IamDeleteUserOutletsParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) IamDeleteUserOutlets(ctx context.Context, arg IamDeleteUserOutletsParams) error {
+	_, err := q.db.Exec(ctx, iamDeleteUserOutlets, arg.TenantID, arg.UserID)
+	return err
+}
+
 const iamGetRole = `-- name: IamGetRole :one
 SELECT id, name, permissions, is_system FROM roles WHERE tenant_id = $1 AND id = $2
 `
@@ -294,7 +501,7 @@ func (q *Queries) IamGetRole(ctx context.Context, arg IamGetRoleParams) (IamGetR
 }
 
 const iamGetUser = `-- name: IamGetUser :one
-SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.role_id, r.name AS role_name
+SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.email_verified_at, u.role_id, r.name AS role_name, r.is_system AS role_is_system, r.permissions AS role_permissions
 FROM users u
 JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE u.tenant_id = $1 AND u.id = $2
@@ -306,15 +513,18 @@ type IamGetUserParams struct {
 }
 
 type IamGetUserRow struct {
-	ID          uuid.UUID
-	Name        string
-	Email       string
-	Phone       pgtype.Text
-	Active      bool
-	LastLoginAt pgtype.Timestamptz
-	CreatedAt   pgtype.Timestamptz
-	RoleID      uuid.UUID
-	RoleName    string
+	ID              uuid.UUID
+	Name            string
+	Email           string
+	Phone           pgtype.Text
+	Active          bool
+	LastLoginAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	EmailVerifiedAt pgtype.Timestamptz
+	RoleID          uuid.UUID
+	RoleName        string
+	RoleIsSystem    bool
+	RolePermissions []byte
 }
 
 func (q *Queries) IamGetUser(ctx context.Context, arg IamGetUserParams) (IamGetUserRow, error) {
@@ -328,36 +538,42 @@ func (q *Queries) IamGetUser(ctx context.Context, arg IamGetUserParams) (IamGetU
 		&i.Active,
 		&i.LastLoginAt,
 		&i.CreatedAt,
+		&i.EmailVerifiedAt,
 		&i.RoleID,
 		&i.RoleName,
+		&i.RoleIsSystem,
+		&i.RolePermissions,
 	)
 	return i, err
 }
 
-const iamGetUserPermissions = `-- name: IamGetUserPermissions :one
-SELECT r.permissions, u.active AS user_active, t.active AS tenant_active
-FROM users u
-JOIN roles r   ON r.tenant_id = u.tenant_id AND r.id = u.role_id
-JOIN tenants t ON t.id = u.tenant_id
-WHERE u.tenant_id = $1 AND u.id = $2
+const iamGetUserOutlets = `-- name: IamGetUserOutlets :many
+SELECT outlet_id FROM user_outlets WHERE tenant_id = $1 AND user_id = $2
 `
 
-type IamGetUserPermissionsParams struct {
+type IamGetUserOutletsParams struct {
 	TenantID uuid.UUID
-	ID       uuid.UUID
+	UserID   uuid.UUID
 }
 
-type IamGetUserPermissionsRow struct {
-	Permissions  []byte
-	UserActive   bool
-	TenantActive bool
-}
-
-func (q *Queries) IamGetUserPermissions(ctx context.Context, arg IamGetUserPermissionsParams) (IamGetUserPermissionsRow, error) {
-	row := q.db.QueryRow(ctx, iamGetUserPermissions, arg.TenantID, arg.ID)
-	var i IamGetUserPermissionsRow
-	err := row.Scan(&i.Permissions, &i.UserActive, &i.TenantActive)
-	return i, err
+func (q *Queries) IamGetUserOutlets(ctx context.Context, arg IamGetUserOutletsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, iamGetUserOutlets, arg.TenantID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var outlet_id uuid.UUID
+		if err := rows.Scan(&outlet_id); err != nil {
+			return nil, err
+		}
+		items = append(items, outlet_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const iamListRoles = `-- name: IamListRoles :many
@@ -402,8 +618,37 @@ func (q *Queries) IamListRoles(ctx context.Context, tenantID uuid.UUID) ([]IamLi
 	return items, nil
 }
 
+const iamListUserOutlets = `-- name: IamListUserOutlets :many
+SELECT user_id, outlet_id FROM user_outlets WHERE tenant_id = $1
+`
+
+type IamListUserOutletsRow struct {
+	UserID   uuid.UUID
+	OutletID uuid.UUID
+}
+
+func (q *Queries) IamListUserOutlets(ctx context.Context, tenantID uuid.UUID) ([]IamListUserOutletsRow, error) {
+	rows, err := q.db.Query(ctx, iamListUserOutlets, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IamListUserOutletsRow
+	for rows.Next() {
+		var i IamListUserOutletsRow
+		if err := rows.Scan(&i.UserID, &i.OutletID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const iamListUsers = `-- name: IamListUsers :many
-SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.role_id, r.name AS role_name
+SELECT u.id, u.name, u.email, u.phone, u.active, u.last_login_at, u.created_at, u.email_verified_at, u.role_id, r.name AS role_name, r.is_system AS role_is_system, r.permissions AS role_permissions
 FROM users u
 JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE u.tenant_id = $1
@@ -411,15 +656,18 @@ ORDER BY lower(u.name)
 `
 
 type IamListUsersRow struct {
-	ID          uuid.UUID
-	Name        string
-	Email       string
-	Phone       pgtype.Text
-	Active      bool
-	LastLoginAt pgtype.Timestamptz
-	CreatedAt   pgtype.Timestamptz
-	RoleID      uuid.UUID
-	RoleName    string
+	ID              uuid.UUID
+	Name            string
+	Email           string
+	Phone           pgtype.Text
+	Active          bool
+	LastLoginAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	EmailVerifiedAt pgtype.Timestamptz
+	RoleID          uuid.UUID
+	RoleName        string
+	RoleIsSystem    bool
+	RolePermissions []byte
 }
 
 func (q *Queries) IamListUsers(ctx context.Context, tenantID uuid.UUID) ([]IamListUsersRow, error) {
@@ -439,8 +687,11 @@ func (q *Queries) IamListUsers(ctx context.Context, tenantID uuid.UUID) ([]IamLi
 			&i.Active,
 			&i.LastLoginAt,
 			&i.CreatedAt,
+			&i.EmailVerifiedAt,
 			&i.RoleID,
 			&i.RoleName,
+			&i.RoleIsSystem,
+			&i.RolePermissions,
 		); err != nil {
 			return nil, err
 		}
@@ -481,17 +732,24 @@ func (q *Queries) IamLockActiveOwners(ctx context.Context, tenantID uuid.UUID) (
 }
 
 const iamSetPassword = `-- name: IamSetPassword :execrows
-UPDATE users SET password_hash = $3 WHERE tenant_id = $1 AND id = $2
+UPDATE users SET password_hash = $3, tokens_valid_after = $4::timestamptz WHERE tenant_id = $1 AND id = $2
 `
 
 type IamSetPasswordParams struct {
 	TenantID     uuid.UUID
 	ID           uuid.UUID
 	PasswordHash string
+	ValidAfter   pgtype.Timestamptz
 }
 
+// Mengganti password mencabut semua token akses yang sudah terbit.
 func (q *Queries) IamSetPassword(ctx context.Context, arg IamSetPasswordParams) (int64, error) {
-	result, err := q.db.Exec(ctx, iamSetPassword, arg.TenantID, arg.ID, arg.PasswordHash)
+	result, err := q.db.Exec(ctx, iamSetPassword,
+		arg.TenantID,
+		arg.ID,
+		arg.PasswordHash,
+		arg.ValidAfter,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -536,19 +794,23 @@ func (q *Queries) IamUpdateRole(ctx context.Context, arg IamUpdateRoleParams) (I
 }
 
 const iamUpdateUser = `-- name: IamUpdateUser :execrows
-UPDATE users SET name = $3, phone = $4, role_id = $5, active = $6
+UPDATE users SET name = $3, phone = $4, role_id = $5, active = $6,
+       tokens_valid_after = CASE WHEN users.active AND NOT $6 THEN $7::timestamptz ELSE users.tokens_valid_after END
 WHERE tenant_id = $1 AND id = $2
 `
 
 type IamUpdateUserParams struct {
-	TenantID uuid.UUID
-	ID       uuid.UUID
-	Name     string
-	Phone    pgtype.Text
-	RoleID   uuid.UUID
-	Active   bool
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+	Name       string
+	Phone      pgtype.Text
+	RoleID     uuid.UUID
+	Active     bool
+	ValidAfter pgtype.Timestamptz
 }
 
+// Menonaktifkan akun juga mencabut token akses yang masih hidup (tokens_valid_after). valid_after memakai JAM APLIKASI
+// (sama dengan iat token), bukan now() DB, agar selisih jam DB-aplikasi tidak merusak perbandingan.
 func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (int64, error) {
 	result, err := q.db.Exec(ctx, iamUpdateUser,
 		arg.TenantID,
@@ -557,11 +819,235 @@ func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (i
 		arg.Phone,
 		arg.RoleID,
 		arg.Active,
+		arg.ValidAfter,
 	)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const outletAssignUser = `-- name: OutletAssignUser :exec
+INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type OutletAssignUserParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	OutletID uuid.UUID
+}
+
+func (q *Queries) OutletAssignUser(ctx context.Context, arg OutletAssignUserParams) error {
+	_, err := q.db.Exec(ctx, outletAssignUser, arg.TenantID, arg.UserID, arg.OutletID)
+	return err
+}
+
+const outletCreate = `-- name: OutletCreate :one
+INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+`
+
+type OutletCreateParams struct {
+	TenantID    uuid.UUID
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+}
+
+type OutletCreateRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (OutletCreateRow, error) {
+	row := q.db.QueryRow(ctx, outletCreate,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.TaxStorePct,
+		arg.TaxGovPct,
+		arg.Timezone,
+	)
+	var i OutletCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.TaxStorePct,
+		&i.TaxGovPct,
+		&i.Timezone,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const outletGet = `-- name: OutletGet :one
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type OutletGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type OutletGetRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) OutletGet(ctx context.Context, arg OutletGetParams) (OutletGetRow, error) {
+	row := q.db.QueryRow(ctx, outletGet, arg.TenantID, arg.ID)
+	var i OutletGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.TaxStorePct,
+		&i.TaxGovPct,
+		&i.Timezone,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const outletList = `-- name: OutletList :many
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code
+`
+
+type OutletListRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletListRow, error) {
+	rows, err := q.db.Query(ctx, outletList, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OutletListRow
+	for rows.Next() {
+		var i OutletListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.TaxStorePct,
+			&i.TaxGovPct,
+			&i.Timezone,
+			&i.Active,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const outletLockActive = `-- name: OutletLockActive :many
+SELECT id FROM outlets WHERE tenant_id = $1 AND active FOR UPDATE
+`
+
+// Mengunci baris outlet aktif selama transaksi: dua penonaktifan bersamaan tidak bisa sama-sama menyisakan nol outlet.
+func (q *Queries) OutletLockActive(ctx context.Context, tenantID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, outletLockActive, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const outletUpdate = `-- name: OutletUpdate :one
+UPDATE outlets SET name = $3, tax_store_pct = $4, tax_gov_pct = $5, timezone = $6, active = $7
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+`
+
+type OutletUpdateParams struct {
+	TenantID    uuid.UUID
+	ID          uuid.UUID
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+	Active      bool
+}
+
+type OutletUpdateRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Timezone    string
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (OutletUpdateRow, error) {
+	row := q.db.QueryRow(ctx, outletUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.Name,
+		arg.TaxStorePct,
+		arg.TaxGovPct,
+		arg.Timezone,
+		arg.Active,
+	)
+	var i OutletUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.TaxStorePct,
+		&i.TaxGovPct,
+		&i.Timezone,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const touchLastLogin = `-- name: TouchLastLogin :exec

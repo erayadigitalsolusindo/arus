@@ -30,7 +30,9 @@ const iam: Messages['iam'] = {
     stock_opname: 'Stock Count Transactions',
     stock_transfer: 'Stock Transfers',
     users: 'Users',
-    roles: 'Roles & Permissions'
+    roles: 'Roles & Permissions',
+    outlets: 'Outlets',
+    audit_log: 'Audit Log'
   },
   users: {
     docTitle: 'Users | ACIRABA',
@@ -63,7 +65,12 @@ const iam: Messages['iam'] = {
     loadFailed: 'Failed to load users.',
     you: 'You',
     selfHint: 'You cannot deactivate your own account or change its role.',
-    selectRole: 'Select a role…'
+    selectRole: 'Select a role…',
+    outlets: 'Outlets',
+    outletsHint: 'Choose the outlets this employee may access (at least one).',
+    allOutlets: 'All outlets',
+    verified: 'Verified',
+    unverified: 'Not verified'
   },
   roles: {
     docTitle: 'Roles & Permissions | ACIRABA',
@@ -94,6 +101,10 @@ const iam: Messages['iam'] = {
     deleted: 'Role deleted.',
     empty: 'No roles yet.',
     loadFailed: 'Failed to load roles.',
+    administrator: 'Administrator (full access)',
+    administratorHint: 'Access to every menu and action (including ones added later) and every outlet, with no filtering. Only an Administrator can grant or change this role.',
+    administratorBadge: 'Administrator',
+    administratorOnly: 'Only an Administrator can create or change full-access roles.',
     notYours: 'Beyond your permissions'
   }
 };

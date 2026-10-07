@@ -2,13 +2,14 @@
   import { onMount } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { iam, type Role, type User } from '#lib/iam/api.ts';
+  import { outlets as outletsApi, type Outlet } from '#lib/outlets/api.ts';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { t, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName, checkEmail, checkPhone, checkPassword } from '#lib/validation.ts';
   import Modal from '#lib/components/Modal.svelte';
 
-  type Field = 'name' | 'email' | 'phone' | 'password' | 'role_id';
+  type Field = 'name' | 'email' | 'phone' | 'password' | 'role_id' | 'outlet_ids';
   type Editor = {
     id: string | null; // null = pengguna baru
     name: string;
@@ -17,6 +18,7 @@
     password: string;
     roleId: string;
     active: boolean;
+    outletIds: string[];
     saving: boolean;
     error: string;
     errors: Partial<Record<Field, string>>;
@@ -24,6 +26,7 @@
 
   let users = $state<User[]>([]);
   let roles = $state<Role[]>([]); // hanya role yang boleh diberikan pemanggil
+  let outlets = $state<Outlet[]>([]); // outlet yang boleh ditugaskan pemanggil (yang ia akses sendiri)
   let loading = $state(true);
   let loadError = $state('');
   let notice = $state('');
@@ -34,7 +37,7 @@
     loading = true;
     loadError = '';
     try {
-      [users, roles] = await Promise.all([iam.users(), iam.assignableRoles()]);
+      [users, roles, outlets] = await Promise.all([iam.users(), iam.assignableRoles(), outletsApi.accessible().then((r) => r.outlets)]);
     } catch (err) {
       loadError = errorMessage(err);
     } finally {
@@ -46,19 +49,31 @@
   const isSelf = (u: { id: string }) => u.id === session.user?.id;
 
   function openNew() {
-    editor = { id: null, name: '', email: '', phone: '', password: '', roleId: '', active: true, saving: false, error: '', errors: {} };
+    editor = { id: null, name: '', email: '', phone: '', password: '', roleId: '', active: true, outletIds: session.outlet ? [session.outlet.id] : [], saving: false, error: '', errors: {} };
   }
 
   function openUser(u: User) {
-    editor = { id: u.id, name: u.name, email: u.email, phone: u.phone, password: '', roleId: u.role_id, active: u.active, saving: false, error: '', errors: {} };
+    editor = { id: u.id, name: u.name, email: u.email, phone: u.phone, password: '', roleId: u.role_id, active: u.active, outletIds: [...u.outlet_ids], saving: false, error: '', errors: {} };
   }
 
   // Role pengguna yang sedang diubah bisa di luar daftar yang boleh diberikan (mis. Owner): tetap tampil agar tidak kosong.
   const roleOptions = $derived.by(() => {
     const cur = editor && users.find((u) => u.id === editor!.id);
-    return cur && !roles.some((r) => r.id === cur.role_id) ? [{ id: cur.role_id, name: cur.role_name } as Role, ...roles] : roles;
+    return cur && !roles.some((r) => r.id === cur.role_id) ? [{ id: cur.role_id, name: cur.role_name, is_system: cur.role_is_system, permissions: cur.all_outlets ? { '*': true } : {} } as Role, ...roles] : roles;
   });
   const roleLocked = $derived(!!editor && editor.id !== null && (isSelf({ id: editor.id }) || !roles.some((r) => r.id === users.find((u) => u.id === editor!.id)?.role_id)));
+  // Administrator (role berizin "*": Owner atau role akses penuh) otomatis mengakses semua outlet: pilihan outlet disembunyikan.
+  const roleAllAccess = $derived(!!editor && roleOptions.find((r) => r.id === editor!.roleId)?.permissions['*'] === true);
+  const accessible = $derived(new Set(outlets.map((o) => o.id)));
+  const outletName = (id: string) => outlets.find((o) => o.id === id)?.name;
+
+  function toggleOutlet(id: string) {
+    if (!editor) return;
+    editor.outletIds = editor.outletIds.includes(id) ? editor.outletIds.filter((x) => x !== id) : [...editor.outletIds, id];
+  }
+
+  /** Hanya outlet yang boleh diatur pemanggil yang dikirim; penugasan di luar jangkauannya dipertahankan server. */
+  const outletPayload = (ed: Editor) => (roleAllAccess ? [] : ed.outletIds.filter((id) => accessible.has(id)));
 
   async function save(e: SubmitEvent) {
     e.preventDefault();
@@ -69,6 +84,7 @@
     const name = checkName(ed.name);
     if (name.code) next.name = fieldMessage(name.code);
     if (!ed.roleId) next.role_id = fieldMessage('REQUIRED');
+    if (!roleAllAccess && outletPayload(ed).length === 0 && !ed.outletIds.some((id) => !accessible.has(id))) next.outlet_ids = fieldMessage('REQUIRED');
     const phone = ed.phone.trim() ? checkPhone(ed.phone) : { value: '', code: '' };
     if (phone.code) next.phone = fieldMessage(phone.code);
     if (!ed.id) {
@@ -83,10 +99,10 @@
     ed.saving = true;
     try {
       if (ed.id) {
-        await iam.updateUser(ed.id, { name: name.value, phone: phone.value, role_id: ed.roleId, active: ed.active });
+        await iam.updateUser(ed.id, { name: name.value, phone: phone.value, role_id: ed.roleId, active: ed.active, outlet_ids: outletPayload(ed) });
         notice = t('iam.users.saved');
       } else {
-        await iam.createUser({ name: name.value, email: checkEmail(ed.email).value, phone: phone.value, password: ed.password, role_id: ed.roleId });
+        await iam.createUser({ name: name.value, email: checkEmail(ed.email).value, phone: phone.value, password: ed.password, role_id: ed.roleId, outlet_ids: outletPayload(ed) });
         notice = t('iam.users.created');
       }
       editor = null;
@@ -174,6 +190,7 @@
           <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
             <th class="p-3 text-start" scope="col">{t('iam.users.name')}</th>
             <th class="p-3 text-start" scope="col">{t('iam.users.role')}</th>
+            <th class="p-3 text-start" scope="col">{t('iam.users.outlets')}</th>
             <th class="p-3 text-start" scope="col">{t('iam.users.status')}</th>
             <th class="p-3 text-start" scope="col">{t('iam.users.lastLogin')}</th>
             <th class="p-3 text-end" scope="col"></th>
@@ -184,9 +201,12 @@
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="p-3">
                 <p class="font-semibold">{u.name}{#if isSelf(u)} <span class="badge-soft badge-info ms-1">{t('iam.users.you')}</span>{/if}</p>
-                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email}</p>
+                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email} <span class="badge-soft {u.email_verified ? 'badge-success' : 'badge-warning'} ms-1">{u.email_verified ? t('iam.users.verified') : t('iam.users.unverified')}</span></p>
               </td>
               <td class="p-3"><span class="badge-soft badge-primary">{u.role_name}</span></td>
+              <td class="p-3 text-[12px]">
+                {#if u.all_outlets}{t('iam.users.allOutlets')}{:else}{u.outlet_ids.map(outletName).filter(Boolean).join(', ') || '—'}{/if}
+              </td>
               <td class="p-3"><span class="badge-soft {u.active ? 'badge-success' : 'badge-danger'}">{u.active ? t('iam.users.active') : t('iam.users.inactive')}</span></td>
               <td class="p-3 text-[var(--text-tertiary)]">{u.last_login_at ? formatDateTime(u.last_login_at) : t('iam.users.never')}</td>
               <td class="p-3 text-end whitespace-nowrap">
@@ -197,7 +217,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : t('iam.users.empty')}</td></tr>
+            <tr><td colspan="6" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : t('iam.users.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -242,6 +262,22 @@
         {#if ed.errors.role_id}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.role_id}</p>{/if}
         {#if ed.id && isSelf({ id: ed.id })}<p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('iam.users.selfHint')}</p>{/if}
       </div>
+
+      {#if !roleAllAccess}
+        <fieldset>
+          <legend class={labelClass}>{t('iam.users.outlets')}</legend>
+          <div class="space-y-1.5 max-h-40 overflow-y-auto scroll-thin rounded-lg border border-[var(--border-subtle)] p-2.5">
+            {#each outlets as o (o.id)}
+              <label class="flex items-center gap-2 text-[12.5px] cursor-pointer">
+                <input type="checkbox" class="size-4 rounded accent-[var(--color-primary-600)]" checked={ed.outletIds.includes(o.id)} onchange={() => toggleOutlet(o.id)} />
+                {o.name} <span class="text-[11px] text-[var(--text-tertiary)]">[{o.code}]</span>
+              </label>
+            {/each}
+          </div>
+          {#if ed.errors.outlet_ids}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.outlet_ids}</p>{/if}
+          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('iam.users.outletsHint')}</p>
+        </fieldset>
+      {/if}
 
       {#if ed.id === null}
         <div>

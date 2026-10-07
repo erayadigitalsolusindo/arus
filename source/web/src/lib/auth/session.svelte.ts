@@ -12,6 +12,7 @@ class SessionState {
   tenant = $state<Identity | null>(null);
   outlet = $state<Identity | null>(null);
   permissions = $state<Permissions>({});
+  emailVerified = $state(true); // true sebagai bawaan agar banner tidak berkedip sebelum sesi dimuat
 }
 
 export const session = new SessionState();
@@ -28,6 +29,7 @@ function apply(res: AuthResponse | null) {
     session.status = 'anon';
     session.user = session.tenant = session.outlet = null;
     session.permissions = {};
+    session.emailVerified = true;
     return;
   }
   session.status = 'authed';
@@ -35,6 +37,7 @@ function apply(res: AuthResponse | null) {
   session.tenant = res.tenant;
   session.outlet = res.outlet;
   session.permissions = res.permissions ?? {};
+  session.emailVerified = res.email_verified ?? true;
   expiresAt = Date.now() + res.expires_in * 1000;
   timer = setTimeout(() => void refreshSession().catch(() => {}), Math.max(res.expires_in - REFRESH_LEAD_S, 5) * 1000);
 }
@@ -47,6 +50,18 @@ export function can(module: string, action = 'view'): boolean {
   if (p["*"] === true) return true;
   const acts = p[module];
   return Array.isArray(acts) && acts.includes(action);
+}
+
+/** Menandai email terverifikasi di UI (dipanggil halaman verifikasi bila pengguna sedang masuk). */
+export function markEmailVerified() {
+  session.emailVerified = true;
+}
+
+/** Pindah outlet: token akses baru dengan outlet baru; cookie refresh tidak berubah. */
+export async function switchOutlet(outletId: string) {
+  const res = await api<AuthResponse>('/auth/switch-outlet', { method: 'POST', headers: CSRF_HEADERS, body: JSON.stringify({ outlet_id: outletId }) });
+  setAccessToken(res.access_token);
+  apply(res);
 }
 
 /** Dipanggil setelah login/register berhasil. */

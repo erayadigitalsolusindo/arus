@@ -15,7 +15,7 @@ const testPassword = "sandi-aman-123"
 func registerUser(t *testing.T, svc *Service, name string) (email string) {
 	t.Helper()
 	email = fmt.Sprintf("%s-%d@login.test", name, os.Getpid())
-	if _, err := svc.Register(context.Background(), input(name, email)); err != nil {
+	if _, err := svc.Register(context.Background(), input(name, email), "id"); err != nil {
 		t.Fatal(err)
 	}
 	return email
@@ -34,7 +34,7 @@ func TestLogin(t *testing.T) {
 	if sess.AccessToken == "" || sess.RefreshToken == "" || !sess.Remember || sess.User.Email != email || sess.Outlet.Code != "main" {
 		t.Fatalf("sesi login tidak lengkap: %+v", sess)
 	}
-	claims, err := svc.tokens.Parse(sess.AccessToken)
+	claims, err := svc.Tokens.Parse(sess.AccessToken)
 	if err != nil || claims.Subject != sess.User.ID || claims.TenantID != sess.Tenant.ID || claims.OutletID != sess.Outlet.ID || claims.Role != "Owner" {
 		t.Fatalf("klaim token salah: %+v %v", claims, err)
 	}

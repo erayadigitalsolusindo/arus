@@ -1,4 +1,4 @@
-package iam
+package authz
 
 import (
 	"encoding/json"

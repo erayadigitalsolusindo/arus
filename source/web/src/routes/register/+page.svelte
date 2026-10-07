@@ -8,7 +8,7 @@
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
 
-  type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm';
+  type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm' | 'accept_terms';
 
   const steps: MessageKey[] = ['auth.register.step1', 'auth.register.step2', 'auth.register.step3', 'auth.register.step4'];
 
@@ -20,6 +20,7 @@
   let password = $state('');
   let confirm = $state('');
   let showPassword = $state(false);
+  let acceptTerms = $state(false);
   let loading = $state(false);
   let formError = $state('');
   let errors = $state<Partial<Record<Field, string>>>({});
@@ -51,6 +52,7 @@
     if (tel.code) next.phone = fieldMessage(tel.code);
     if (pwCode) next.password = fieldMessage(pwCode);
     else if (confirm !== password) next.confirm = t('auth.register.mismatch');
+    if (!acceptTerms) next.accept_terms = t('account.terms.required');
     if (Object.keys(next).length) {
       errors = next;
       return;
@@ -66,7 +68,8 @@
           outlet_name: outlet.value,
           email: mail.value,
           phone: tel.value,
-          password
+          password,
+          accept_terms: acceptTerms
         })
       });
       startSession(res);
@@ -196,6 +199,17 @@
             />
           </div>
           {#if errors.confirm}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{errors.confirm}</p>{/if}
+        </div>
+
+        <div>
+          <label class="flex items-start gap-2 text-[12px]">
+            <input type="checkbox" class="size-3.5 rounded mt-0.5" bind:checked={acceptTerms} aria-invalid={!!errors.accept_terms} />
+            <span>
+              {t('account.terms.accept')} <a href="/terms" target="_blank" rel="noopener" class="font-semibold text-primary-600">{t('account.terms.termsLink')}</a>
+              {t('account.terms.and')} <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-primary-600">{t('account.terms.privacyLink')}</a>
+            </span>
+          </label>
+          {#if errors.accept_terms}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{errors.accept_terms}</p>{/if}
         </div>
 
         <button type="submit" disabled={loading} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">

@@ -1,5 +1,5 @@
-// Package iam: role, permission, dan manajemen pengguna dalam satu tenant (PRD FR-AUTH-05).
-package iam
+// Package authz: izin (permission), resolver izin efektif, dan middleware Authenticate/Require. Dipakai semua modul bisnis.
+package authz
 
 import (
 	"encoding/json"
@@ -59,6 +59,8 @@ var Modules = []Module{
 	{"stock_transfer", []string{ActView, ActCreate, ActApprove}},
 	{"users", crud},
 	{"roles", crud},
+	{"outlets", crud},
+	{"audit_log", viewing},
 }
 
 func moduleByID(id string) (Module, bool) {

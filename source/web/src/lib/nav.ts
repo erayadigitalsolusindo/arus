@@ -119,7 +119,9 @@ export const nav: NavGroup[] = [
     titleKey: 'nav.group.system',
     items: [
       { id: 'users', labelKey: 'nav.users', icon: 'users', module: 'users', href: '/users' },
-      { id: 'roles', labelKey: 'nav.roles', icon: 'shield-check', module: 'roles', href: '/roles' }
+      { id: 'roles', labelKey: 'nav.roles', icon: 'shield-check', module: 'roles', href: '/roles' },
+      { id: 'outlets', labelKey: 'nav.outlets', icon: 'store', module: 'outlets', href: '/outlets' },
+      { id: 'auditLog', labelKey: 'nav.auditLog', icon: 'history', module: 'audit_log', href: '/audit-log' }
     ]
   }
 ];

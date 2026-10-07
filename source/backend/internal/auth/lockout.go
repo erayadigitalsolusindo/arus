@@ -154,24 +154,31 @@ if n >= tonumber(ARGV[1]) then
   local idx = math.min(lvl, #ARGV - 2)
   local secs = tonumber(ARGV[2 + idx]) * 60
   redis.call('SET', KEYS[3], '1', 'EX', secs)
-  return secs
+  return {secs, 0}
 end
-return 0
+return {0, tonumber(ARGV[1]) - n}
 `)
 
-// RecordFailure mencatat satu login gagal. Mengembalikan durasi kunci bila percobaan ini memicu kunci (> 0).
-func (l *Lockout) RecordFailure(ctx context.Context, ip, emailHash string) (time.Duration, error) {
+// FailResult = akibat satu login gagal: LockedFor > 0 bila percobaan ini memicu kunci; selain itu AttemptsLeft = sisa
+// percobaan gagal sebelum akun dikunci (dihitung per IP+email, sama untuk email yang tidak terdaftar).
+type FailResult struct {
+	LockedFor    time.Duration
+	AttemptsLeft int
+}
+
+// RecordFailure mencatat satu login gagal.
+func (l *Lockout) RecordFailure(ctx context.Context, ip, emailHash string) (FailResult, error) {
 	p := l.policy.Get(ctx)
 	fails, level, until, email := lockKeys(ip, emailHash)
 	args := []any{p.MaxFailures, p.ResetAfterHours * 3600}
 	for _, m := range p.LockoutMinutes {
 		args = append(args, m)
 	}
-	secs, err := failScript.Run(ctx, l.rdb, []string{fails, level, until, email}, args...).Int()
-	if err != nil {
-		return 0, fmt.Errorf("catat gagal login: %w", err)
+	res, err := failScript.Run(ctx, l.rdb, []string{fails, level, until, email}, args...).Int64Slice()
+	if err != nil || len(res) != 2 {
+		return FailResult{}, fmt.Errorf("catat gagal login: %w", err)
 	}
-	return time.Duration(secs) * time.Second, nil
+	return FailResult{LockedFor: time.Duration(res[0]) * time.Second, AttemptsLeft: int(res[1])}, nil
 }
 
 // Reset menghapus hitungan dan tingkat kunci setelah login berhasil.
