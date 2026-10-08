@@ -107,3 +107,19 @@ const (
 	ActionSaleLineDiscount  = "sale.line_discount"
 	ActionUserPinSet        = "user.pin_set"
 )
+
+// Member & level member (Fase 3.3). `member.points_adjust` = penyesuaian poin manual.
+const (
+	EntityMember      = "member"
+	EntityMemberLevel = "member_level"
+
+	ActionMemberCreate       = "member.create"
+	ActionMemberUpdate       = "member.update"
+	ActionMemberActive       = "member.active"
+	ActionMemberCover        = "member.cover"
+	ActionMemberPointsAdjust = "member.points_adjust"
+
+	ActionMemberLevelCreate = "member_level.create"
+	ActionMemberLevelUpdate = "member_level.update"
+	ActionMemberLevelActive = "member_level.active"
+)

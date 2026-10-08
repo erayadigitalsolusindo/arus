@@ -18,7 +18,7 @@ export default {
   loading: 'Memuat…',
   empty: 'Belum ada catatan untuk filter ini.',
   loadFailed: 'Gagal memuat audit log.',
-  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', item: 'Item' },
+  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', item: 'Item', member: 'Member', member_level: 'Level Member' },
   actions: {
     auth_register: 'Mendaftarkan usaha',
     auth_login: 'Masuk',
@@ -64,6 +64,14 @@ export default {
     item_image_add: 'Menambah gambar item',
     item_image_main: 'Mengganti gambar utama item',
     item_image_delete: 'Menghapus gambar item',
+    member_create: 'Menambah member',
+    member_update: 'Mengubah member',
+    member_active: 'Mengubah status member',
+    member_cover: 'Mengubah foto cover member',
+    member_points_adjust: 'Menyesuaikan poin member',
+    member_level_create: 'Menambah level member',
+    member_level_update: 'Mengubah level member',
+    member_level_active: 'Mengubah status level member',
     platform_impersonate: 'Platform Admin melihat data tenant (hanya-baca)',
     platform_tenant_status: 'Platform Admin mengubah status tenant'
   }

@@ -6,6 +6,7 @@ export default {
   paid: 'Lunas',
   live: 'Live',
   close: 'Tutup',
+  datePicker: { choose: 'Pilih tanggal', clear: 'Kosongkan', today: 'Hari ini', prev: 'Bulan sebelumnya', next: 'Bulan berikutnya' },
   markdown: {
     write: 'Tulis',
     preview: 'Pratinjau',

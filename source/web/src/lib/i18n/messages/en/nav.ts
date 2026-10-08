@@ -18,7 +18,7 @@ const nav: Messages['nav'] = {
   support: 'Supporting Data',
   units: 'Units',
   categories: 'Categories',
-  memberCategories: 'Member Categories',
+  memberCategories: 'Member Levels',
   paymentMethods: 'Payment Methods',
   brands: 'Brands',
   principals: 'Principals',

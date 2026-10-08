@@ -14,6 +14,9 @@ export type SaleInput = {
   apply_tax: boolean;
   payments: SalePaymentInput[];
   note?: string;
+  /** Member (opsional) dan poin yang ditukar jadi potongan nota. */
+  member_id?: string;
+  redeem_points?: number;
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };
 };
@@ -35,6 +38,10 @@ export type Sale = {
   total: string;
   paid: string;
   change: string;
+  member?: { id: string; code: string; name: string };
+  points_earned: number;
+  points_redeemed: number;
+  redeem_amount: string;
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
@@ -48,6 +55,10 @@ export type Quote = {
   tax_gov: string;
   other_cost: string;
   total: string;
+  /** Bila member dipilih: potongan dari tukar poin (sudah termasuk di discount) dan poin yang akan diperoleh. */
+  member?: { id: string; code: string; name: string; points: number };
+  redeem_amount: string;
+  points_earn: number;
 };
 
 export const sales = {
