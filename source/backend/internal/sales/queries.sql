@@ -34,10 +34,10 @@ RETURNING last_no;
 -- name: SalesInsert :one
 -- DO NOTHING pada kunci idempotensi: pengiriman ulang tidak membuat nota ganda (pemanggil lalu membaca nota lama).
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
-        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change,
+        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge,
         sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'))
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at;
@@ -52,12 +52,21 @@ VALUES (@tenant_id, @sale_id, @position, @item_id, @sku, @name, @unit_id, @unit_
         @unit_cost, @discount, @line_total, @note, @list_price, @price_override);
 
 -- name: SalesPaymentInsert :exec
-INSERT INTO sale_payments (tenant_id, sale_id, position, method, amount, ref_no)
-VALUES (@tenant_id, @sale_id, @position, @method, @amount, @ref_no);
+INSERT INTO sale_payments (tenant_id, sale_id, position, method, method_id, method_name, amount, ref_no, fee_pct, fee_flat, fee_amount, fee_bearer)
+VALUES (@tenant_id, @sale_id, @position, @method, @method_id, @method_name, @amount, @ref_no, @fee_pct, @fee_flat, @fee_amount, @fee_bearer);
+
+-- name: SalesPaymentMethodByID :one
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2;
+
+-- name: SalesPaymentMethodByKind :one
+-- Pemanggil lama yang hanya mengirim jenis dasar: pakai metode aktif tertua berjenis itu (Tunai bawaan lebih dulu).
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods
+WHERE tenant_id = $1 AND kind = $2 AND active
+ORDER BY is_system DESC, created_at, id LIMIT 1;
 
 -- name: SalesGet :one
 SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.tax_store_pct, s.tax_gov_pct,
-       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
+       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.surcharge, s.created_at,
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
@@ -75,7 +84,7 @@ SELECT item_id, sku, name, unit_id, unit_name, factor, qty, unit_price, unit_cos
 FROM sale_lines WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
 
 -- name: SalesPayments :many
-SELECT method, amount, ref_no FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
+SELECT method, method_id, method_name, amount, ref_no, fee_pct, fee_amount, fee_bearer FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
 
 -- name: SalesSalespersonState :one
 SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2;
@@ -85,10 +94,11 @@ SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
        (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
-       -- Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
-       coalesce((SELECT string_agg(m.method || ':' || m.amt::text, ',' ORDER BY m.method)
-                 FROM (SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
-                       FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method) m), '')::text AS pay_amounts
+       -- Per METODE (id + nama sekarang + jenis). Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
+       coalesce((SELECT jsonb_agg(jsonb_build_object('id', m.method_id, 'name', m.name, 'kind', m.method, 'amount', m.amt) ORDER BY (m.method <> 'cash'), m.name)
+                 FROM (SELECT p.method_id, pm.name, p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                       FROM sale_payments p JOIN payment_methods pm ON pm.tenant_id = p.tenant_id AND pm.id = p.method_id
+                       WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method_id, pm.name, p.method) m), '[]'::jsonb)::text AS pay_amounts
 FROM sales s
 JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
 LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
@@ -197,6 +207,29 @@ WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.
 GROUP BY m.method
 ORDER BY m.method;
 
+-- name: SalesListAllMethodBreakdown :many
+-- Seperti SalesListAllMethodTotals tetapi per METODE (master), bukan per jenis: QRIS dan GoPay terpisah.
+-- Nama = nama metode saat ini (nota lama yang metodenya diganti nama ikut dikelompokkan di bawah nama baru).
+SELECT m.method_id::uuid AS method_id, pm.name::text AS name, pm.kind::text AS kind, sum(m.amt)::numeric AS amount, sum(m.fee)::numeric AS fee, sum(m.surcharge)::numeric AS surcharge
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+CROSS JOIN LATERAL (
+    SELECT p.method_id, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt, coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'store'), 0) AS fee,
+           coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'customer'), 0) AS surcharge
+    FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method_id, p.method
+) m
+JOIN payment_methods pm ON pm.tenant_id = s.tenant_id AND pm.id = m.method_id
+WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.status = 'completed'
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN @from_day::date AND @to_day::date
+  AND (@cashier_id::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = @cashier_id::uuid)
+  AND (@method::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = @method::text))
+  AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%' OR mb.name ILIKE '%' || @q::text || '%'
+       OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%')
+GROUP BY m.method_id, pm.name, pm.kind
+ORDER BY (pm.kind = 'cash') DESC, lower(pm.name);
+
 -- name: SalesStockMovements :many
 -- sale_ids = seluruh versi nota (asli + revisi): pembalikan stok nota lama ikut tampil di nota revisinya.
 -- Gerakan stok yang ditimbulkan satu nota (jual, pembatalan, retur). Satuan = satuan dasar barang.
@@ -249,11 +282,11 @@ SELECT voucher_id FROM sale_vouchers WHERE tenant_id = @tenant_id AND sale_id = 
 -- Revisi nota (hasil edit): sama dengan SalesInsert + tautan ke nota yang digantikan. created_at dibawa dari nota asli
 -- (tanggal bisnis tidak bergeser), revised_at = saat edit.
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
                    created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
-        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change,
+        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge,
         sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'),
         @created_at, @root_id, @revision, @supersedes_id, @revision_reason, now(), @revised_by)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING

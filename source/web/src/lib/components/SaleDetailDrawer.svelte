@@ -62,6 +62,9 @@
   const margin = $derived(d && d.cost !== undefined && d.profit !== undefined && num(d.subtotal) - num(d.discount) > 0 ? (num(d.profit) / (num(d.subtotal) - num(d.discount))) * 100 : null);
   const discountTotal = $derived(d ? num(d.discount) + num(d.line_discount) : 0);
   const netPaid = $derived(d ? num(d.paid) - num(d.change) : 0);
+  // Biaya ditanggung toko (mengurangi uang yang diterima toko) vs biaya yang ditagihkan ke pelanggan (tambahan di atas total).
+  const feeTotal = $derived(d ? d.payments.reduce((s, p) => s + (p.fee_bearer === 'customer' ? 0 : Number(p.fee ?? 0)), 0) : 0);
+  const surcharge = $derived(d ? Number(d.surcharge ?? 0) : 0);
   const overrides = $derived(d ? d.lines.filter((l) => l.price_override).length : 0);
 
   const tabs = $derived<{ id: Tab; label: string; count?: number }[]>([
@@ -329,8 +332,9 @@
                 <li class="surface-card !p-3.5 flex items-center gap-3">
                   <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-600)]/10 text-[var(--color-primary-600)]"><i class="{METHOD_ICON[p.method] ?? 'icon-wallet'} text-[17px]"></i></span>
                   <div class="min-w-0 grow">
-                    <div class="font-semibold text-[13px]">{PAY_METHODS.includes(p.method) ? t(`sales.method.${p.method}`) : p.method}</div>
+                    <div class="font-semibold text-[13px]">{p.method_name || (PAY_METHODS.includes(p.method) ? t(`sales.method.${p.method}`) : p.method)}</div>
                     {#if p.ref_no}<div class="font-mono text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.payments.ref')}: {p.ref_no}</div>{/if}
+                    {#if num(p.fee) > 0}<div class="text-[11.5px] text-[var(--color-warning-600)]">{Number(p.fee_pct) > 0 ? t('sales.detail.payments.fee', { pct: formatNumber(Number(p.fee_pct), { maximumFractionDigits: 2 }) }) + ' · ' : ''}{p.fee_bearer === 'customer' ? t('sales.detail.payments.feeCustomer') + ' +' : t('sales.detail.payments.feeFlat') + ' −'}{money(p.fee)}</div>{/if}
                   </div>
                   <div class="font-display text-[16px] font-bold tabular-nums">{money(p.amount)}</div>
                 </li>
@@ -341,6 +345,14 @@
                 <div class="flex justify-between"><dt>{t('sales.detail.payments.paid')}</dt><dd class="font-medium">{money(d.paid)}</dd></div>
                 <div class="flex justify-between"><dt>{t('sales.detail.payments.change')}</dt><dd>−{money(d.change)}</dd></div>
                 <div class="flex justify-between border-t border-[var(--border-subtle)] pt-2 text-[14px] font-bold"><dt>{t('sales.detail.payments.net')}</dt><dd>{money(netPaid)}</dd></div>
+                {#if surcharge > 0}
+                  <div class="flex justify-between"><dt>{t('sales.detail.payments.surchargeTotal')}</dt><dd>+{money(surcharge)}</dd></div>
+                  <div class="flex justify-between font-semibold"><dt>{t('sales.detail.payments.charged')}</dt><dd>{money(num(d.total) + surcharge)}</dd></div>
+                {/if}
+                {#if feeTotal > 0}
+                  <div class="flex justify-between text-[var(--color-warning-600)]"><dt>{t('sales.detail.payments.feeTotal')}</dt><dd>−{money(feeTotal)}</dd></div>
+                  <div class="flex justify-between font-semibold"><dt>{t('sales.detail.payments.received')}</dt><dd>{money(netPaid - feeTotal)}</dd></div>
+                {/if}
               </dl>
             </div>
           {/if}

@@ -94,8 +94,20 @@ type AllSummary struct {
 	Total          string            `json:"total"`
 	Discount       string            `json:"discount"` // potongan baris + potongan nota
 	Methods        map[string]string `json:"methods"`
-	Cost           *string           `json:"cost,omitempty"`
-	Profit         *string           `json:"profit,omitempty"`
+	// ByMethod = rincian per metode (master), Tunai dulu lalu menurut nama.
+	ByMethod []MethodTotal `json:"by_method"`
+	Cost     *string       `json:"cost,omitempty"`
+	Profit   *string       `json:"profit,omitempty"`
+}
+
+// MethodTotal = jumlah satu metode pembayaran pada ringkasan (tunai sudah bersih dari kembalian).
+type MethodTotal struct {
+	MethodID  uuid.UUID `json:"method_id"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	Amount    string    `json:"amount"`
+	Fee       string    `json:"fee"`       // biaya metode (MDR) yang DITANGGUNG TOKO; bersih = Amount - Fee
+	Surcharge string    `json:"surcharge"` // biaya yang ditagihkan ke PELANGGAN (tambahan di atas total nota)
 }
 
 type AllResult struct {
@@ -234,7 +246,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 			return err
 		}
 		res.Summary = AllSummary{Count: int(sum.SaleCount), CompletedCount: int(sum.CompletedCount), Total: sum.Total.StringFixed(2),
-			Discount: sum.Discount.StringFixed(2), Methods: map[string]string{}}
+			Discount: sum.Discount.StringFixed(2), Methods: map[string]string{}, ByMethod: []MethodTotal{}}
 		if canCost {
 			cost, profit := sum.Cost.StringFixed(2), sum.NetSales.Sub(sum.Cost).StringFixed(2)
 			res.Summary.Cost, res.Summary.Profit = &cost, &profit
@@ -246,6 +258,14 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 		}
 		for _, m := range ms {
 			res.Summary.Methods[m.Method] = m.Amount.StringFixed(2)
+		}
+		bm, err := qr.SalesListAllMethodBreakdown(ctx, gen.SalesListAllMethodBreakdownParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
+			CashierID: cashier, Method: method, Q: like})
+		if err != nil {
+			return err
+		}
+		for _, m := range bm {
+			res.Summary.ByMethod = append(res.Summary.ByMethod, MethodTotal{MethodID: m.MethodID, Name: m.Name, Kind: m.Kind, Amount: m.Amount.StringFixed(2), Fee: m.Fee.StringFixed(2), Surcharge: m.Surcharge.StringFixed(2)})
 		}
 		return nil
 	})

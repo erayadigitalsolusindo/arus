@@ -22,6 +22,8 @@ export default {
   ROLE_IN_USE: 'Role masih dipakai pengguna. Pindahkan penggunanya dulu.',
   NAME_TAKEN: 'Nama ini sudah dipakai.',
   CODE_TAKEN: 'Kode ini sudah dipakai.',
+  METHOD_LOCKED: 'Metode bawaan (Tunai) tidak dapat diarsipkan.',
+  METHOD_LIMIT: 'Jumlah metode pembayaran sudah mencapai batas (metode terarsip ikut dihitung). Ubah nama metode yang sudah ada.',
   IMAGE_LIMIT: 'Jumlah gambar item sudah maksimal.',
   IMAGE_TOO_LARGE: 'Ukuran gambar melebihi 10 MB.',
   IMAGE_UNSUPPORTED: 'Format gambar tidak didukung. Gunakan JPG, PNG, atau WebP.',
@@ -99,4 +101,7 @@ export default {
   FIELD_LOCKED: 'Kode terkunci karena kupon sudah pernah dipakai.',
   FIELD_BELOW_USED: 'Batas tidak boleh di bawah jumlah yang sudah terpakai.',
   FIELD_BEFORE_START: 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
+  FIELD_KIND_LOCKED: 'Jenis metode tidak dapat diubah.',
+  FIELD_CASH_NO_FEE: 'Tunai tidak dapat dikenai biaya.',
+  FIELD_METHOD_INACTIVE: 'Metode pembayaran ini sudah diarsipkan.',
 };

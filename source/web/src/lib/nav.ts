@@ -58,7 +58,7 @@ export const nav: NavGroup[] = [
           { labelKey: 'nav.units', module: 'units', href: '/units' },
           { labelKey: 'nav.categories', module: 'categories', href: '/categories' },
           { labelKey: 'nav.memberCategories', module: 'member_categories', href: '/member-levels' },
-          { labelKey: 'nav.paymentMethods', module: 'payment_methods' },
+          { labelKey: 'nav.paymentMethods', module: 'payment_methods', href: '/payment-methods' },
           { labelKey: 'nav.brands', module: 'brands', href: '/brands' },
           { labelKey: 'nav.principals', module: 'principals', href: '/principals' }
         ]

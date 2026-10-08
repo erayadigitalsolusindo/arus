@@ -16,6 +16,7 @@ import (
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
 	"aciraba/internal/member"
+	"aciraba/internal/paymentmethod"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
@@ -131,6 +132,9 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 			return err
 		}
 		if err := member.SeedDefaultLevels(ctx, tx, tenant.ID); err != nil { // level member bawaan
+			return err
+		}
+		if err := paymentmethod.SeedDefaults(ctx, tx, tenant.ID); err != nil { // metode pembayaran bawaan
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Actor{TenantID: tenant.ID, UserID: user.ID, OutletID: outlet.ID, Name: user.Name}, audit.Entry{

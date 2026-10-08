@@ -91,3 +91,22 @@ export const salespeople = {
 export const salespeopleLookup = {
   search: (q: string, limit = 20) => api<Page<Pick<Entry, 'id' | 'name'>>>(`/catalog/lookup/salespeople/${qs({ q, active: true, limit })}`).then((r) => r.data)
 };
+
+/** Penanggung biaya: toko (dipotong dari uang masuk) atau pelanggan (ditagihkan di atas total nota). */
+export type FeeBearer = 'store' | 'customer';
+export type PaymentKind = 'cash' | 'transfer' | 'debit' | 'credit_card' | 'ewallet';
+/** fee_pct (%) + fee_flat (Rp per transaksi) = biaya metode (MDR) yang ditanggung toko; "0.00" = tanpa biaya. */
+export type PaymentMethod = { id: string; name: string; kind: PaymentKind; is_system: boolean; active: boolean; fee_pct: string; fee_flat: string; fee_bearer: FeeBearer; created_at: string };
+export type PaymentMethodInput = { name: string; kind: PaymentKind; fee_pct?: string; fee_flat?: string; fee_bearer?: FeeBearer };
+
+export const paymentMethods = {
+  list: (p: ListQuery = {}, signal?: AbortSignal) => api<Page<PaymentMethod>>(`/payment-methods/${qs(p)}`, { signal }),
+  create: (input: PaymentMethodInput) => api<PaymentMethod>('/payment-methods/', { method: 'POST', body: json(input) }),
+  update: (id: string, input: PaymentMethodInput) => api<PaymentMethod>(`/payment-methods/${id}`, { method: 'PUT', body: json(input) }),
+  setActive: (id: string, active: boolean) => api<PaymentMethod>(`/payment-methods/${id}/active`, { method: 'PUT', body: json({ active }) })
+};
+
+/** Metode aktif untuk layar bayar kasir (Tunai lebih dulu); cukup izin kasir, tanpa izin halaman master. */
+export const paymentMethodsLookup = {
+  all: () => api<{ data: PaymentMethod[] }>('/payment-methods/lookup').then((r) => r.data)
+};

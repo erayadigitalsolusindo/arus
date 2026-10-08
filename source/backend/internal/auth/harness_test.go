@@ -125,7 +125,7 @@ func cleanup(t *testing.T, pool *pgxpool.Pool, emailLike string) {
 		}
 		rows.Close()
 		for _, id := range ids {
-			for _, tbl := range []string{"audit_log", "user_outlets", "users", "roles", "outlets"} {
+			for _, tbl := range []string{"audit_log", "user_outlets", "payment_methods", "users", "roles", "outlets"} {
 				if _, err := pool.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, id); err != nil {
 					t.Logf("cleanup %s: %v", tbl, err)
 				}

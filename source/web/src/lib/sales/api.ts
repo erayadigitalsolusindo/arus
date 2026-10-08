@@ -6,7 +6,8 @@ export type PayMethod = 'cash' | 'debit' | 'credit_card' | 'ewallet' | 'transfer
 export const PAY_METHODS: PayMethod[] = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer'];
 
 export type SaleLineInput = { item_id: string; unit_id?: string; qty: string; discount?: string; note?: string; unit_price?: string };
-export type SalePaymentInput = { method: PayMethod; amount: string; ref_no?: string };
+/** method_id = metode dari master Metode Pembayaran (lihat paymentMethodsLookup). */
+export type SalePaymentInput = { method_id: string; amount: string; ref_no?: string };
 export type SaleInput = {
   lines: SaleLineInput[];
   discount?: string;
@@ -36,7 +37,9 @@ export type Sale = {
   note: string;
   outlet_id: string;
   lines: { item_id: string; unit_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; list_price?: string; price_override?: boolean; discount: string; line_total: string }[];
-  payments: { method: PayMethod; amount: string; ref_no: string }[];
+  payments: { method: PayMethod; method_id: string; method_name: string; amount: string; ref_no: string; fee_pct: string; fee: string; fee_bearer: 'store' | 'customer' }[];
+  /** Biaya metode yang ditagihkan ke pelanggan (di luar total). Ditagih = total + surcharge. */
+  surcharge: string;
   subtotal: string;
   discount: string;
   tax_store: string;
@@ -95,8 +98,9 @@ export type SaleListRow = {
   line_count: number;
   total: string;
   methods: Partial<Record<PayMethod, string>>;
+  pays: { method_id: string; name: string; kind: PayMethod; amount: string }[];
 };
-export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; from: string; to: string; truncated: boolean };
+export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
 
 /** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
 export type SaleAllRow = {
@@ -128,7 +132,7 @@ export type SaleAllRow = {
   cost?: string;
   profit?: string;
 };
-export type SaleAllSummary = { count: number; completed_count: number; total: string; discount: string; methods: Partial<Record<PayMethod, string>>; cost?: string; profit?: string };
+export type SaleAllSummary = { count: number; completed_count: number; total: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string };
 export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
 export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
 

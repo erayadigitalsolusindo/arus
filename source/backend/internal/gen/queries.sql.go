@@ -3428,6 +3428,317 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 	return i, err
 }
 
+const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
+SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
+FROM payment_methods
+WHERE tenant_id = $1 AND active
+ORDER BY is_system DESC, lower(name), id
+`
+
+type PaymentMethodActiveListRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+}
+
+func (q *Queries) PaymentMethodActiveList(ctx context.Context, tenantID uuid.UUID) ([]PaymentMethodActiveListRow, error) {
+	rows, err := q.db.Query(ctx, paymentMethodActiveList, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PaymentMethodActiveListRow
+	for rows.Next() {
+		var i PaymentMethodActiveListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Kind,
+			&i.IsSystem,
+			&i.FeePct,
+			&i.FeeFlat,
+			&i.FeeBearer,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const paymentMethodCount = `-- name: PaymentMethodCount :one
+SELECT count(*) FROM payment_methods WHERE tenant_id = $1
+`
+
+func (q *Queries) PaymentMethodCount(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, paymentMethodCount, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const paymentMethodCreate = `-- name: PaymentMethodCreate :one
+INSERT INTO payment_methods (tenant_id, name, kind, is_system, fee_pct, fee_flat, fee_bearer)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+`
+
+type PaymentMethodCreateParams struct {
+	TenantID  uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+}
+
+type PaymentMethodCreateRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) PaymentMethodCreate(ctx context.Context, arg PaymentMethodCreateParams) (PaymentMethodCreateRow, error) {
+	row := q.db.QueryRow(ctx, paymentMethodCreate,
+		arg.TenantID,
+		arg.Name,
+		arg.Kind,
+		arg.IsSystem,
+		arg.FeePct,
+		arg.FeeFlat,
+		arg.FeeBearer,
+	)
+	var i PaymentMethodCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.IsSystem,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const paymentMethodGetForUpdate = `-- name: PaymentMethodGetForUpdate :one
+SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+FROM payment_methods WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type PaymentMethodGetForUpdateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PaymentMethodGetForUpdateRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) PaymentMethodGetForUpdate(ctx context.Context, arg PaymentMethodGetForUpdateParams) (PaymentMethodGetForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, paymentMethodGetForUpdate, arg.TenantID, arg.ID)
+	var i PaymentMethodGetForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.IsSystem,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const paymentMethodList = `-- name: PaymentMethodList :many
+SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at,
+       count(*) OVER () AS total
+FROM payment_methods
+WHERE tenant_id = $1
+  AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
+  AND ($3::boolean IS NULL OR active = $3)
+ORDER BY is_system DESC, lower(name), id
+LIMIT $5 OFFSET $4
+`
+
+type PaymentMethodListParams struct {
+	TenantID   uuid.UUID
+	Q          string
+	Active     pgtype.Bool
+	PageOffset int32
+	PageLimit  int32
+}
+
+type PaymentMethodListRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	CreatedAt pgtype.Timestamptz
+	Total     int64
+}
+
+func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListParams) ([]PaymentMethodListRow, error) {
+	rows, err := q.db.Query(ctx, paymentMethodList,
+		arg.TenantID,
+		arg.Q,
+		arg.Active,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PaymentMethodListRow
+	for rows.Next() {
+		var i PaymentMethodListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Kind,
+			&i.IsSystem,
+			&i.Active,
+			&i.FeePct,
+			&i.FeeFlat,
+			&i.FeeBearer,
+			&i.CreatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const paymentMethodSetActive = `-- name: PaymentMethodSetActive :one
+UPDATE payment_methods SET active = $3
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+`
+
+type PaymentMethodSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type PaymentMethodSetActiveRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) PaymentMethodSetActive(ctx context.Context, arg PaymentMethodSetActiveParams) (PaymentMethodSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, paymentMethodSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i PaymentMethodSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.IsSystem,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const paymentMethodUpdate = `-- name: PaymentMethodUpdate :one
+UPDATE payment_methods SET name = $3, fee_pct = $4, fee_flat = $5, fee_bearer = $6, kind = $7
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+`
+
+type PaymentMethodUpdateParams struct {
+	TenantID  uuid.UUID
+	ID        uuid.UUID
+	Name      string
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	Kind      string
+}
+
+type PaymentMethodUpdateRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) PaymentMethodUpdate(ctx context.Context, arg PaymentMethodUpdateParams) (PaymentMethodUpdateRow, error) {
+	row := q.db.QueryRow(ctx, paymentMethodUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.Name,
+		arg.FeePct,
+		arg.FeeFlat,
+		arg.FeeBearer,
+		arg.Kind,
+	)
+	var i PaymentMethodUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.IsSystem,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const platformAdminByEmail = `-- name: PlatformAdminByEmail :one
 SELECT id, email, name, password_hash, active, tokens_valid_after, last_login_at, created_by, created_at, updated_at, totp_secret_enc, totp_enabled_at, totp_last_step
 FROM platform_admins WHERE lower(email) = lower($1)
@@ -4050,7 +4361,7 @@ func (q *Queries) SalesCosts(ctx context.Context, arg SalesCostsParams) ([]Sales
 
 const salesGet = `-- name: SalesGet :one
 SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.tax_store_pct, s.tax_gov_pct,
-       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
+       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.surcharge, s.created_at,
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
@@ -4085,6 +4396,7 @@ type SalesGetRow struct {
 	Total           decimal.Decimal
 	Paid            decimal.Decimal
 	Change          decimal.Decimal
+	Surcharge       decimal.Decimal
 	CreatedAt       pgtype.Timestamptz
 	CashierID       pgtype.UUID
 	CashierName     string
@@ -4124,6 +4436,7 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 		&i.Total,
 		&i.Paid,
 		&i.Change,
+		&i.Surcharge,
 		&i.CreatedAt,
 		&i.CashierID,
 		&i.CashierName,
@@ -4148,11 +4461,11 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 
 const salesInsert = `-- name: SalesInsert :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22, $23)
+        $11, $12, $13, $14, $15, $16, $17, $18, $19,
+        $20, $21, $22, $23, $24)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -4176,6 +4489,7 @@ type SalesInsertParams struct {
 	Total          decimal.Decimal
 	Paid           decimal.Decimal
 	Change         decimal.Decimal
+	Surcharge      decimal.Decimal
 	MemberID       pgtype.UUID
 	PointsEarned   int32
 	PointsRedeemed int32
@@ -4209,6 +4523,7 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 		arg.Total,
 		arg.Paid,
 		arg.Change,
+		arg.Surcharge,
 		arg.MemberID,
 		arg.PointsEarned,
 		arg.PointsRedeemed,
@@ -4222,13 +4537,13 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 
 const salesInsertRevision = `-- name: SalesInsertRevision :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
                    created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22, $23,
-        $24, $25, $26, $27, $28, now(), $29)
+        $11, $12, $13, $14, $15, $16, $17, $18, $19,
+        $20, $21, $22, $23, $24,
+        $25, $26, $27, $28, $29, now(), $30)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -4252,6 +4567,7 @@ type SalesInsertRevisionParams struct {
 	Total          decimal.Decimal
 	Paid           decimal.Decimal
 	Change         decimal.Decimal
+	Surcharge      decimal.Decimal
 	MemberID       pgtype.UUID
 	PointsEarned   int32
 	PointsRedeemed int32
@@ -4292,6 +4608,7 @@ func (q *Queries) SalesInsertRevision(ctx context.Context, arg SalesInsertRevisi
 		arg.Total,
 		arg.Paid,
 		arg.Change,
+		arg.Surcharge,
 		arg.MemberID,
 		arg.PointsEarned,
 		arg.PointsRedeemed,
@@ -4538,10 +4855,11 @@ SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
        (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
-       -- Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
-       coalesce((SELECT string_agg(m.method || ':' || m.amt::text, ',' ORDER BY m.method)
-                 FROM (SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
-                       FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method) m), '')::text AS pay_amounts
+       -- Per METODE (id + nama sekarang + jenis). Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
+       coalesce((SELECT jsonb_agg(jsonb_build_object('id', m.method_id, 'name', m.name, 'kind', m.method, 'amount', m.amt) ORDER BY (m.method <> 'cash'), m.name)
+                 FROM (SELECT p.method_id, pm.name, p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                       FROM sale_payments p JOIN payment_methods pm ON pm.tenant_id = p.tenant_id AND pm.id = p.method_id
+                       WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method_id, pm.name, p.method) m), '[]'::jsonb)::text AS pay_amounts
 FROM sales s
 JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
 LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
@@ -4758,6 +5076,84 @@ func (q *Queries) SalesListAll(ctx context.Context, arg SalesListAllParams) ([]S
 			&i.VoucherAmount,
 			&i.VoucherCodes,
 			&i.PayAmounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesListAllMethodBreakdown = `-- name: SalesListAllMethodBreakdown :many
+SELECT m.method_id::uuid AS method_id, pm.name::text AS name, pm.kind::text AS kind, sum(m.amt)::numeric AS amount, sum(m.fee)::numeric AS fee, sum(m.surcharge)::numeric AS surcharge
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+CROSS JOIN LATERAL (
+    SELECT p.method_id, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt, coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'store'), 0) AS fee,
+           coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'customer'), 0) AS surcharge
+    FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method_id, p.method
+) m
+JOIN payment_methods pm ON pm.tenant_id = s.tenant_id AND pm.id = m.method_id
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status = 'completed'
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+  AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5::uuid)
+  AND ($6::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $6::text))
+  AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%' OR mb.name ILIKE '%' || $7::text || '%'
+       OR mb.code ILIKE '%' || $7::text || '%' OR u.name ILIKE '%' || $7::text || '%')
+GROUP BY m.method_id, pm.name, pm.kind
+ORDER BY (pm.kind = 'cash') DESC, lower(pm.name)
+`
+
+type SalesListAllMethodBreakdownParams struct {
+	TenantID  uuid.UUID
+	OutletIds []uuid.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	CashierID uuid.UUID
+	Method    string
+	Q         string
+}
+
+type SalesListAllMethodBreakdownRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	Kind      string
+	Amount    decimal.Decimal
+	Fee       decimal.Decimal
+	Surcharge decimal.Decimal
+}
+
+// Seperti SalesListAllMethodTotals tetapi per METODE (master), bukan per jenis: QRIS dan GoPay terpisah.
+// Nama = nama metode saat ini (nota lama yang metodenya diganti nama ikut dikelompokkan di bawah nama baru).
+func (q *Queries) SalesListAllMethodBreakdown(ctx context.Context, arg SalesListAllMethodBreakdownParams) ([]SalesListAllMethodBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, salesListAllMethodBreakdown,
+		arg.TenantID,
+		arg.OutletIds,
+		arg.FromDay,
+		arg.ToDay,
+		arg.CashierID,
+		arg.Method,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesListAllMethodBreakdownRow
+	for rows.Next() {
+		var i SalesListAllMethodBreakdownRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.Kind,
+			&i.Amount,
+			&i.Fee,
+			&i.Surcharge,
 		); err != nil {
 			return nil, err
 		}
@@ -5061,17 +5457,23 @@ func (q *Queries) SalesOutletInfo(ctx context.Context, arg SalesOutletInfoParams
 }
 
 const salesPaymentInsert = `-- name: SalesPaymentInsert :exec
-INSERT INTO sale_payments (tenant_id, sale_id, position, method, amount, ref_no)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO sale_payments (tenant_id, sale_id, position, method, method_id, method_name, amount, ref_no, fee_pct, fee_flat, fee_amount, fee_bearer)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `
 
 type SalesPaymentInsertParams struct {
-	TenantID uuid.UUID
-	SaleID   uuid.UUID
-	Position int32
-	Method   string
-	Amount   decimal.Decimal
-	RefNo    string
+	TenantID   uuid.UUID
+	SaleID     uuid.UUID
+	Position   int32
+	Method     string
+	MethodID   uuid.UUID
+	MethodName string
+	Amount     decimal.Decimal
+	RefNo      string
+	FeePct     decimal.Decimal
+	FeeFlat    decimal.Decimal
+	FeeAmount  decimal.Decimal
+	FeeBearer  string
 }
 
 func (q *Queries) SalesPaymentInsert(ctx context.Context, arg SalesPaymentInsertParams) error {
@@ -5080,14 +5482,91 @@ func (q *Queries) SalesPaymentInsert(ctx context.Context, arg SalesPaymentInsert
 		arg.SaleID,
 		arg.Position,
 		arg.Method,
+		arg.MethodID,
+		arg.MethodName,
 		arg.Amount,
 		arg.RefNo,
+		arg.FeePct,
+		arg.FeeFlat,
+		arg.FeeAmount,
+		arg.FeeBearer,
 	)
 	return err
 }
 
+const salesPaymentMethodByID = `-- name: SalesPaymentMethodByID :one
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2
+`
+
+type SalesPaymentMethodByIDParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalesPaymentMethodByIDRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+}
+
+func (q *Queries) SalesPaymentMethodByID(ctx context.Context, arg SalesPaymentMethodByIDParams) (SalesPaymentMethodByIDRow, error) {
+	row := q.db.QueryRow(ctx, salesPaymentMethodByID, arg.TenantID, arg.ID)
+	var i SalesPaymentMethodByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+	)
+	return i, err
+}
+
+const salesPaymentMethodByKind = `-- name: SalesPaymentMethodByKind :one
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods
+WHERE tenant_id = $1 AND kind = $2 AND active
+ORDER BY is_system DESC, created_at, id LIMIT 1
+`
+
+type SalesPaymentMethodByKindParams struct {
+	TenantID uuid.UUID
+	Kind     string
+}
+
+type SalesPaymentMethodByKindRow struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	Active    bool
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+}
+
+// Pemanggil lama yang hanya mengirim jenis dasar: pakai metode aktif tertua berjenis itu (Tunai bawaan lebih dulu).
+func (q *Queries) SalesPaymentMethodByKind(ctx context.Context, arg SalesPaymentMethodByKindParams) (SalesPaymentMethodByKindRow, error) {
+	row := q.db.QueryRow(ctx, salesPaymentMethodByKind, arg.TenantID, arg.Kind)
+	var i SalesPaymentMethodByKindRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.FeePct,
+		&i.FeeFlat,
+		&i.FeeBearer,
+	)
+	return i, err
+}
+
 const salesPayments = `-- name: SalesPayments :many
-SELECT method, amount, ref_no FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+SELECT method, method_id, method_name, amount, ref_no, fee_pct, fee_amount, fee_bearer FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
 `
 
 type SalesPaymentsParams struct {
@@ -5096,9 +5575,14 @@ type SalesPaymentsParams struct {
 }
 
 type SalesPaymentsRow struct {
-	Method string
-	Amount decimal.Decimal
-	RefNo  string
+	Method     string
+	MethodID   uuid.UUID
+	MethodName string
+	Amount     decimal.Decimal
+	RefNo      string
+	FeePct     decimal.Decimal
+	FeeAmount  decimal.Decimal
+	FeeBearer  string
 }
 
 func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([]SalesPaymentsRow, error) {
@@ -5110,7 +5594,16 @@ func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([
 	var items []SalesPaymentsRow
 	for rows.Next() {
 		var i SalesPaymentsRow
-		if err := rows.Scan(&i.Method, &i.Amount, &i.RefNo); err != nil {
+		if err := rows.Scan(
+			&i.Method,
+			&i.MethodID,
+			&i.MethodName,
+			&i.Amount,
+			&i.RefNo,
+			&i.FeePct,
+			&i.FeeAmount,
+			&i.FeeBearer,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
