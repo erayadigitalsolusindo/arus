@@ -33,6 +33,7 @@ export default {
     user_pin_set: 'Mengatur PIN penyetuju',
     sale_create: 'Menyimpan penjualan',
     sale_price_override: 'Ubah harga di kasir (disetujui PIN)',
+    sale_line_discount: 'Potongan harga di kasir (disetujui PIN)',
     role_create: 'Menambah role',
     role_update: 'Mengubah role',
     role_delete: 'Menghapus role',

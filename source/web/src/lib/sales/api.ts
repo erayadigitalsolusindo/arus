@@ -39,7 +39,7 @@ export type Sale = {
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
 export type Quote = {
-  lines: { unit_price: string; list_price?: string; price_override?: boolean; line_total: string; qty: string; issue?: 'STOCK_INSUFFICIENT' | 'BELOW_COST'; available?: string }[];
+  lines: { unit_price: string; list_price?: string; price_override?: boolean; line_total: string; discount: string; qty: string; issue?: 'STOCK_INSUFFICIENT' | 'BELOW_COST'; available?: string }[];
   subtotal: string;
   discount: string;
   tax_store_pct: string;

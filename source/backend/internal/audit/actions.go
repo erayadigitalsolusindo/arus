@@ -103,5 +103,6 @@ const (
 // Persetujuan (PIN) — ubah harga di kasir.
 const (
 	ActionSalePriceOverride = "sale.price_override"
+	ActionSaleLineDiscount  = "sale.line_discount"
 	ActionUserPinSet        = "user.pin_set"
 )

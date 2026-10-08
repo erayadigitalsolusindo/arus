@@ -602,7 +602,8 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 		}
 		var approver approval.Approver
 		overrides := overriddenLines(lines)
-		if len(overrides) > 0 {
+		discounted := discountedLines(lines)
+		if len(overrides) > 0 || len(discounted) > 0 {
 			if s.approvals == nil || in.Approval == nil {
 				return approval.ErrPinRequired
 			}
@@ -679,6 +680,18 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 			}
 			if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 				Action: audit.ActionSalePriceOverride, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
+				Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
+			}); err != nil {
+				return err
+			}
+		}
+		if len(discounted) > 0 {
+			items := make([]map[string]string, 0, len(discounted))
+			for _, l := range discounted {
+				items = append(items, map[string]string{"sku": l.item.row.Sku, "price": l.unitPrice.String(), "qty": l.qty.String(), "discount": l.discount.String()})
+			}
+			if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+				Action: audit.ActionSaleLineDiscount, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
 				Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
 			}); err != nil {
 				return err
@@ -831,6 +844,17 @@ func overriddenLines(lines []calcLine) []calcLine {
 	var out []calcLine
 	for _, l := range lines {
 		if l.overridden {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// discountedLines = baris yang diberi potongan manual (butuh persetujuan PIN seperti ubah harga).
+func discountedLines(lines []calcLine) []calcLine {
+	var out []calcLine
+	for _, l := range lines {
+		if l.discount.IsPositive() {
 			out = append(out, l)
 		}
 	}

@@ -6,11 +6,13 @@
   import { errorMessage } from '#lib/i18n/errors.ts';
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
-  import { toCents, toMilli, centsToNumber } from '#lib/pos/money.ts';
+  import { toCents, toMilli, centsToNumber, lineTotal } from '#lib/pos/money.ts';
   import { cartStorageKey, loadCart, saveCart } from '#lib/pos/cart-store.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
   import PayModal from '#lib/components/PayModal.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
+  import { fitText } from '#lib/fitText.ts';
   import PriceOverrideModal from '#lib/components/PriceOverrideModal.svelte';
   import type { Approver } from '#lib/approval/api.ts';
   import { sales, type Quote, type SaleInput } from '#lib/sales/api.ts';
@@ -18,10 +20,10 @@
   import { initials } from '#lib/auth/initials.ts';
 
   // Satu baris keranjang. `price` = harga per satuan baris (string desimal dari API); `qty` = string yang diketik pengguna.
-  type Line = { key: string; id: string; override: string | null; unitId: string | null; sku: string; name: string; unit: string; price: string; qty: string; goods: boolean; imageId: string | null };
+  type Line = { key: string; id: string; override: string | null; disc: string | null; discTotal: boolean; unitId: string | null; sku: string; name: string; unit: string; price: string; qty: string; goods: boolean; imageId: string | null };
 
   const PAGE = 24;
-  const money = (c: bigint) => formatCurrency(centsToNumber(c));
+  const money = (c: bigint) => formatCurrency(centsToNumber(c), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ---------- Katalog ----------
   let q = $state('');
@@ -66,14 +68,14 @@
   // Keranjang disimpan di browser (per tenant+outlet+kasir) agar selamat dari tab tertutup / mati lampu.
   const storeKey = $derived(session.tenant && session.outlet && session.user ? cartStorageKey(session.tenant.id, session.outlet.id, session.user.id) : '');
   const restored = session.tenant && session.outlet && session.user ? loadCart(cartStorageKey(session.tenant.id, session.outlet.id, session.user.id)) : null;
-  let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null })) : []);
+  let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
   $effect(() => {
-    const snapshot = { lines: cart.map(({ override: _o, ...l }) => l), otherCost, taxOn, note };
+    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, taxOn, note };
     if (storeKey) saveCart(storeKey, snapshot);
   });
 
-  function add(l: Omit<Line, 'qty' | 'key' | 'override'> & { key?: string }) {
+  function add(l: Omit<Line, 'qty' | 'key' | 'override' | 'disc' | 'discTotal'> & { key?: string }) {
     const key = l.key ?? `${l.id}:${l.unit}`;
     const existing = cart.find((x) => x.key === key);
     if (existing) {
@@ -81,7 +83,7 @@
       // Barang yang baru ditambah selalu naik ke paling atas supaya kasir langsung melihatnya.
       cart = [existing, ...cart.filter((x) => x !== existing)];
     } else {
-      cart.unshift({ ...l, key, qty: '1', override: null });
+      cart.unshift({ ...l, key, qty: '1', override: null, disc: null, discTotal: false });
     }
     highlight(key);
   }
@@ -114,7 +116,7 @@
 
   const remove = (key: string) => {
     cart = cart.filter((l) => l.key !== key);
-    if (!cart.some((l) => l.override)) approval = null;
+    if (!needsApproval()) approval = null;
   };
 
   function normalizeQty(l: Line) {
@@ -134,8 +136,8 @@
 
   // forPay: sertakan persetujuan (PIN) untuk dikirim saat simpan nota; quote TIDAK pernah membawa PIN.
   const buildSale = (withNote = true, forPay = false): Omit<SaleInput, 'payments'> => ({
-    lines: cart.map((l) => ({ item_id: l.id, ...(l.unitId ? { unit_id: l.unitId } : {}), qty: fmtMilli(toMilli(l.qty)), ...(l.override ? { unit_price: l.override } : {}) })),
-    ...(forPay && approval && cart.some((l) => l.override) ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
+    lines: cart.map((l) => ({ item_id: l.id, ...(l.unitId ? { unit_id: l.unitId } : {}), qty: fmtMilli(toMilli(l.qty)), ...(l.override ? { unit_price: l.override } : {}), ...(l.disc ? { discount: discountOf(l) } : {}) })),
+    ...(forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
     ...(otherCost.trim() ? { other_cost: otherCost.trim().replace(',', '.') } : {}),
     apply_tax: taxOn,
     ...(withNote && note.trim() ? { note: note.trim() } : {})
@@ -144,14 +146,27 @@
   // Persetujuan ubah harga: penyetuju + PIN hanya di memori halaman ini; dibuang saat nota selesai/keranjang dikosongkan.
   let approval = $state<{ id: string; name: string; pin: string } | null>(null);
   let editing = $state<number | null>(null); // indeks baris yang sedang diubah harganya
-  function applyOverride(i: number, price: string, ap: Approver, pin: string) {
-    cart[i].override = price;
+  // Potongan manual disimpan per satuan (Rp) agar ikut menyesuaikan saat qty diubah; server menerima total potongan baris.
+  function discountOf(l: Line): string {
+    const c = l.discTotal ? toCents(l.disc ?? '0') : lineTotal(toCents(l.disc ?? '0'), toMilli(l.qty));
+    return `${c / 100n}.${String(c % 100n).padStart(2, '0')}`;
+  }
+  const needsApproval = () => cart.some((l) => l.override || l.disc);
+  function applyChange(i: number, patch: { override?: string | null; disc?: string | null; discTotal?: boolean }, ap: Approver, pin: string) {
+    if (patch.override !== undefined) cart[i].override = patch.override;
+    if (patch.disc !== undefined) cart[i].disc = patch.disc;
+    if (patch.discTotal !== undefined) cart[i].discTotal = patch.discTotal;
     approval = { id: ap.id, name: ap.name, pin };
     editing = null;
   }
   function resetOverride(i: number) {
     cart[i].override = null;
-    if (!cart.some((l) => l.override)) approval = null;
+    if (!needsApproval()) approval = null;
+  }
+  function resetDiscount(i: number) {
+    cart[i].disc = null;
+    cart[i].discTotal = false;
+    if (!needsApproval()) approval = null;
   }
 
   let quote = $state<Quote | null>(null);
@@ -178,6 +193,17 @@
   };
   const hasIssue = $derived(fresh && !!quote?.lines.some((l) => l.issue));
   const lineTotalOf = (i: number) => (fresh && quote?.lines[i] ? toCents(quote.lines[i].line_total) : null);
+
+  // Keranjang kosong = transaksi baru: biaya lain, pajak, dan keterangan sisa nota sebelumnya tidak ikut terbawa.
+  $effect(() => {
+    if (cart.length === 0) {
+      untrack(() => {
+        otherCost = '';
+        taxOn = false;
+        note = '';
+      });
+    }
+  });
 
   $effect(() => {
     const key = cartKey;
@@ -314,6 +340,22 @@
     }
   }
 
+  const SIDE_KEY = 'pos.sideCollapsed';
+  let sideCollapsed = $state(true); // awalnya tertutup; pilihan pengguna (buka) diingat
+  try {
+    sideCollapsed = localStorage.getItem(SIDE_KEY) !== '0';
+  } catch {
+    /* penyimpanan diblokir: abaikan */
+  }
+  function toggleSide() {
+    sideCollapsed = !sideCollapsed;
+    try {
+      localStorage.setItem(SIDE_KEY, sideCollapsed ? '1' : '0');
+    } catch {
+      /* penyimpanan diblokir: abaikan */
+    }
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen?.();
@@ -362,10 +404,23 @@
     </span>
   </header>
 
-  <div class="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[270px_minmax(0,1fr)_400px]">
-    <!-- Kolom kiri: informasi outlet -->
+  <div class="flex-1 min-h-0 flex flex-col lg:grid {sideCollapsed ? 'lg:grid-cols-[48px_minmax(0,1fr)_400px]' : 'lg:grid-cols-[270px_minmax(0,1fr)_400px]'}">
+    <!-- Kolom kiri: informasi outlet (bisa diciutkan agar katalog lebih lebar) -->
+    {#if sideCollapsed}
+      <aside class="hidden lg:flex flex-col items-center gap-3 py-3 min-h-0 bg-[var(--surface-card)] border-e border-[var(--border-subtle)]">
+        <button type="button" class="header-icon-btn" aria-label={t('pos.expandInfo')} title={t('pos.expandInfo')} onclick={toggleSide}>
+          <i class="icon-chevrons-right text-[18px]"></i>
+        </button>
+        <span class="text-[11px] font-bold uppercase tracking-wide text-[var(--text-secondary)] [writing-mode:vertical-rl] rotate-180">{session.outlet?.code}</span>
+      </aside>
+    {:else}
     <aside class="hidden lg:flex flex-col gap-3 p-3 min-h-0 overflow-y-auto bg-[var(--surface-card)] border-e border-[var(--border-subtle)]">
-      <div class="text-center text-[11px] font-bold uppercase tracking-wide">{t('pos.info')} : {session.outlet?.code}</div>
+      <div class="flex items-center gap-1">
+        <div class="grow text-center text-[11px] font-bold uppercase tracking-wide">{t('pos.info')} : {session.outlet?.code}</div>
+        <button type="button" class="header-icon-btn" aria-label={t('pos.collapseInfo')} title={t('pos.collapseInfo')} onclick={toggleSide}>
+          <i class="icon-chevrons-left text-[18px]"></i>
+        </button>
+      </div>
       <select
         class="w-full rounded-md px-2.5 py-2 text-[12.5px] border border-[var(--border-default)] bg-[var(--surface-base)] disabled:opacity-60"
         aria-label={t('pos.switchOutlet')}
@@ -404,6 +459,7 @@
       <span class="grow"></span>
       <button type="button" class="btn btn-sm w-full" disabled title={t('pos.soon')}>{t('pos.orderStatus')}</button>
     </aside>
+    {/if}
 
     <!-- Kolom tengah: pencarian + katalog -->
     <main class="flex flex-col min-h-0 min-w-0 max-h-[70dvh] lg:max-h-none">
@@ -509,14 +565,26 @@
 
       <!-- Total besar -->
       <div class="px-4 py-3 text-end shrink-0" aria-live="polite">
-        <span class="font-mono font-extrabold tabular-nums text-[44px] leading-none tracking-tight text-[var(--color-danger-600)] [text-shadow:0_0_1px_currentColor]">{money(grand)}</span>
+        <span use:fitText={{ max: 44, min: 16, text: money(grand) }} class="inline-block whitespace-nowrap font-mono font-extrabold tabular-nums text-[44px] leading-none tracking-tight text-[var(--color-danger-600)] [text-shadow:0_0_1px_currentColor]">{money(grand)}</span>
         {#if quoteError}<p role="alert" class="mt-1 text-[11.5px] font-normal text-[var(--color-danger-600)] text-start">{quoteError}</p>{/if}
       </div>
 
       <!-- Baris keranjang -->
       <div bind:this={cartEl} class="flex-1 min-h-[140px] overflow-y-auto px-3 pb-2 space-y-2">
         {#if cart.length === 0}
-          <p class="text-center text-[12.5px] text-[var(--text-tertiary)] py-10 px-4">{t('pos.emptyCart')}</p>
+          <div class="flex flex-col items-center justify-center gap-4 py-8 px-4 text-center">
+            <div class="empty-scan relative flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-[var(--color-primary-500)] text-[var(--color-primary-500)]">
+              <svg viewBox="0 0 24 24" class="h-12 w-12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" />
+                <path d="M2.5 3h2.8l2.2 11.2a1.6 1.6 0 0 0 1.6 1.3h8.1a1.6 1.6 0 0 0 1.6-1.2L20.5 7H6.2" />
+              </svg>
+              <span class="empty-scan-line absolute left-2 right-2 h-0.5 rounded bg-[var(--color-primary-500)]"></span>
+            </div>
+            <p class="empty-text text-[16px] font-semibold leading-snug text-[var(--text-secondary)]">{t('pos.emptyCart')}</p>
+            <span class="empty-arrow text-[var(--color-primary-500)]" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+            </span>
+          </div>
         {/if}
         {#each cart as l, i (l.key)}
           <div class="rounded-md border p-2.5 transition-shadow {hotKey === l.key ? 'ring-2 ring-[var(--color-primary-500)] shadow-[var(--shadow-md)]' : ''} {issueOf(i) ? 'border-[var(--color-danger-500)] bg-[color-mix(in_oklab,var(--color-danger-500)_6%,transparent)]' : 'border-[var(--border-subtle)]'}">
@@ -539,14 +607,21 @@
                 <button type="button" class="ms-auto underline font-normal" onclick={() => resetOverride(i)}>{t('pos.override.reset')}</button>
               </p>
             {/if}
+            {#if l.disc}
+              <p class="mt-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--color-warning-600)]">
+                <i class="icon-badge-percent"></i>{t(l.discTotal ? 'pos.discountBadgeTotal' : 'pos.discountBadge', { amount: money(toCents(l.disc)) })}{!l.override && approval ? ` · ${t('pos.override.approvedBy', { name: approval.name })}` : ''}
+                <button type="button" class="ms-auto underline font-normal" onclick={() => resetDiscount(i)}>{t('pos.discountReset')}</button>
+              </p>
+            {/if}
             {#if issueOf(i)}<p role="alert" class="mt-1.5 text-[11.5px] font-semibold text-[var(--color-danger-600)]"><i class="icon-triangle-alert me-1"></i>{issueText(i)}</p>{/if}
             <div class="mt-2 flex items-end justify-between gap-2">
               <div class="flex items-stretch h-8 rounded overflow-hidden border border-[var(--border-default)]">
                 <button type="button" class="w-8 grid place-items-center text-white bg-[var(--color-primary-600)]" aria-label={t('pos.qtyDec')} onclick={() => (l.qty = bump(l.qty, -1))}><i class="icon-minus text-[13px]"></i></button>
-                <input
+                <MoneyInput
                   bind:value={l.qty}
+                  decimals={3}
+                  pad={false}
                   onblur={() => normalizeQty(l)}
-                  inputmode="decimal"
                   aria-label={t('pos.qty')}
                   class="w-16 text-center text-[13px] font-semibold tabular-nums bg-[var(--surface-base)] outline-none"
                 />
@@ -554,7 +629,7 @@
               </div>
               <div class="text-end text-[11px] leading-tight">
                 <div class="font-semibold text-[var(--text-secondary)]">{t('pos.subtotal')} : <span class="tabular-nums">{lineTotalOf(i) !== null ? money(lineTotalOf(i) ?? 0n) : '…'}</span></div>
-                <div class="text-[var(--text-tertiary)]">{t('pos.discount')} : {money(0n)}</div>
+                <div class="text-[var(--text-tertiary)]">{t('pos.discount')} : {money(fresh && quote?.lines[i]?.discount ? toCents(quote.lines[i].discount) : 0n)}</div>
               </div>
             </div>
           </div>
@@ -565,7 +640,7 @@
       <div class="shrink-0 px-3 pt-2 space-y-1.5 border-t border-[var(--border-subtle)] text-[12px]">
         <label class="flex items-center gap-2">
           <span class="w-28 shrink-0">{t('pos.otherCosts')}</span>
-          <input bind:value={otherCost} inputmode="decimal" placeholder="0" class="grow h-8 px-2 text-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
+          <MoneyInput bind:value={otherCost} placeholder="0" class="grow h-8 px-2 text-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
         </label>
         <label class="flex items-center gap-2">
           <span class="w-28 shrink-0">{t('pos.storeTax')}</span>
@@ -601,10 +676,12 @@
   {@const ei = editing}
   <PriceOverrideModal
     name={cart[ei].name}
+    discount={cart[ei].disc ?? ''}
+    discountTotal={cart[ei].discTotal}
     listPrice={fresh && quote?.lines[ei]?.list_price ? quote.lines[ei].list_price : cart[ei].price}
     current={cart[ei].override ?? ''}
     onclose={() => (editing = null)}
-    onapply={(price, ap, pin) => applyOverride(ei, price, ap, pin)}
+    onapply={(patch, ap, pin) => applyChange(ei, patch, ap, pin)}
   />
 {/if}
 
@@ -631,3 +708,17 @@
     </ul>
   </Modal>
 {/if}
+
+<style>
+  .empty-scan { animation: empty-pulse 2.4s ease-in-out infinite; }
+  .empty-scan-line { top: 10%; animation: empty-scan 1.8s ease-in-out infinite; box-shadow: 0 0 8px currentColor; }
+  .empty-text { animation: empty-fade 2.4s ease-in-out infinite; }
+  .empty-arrow { display: inline-block; animation: empty-nudge 1.2s ease-in-out infinite; }
+  @keyframes empty-scan { 0%, 100% { top: 10%; } 50% { top: 85%; } }
+  @keyframes empty-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @keyframes empty-fade { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  @keyframes empty-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-8px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .empty-scan, .empty-scan-line, .empty-text, .empty-arrow { animation: none; }
+  }
+</style>

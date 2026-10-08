@@ -7,6 +7,7 @@
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { refreshOutlets } from '#lib/outlets/store.svelte.ts';
 
   // Zona waktu Indonesia; zona lain dapat ditambah di sini tanpa mengubah backend (divalidasi lewat tzdata).
@@ -217,12 +218,12 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label for="o-ts" class={labelClass}>{t('outlets.taxStore')}</label>
-          <input id="o-ts" inputmode="decimal" class={inputClass} bind:value={ed.taxStore} disabled={ro} aria-invalid={!!ed.errors.tax_store_pct} />
+          <MoneyInput id="o-ts" pad={false} class={inputClass} bind:value={ed.taxStore} disabled={ro} aria-invalid={!!ed.errors.tax_store_pct} />
           {#if ed.errors.tax_store_pct}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.tax_store_pct}</p>{/if}
         </div>
         <div>
           <label for="o-tg" class={labelClass}>{t('outlets.taxGov')}</label>
-          <input id="o-tg" inputmode="decimal" class={inputClass} bind:value={ed.taxGov} disabled={ro} aria-invalid={!!ed.errors.tax_gov_pct} />
+          <MoneyInput id="o-tg" pad={false} class={inputClass} bind:value={ed.taxGov} disabled={ro} aria-invalid={!!ed.errors.tax_gov_pct} />
           {#if ed.errors.tax_gov_pct}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.tax_gov_pct}</p>{/if}
         </div>
       </div>
