@@ -94,13 +94,15 @@ type UserRow struct {
 }
 
 type TenantDetail struct {
-	ID        uuid.UUID   `json:"id"`
-	Code      string      `json:"code"`
-	Name      string      `json:"name"`
-	Active    bool        `json:"active"`
-	CreatedAt time.Time   `json:"created_at"`
-	Outlets   []OutletRow `json:"outlets"`
-	Users     []UserRow   `json:"users"`
+	ID        uuid.UUID `json:"id"`
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	Active    bool      `json:"active"`
+	CreatedAt time.Time `json:"created_at"`
+	// SaleEditWindowDays = berapa hari sesudah hari nota dibuat nota masih boleh diedit/dibatalkan (0 = hanya hari itu). Hanya operator platform yang mengubahnya.
+	SaleEditWindowDays int         `json:"sale_edit_window_days"`
+	Outlets            []OutletRow `json:"outlets"`
+	Users              []UserRow   `json:"users"`
 }
 
 // Tenant memuat detail satu tenant di bawah WithTenant (RLS membatasi ke tenant itu). tenantID berasal dari path rute
@@ -121,7 +123,7 @@ func (s *Service) Tenant(ctx context.Context, id uuid.UUID) (*TenantDetail, erro
 		if err != nil {
 			return err
 		}
-		out = &TenantDetail{ID: t.ID, Code: t.Code, Name: t.Name, Active: t.Active, CreatedAt: t.CreatedAt.Time, Outlets: []OutletRow{}, Users: []UserRow{}}
+		out = &TenantDetail{ID: t.ID, Code: t.Code, Name: t.Name, Active: t.Active, CreatedAt: t.CreatedAt.Time, SaleEditWindowDays: int(t.SaleEditWindowDays), Outlets: []OutletRow{}, Users: []UserRow{}}
 		for _, o := range outlets {
 			out.Outlets = append(out.Outlets, OutletRow{ID: o.ID, Code: o.Code, Name: o.Name, Active: o.Active})
 		}
@@ -175,6 +177,44 @@ func (s *Service) SetTenantActive(ctx context.Context, a Actor, tenantID uuid.UU
 	}
 	if err == nil {
 		s.Perms.InvalidateTenant(tenantID)
+	}
+	return err
+}
+
+// MaxEditWindowDays = batas atas pengaturan (3650 hari ≈ tanpa batas).
+const MaxEditWindowDays = 3650
+
+var ErrInvalidWindow = errors.New("batas hari edit nota tidak valid")
+
+// SetSaleEditWindow mengatur batas hari edit/batal nota satu tenant. Sengaja HANYA lewat Platform Admin: pemilik tenant
+// tidak bisa melonggarkan sendiri batas yang menjaga akurasi laporan hariannya. Perubahan tercatat di audit platform dan audit tenant.
+func (s *Service) SetSaleEditWindow(ctx context.Context, a Actor, tenantID uuid.UUID, days int) error {
+	if days < 0 || days > MaxEditWindowDays {
+		return ErrInvalidWindow
+	}
+	err := db.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		q := gen.New(tx)
+		t, err := q.PlatformTenantGet(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		if n, err := q.PlatformTenantSetEditWindow(ctx, gen.PlatformTenantSetEditWindowParams{ID: tenantID, Days: int32(days)}); err != nil || n == 0 {
+			if err == nil {
+				err = pgx.ErrNoRows
+			}
+			return err
+		}
+		details := map[string]any{"days": days, "previous": t.SaleEditWindowDays}
+		if err := s.recordTx(ctx, tx, a, ActionEditWindow, tenantID, t.Name, details); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Actor{TenantID: tenantID, Name: "Platform: " + a.Name}, audit.Entry{
+			Action: audit.ActionPlatformEditWindow, Entity: audit.EntityTenant, EntityID: tenantID.String(),
+			Details: map[string]any{"days": days, "previous": t.SaleEditWindowDays, "admin_id": a.ID.String()},
+		})
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
 	}
 	return err
 }

@@ -75,8 +75,15 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sale_vouchers", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
 				"items", "units", "users", "roles", "outlets"} {
+				if tbl == "sales" {
+					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.
+					_, _ = admin.Exec(ctx, `UPDATE sales SET status = 'completed', superseded_by = NULL WHERE tenant_id = $1 AND superseded_by IS NOT NULL`, tid)
+					for rev := 12; rev >= 2; rev-- {
+						_, _ = admin.Exec(ctx, `DELETE FROM sales WHERE tenant_id = $1 AND revision = $2`, tid, rev)
+					}
+				}
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
 			_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tid)

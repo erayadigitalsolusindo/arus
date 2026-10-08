@@ -13,7 +13,8 @@
     build,
     lineName,
     onclose,
-    ondone
+    ondone,
+    edit
   }: {
     /** Total pratinjau (sen). Total resmi dihitung server; bila beda, server yang benar dan pembayaran divalidasi ulang. */
     total: bigint;
@@ -24,6 +25,8 @@
     onclose: () => void;
     /** Dipanggil saat pengguna menutup layar sukses ("Transaksi baru"). */
     ondone: () => void;
+    /** Mode edit nota: simpan sebagai revisi nota `id` (alasan sudah diisi di layar kasir; penyetuju ikut di build()). */
+    edit?: { id: string; reason: string };
   } = $props();
 
   // Jenis transaksi mengikuti layar legacy: F1 Tunai, F2 Kredit, F3 Non-tunai, F4 Split.
@@ -136,17 +139,15 @@
     submitting = true;
     error = '';
     try {
-      done = await sales.create(
-        {
+      const payload = {
           ...build(),
           payments: entered.map((m) => {
             const f = fields[m];
             const ref = [f.bank.trim(), f.ref.trim()].filter(Boolean).join(' · ').slice(0, 100);
             return { method: m, amount: dec(toCents(f.amount)), ...(ref ? { ref_no: ref } : {}) };
           })
-        },
-        key
-      );
+        };
+      done = edit ? await sales.edit(edit.id, { ...payload, reason: edit.reason }, key) : await sales.create(payload, key);
     } catch (e) {
       error = describe(e);
     } finally {
@@ -157,11 +158,11 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<Modal title={done ? t('pos.paidTitle') : t('pos.payTitle')} onclose={done ? ondone : onclose} wide={!done}>
+<Modal title={done ? t('pos.paidTitle') : edit ? t('pos.edit.payTitle') : t('pos.payTitle')} onclose={done ? ondone : onclose} wide={!done}>
   {#if done}
     <div class="text-center space-y-3 py-2">
       <span class="grid place-items-center size-14 mx-auto rounded-full bg-[color-mix(in_oklab,var(--color-success-500)_18%,transparent)] text-[var(--color-success-600)]"><i class="icon-check text-[28px]"></i></span>
-      <div class="text-[12px] text-[var(--text-tertiary)]">{t('pos.paidDoc')}</div>
+      <div class="text-[12px] text-[var(--text-tertiary)]">{edit ? t('pos.edit.newDoc') : t('pos.paidDoc')}</div>
       <div class="font-mono text-[20px] font-bold">{done.doc_no}</div>
       <dl class="text-[13px] space-y-1 text-start max-w-xs mx-auto">
         <div class="flex justify-between"><dt>{t('pos.payTotal')}</dt><dd class="font-semibold tabular-nums">{money(toCents(done.total))}</dd></div>

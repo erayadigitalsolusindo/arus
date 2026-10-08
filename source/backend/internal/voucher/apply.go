@@ -138,3 +138,9 @@ func numNull(n pgtype.Numeric) decimal.NullDecimal {
 	}
 	return decimal.NullDecimal{Decimal: decimal.NewFromBigInt(n.Int, n.Exp), Valid: true}
 }
+
+// Release mengembalikan satu pemakaian kupon ketika nota yang memakainya dibatalkan atau diedit (kebalikan Consume).
+func Release(ctx context.Context, tx pgx.Tx, tenantID, id uuid.UUID) error {
+	_, err := gen.New(tx).VoucherRelease(ctx, gen.VoucherReleaseParams{TenantID: tenantID, ID: id})
+	return err
+}
