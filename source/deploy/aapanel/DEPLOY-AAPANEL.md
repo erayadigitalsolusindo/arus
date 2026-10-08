@@ -28,7 +28,18 @@ Browser ──https──► nginx aaPanel ─┬─ arus.…     → file stati
 sudo mkdir -p /www/wwwroot/arus/{api,web,deploy,data/uploads,backups}
 sudo chown -R www:www /www/wwwroot/arus/{api,web,data}
 ```
-Salin folder `source/deploy/` repo ke `/www/wwwroot/arus/deploy/` (compose, initdb, aapanel/).
+Ambil file deploy dari GitHub. Server **hanya butuh folder `source/deploy/`** (compose, initdb, skrip); kode aplikasi dibangun di laptop dan dikirim sebagai `release.tar.gz` (langkah 4).
+```bash
+sudo apt install -y git
+sudo git clone --depth 1 -b claude/awesome-keller-mdoqpo https://github.com/erayadigitalsolusindo/arus.git /www/wwwroot/arus/repo
+sudo cp -r /www/wwwroot/arus/repo/source/deploy/. /www/wwwroot/arus/deploy/
+ls /www/wwwroot/arus/deploy        # harus ada: docker-compose.yml  initdb  aapanel
+```
+- Repo **privat**, jadi git meminta login: *Username* = akun GitHub Anda, *Password* = **Personal Access Token** (bukan password akun). Buat di GitHub → Settings → Developer settings → Fine-grained tokens, pilih repo ini saja, izin **Contents: Read-only**.
+- `-b claude/awesome-keller-mdoqpo` dipakai karena PR belum di-merge; setelah merge ganti dengan `-b main`.
+- Nama repo mengikuti URL PR (`arus`). Bila clone gagal "not found", cek nama repo di GitHub.
+- Tanpa git: dari laptop, `scp -r source/deploy kotakcantik@IP_VPS:~/deploy` lalu `sudo cp -r ~/deploy/. /www/wwwroot/arus/deploy/`.
+- Update berikutnya (bila skrip berubah): `sudo git -C /www/wwwroot/arus/repo pull` lalu ulangi `cp -r` (file `.env` Anda tidak tertimpa karena tidak ada di repo).
 
 ## 2. Postgres + Redis (Docker)
 ```bash
