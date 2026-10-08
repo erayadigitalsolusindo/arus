@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount } from 'svelte';
   import { platformApi, type PlatformAuditItem } from '#lib/platform/api.ts';
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
@@ -38,10 +39,7 @@
 </div>
 
 <div class="surface-card p-3 flex items-center gap-3">
-  <select class="field-control" aria-label={t('platform.audit.action')} bind:value={action} onchange={() => load()}>
-    <option value="">{t('platform.audit.all')}</option>
-    {#each ACTIONS as a (a)}<option value={a}>{label(a)}</option>{/each}
-  </select>
+  <Select class="!w-auto min-w-56" ariaLabel={t('platform.audit.action')} bind:value={action} onchange={() => load()} options={[{ value: '', label: t('platform.audit.all') }, ...ACTIONS.map((a) => ({ value: a as string, label: label(a) }))]} />
 </div>
 
 {#if error}

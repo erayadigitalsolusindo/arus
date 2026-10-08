@@ -75,7 +75,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sales", "sale_counters", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sales", "sale_counters", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
 				"items", "units", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
@@ -158,6 +158,7 @@ func TestCreateComputesTotalsOnServer(t *testing.T) {
 	// Potongan global 1 → dasar 64.000. Pajak toko 10% = 6.400; negara 1% = 640. Biaya lain 360 → total 71.400.
 	in := Request{
 		Lines:     []LineIn{{ItemID: a, Qty: "7", Discount: "500"}, line(b, "2")},
+		Approval:  e.approverIn(t),
 		Discount:  "1",
 		OtherCost: "360",
 		ApplyTax:  true,
@@ -183,7 +184,9 @@ func TestCreateComputesTotalsOnServer(t *testing.T) {
 	if e.stockOf(t, a) != "93" || e.stockOf(t, b) != "98" {
 		t.Errorf("stok A=%s B=%s", e.stockOf(t, a), e.stockOf(t, b))
 	}
-	if n := e.count(t, "audit_log"); n != 1 {
+	var n int
+	_ = e.admin.QueryRow(context.Background(), "SELECT count(*) FROM audit_log WHERE tenant_id=$1 AND action='sale.create'", e.tenant).Scan(&n)
+	if n != 1 {
 		t.Errorf("audit = %d", n)
 	}
 	// Nomor berikutnya naik.
@@ -685,5 +688,48 @@ func TestApproverPinLockout(t *testing.T) {
 	var lk *approval.LockedError
 	if !errors.As(err, &lk) {
 		t.Fatalf("ingin terkunci, dapat %v", err)
+	}
+}
+
+// approverIn membuat penyetuju ber-PIN (untuk uji yang butuh persetujuan) dan mengembalikan bukti persetujuannya.
+func (e *env) approverIn(t *testing.T) *ApprovalIn {
+	t.Helper()
+	spv := e.person(t, "Penyetuju", `{"price_override":["approve"]}`, true)
+	if err := e.svc.approvals.SetPin(context.Background(), spv, testPassword, "482915"); err != nil {
+		t.Fatal(err)
+	}
+	return &ApprovalIn{UserID: spv.UserID, PIN: "482915"}
+}
+
+func TestLineDiscountNeedsApproverPin(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.item(t, "goods", "10000", "5000", 20, false)
+	cashier := e.actor(e.tenant)
+	req := func(ap *ApprovalIn) Request {
+		return Request{Lines: []LineIn{{ItemID: a, Qty: "2", Discount: "1500"}}, Payments: []PaymentIn{pay("cash", "100000")}, Approval: ap}
+	}
+	if _, _, err := e.svc.Create(ctx, cashier, key(), req(nil)); !errors.Is(err, approval.ErrPinRequired) {
+		t.Fatalf("tanpa persetujuan: %v", err)
+	}
+	ap := e.approverIn(t)
+	if _, _, err := e.svc.Create(ctx, cashier, key(), req(&ApprovalIn{UserID: ap.UserID, PIN: "000111"})); !errors.Is(err, approval.ErrInvalidPin) {
+		t.Fatalf("PIN salah: %v", err)
+	}
+	if e.count(t, "sales") != 0 || e.stockOf(t, a) != "20" {
+		t.Fatal("penolakan tidak boleh meninggalkan nota/stok")
+	}
+	s, _, err := e.svc.Create(ctx, cashier, key(), req(ap))
+	if err != nil || s.Total != "18500.00" || s.Lines[0].Discount != "1500.00" {
+		t.Fatalf("disetujui: %v %+v", err, s)
+	}
+	var n int
+	_ = e.admin.QueryRow(ctx, "SELECT count(*) FROM audit_log WHERE tenant_id=$1 AND action='sale.line_discount'", e.tenant).Scan(&n)
+	if n != 1 {
+		t.Fatalf("audit potongan = %d", n)
+	}
+	// Tanpa potongan tidak butuh PIN.
+	if _, _, err := e.svc.Create(ctx, cashier, key(), Request{Lines: []LineIn{line(a, "1")}, Payments: []PaymentIn{pay("cash", "10000")}}); err != nil {
+		t.Fatal(err)
 	}
 }

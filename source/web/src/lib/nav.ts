@@ -44,7 +44,7 @@ export const nav: NavGroup[] = [
         icon: 'contact-round',
         children: [
           { labelKey: 'nav.suppliers', module: 'suppliers', href: '/suppliers' },
-          { labelKey: 'nav.members', module: 'members' },
+          { labelKey: 'nav.members', module: 'members', href: '/members' },
           { labelKey: 'nav.salespeople', module: 'salespeople' }
         ]
       },
@@ -55,7 +55,7 @@ export const nav: NavGroup[] = [
         children: [
           { labelKey: 'nav.units', module: 'units', href: '/units' },
           { labelKey: 'nav.categories', module: 'categories', href: '/categories' },
-          { labelKey: 'nav.memberCategories', module: 'member_categories' },
+          { labelKey: 'nav.memberCategories', module: 'member_categories', href: '/member-levels' },
           { labelKey: 'nav.paymentMethods', module: 'payment_methods' },
           { labelKey: 'nav.brands', module: 'brands', href: '/brands' },
           { labelKey: 'nav.principals', module: 'principals', href: '/principals' }
@@ -113,6 +113,7 @@ export const nav: NavGroup[] = [
     titleKey: 'nav.group.adjustments',
     items: [
       { id: 'stockOpening', labelKey: 'nav.stockOpening', icon: 'package-plus', module: 'stock_opening', href: '/stock-opening' },
+      { id: 'stockConversion', labelKey: 'nav.stockConversion', icon: 'split', module: 'stock_conversion', href: '/stock-conversion' },
       { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname' },
       { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer' }
     ]

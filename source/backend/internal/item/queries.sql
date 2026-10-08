@@ -13,13 +13,13 @@ JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
--- Stok outlet aktif per bucket (tanpa baris saldo = 0).
+-- Stok per bucket dijumlahkan atas outlet_ids (satu outlet aktif, atau semua outlet yang boleh diakses); tanpa baris saldo = 0.
 LEFT JOIN LATERAL (
     SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
            sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
            sum(qty) FILTER (WHERE bucket = 'returns') AS returns
     FROM stock_balances s
-    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = @outlet_id AND s.item_id = i.id
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.item_id = i.id
 ) sb ON true
 WHERE i.tenant_id = @tenant_id
   AND (@q::text = '' OR i.name ILIKE '%' || @q || '%' OR i.sku ILIKE '%' || @q || '%' OR coalesce(i.barcode, '') ILIKE '%' || @q || '%')
@@ -27,6 +27,22 @@ WHERE i.tenant_id = @tenant_id
   AND (sqlc.narg('category_id')::uuid IS NULL OR i.category_id = sqlc.narg('category_id'))
 ORDER BY lower(i.name), i.id
 LIMIT @page_limit OFFSET @page_offset;
+
+-- name: ItemOutletBreakdown :many
+-- Rincian stok + harga jual efektif per outlet untuk sekumpulan item (mode "semua cabang").
+SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'display'), 0)::numeric AS stock_display,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'warehouse'), 0)::numeric AS stock_warehouse,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'returns'), 0)::numeric AS stock_returns,
+       coalesce(op.sell_price, i.sell_price)::numeric AS price
+FROM items i
+CROSS JOIN outlets o
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = o.id
+LEFT JOIN stock_balances s ON s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.outlet_id = o.id
+WHERE i.tenant_id = @tenant_id AND o.tenant_id = @tenant_id
+  AND i.id = ANY(@item_ids::uuid[]) AND o.id = ANY(@outlet_ids::uuid[])
+GROUP BY i.id, o.id, op.sell_price, i.sell_price
+ORDER BY lower(o.name), o.id;
 
 -- name: ItemGet :one
 SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,

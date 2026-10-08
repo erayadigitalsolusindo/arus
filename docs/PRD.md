@@ -1,5 +1,5 @@
 # Product Requirements Document (PRD)
-# ACIRABA NewGen — Sistem POS & ERP Ritel Multi-Tenant
+# ARUS — Sistem POS & ERP Ritel Multi-Tenant
 
 | Atribut | Nilai |
 |---|---|
@@ -33,7 +33,7 @@ ACIRABA adalah aplikasi Point of Sale dan ERP ringan berbasis web untuk usaha ri
 - Integritas data: transaksi database tidak atomik, stok rawan selisih, nilai uang disimpan sebagai floating point.
 - Pemeliharaan: logika bisnis tersebar di PHP, Node.js, 5 stored procedure generik (178 cabang), dan 22 trigger.
 
-**ACIRABA NewGen** membangun ulang sistem dengan arsitektur modern: **Go** untuk backend, **PostgreSQL** untuk database, **Redis** untuk cache dan realtime, serta **SvelteKit** untuk frontend. Sasarannya:
+**ARUS** membangun ulang sistem dengan arsitektur modern: **Go** untuk backend, **PostgreSQL** untuk database, **Redis** untuk cache dan realtime, serta **SvelteKit** untuk frontend. Sasarannya:
 
 1. Transaksi kasir yang **cepat, benar, dan tidak pernah ganda**.
 2. Stok dan saldo yang **selalu dapat ditelusuri** (berbasis ledger).

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { outlets as api, type Outlet } from '#lib/outlets/api.ts';
@@ -7,6 +8,7 @@
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { refreshOutlets } from '#lib/outlets/store.svelte.ts';
 
   // Zona waktu Indonesia; zona lain dapat ditambah di sini tanpa mengubah backend (divalidasi lewat tzdata).
@@ -208,21 +210,18 @@
 
       <div>
         <label for="o-tz" class={labelClass}>{t('outlets.timezone')}</label>
-        <select id="o-tz" class={inputClass} bind:value={ed.timezone} disabled={ro}>
-          {#each ZONES as z (z)}<option value={z}>{z}</option>{/each}
-          {#if !ZONES.includes(ed.timezone as (typeof ZONES)[number])}<option value={ed.timezone}>{ed.timezone}</option>{/if}
-        </select>
+        <Select id="o-tz" bind:value={ed.timezone} disabled={ro} options={[...ZONES, ...(ZONES.includes(ed.timezone as (typeof ZONES)[number]) ? [] : [ed.timezone])].map((z) => ({ value: z as string, label: z }))} />
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label for="o-ts" class={labelClass}>{t('outlets.taxStore')}</label>
-          <input id="o-ts" inputmode="decimal" class={inputClass} bind:value={ed.taxStore} disabled={ro} aria-invalid={!!ed.errors.tax_store_pct} />
+          <MoneyInput id="o-ts" pad={false} class={inputClass} bind:value={ed.taxStore} disabled={ro} aria-invalid={!!ed.errors.tax_store_pct} />
           {#if ed.errors.tax_store_pct}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.tax_store_pct}</p>{/if}
         </div>
         <div>
           <label for="o-tg" class={labelClass}>{t('outlets.taxGov')}</label>
-          <input id="o-tg" inputmode="decimal" class={inputClass} bind:value={ed.taxGov} disabled={ro} aria-invalid={!!ed.errors.tax_gov_pct} />
+          <MoneyInput id="o-tg" pad={false} class={inputClass} bind:value={ed.taxGov} disabled={ro} aria-invalid={!!ed.errors.tax_gov_pct} />
           {#if ed.errors.tax_gov_pct}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.tax_gov_pct}</p>{/if}
         </div>
       </div>

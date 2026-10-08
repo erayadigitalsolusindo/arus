@@ -30,6 +30,47 @@ const stock: Messages['stock'] = {
       cancel: 'Cancel',
       done: 'Opening balances locked. The outlet is ready to trade.'
     }
+  },
+  conversion: {
+    docTitle: 'Unit Conversion | ACIRABA',
+    title: 'Unit Conversion',
+    subtitle: 'Move stock from one item to another at the active outlet (e.g. 1 Sack becomes 12 PCS). Both items keep their own stock; enter each quantity in that item’s base unit.',
+    form: {
+      title: 'New document',
+      from: 'Source item (stock decreases)',
+      to: 'Target item (stock increases)',
+      pick: 'Search name, code, or barcode…',
+      qty: 'Quantity',
+      stock: 'Display stock: {qty} {unit}',
+      note: 'Note (optional)',
+      submit: 'Convert now',
+      submitting: 'Processing…',
+      summary: {
+        title: 'Summary: what will happen',
+        meaning: '{fromQty} {fromUnit} of {fromName} is converted into {toQty} {toUnit} of {toName}. In other words, 1 {fromUnit} of {fromName} counts as {ratio} {toUnit} of {toName}.',
+        down: 'Stock of {name} decreases by {qty} {unit}',
+        up: 'Stock of {name} increases by {qty} {unit}',
+        change: '{before} → {after} {unit}',
+        minus: 'Stock of {name} will go negative. This only works for items set to allow negative stock; otherwise the system rejects it as insufficient stock.',
+        costNew: 'The cost of {name} will be recalculated from the source item’s cost, because it has no stock yet.',
+        costKept: 'The cost of {name} stays the same.',
+        final: 'A created document cannot be edited or deleted. If it is wrong, create the reverse document.'
+      },
+      hint: 'The target quantity is free-form, so a difference or loss (e.g. 1 sack yielding only 11 pcs) is captured directly.',
+      done: 'Document {doc} created.',
+      loadFailed: 'Failed to load data.'
+    },
+    history: {
+      title: 'History',
+      empty: 'No unit conversions at this outlet yet.',
+      doc: 'Document',
+      date: 'Time',
+      move: 'Movement',
+      cost: 'Resulting cost',
+      costApplied: 'applied to the target item',
+      costKept: 'target item cost unchanged',
+      by: 'By'
+    }
   }
 };
 

@@ -1470,18 +1470,19 @@ LEFT JOIN LATERAL (
            sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
            sum(qty) FILTER (WHERE bucket = 'returns') AS returns
     FROM stock_balances s
-    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = $1 AND s.item_id = i.id
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = ANY($2::uuid[]) AND s.item_id = i.id
 ) sb ON true
-WHERE i.tenant_id = $2
-  AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
-  AND ($4::boolean IS NULL OR i.active = $4)
-  AND ($5::uuid IS NULL OR i.category_id = $5)
+WHERE i.tenant_id = $3
+  AND ($4::text = '' OR i.name ILIKE '%' || $4 || '%' OR i.sku ILIKE '%' || $4 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $4 || '%')
+  AND ($5::boolean IS NULL OR i.active = $5)
+  AND ($6::uuid IS NULL OR i.category_id = $6)
 ORDER BY lower(i.name), i.id
-LIMIT $7 OFFSET $6
+LIMIT $8 OFFSET $7
 `
 
 type ItemListParams struct {
 	OutletID   uuid.UUID
+	OutletIds  []uuid.UUID
 	TenantID   uuid.UUID
 	Q          string
 	Active     pgtype.Bool
@@ -1513,10 +1514,11 @@ type ItemListRow struct {
 }
 
 // Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
-// Stok outlet aktif per bucket (tanpa baris saldo = 0).
+// Stok per bucket dijumlahkan atas outlet_ids (satu outlet aktif, atau semua outlet yang boleh diakses); tanpa baris saldo = 0.
 func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListRow, error) {
 	rows, err := q.db.Query(ctx, itemList,
 		arg.OutletID,
+		arg.OutletIds,
 		arg.TenantID,
 		arg.Q,
 		arg.Active,
@@ -1573,6 +1575,69 @@ func (q *Queries) ItemNextNo(ctx context.Context, tenantID uuid.UUID) (int64, er
 	var last_no int64
 	err := row.Scan(&last_no)
 	return last_no, err
+}
+
+const itemOutletBreakdown = `-- name: ItemOutletBreakdown :many
+SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'display'), 0)::numeric AS stock_display,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'warehouse'), 0)::numeric AS stock_warehouse,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'returns'), 0)::numeric AS stock_returns,
+       coalesce(op.sell_price, i.sell_price)::numeric AS price
+FROM items i
+CROSS JOIN outlets o
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = o.id
+LEFT JOIN stock_balances s ON s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.outlet_id = o.id
+WHERE i.tenant_id = $1 AND o.tenant_id = $1
+  AND i.id = ANY($2::uuid[]) AND o.id = ANY($3::uuid[])
+GROUP BY i.id, o.id, op.sell_price, i.sell_price
+ORDER BY lower(o.name), o.id
+`
+
+type ItemOutletBreakdownParams struct {
+	TenantID  uuid.UUID
+	ItemIds   []uuid.UUID
+	OutletIds []uuid.UUID
+}
+
+type ItemOutletBreakdownRow struct {
+	ItemID         uuid.UUID
+	OutletID       uuid.UUID
+	OutletCode     string
+	OutletName     string
+	StockDisplay   decimal.Decimal
+	StockWarehouse decimal.Decimal
+	StockReturns   decimal.Decimal
+	Price          decimal.Decimal
+}
+
+// Rincian stok + harga jual efektif per outlet untuk sekumpulan item (mode "semua cabang").
+func (q *Queries) ItemOutletBreakdown(ctx context.Context, arg ItemOutletBreakdownParams) ([]ItemOutletBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, itemOutletBreakdown, arg.TenantID, arg.ItemIds, arg.OutletIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemOutletBreakdownRow
+	for rows.Next() {
+		var i ItemOutletBreakdownRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.OutletID,
+			&i.OutletCode,
+			&i.OutletName,
+			&i.StockDisplay,
+			&i.StockWarehouse,
+			&i.StockReturns,
+			&i.Price,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const itemOutletPriceDelete = `-- name: ItemOutletPriceDelete :exec
@@ -2010,6 +2075,1112 @@ func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
 		arg.AllowNegativeStock,
 		arg.SellBelowCost,
 		arg.Description,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
+}
+
+const memberCodeExists = `-- name: MemberCodeExists :one
+SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND lower(code) = lower($2))
+`
+
+type MemberCodeExistsParams struct {
+	TenantID uuid.UUID
+	Lower    string
+}
+
+func (q *Queries) MemberCodeExists(ctx context.Context, arg MemberCodeExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, memberCodeExists, arg.TenantID, arg.Lower)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const memberCreate = `-- name: MemberCreate :one
+INSERT INTO members (tenant_id, code, name, gender, phone, email, address, district, city, province, postal_code,
+                     credit_limit, due_days, valid_until, notes, active)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16)
+RETURNING id
+`
+
+type MemberCreateParams struct {
+	TenantID    uuid.UUID
+	Code        string
+	Name        string
+	Gender      string
+	Phone       string
+	Email       string
+	Address     string
+	District    string
+	City        string
+	Province    string
+	PostalCode  string
+	CreditLimit decimal.Decimal
+	DueDays     int32
+	ValidUntil  pgtype.Date
+	Notes       string
+	Active      bool
+}
+
+func (q *Queries) MemberCreate(ctx context.Context, arg MemberCreateParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, memberCreate,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.Gender,
+		arg.Phone,
+		arg.Email,
+		arg.Address,
+		arg.District,
+		arg.City,
+		arg.Province,
+		arg.PostalCode,
+		arg.CreditLimit,
+		arg.DueDays,
+		arg.ValidUntil,
+		arg.Notes,
+		arg.Active,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const memberExists = `-- name: MemberExists :one
+SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND id = $2)
+`
+
+type MemberExistsParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) MemberExists(ctx context.Context, arg MemberExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, memberExists, arg.TenantID, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const memberGet = `-- name: MemberGet :one
+SELECT m.id, m.code, m.name, m.gender, m.phone, m.email, m.address, m.district, m.city, m.province, m.postal_code,
+       m.credit_limit, m.due_days, m.valid_until, m.active, m.notes, m.cover_image_id, m.points, m.lifetime_points,
+       m.created_at, m.updated_at,
+       lv.id AS level_id, coalesce(lv.name, '')::text AS level_name, coalesce(lv.min_points, 0)::int AS level_min_points,
+       coalesce(lv.spend_per_point, 0)::numeric AS level_spend_per_point, coalesce(lv.point_value, 0)::numeric AS level_point_value,
+       nx.id AS next_level_id, coalesce(nx.name, '')::text AS next_level_name, coalesce(nx.min_points, 0)::int AS next_level_min_points,
+       coalesce(st.total_sales, 0)::numeric AS total_sales, coalesce(st.total_trx, 0)::bigint AS total_trx
+FROM members m
+LEFT JOIN LATERAL (
+    SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points <= m.lifetime_points
+    ORDER BY l.min_points DESC LIMIT 1
+) lv ON true
+LEFT JOIN LATERAL (
+    SELECT l.id, l.name, l.min_points FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points > m.lifetime_points
+    ORDER BY l.min_points LIMIT 1
+) nx ON true
+LEFT JOIN LATERAL (
+    SELECT sum(s.total) AS total_sales, count(*) AS total_trx FROM sales s
+    WHERE s.tenant_id = m.tenant_id AND s.member_id = m.id AND s.status = 'completed'
+) st ON true
+WHERE m.tenant_id = $1 AND m.id = $2
+`
+
+type MemberGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MemberGetRow struct {
+	ID                 uuid.UUID
+	Code               string
+	Name               string
+	Gender             string
+	Phone              string
+	Email              string
+	Address            string
+	District           string
+	City               string
+	Province           string
+	PostalCode         string
+	CreditLimit        decimal.Decimal
+	DueDays            int32
+	ValidUntil         pgtype.Date
+	Active             bool
+	Notes              string
+	CoverImageID       pgtype.UUID
+	Points             int32
+	LifetimePoints     int32
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	LevelID            uuid.UUID
+	LevelName          string
+	LevelMinPoints     int32
+	LevelSpendPerPoint decimal.Decimal
+	LevelPointValue    decimal.Decimal
+	NextLevelID        uuid.UUID
+	NextLevelName      string
+	NextLevelMinPoints int32
+	TotalSales         decimal.Decimal
+	TotalTrx           int64
+}
+
+func (q *Queries) MemberGet(ctx context.Context, arg MemberGetParams) (MemberGetRow, error) {
+	row := q.db.QueryRow(ctx, memberGet, arg.TenantID, arg.ID)
+	var i MemberGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Gender,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.District,
+		&i.City,
+		&i.Province,
+		&i.PostalCode,
+		&i.CreditLimit,
+		&i.DueDays,
+		&i.ValidUntil,
+		&i.Active,
+		&i.Notes,
+		&i.CoverImageID,
+		&i.Points,
+		&i.LifetimePoints,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LevelID,
+		&i.LevelName,
+		&i.LevelMinPoints,
+		&i.LevelSpendPerPoint,
+		&i.LevelPointValue,
+		&i.NextLevelID,
+		&i.NextLevelName,
+		&i.NextLevelMinPoints,
+		&i.TotalSales,
+		&i.TotalTrx,
+	)
+	return i, err
+}
+
+const memberGetForUpdate = `-- name: MemberGetForUpdate :one
+SELECT id, code, name, gender, phone, email, address, district, city, province, postal_code, credit_limit, due_days,
+       valid_until, active, notes, cover_image_id, points, lifetime_points
+FROM members WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type MemberGetForUpdateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MemberGetForUpdateRow struct {
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	Gender         string
+	Phone          string
+	Email          string
+	Address        string
+	District       string
+	City           string
+	Province       string
+	PostalCode     string
+	CreditLimit    decimal.Decimal
+	DueDays        int32
+	ValidUntil     pgtype.Date
+	Active         bool
+	Notes          string
+	CoverImageID   pgtype.UUID
+	Points         int32
+	LifetimePoints int32
+}
+
+func (q *Queries) MemberGetForUpdate(ctx context.Context, arg MemberGetForUpdateParams) (MemberGetForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, memberGetForUpdate, arg.TenantID, arg.ID)
+	var i MemberGetForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Gender,
+		&i.Phone,
+		&i.Email,
+		&i.Address,
+		&i.District,
+		&i.City,
+		&i.Province,
+		&i.PostalCode,
+		&i.CreditLimit,
+		&i.DueDays,
+		&i.ValidUntil,
+		&i.Active,
+		&i.Notes,
+		&i.CoverImageID,
+		&i.Points,
+		&i.LifetimePoints,
+	)
+	return i, err
+}
+
+const memberLevelCreate = `-- name: MemberLevelCreate :one
+INSERT INTO member_levels (tenant_id, name, min_points, spend_per_point, point_value)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, name, min_points, spend_per_point, point_value, active, created_at
+`
+
+type MemberLevelCreateParams struct {
+	TenantID      uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+}
+
+type MemberLevelCreateRow struct {
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) MemberLevelCreate(ctx context.Context, arg MemberLevelCreateParams) (MemberLevelCreateRow, error) {
+	row := q.db.QueryRow(ctx, memberLevelCreate,
+		arg.TenantID,
+		arg.Name,
+		arg.MinPoints,
+		arg.SpendPerPoint,
+		arg.PointValue,
+	)
+	var i MemberLevelCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.MinPoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const memberLevelGetForUpdate = `-- name: MemberLevelGetForUpdate :one
+SELECT id, name, min_points, spend_per_point, point_value, active, created_at
+FROM member_levels WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type MemberLevelGetForUpdateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MemberLevelGetForUpdateRow struct {
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) MemberLevelGetForUpdate(ctx context.Context, arg MemberLevelGetForUpdateParams) (MemberLevelGetForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, memberLevelGetForUpdate, arg.TenantID, arg.ID)
+	var i MemberLevelGetForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.MinPoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const memberLevelList = `-- name: MemberLevelList :many
+
+SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value, l.active, l.created_at,
+       coalesce(c.n, 0)::bigint AS member_count
+FROM member_levels l
+LEFT JOIN (
+    SELECT lv.id, count(*) AS n
+    FROM members m
+    JOIN LATERAL (
+        SELECT h.id FROM member_levels h
+        WHERE h.tenant_id = m.tenant_id AND h.active AND h.min_points <= m.lifetime_points
+        ORDER BY h.min_points DESC LIMIT 1
+    ) lv ON true
+    WHERE m.tenant_id = $1 AND m.active
+    GROUP BY lv.id
+) c ON c.id = l.id
+WHERE l.tenant_id = $1 AND ($2::boolean IS NULL OR l.active = $2)
+ORDER BY l.min_points
+`
+
+type MemberLevelListParams struct {
+	TenantID uuid.UUID
+	Active   pgtype.Bool
+}
+
+type MemberLevelListRow struct {
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	MemberCount   int64
+}
+
+// ===== Level member =====
+// member_count = member aktif yang saat ini berada di level itu (level tiap member ditetapkan sekali lewat LATERAL,
+// lalu diagregasi; tidak ada subquery berkorelasi per level).
+func (q *Queries) MemberLevelList(ctx context.Context, arg MemberLevelListParams) ([]MemberLevelListRow, error) {
+	rows, err := q.db.Query(ctx, memberLevelList, arg.TenantID, arg.Active)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberLevelListRow
+	for rows.Next() {
+		var i MemberLevelListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.MinPoints,
+			&i.SpendPerPoint,
+			&i.PointValue,
+			&i.Active,
+			&i.CreatedAt,
+			&i.MemberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberLevelSetActive = `-- name: MemberLevelSetActive :one
+UPDATE member_levels SET active = $3
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, name, min_points, spend_per_point, point_value, active, created_at
+`
+
+type MemberLevelSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type MemberLevelSetActiveRow struct {
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) MemberLevelSetActive(ctx context.Context, arg MemberLevelSetActiveParams) (MemberLevelSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, memberLevelSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i MemberLevelSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.MinPoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const memberLevelUpdate = `-- name: MemberLevelUpdate :one
+UPDATE member_levels SET name = $3, min_points = $4, spend_per_point = $5, point_value = $6
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, name, min_points, spend_per_point, point_value, active, created_at
+`
+
+type MemberLevelUpdateParams struct {
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+}
+
+type MemberLevelUpdateRow struct {
+	ID            uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) MemberLevelUpdate(ctx context.Context, arg MemberLevelUpdateParams) (MemberLevelUpdateRow, error) {
+	row := q.db.QueryRow(ctx, memberLevelUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.Name,
+		arg.MinPoints,
+		arg.SpendPerPoint,
+		arg.PointValue,
+	)
+	var i MemberLevelUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.MinPoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const memberList = `-- name: MemberList :many
+SELECT m.id, m.code, m.name, m.phone, m.city, m.active, m.valid_until, m.points, m.lifetime_points, m.cover_image_id,
+       coalesce(lv.name, '')::text AS level_name, count(*) OVER () AS total
+FROM members m
+LEFT JOIN LATERAL (
+    SELECT l.name FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points <= m.lifetime_points
+    ORDER BY l.min_points DESC LIMIT 1
+) lv ON true
+WHERE m.tenant_id = $1
+  AND ($2::text = '' OR m.name ILIKE '%' || $2 || '%' OR m.code ILIKE '%' || $2 || '%' OR m.phone ILIKE '%' || $2 || '%'
+       OR ($3::text <> '' AND m.phone ILIKE '%' || $3 || '%'))
+  AND ($4::boolean IS NULL OR m.active = $4)
+ORDER BY lower(m.name), m.id
+LIMIT $6 OFFSET $5
+`
+
+type MemberListParams struct {
+	TenantID   uuid.UUID
+	Q          string
+	QPhone     string
+	Active     pgtype.Bool
+	PageOffset int32
+	PageLimit  int32
+}
+
+type MemberListRow struct {
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	Phone          string
+	City           string
+	Active         bool
+	ValidUntil     pgtype.Date
+	Points         int32
+	LifetimePoints int32
+	CoverImageID   pgtype.UUID
+	LevelName      string
+	Total          int64
+}
+
+func (q *Queries) MemberList(ctx context.Context, arg MemberListParams) ([]MemberListRow, error) {
+	rows, err := q.db.Query(ctx, memberList,
+		arg.TenantID,
+		arg.Q,
+		arg.QPhone,
+		arg.Active,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberListRow
+	for rows.Next() {
+		var i MemberListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Phone,
+			&i.City,
+			&i.Active,
+			&i.ValidUntil,
+			&i.Points,
+			&i.LifetimePoints,
+			&i.CoverImageID,
+			&i.LevelName,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberLocalDay = `-- name: MemberLocalDay :one
+SELECT (now() AT TIME ZONE timezone)::date AS local_day FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type MemberLocalDayParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Hari ini menurut zona waktu outlet aktif.
+func (q *Queries) MemberLocalDay(ctx context.Context, arg MemberLocalDayParams) (pgtype.Date, error) {
+	row := q.db.QueryRow(ctx, memberLocalDay, arg.TenantID, arg.ID)
+	var local_day pgtype.Date
+	err := row.Scan(&local_day)
+	return local_day, err
+}
+
+const memberLockForSale = `-- name: MemberLockForSale :one
+SELECT m.id, m.code, m.name, m.active, m.valid_until, m.points, m.lifetime_points,
+       coalesce(lv.spend_per_point, 0)::numeric AS spend_per_point, coalesce(lv.point_value, 0)::numeric AS point_value
+FROM members m
+LEFT JOIN LATERAL (
+    SELECT l.spend_per_point, l.point_value FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points <= m.lifetime_points
+    ORDER BY l.min_points DESC LIMIT 1
+) lv ON true
+WHERE m.tenant_id = $1 AND m.id = $2
+FOR UPDATE OF m
+`
+
+type MemberLockForSaleParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MemberLockForSaleRow struct {
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	Active         bool
+	ValidUntil     pgtype.Date
+	Points         int32
+	LifetimePoints int32
+	SpendPerPoint  decimal.Decimal
+	PointValue     decimal.Decimal
+}
+
+// Kunci baris member selama transaksi penjualan; level dihitung dari lifetime_points saat ini.
+func (q *Queries) MemberLockForSale(ctx context.Context, arg MemberLockForSaleParams) (MemberLockForSaleRow, error) {
+	row := q.db.QueryRow(ctx, memberLockForSale, arg.TenantID, arg.ID)
+	var i MemberLockForSaleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.ValidUntil,
+		&i.Points,
+		&i.LifetimePoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+	)
+	return i, err
+}
+
+const memberLookup = `-- name: MemberLookup :many
+SELECT m.id, m.code, m.name, m.phone, m.points, m.lifetime_points, m.valid_until, m.cover_image_id,
+       coalesce(lv.name, '')::text AS level_name, coalesce(lv.spend_per_point, 0)::numeric AS spend_per_point,
+       coalesce(lv.point_value, 0)::numeric AS point_value
+FROM members m
+LEFT JOIN LATERAL (
+    SELECT l.name, l.spend_per_point, l.point_value FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points <= m.lifetime_points
+    ORDER BY l.min_points DESC LIMIT 1
+) lv ON true
+WHERE m.tenant_id = $1 AND m.active AND (m.valid_until IS NULL OR m.valid_until >= $2::date)
+  AND ($3::text = '' OR m.name ILIKE '%' || $3 || '%' OR m.code ILIKE '%' || $3 || '%' OR m.phone ILIKE '%' || $3 || '%'
+       OR ($4::text <> '' AND m.phone ILIKE '%' || $4 || '%'))
+ORDER BY (lower(m.code) = lower($3::text) OR m.phone = $3::text OR ($4::text <> '' AND m.phone = $4::text)) DESC, lower(m.name), m.id
+LIMIT 20
+`
+
+type MemberLookupParams struct {
+	TenantID uuid.UUID
+	LocalDay pgtype.Date
+	Q        string
+	QPhone   string
+}
+
+type MemberLookupRow struct {
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	Phone          string
+	Points         int32
+	LifetimePoints int32
+	ValidUntil     pgtype.Date
+	CoverImageID   pgtype.UUID
+	LevelName      string
+	SpendPerPoint  decimal.Decimal
+	PointValue     decimal.Decimal
+}
+
+// Pencarian cepat untuk kasir: member aktif yang belum kedaluwarsa (local_day = hari menurut zona waktu outlet).
+func (q *Queries) MemberLookup(ctx context.Context, arg MemberLookupParams) ([]MemberLookupRow, error) {
+	rows, err := q.db.Query(ctx, memberLookup,
+		arg.TenantID,
+		arg.LocalDay,
+		arg.Q,
+		arg.QPhone,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberLookupRow
+	for rows.Next() {
+		var i MemberLookupRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Phone,
+			&i.Points,
+			&i.LifetimePoints,
+			&i.ValidUntil,
+			&i.CoverImageID,
+			&i.LevelName,
+			&i.SpendPerPoint,
+			&i.PointValue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberNextNo = `-- name: MemberNextNo :one
+
+INSERT INTO member_counters (tenant_id, last_no) VALUES ($1, 1)
+ON CONFLICT (tenant_id) DO UPDATE SET last_no = member_counters.last_no + 1
+RETURNING last_no
+`
+
+// ===== Member =====
+func (q *Queries) MemberNextNo(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, memberNextNo, tenantID)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const memberPointInsert = `-- name: MemberPointInsert :one
+INSERT INTO member_point_movements (tenant_id, member_id, kind, points, lifetime_delta, balance_after, ref_type, ref_id, note, actor_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, created_at
+`
+
+type MemberPointInsertParams struct {
+	TenantID      uuid.UUID
+	MemberID      uuid.UUID
+	Kind          string
+	Points        int32
+	LifetimeDelta int32
+	BalanceAfter  int32
+	RefType       string
+	RefID         pgtype.UUID
+	Note          string
+	ActorID       pgtype.UUID
+}
+
+type MemberPointInsertRow struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) MemberPointInsert(ctx context.Context, arg MemberPointInsertParams) (MemberPointInsertRow, error) {
+	row := q.db.QueryRow(ctx, memberPointInsert,
+		arg.TenantID,
+		arg.MemberID,
+		arg.Kind,
+		arg.Points,
+		arg.LifetimeDelta,
+		arg.BalanceAfter,
+		arg.RefType,
+		arg.RefID,
+		arg.Note,
+		arg.ActorID,
+	)
+	var i MemberPointInsertRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
+const memberPointList = `-- name: MemberPointList :many
+SELECT p.id, p.kind, p.points, p.balance_after, p.ref_type, p.ref_id, p.note, p.created_at,
+       coalesce(u.name, '')::text AS actor_name, coalesce(s.doc_no, '')::text AS doc_no,
+       count(*) OVER () AS total
+FROM member_point_movements p
+LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.actor_id
+LEFT JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.ref_id AND p.ref_type = 'SALE'
+WHERE p.tenant_id = $1 AND p.member_id = $2
+ORDER BY p.id DESC
+LIMIT $4 OFFSET $3
+`
+
+type MemberPointListParams struct {
+	TenantID   uuid.UUID
+	MemberID   uuid.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type MemberPointListRow struct {
+	ID           int64
+	Kind         string
+	Points       int32
+	BalanceAfter int32
+	RefType      string
+	RefID        pgtype.UUID
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	ActorName    string
+	DocNo        string
+	Total        int64
+}
+
+func (q *Queries) MemberPointList(ctx context.Context, arg MemberPointListParams) ([]MemberPointListRow, error) {
+	rows, err := q.db.Query(ctx, memberPointList,
+		arg.TenantID,
+		arg.MemberID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberPointListRow
+	for rows.Next() {
+		var i MemberPointListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Points,
+			&i.BalanceAfter,
+			&i.RefType,
+			&i.RefID,
+			&i.Note,
+			&i.CreatedAt,
+			&i.ActorName,
+			&i.DocNo,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberPointsApply = `-- name: MemberPointsApply :one
+
+UPDATE members SET points = points + $1, lifetime_points = lifetime_points + $2
+WHERE tenant_id = $3 AND id = $4 AND points + $1 >= 0 AND lifetime_points + $2 >= 0
+RETURNING points, lifetime_points
+`
+
+type MemberPointsApplyParams struct {
+	Delta         int32
+	LifetimeDelta int32
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+}
+
+type MemberPointsApplyRow struct {
+	Points         int32
+	LifetimePoints int32
+}
+
+// ===== Poin =====
+// Guard atomik: saldo/lifetime tidak boleh minus (baris terkunci selama transaksi).
+func (q *Queries) MemberPointsApply(ctx context.Context, arg MemberPointsApplyParams) (MemberPointsApplyRow, error) {
+	row := q.db.QueryRow(ctx, memberPointsApply,
+		arg.Delta,
+		arg.LifetimeDelta,
+		arg.TenantID,
+		arg.ID,
+	)
+	var i MemberPointsApplyRow
+	err := row.Scan(&i.Points, &i.LifetimePoints)
+	return i, err
+}
+
+const memberPointsBySale = `-- name: MemberPointsBySale :many
+SELECT member_id, kind, points, lifetime_delta FROM member_point_movements
+WHERE tenant_id = $1 AND ref_type = 'SALE' AND ref_id = $2 ORDER BY id
+`
+
+type MemberPointsBySaleParams struct {
+	TenantID uuid.UUID
+	RefID    pgtype.UUID
+}
+
+type MemberPointsBySaleRow struct {
+	MemberID      uuid.UUID
+	Kind          string
+	Points        int32
+	LifetimeDelta int32
+}
+
+func (q *Queries) MemberPointsBySale(ctx context.Context, arg MemberPointsBySaleParams) ([]MemberPointsBySaleRow, error) {
+	rows, err := q.db.Query(ctx, memberPointsBySale, arg.TenantID, arg.RefID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberPointsBySaleRow
+	for rows.Next() {
+		var i MemberPointsBySaleRow
+		if err := rows.Scan(
+			&i.MemberID,
+			&i.Kind,
+			&i.Points,
+			&i.LifetimeDelta,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberReadForSale = `-- name: MemberReadForSale :one
+SELECT m.id, m.code, m.name, m.active, m.valid_until, m.points, m.lifetime_points,
+       coalesce(lv.spend_per_point, 0)::numeric AS spend_per_point, coalesce(lv.point_value, 0)::numeric AS point_value
+FROM members m
+LEFT JOIN LATERAL (
+    SELECT l.spend_per_point, l.point_value FROM member_levels l
+    WHERE l.tenant_id = m.tenant_id AND l.active AND l.min_points <= m.lifetime_points
+    ORDER BY l.min_points DESC LIMIT 1
+) lv ON true
+WHERE m.tenant_id = $1 AND m.id = $2
+`
+
+type MemberReadForSaleParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MemberReadForSaleRow struct {
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	Active         bool
+	ValidUntil     pgtype.Date
+	Points         int32
+	LifetimePoints int32
+	SpendPerPoint  decimal.Decimal
+	PointValue     decimal.Decimal
+}
+
+// Sama dengan MemberLockForSale tanpa kunci baris (pratinjau/quote kasir).
+func (q *Queries) MemberReadForSale(ctx context.Context, arg MemberReadForSaleParams) (MemberReadForSaleRow, error) {
+	row := q.db.QueryRow(ctx, memberReadForSale, arg.TenantID, arg.ID)
+	var i MemberReadForSaleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.ValidUntil,
+		&i.Points,
+		&i.LifetimePoints,
+		&i.SpendPerPoint,
+		&i.PointValue,
+	)
+	return i, err
+}
+
+const memberSaleList = `-- name: MemberSaleList :many
+SELECT s.id, s.doc_no, s.status, s.created_at, s.total, s.points_earned, s.points_redeemed,
+       o.name AS outlet_name, coalesce(u.name, '')::text AS cashier,
+       (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
+       coalesce((SELECT string_agg(x.name, ', ' ORDER BY x.position)
+                 FROM (SELECT l.name, l.position FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id ORDER BY l.position LIMIT 3) x), '')::text AS items,
+       count(*) OVER () AS total_rows
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+WHERE s.tenant_id = $1 AND s.member_id = $2
+ORDER BY s.created_at DESC, s.id DESC
+LIMIT $4 OFFSET $3
+`
+
+type MemberSaleListParams struct {
+	TenantID   uuid.UUID
+	MemberID   pgtype.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type MemberSaleListRow struct {
+	ID             uuid.UUID
+	DocNo          string
+	Status         string
+	CreatedAt      pgtype.Timestamptz
+	Total          decimal.Decimal
+	PointsEarned   int32
+	PointsRedeemed int32
+	OutletName     string
+	Cashier        string
+	LineCount      int32
+	Items          string
+	TotalRows      int64
+}
+
+// Riwayat transaksi satu member (terbaru dulu), dengan ringkasan barang (3 pertama) dan jumlah baris.
+func (q *Queries) MemberSaleList(ctx context.Context, arg MemberSaleListParams) ([]MemberSaleListRow, error) {
+	rows, err := q.db.Query(ctx, memberSaleList,
+		arg.TenantID,
+		arg.MemberID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MemberSaleListRow
+	for rows.Next() {
+		var i MemberSaleListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.Status,
+			&i.CreatedAt,
+			&i.Total,
+			&i.PointsEarned,
+			&i.PointsRedeemed,
+			&i.OutletName,
+			&i.Cashier,
+			&i.LineCount,
+			&i.Items,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const memberSetActive = `-- name: MemberSetActive :exec
+UPDATE members SET active = $3 WHERE tenant_id = $1 AND id = $2
+`
+
+type MemberSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+func (q *Queries) MemberSetActive(ctx context.Context, arg MemberSetActiveParams) error {
+	_, err := q.db.Exec(ctx, memberSetActive, arg.TenantID, arg.ID, arg.Active)
+	return err
+}
+
+const memberSetCover = `-- name: MemberSetCover :exec
+UPDATE members SET cover_image_id = $1 WHERE tenant_id = $2 AND id = $3
+`
+
+type MemberSetCoverParams struct {
+	CoverImageID pgtype.UUID
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+}
+
+func (q *Queries) MemberSetCover(ctx context.Context, arg MemberSetCoverParams) error {
+	_, err := q.db.Exec(ctx, memberSetCover, arg.CoverImageID, arg.TenantID, arg.ID)
+	return err
+}
+
+const memberUpdate = `-- name: MemberUpdate :exec
+UPDATE members SET code = $1, name = $2, gender = $3, phone = $4, email = $5, address = $6,
+       district = $7, city = $8, province = $9, postal_code = $10,
+       credit_limit = $11, due_days = $12, valid_until = $13, notes = $14, active = $15
+WHERE tenant_id = $16 AND id = $17
+`
+
+type MemberUpdateParams struct {
+	Code        string
+	Name        string
+	Gender      string
+	Phone       string
+	Email       string
+	Address     string
+	District    string
+	City        string
+	Province    string
+	PostalCode  string
+	CreditLimit decimal.Decimal
+	DueDays     int32
+	ValidUntil  pgtype.Date
+	Notes       string
+	Active      bool
+	TenantID    uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) MemberUpdate(ctx context.Context, arg MemberUpdateParams) error {
+	_, err := q.db.Exec(ctx, memberUpdate,
+		arg.Code,
+		arg.Name,
+		arg.Gender,
+		arg.Phone,
+		arg.Email,
+		arg.Address,
+		arg.District,
+		arg.City,
+		arg.Province,
+		arg.PostalCode,
+		arg.CreditLimit,
+		arg.DueDays,
+		arg.ValidUntil,
+		arg.Notes,
+		arg.Active,
 		arg.TenantID,
 		arg.ID,
 	)
@@ -2571,6 +3742,106 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 	return items, nil
 }
 
+const posShortcutClear = `-- name: PosShortcutClear :exec
+DELETE FROM pos_shortcuts WHERE tenant_id = $1 AND user_id = $2 AND slot = $3
+`
+
+type PosShortcutClearParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	Slot     int16
+}
+
+func (q *Queries) PosShortcutClear(ctx context.Context, arg PosShortcutClearParams) error {
+	_, err := q.db.Exec(ctx, posShortcutClear, arg.TenantID, arg.UserID, arg.Slot)
+	return err
+}
+
+const posShortcutList = `-- name: PosShortcutList :many
+SELECT s.slot, i.id, i.sku, i.name, i.kind, i.active, i.sell_price AS default_price, op.sell_price AS outlet_price,
+       u.name AS unit_name, mi.id AS main_image_id
+FROM pos_shortcuts s
+JOIN items i ON i.tenant_id = s.tenant_id AND i.id = s.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+WHERE s.tenant_id = $2 AND s.user_id = $3
+ORDER BY s.slot
+`
+
+type PosShortcutListParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+type PosShortcutListRow struct {
+	Slot         int16
+	ID           uuid.UUID
+	Sku          string
+	Name         string
+	Kind         string
+	Active       bool
+	DefaultPrice decimal.Decimal
+	OutletPrice  pgtype.Numeric
+	UnitName     string
+	MainImageID  pgtype.UUID
+}
+
+// Pintasan milik satu kasir beserta data barang; harga = harga efektif outlet aktif (harga cabang bila ada, selain itu default).
+func (q *Queries) PosShortcutList(ctx context.Context, arg PosShortcutListParams) ([]PosShortcutListRow, error) {
+	rows, err := q.db.Query(ctx, posShortcutList, arg.OutletID, arg.TenantID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PosShortcutListRow
+	for rows.Next() {
+		var i PosShortcutListRow
+		if err := rows.Scan(
+			&i.Slot,
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.Kind,
+			&i.Active,
+			&i.DefaultPrice,
+			&i.OutletPrice,
+			&i.UnitName,
+			&i.MainImageID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const posShortcutSet = `-- name: PosShortcutSet :exec
+INSERT INTO pos_shortcuts (tenant_id, user_id, slot, item_id) VALUES ($1, $2, $3, $4)
+ON CONFLICT (tenant_id, user_id, slot) DO UPDATE SET item_id = EXCLUDED.item_id, updated_at = now()
+`
+
+type PosShortcutSetParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	Slot     int16
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) PosShortcutSet(ctx context.Context, arg PosShortcutSetParams) error {
+	_, err := q.db.Exec(ctx, posShortcutSet,
+		arg.TenantID,
+		arg.UserID,
+		arg.Slot,
+		arg.ItemID,
+	)
+	return err
+}
+
 const salesAltUnits = `-- name: SalesAltUnits :many
 SELECT iu.item_id, iu.unit_id, u.name AS unit_name, iu.factor, iu.sell_price
 FROM item_units iu
@@ -2641,8 +3912,11 @@ func (q *Queries) SalesByIdemKey(ctx context.Context, arg SalesByIdemKeyParams) 
 const salesGet = `-- name: SalesGet :one
 SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.tax_store_pct, s.tax_gov_pct,
        s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
-       s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name
+       s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
+       s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
+       s.points_earned, s.points_redeemed, s.redeem_amount
 FROM sales s LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 LEFT JOIN users ap ON ap.tenant_id = s.tenant_id AND ap.id = s.approved_by
 WHERE s.tenant_id = $1 AND s.id = $2
 `
@@ -2653,25 +3927,31 @@ type SalesGetParams struct {
 }
 
 type SalesGetRow struct {
-	ID           uuid.UUID
-	OutletID     uuid.UUID
-	DocNo        string
-	Status       string
-	Note         string
-	Subtotal     decimal.Decimal
-	Discount     decimal.Decimal
-	TaxStorePct  decimal.Decimal
-	TaxGovPct    decimal.Decimal
-	TaxStore     decimal.Decimal
-	TaxGov       decimal.Decimal
-	OtherCost    decimal.Decimal
-	Total        decimal.Decimal
-	Paid         decimal.Decimal
-	Change       decimal.Decimal
-	CreatedAt    pgtype.Timestamptz
-	CashierID    pgtype.UUID
-	CashierName  string
-	ApproverName string
+	ID             uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	Status         string
+	Note           string
+	Subtotal       decimal.Decimal
+	Discount       decimal.Decimal
+	TaxStorePct    decimal.Decimal
+	TaxGovPct      decimal.Decimal
+	TaxStore       decimal.Decimal
+	TaxGov         decimal.Decimal
+	OtherCost      decimal.Decimal
+	Total          decimal.Decimal
+	Paid           decimal.Decimal
+	Change         decimal.Decimal
+	CreatedAt      pgtype.Timestamptz
+	CashierID      pgtype.UUID
+	CashierName    string
+	ApproverName   string
+	MemberID       pgtype.UUID
+	MemberCode     string
+	MemberName     string
+	PointsEarned   int32
+	PointsRedeemed int32
+	RedeemAmount   decimal.Decimal
 }
 
 func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow, error) {
@@ -2697,15 +3977,23 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 		&i.CashierID,
 		&i.CashierName,
 		&i.ApproverName,
+		&i.MemberID,
+		&i.MemberCode,
+		&i.MemberName,
+		&i.PointsEarned,
+		&i.PointsRedeemed,
+		&i.RedeemAmount,
 	)
 	return i, err
 }
 
 const salesInsert = `-- name: SalesInsert :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change)
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   member_id, points_earned, points_redeemed, redeem_amount)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18)
+        $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -2729,6 +4017,10 @@ type SalesInsertParams struct {
 	Total          decimal.Decimal
 	Paid           decimal.Decimal
 	Change         decimal.Decimal
+	MemberID       pgtype.UUID
+	PointsEarned   int32
+	PointsRedeemed int32
+	RedeemAmount   decimal.Decimal
 }
 
 type SalesInsertRow struct {
@@ -2757,6 +4049,10 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 		arg.Total,
 		arg.Paid,
 		arg.Change,
+		arg.MemberID,
+		arg.PointsEarned,
+		arg.PointsRedeemed,
+		arg.RedeemAmount,
 	)
 	var i SalesInsertRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
@@ -3190,6 +4486,318 @@ func (q *Queries) StockBalancesByItem(ctx context.Context, arg StockBalancesByIt
 	return items, nil
 }
 
+const stockConvByIdemKey = `-- name: StockConvByIdemKey :one
+SELECT id, request_hash FROM stock_conversions WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type StockConvByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type StockConvByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) StockConvByIdemKey(ctx context.Context, arg StockConvByIdemKeyParams) (StockConvByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, stockConvByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i StockConvByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const stockConvGet = `-- name: StockConvGet :one
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = $1 AND c.id = $2
+`
+
+type StockConvGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvGetRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	FromQty      decimal.Decimal
+	ToQty        decimal.Decimal
+	FromUnitCost decimal.Decimal
+	ToUnitCost   decimal.Decimal
+	CostApplied  bool
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	FromID       uuid.UUID
+	FromSku      string
+	FromName     string
+	FromUnit     string
+	ToID         uuid.UUID
+	ToSku        string
+	ToName       string
+	ToUnit       string
+	ActorName    string
+}
+
+func (q *Queries) StockConvGet(ctx context.Context, arg StockConvGetParams) (StockConvGetRow, error) {
+	row := q.db.QueryRow(ctx, stockConvGet, arg.TenantID, arg.ID)
+	var i StockConvGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.FromQty,
+		&i.ToQty,
+		&i.FromUnitCost,
+		&i.ToUnitCost,
+		&i.CostApplied,
+		&i.Note,
+		&i.CreatedAt,
+		&i.FromID,
+		&i.FromSku,
+		&i.FromName,
+		&i.FromUnit,
+		&i.ToID,
+		&i.ToSku,
+		&i.ToName,
+		&i.ToUnit,
+		&i.ActorName,
+	)
+	return i, err
+}
+
+const stockConvInsert = `-- name: StockConvInsert :one
+INSERT INTO stock_conversions (id, tenant_id, outlet_id, doc_no, idempotency_key, request_hash, from_item_id, from_qty, to_item_id, to_qty,
+                               from_unit_cost, to_unit_cost, cost_applied, note, actor_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type StockConvInsertParams struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromItemID     uuid.UUID
+	FromQty        decimal.Decimal
+	ToItemID       uuid.UUID
+	ToQty          decimal.Decimal
+	FromUnitCost   decimal.Decimal
+	ToUnitCost     decimal.Decimal
+	CostApplied    bool
+	Note           string
+	ActorID        pgtype.UUID
+}
+
+// DO NOTHING pada kunci idempotensi: pengiriman ganda bersamaan tidak membuat dokumen ganda.
+func (q *Queries) StockConvInsert(ctx context.Context, arg StockConvInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, stockConvInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.FromItemID,
+		arg.FromQty,
+		arg.ToItemID,
+		arg.ToQty,
+		arg.FromUnitCost,
+		arg.ToUnitCost,
+		arg.CostApplied,
+		arg.Note,
+		arg.ActorID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const stockConvItemLock = `-- name: StockConvItemLock :one
+SELECT i.id, i.sku, i.name, i.kind, i.avg_cost, u.name AS unit_name
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.id = $2 FOR UPDATE OF i
+`
+
+type StockConvItemLockParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvItemLockRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	AvgCost  decimal.Decimal
+	UnitName string
+}
+
+// Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP + satuan dasarnya.
+func (q *Queries) StockConvItemLock(ctx context.Context, arg StockConvItemLockParams) (StockConvItemLockRow, error) {
+	row := q.db.QueryRow(ctx, stockConvItemLock, arg.TenantID, arg.ID)
+	var i StockConvItemLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.AvgCost,
+		&i.UnitName,
+	)
+	return i, err
+}
+
+const stockConvList = `-- name: StockConvList :many
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name,
+       count(*) OVER () AS total
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = $1 AND c.outlet_id = $2
+ORDER BY c.created_at DESC, c.id
+LIMIT $4 OFFSET $3
+`
+
+type StockConvListParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type StockConvListRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	FromQty      decimal.Decimal
+	ToQty        decimal.Decimal
+	FromUnitCost decimal.Decimal
+	ToUnitCost   decimal.Decimal
+	CostApplied  bool
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	FromID       uuid.UUID
+	FromSku      string
+	FromName     string
+	FromUnit     string
+	ToID         uuid.UUID
+	ToSku        string
+	ToName       string
+	ToUnit       string
+	ActorName    string
+	Total        int64
+}
+
+func (q *Queries) StockConvList(ctx context.Context, arg StockConvListParams) ([]StockConvListRow, error) {
+	rows, err := q.db.Query(ctx, stockConvList,
+		arg.TenantID,
+		arg.OutletID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockConvListRow
+	for rows.Next() {
+		var i StockConvListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OutletID,
+			&i.DocNo,
+			&i.FromQty,
+			&i.ToQty,
+			&i.FromUnitCost,
+			&i.ToUnitCost,
+			&i.CostApplied,
+			&i.Note,
+			&i.CreatedAt,
+			&i.FromID,
+			&i.FromSku,
+			&i.FromName,
+			&i.FromUnit,
+			&i.ToID,
+			&i.ToSku,
+			&i.ToName,
+			&i.ToUnit,
+			&i.ActorName,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockConvNextNo = `-- name: StockConvNextNo :one
+INSERT INTO stock_conversion_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_conversion_counters.last_no + 1
+RETURNING last_no
+`
+
+type StockConvNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) StockConvNextNo(ctx context.Context, arg StockConvNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockConvNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const stockConvOutletInfo = `-- name: StockConvOutletInfo :one
+
+SELECT code, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type StockConvOutletInfoParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvOutletInfoRow struct {
+	Code     string
+	Active   bool
+	LocalDay pgtype.Date
+}
+
+// ---- Pecah satuan (Fase 4.3) ----
+func (q *Queries) StockConvOutletInfo(ctx context.Context, arg StockConvOutletInfoParams) (StockConvOutletInfoRow, error) {
+	row := q.db.QueryRow(ctx, stockConvOutletInfo, arg.TenantID, arg.ID)
+	var i StockConvOutletInfoRow
+	err := row.Scan(&i.Code, &i.Active, &i.LocalDay)
+	return i, err
+}
+
 const stockItemInfo = `-- name: StockItemInfo :one
 SELECT kind, allow_negative_stock FROM items WHERE tenant_id = $1 AND id = $2
 `
@@ -3392,6 +5000,21 @@ func (q *Queries) StockOutletLockState(ctx context.Context, arg StockOutletLockS
 	return i, err
 }
 
+const stockSetCost = `-- name: StockSetCost :exec
+UPDATE items SET avg_cost = $1, last_cost = $1 WHERE tenant_id = $2 AND id = $3
+`
+
+type StockSetCostParams struct {
+	Cost     decimal.Decimal
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) StockSetCost(ctx context.Context, arg StockSetCostParams) error {
+	_, err := q.db.Exec(ctx, stockSetCost, arg.Cost, arg.TenantID, arg.ItemID)
+	return err
+}
+
 const stockSubtractGuarded = `-- name: StockSubtractGuarded :one
 UPDATE stock_balances SET qty = qty + $1
 WHERE tenant_id = $2 AND outlet_id = $3 AND item_id = $4 AND bucket = $5 AND qty + $1 >= 0
@@ -3416,6 +5039,23 @@ func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGua
 		arg.ItemID,
 		arg.Bucket,
 	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockTotalQty = `-- name: StockTotalQty :one
+SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND item_id = $2
+`
+
+type StockTotalQtyParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+// Total stok barang di semua outlet & bucket (dasar keputusan memasang HPP hasil pecah satuan).
+func (q *Queries) StockTotalQty(ctx context.Context, arg StockTotalQtyParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockTotalQty, arg.TenantID, arg.ItemID)
 	var qty decimal.Decimal
 	err := row.Scan(&qty)
 	return qty, err

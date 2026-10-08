@@ -19,7 +19,7 @@
   });
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose();
+    if (e.key === 'Escape' && !e.defaultPrevented) onclose();
   }
 </script>
 

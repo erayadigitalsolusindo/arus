@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import Select from '#lib/components/Select.svelte';
   export type TierRow = { min: string; price: string };
   export type OutletTierSet = { outletId: string; name: string; tiers: TierRow[] };
   export const MAX_TIERS = 10;
@@ -9,6 +10,7 @@
   // harga tier berlaku untuk SELURUH jumlah; batas atas tier = tier berikutnya; tier terakhir berlaku sampai stok habis;
   // set cabang menggantikan default sepenuhnya; jumlah dalam satuan dasar.
   import { t, formatNumber } from '#lib/i18n/index.ts';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   let {
     defaultTiers = $bindable([]),
@@ -68,8 +70,8 @@
     </div>
     {#each rows as row, i (i)}
       <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5.5rem_2rem] gap-2 items-center">
-        <input id="{idPrefix}-min-{i}" class={cell} bind:value={row.min} inputmode="decimal" aria-label={t('items.wholesale.minQty')} disabled={readOnly} />
-        <input id="{idPrefix}-price-{i}" class={cell} bind:value={row.price} inputmode="decimal" aria-label={t('items.wholesale.price')} disabled={readOnly} />
+        <MoneyInput id="{idPrefix}-min-{i}" class={cell} bind:value={row.min} decimals={3} pad={false} aria-label={t('items.wholesale.minQty')} disabled={readOnly} />
+        <MoneyInput id="{idPrefix}-price-{i}" class={cell} bind:value={row.price} aria-label={t('items.wholesale.price')} disabled={readOnly} />
         <span class="text-[12px] text-[var(--text-secondary)] whitespace-nowrap">{labels[i]}</span>
         {#if !readOnly}
           <button type="button" class="header-icon-btn !size-8" aria-label={t('items.wholesale.remove')} title={t('items.wholesale.remove')} onclick={() => removeRow(rows, i)}>
@@ -116,10 +118,7 @@
 
   {#if !readOnly && free.length}
     <div class="flex flex-wrap items-center gap-2">
-      <select class="field-control" aria-label={t('items.wholesale.addOutlet')} bind:value={pickOutlet} onchange={addOutletSet}>
-        <option value="">{t('items.wholesale.addOutlet')}</option>
-        {#each free as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
-      </select>
+      <Select class="!w-auto min-w-52" ariaLabel={t('items.wholesale.addOutlet')} bind:value={pickOutlet} onchange={addOutletSet} options={[{ value: '', label: t('items.wholesale.addOutlet'), disabled: true }, ...free.map((o) => ({ value: o.id, label: o.name }))]} />
       <span class="text-[11px] text-[var(--text-tertiary)]">{t('items.wholesale.outletHint')}</span>
     </div>
   {/if}
