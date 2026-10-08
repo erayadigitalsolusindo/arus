@@ -92,3 +92,16 @@ const (
 	ActionStockOpening     = "stock.opening"
 	ActionStockOpeningLock = "stock.opening_lock"
 )
+
+// Penjualan (Fase 5.1).
+const (
+	EntitySale = "sale"
+
+	ActionSaleCreate = "sale.create"
+)
+
+// Persetujuan (PIN) — ubah harga di kasir.
+const (
+	ActionSalePriceOverride = "sale.price_override"
+	ActionUserPinSet        = "user.pin_set"
+)
