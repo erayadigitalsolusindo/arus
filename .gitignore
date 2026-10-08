@@ -17,3 +17,7 @@ node_modules/
 Thumbs.db
 # unggahan pengguna (gambar item, dll.)
 source/backend/data/
+
+# paket rilis aaPanel
+source/deploy/aapanel/release/
+source/deploy/aapanel/release.tar.gz
