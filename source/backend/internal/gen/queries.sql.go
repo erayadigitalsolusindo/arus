@@ -3635,15 +3635,16 @@ func (q *Queries) PlatformRecoveryRemaining(ctx context.Context, adminID uuid.UU
 }
 
 const platformTenantGet = `-- name: PlatformTenantGet :one
-SELECT id, code, name, active, created_at FROM tenants WHERE id = $1
+SELECT id, code, name, active, created_at, sale_edit_window_days FROM tenants WHERE id = $1
 `
 
 type PlatformTenantGetRow struct {
-	ID        uuid.UUID
-	Code      string
-	Name      string
-	Active    bool
-	CreatedAt pgtype.Timestamptz
+	ID                 uuid.UUID
+	Code               string
+	Name               string
+	Active             bool
+	CreatedAt          pgtype.Timestamptz
+	SaleEditWindowDays int32
 }
 
 // Dijalankan di bawah WithTenant(tenant yang dituju): RLS membatasi baris ke tenant itu.
@@ -3656,6 +3657,7 @@ func (q *Queries) PlatformTenantGet(ctx context.Context, id uuid.UUID) (Platform
 		&i.Name,
 		&i.Active,
 		&i.CreatedAt,
+		&i.SaleEditWindowDays,
 	)
 	return i, err
 }
@@ -3707,6 +3709,23 @@ type PlatformTenantSetActiveParams struct {
 
 func (q *Queries) PlatformTenantSetActive(ctx context.Context, arg PlatformTenantSetActiveParams) (int64, error) {
 	result, err := q.db.Exec(ctx, platformTenantSetActive, arg.Active, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const platformTenantSetEditWindow = `-- name: PlatformTenantSetEditWindow :execrows
+UPDATE tenants SET sale_edit_window_days = $1 WHERE id = $2
+`
+
+type PlatformTenantSetEditWindowParams struct {
+	Days int32
+	ID   uuid.UUID
+}
+
+func (q *Queries) PlatformTenantSetEditWindow(ctx context.Context, arg PlatformTenantSetEditWindowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, platformTenantSetEditWindow, arg.Days, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -3908,13 +3927,13 @@ func (q *Queries) SalesAltUnits(ctx context.Context, arg SalesAltUnitsParams) ([
 
 const salesAuditEvents = `-- name: SalesAuditEvents :many
 SELECT action, actor_name, details, created_at FROM audit_log
-WHERE tenant_id = $1 AND entity = 'sale' AND entity_id = $2::text
+WHERE tenant_id = $1 AND entity = 'sale' AND entity_id = ANY($2::text[])
 ORDER BY id
 `
 
 type SalesAuditEventsParams struct {
 	TenantID uuid.UUID
-	SaleID   string
+	SaleIds  []string
 }
 
 type SalesAuditEventsRow struct {
@@ -3926,7 +3945,7 @@ type SalesAuditEventsRow struct {
 
 // Riwayat audit satu nota (buat, ubah harga/potongan disetujui PIN; edit/void nanti ikut tercatat di sini).
 func (q *Queries) SalesAuditEvents(ctx context.Context, arg SalesAuditEventsParams) ([]SalesAuditEventsRow, error) {
-	rows, err := q.db.Query(ctx, salesAuditEvents, arg.TenantID, arg.SaleID)
+	rows, err := q.db.Query(ctx, salesAuditEvents, arg.TenantID, arg.SaleIds)
 	if err != nil {
 		return nil, err
 	}
@@ -4035,7 +4054,9 @@ SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
-       s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name
+       s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name,
+       s.revision, s.root_id, s.supersedes_id, s.superseded_by, coalesce(s.void_reason, '')::text AS void_reason,
+       coalesce(s.revision_reason, '')::text AS revision_reason
 FROM sales s LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
 LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
 LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
@@ -4076,6 +4097,12 @@ type SalesGetRow struct {
 	RedeemAmount    decimal.Decimal
 	SalespersonID   pgtype.UUID
 	SalespersonName string
+	Revision        int32
+	RootID          pgtype.UUID
+	SupersedesID    pgtype.UUID
+	SupersededBy    pgtype.UUID
+	VoidReason      string
+	RevisionReason  string
 }
 
 func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow, error) {
@@ -4109,6 +4136,12 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 		&i.RedeemAmount,
 		&i.SalespersonID,
 		&i.SalespersonName,
+		&i.Revision,
+		&i.RootID,
+		&i.SupersedesID,
+		&i.SupersededBy,
+		&i.VoidReason,
+		&i.RevisionReason,
 	)
 	return i, err
 }
@@ -4183,6 +4216,95 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 		arg.SalespersonID,
 	)
 	var i SalesInsertRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
+const salesInsertRevision = `-- name: SalesInsertRevision :one
+INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
+                   created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22, $23,
+        $24, $25, $26, $27, $28, now(), $29)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id, created_at
+`
+
+type SalesInsertRevisionParams struct {
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	CashierID      pgtype.UUID
+	ApprovedBy     pgtype.UUID
+	Note           string
+	Subtotal       decimal.Decimal
+	Discount       decimal.Decimal
+	TaxStorePct    decimal.Decimal
+	TaxGovPct      decimal.Decimal
+	TaxStore       decimal.Decimal
+	TaxGov         decimal.Decimal
+	OtherCost      decimal.Decimal
+	Total          decimal.Decimal
+	Paid           decimal.Decimal
+	Change         decimal.Decimal
+	MemberID       pgtype.UUID
+	PointsEarned   int32
+	PointsRedeemed int32
+	RedeemAmount   decimal.Decimal
+	SalespersonID  pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	RootID         pgtype.UUID
+	Revision       int32
+	SupersedesID   pgtype.UUID
+	RevisionReason pgtype.Text
+	RevisedBy      pgtype.UUID
+}
+
+type SalesInsertRevisionRow struct {
+	ID        uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+// Revisi nota (hasil edit): sama dengan SalesInsert + tautan ke nota yang digantikan. created_at dibawa dari nota asli
+// (tanggal bisnis tidak bergeser), revised_at = saat edit.
+func (q *Queries) SalesInsertRevision(ctx context.Context, arg SalesInsertRevisionParams) (SalesInsertRevisionRow, error) {
+	row := q.db.QueryRow(ctx, salesInsertRevision,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.CashierID,
+		arg.ApprovedBy,
+		arg.Note,
+		arg.Subtotal,
+		arg.Discount,
+		arg.TaxStorePct,
+		arg.TaxGovPct,
+		arg.TaxStore,
+		arg.TaxGov,
+		arg.OtherCost,
+		arg.Total,
+		arg.Paid,
+		arg.Change,
+		arg.MemberID,
+		arg.PointsEarned,
+		arg.PointsRedeemed,
+		arg.RedeemAmount,
+		arg.SalespersonID,
+		arg.CreatedAt,
+		arg.RootID,
+		arg.Revision,
+		arg.SupersedesID,
+		arg.RevisionReason,
+		arg.RevisedBy,
+	)
+	var i SalesInsertRevisionRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
 }
@@ -4367,6 +4489,50 @@ func (q *Queries) SalesLines(ctx context.Context, arg SalesLinesParams) ([]Sales
 	return items, nil
 }
 
+const salesLinesForReverse = `-- name: SalesLinesForReverse :many
+SELECT l.item_id, l.factor, l.qty, i.kind
+FROM sale_lines l JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+WHERE l.tenant_id = $1 AND l.sale_id = $2 ORDER BY l.position
+`
+
+type SalesLinesForReverseParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+type SalesLinesForReverseRow struct {
+	ItemID uuid.UUID
+	Factor decimal.Decimal
+	Qty    decimal.Decimal
+	Kind   string
+}
+
+// Baris nota + jenis barang, untuk membalik stok (hanya barang berstok yang menggerakkan stok).
+func (q *Queries) SalesLinesForReverse(ctx context.Context, arg SalesLinesForReverseParams) ([]SalesLinesForReverseRow, error) {
+	rows, err := q.db.Query(ctx, salesLinesForReverse, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesLinesForReverseRow
+	for rows.Next() {
+		var i SalesLinesForReverseRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Factor,
+			&i.Qty,
+			&i.Kind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const salesList = `-- name: SalesList :many
 SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
        coalesce(u.name, '')::text AS cashier_name,
@@ -4381,6 +4547,7 @@ JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
 LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
 LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 WHERE s.tenant_id = $1 AND s.outlet_id = $2
+  AND s.status <> 'superseded'
   AND ($3::bool OR s.cashier_id = $4)
   AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $5::date AND $6::date
   AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%')
@@ -4451,7 +4618,7 @@ func (q *Queries) SalesList(ctx context.Context, arg SalesListParams) ([]SalesLi
 }
 
 const salesListAll = `-- name: SalesListAll :many
-SELECT s.id, s.doc_no, s.status, s.created_at, s.outlet_id, o.code AS outlet_code, o.name AS outlet_name,
+SELECT s.id, s.doc_no, s.status, s.created_at, s.revision, s.outlet_id, o.code AS outlet_code, o.name AS outlet_name,
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
        coalesce(sp.name, '')::text AS salesperson_name,
@@ -4479,7 +4646,7 @@ CROSS JOIN LATERAL (
            coalesce(string_agg(v.code, ',' ORDER BY v.position), '')::text AS voucher_codes
     FROM sale_vouchers v WHERE v.tenant_id = s.tenant_id AND v.sale_id = s.id
 ) vc
-WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[])
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'superseded'
   AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
   AND ($5::text = '' OR s.status = $5::text)
   AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $6::uuid)
@@ -4511,6 +4678,7 @@ type SalesListAllRow struct {
 	DocNo           string
 	Status          string
 	CreatedAt       pgtype.Timestamptz
+	Revision        int32
 	OutletID        uuid.UUID
 	OutletCode      string
 	OutletName      string
@@ -4566,6 +4734,7 @@ func (q *Queries) SalesListAll(ctx context.Context, arg SalesListAllParams) ([]S
 			&i.DocNo,
 			&i.Status,
 			&i.CreatedAt,
+			&i.Revision,
 			&i.OutletID,
 			&i.OutletCode,
 			&i.OutletName,
@@ -4680,7 +4849,7 @@ CROSS JOIN LATERAL (
            coalesce(sum(l.unit_cost * l.qty), 0)::numeric AS cost
     FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id
 ) lc
-WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[])
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'superseded'
   AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
   AND ($5::text = '' OR s.status = $5::text)
   AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $6::uuid)
@@ -4731,6 +4900,111 @@ func (q *Queries) SalesListAllSummary(ctx context.Context, arg SalesListAllSumma
 		&i.NetSales,
 	)
 	return i, err
+}
+
+const salesLockForEdit = `-- name: SalesLockForEdit :one
+SELECT s.id, s.outlet_id, s.doc_no, s.status, s.cashier_id, s.created_at, s.revision, s.root_id, s.note,
+       s.member_id, s.salesperson_id, s.total,
+       (s.created_at AT TIME ZONE o.timezone)::date AS local_day,
+       (now() AT TIME ZONE o.timezone)::date AS today,
+       t.sale_edit_window_days
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+JOIN tenants t ON t.id = s.tenant_id
+WHERE s.tenant_id = $1 AND s.id = $2
+FOR UPDATE OF s
+`
+
+type SalesLockForEditParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalesLockForEditRow struct {
+	ID                 uuid.UUID
+	OutletID           uuid.UUID
+	DocNo              string
+	Status             string
+	CashierID          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	Revision           int32
+	RootID             pgtype.UUID
+	Note               string
+	MemberID           pgtype.UUID
+	SalespersonID      pgtype.UUID
+	Total              decimal.Decimal
+	LocalDay           pgtype.Date
+	Today              pgtype.Date
+	SaleEditWindowDays int32
+}
+
+// Mengunci satu nota untuk edit/batal sekaligus membaca konteks aturannya: hari lokal nota, hari ini (zona waktu outlet),
+// dan batas hari edit tenant (diatur operator platform).
+func (q *Queries) SalesLockForEdit(ctx context.Context, arg SalesLockForEditParams) (SalesLockForEditRow, error) {
+	row := q.db.QueryRow(ctx, salesLockForEdit, arg.TenantID, arg.ID)
+	var i SalesLockForEditRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.Status,
+		&i.CashierID,
+		&i.CreatedAt,
+		&i.Revision,
+		&i.RootID,
+		&i.Note,
+		&i.MemberID,
+		&i.SalespersonID,
+		&i.Total,
+		&i.LocalDay,
+		&i.Today,
+		&i.SaleEditWindowDays,
+	)
+	return i, err
+}
+
+const salesMarkSuperseded = `-- name: SalesMarkSuperseded :execrows
+UPDATE sales SET status = 'superseded', superseded_by = $1
+WHERE tenant_id = $2 AND id = $3 AND status = 'completed'
+`
+
+type SalesMarkSupersededParams struct {
+	SupersededBy pgtype.UUID
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+}
+
+func (q *Queries) SalesMarkSuperseded(ctx context.Context, arg SalesMarkSupersededParams) (int64, error) {
+	result, err := q.db.Exec(ctx, salesMarkSuperseded, arg.SupersededBy, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const salesMarkVoid = `-- name: SalesMarkVoid :execrows
+UPDATE sales SET status = 'void', void_reason = $1, voided_at = now(), voided_by = $2
+WHERE tenant_id = $3 AND id = $4 AND status = 'completed'
+`
+
+type SalesMarkVoidParams struct {
+	Reason   pgtype.Text
+	VoidedBy pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) SalesMarkVoid(ctx context.Context, arg SalesMarkVoidParams) (int64, error) {
+	result, err := q.db.Exec(ctx, salesMarkVoid,
+		arg.Reason,
+		arg.VoidedBy,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const salesNextNo = `-- name: SalesNextNo :one
@@ -4847,6 +5121,59 @@ func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([
 	return items, nil
 }
 
+const salesRevisionChain = `-- name: SalesRevisionChain :many
+SELECT id, doc_no, revision, status, created_at, revised_at, total, revision_reason, void_reason
+FROM sales WHERE tenant_id = $1 AND coalesce(root_id, id) = $2 ORDER BY revision
+`
+
+type SalesRevisionChainParams struct {
+	TenantID uuid.UUID
+	RootID   pgtype.UUID
+}
+
+type SalesRevisionChainRow struct {
+	ID             uuid.UUID
+	DocNo          string
+	Revision       int32
+	Status         string
+	CreatedAt      pgtype.Timestamptz
+	RevisedAt      pgtype.Timestamptz
+	Total          decimal.Decimal
+	RevisionReason pgtype.Text
+	VoidReason     pgtype.Text
+}
+
+// Seluruh versi satu nota (asli + revisi), urut revisi.
+func (q *Queries) SalesRevisionChain(ctx context.Context, arg SalesRevisionChainParams) ([]SalesRevisionChainRow, error) {
+	rows, err := q.db.Query(ctx, salesRevisionChain, arg.TenantID, arg.RootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesRevisionChainRow
+	for rows.Next() {
+		var i SalesRevisionChainRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.Revision,
+			&i.Status,
+			&i.CreatedAt,
+			&i.RevisedAt,
+			&i.Total,
+			&i.RevisionReason,
+			&i.VoidReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const salesSalespersonState = `-- name: SalesSalespersonState :one
 SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2
 `
@@ -4875,13 +5202,13 @@ FROM stock_movements m
 JOIN items i ON i.tenant_id = m.tenant_id AND i.id = m.item_id
 JOIN units un ON un.tenant_id = i.tenant_id AND un.id = i.unit_id
 LEFT JOIN users u ON u.tenant_id = m.tenant_id AND u.id = m.actor_id
-WHERE m.tenant_id = $1 AND m.ref_id = $2 AND m.ref_type IN ('SALE', 'SALE_VOID', 'SALE_RETURN')
+WHERE m.tenant_id = $1 AND m.ref_id = ANY($2::uuid[]) AND m.ref_type IN ('SALE', 'SALE_VOID', 'SALE_RETURN')
 ORDER BY m.id
 `
 
 type SalesStockMovementsParams struct {
 	TenantID uuid.UUID
-	SaleID   pgtype.UUID
+	SaleIds  []uuid.UUID
 }
 
 type SalesStockMovementsRow struct {
@@ -4898,9 +5225,10 @@ type SalesStockMovementsRow struct {
 	ActorName    string
 }
 
+// sale_ids = seluruh versi nota (asli + revisi): pembalikan stok nota lama ikut tampil di nota revisinya.
 // Gerakan stok yang ditimbulkan satu nota (jual, pembatalan, retur). Satuan = satuan dasar barang.
 func (q *Queries) SalesStockMovements(ctx context.Context, arg SalesStockMovementsParams) ([]SalesStockMovementsRow, error) {
-	rows, err := q.db.Query(ctx, salesStockMovements, arg.TenantID, arg.SaleID)
+	rows, err := q.db.Query(ctx, salesStockMovements, arg.TenantID, arg.SaleIds)
 	if err != nil {
 		return nil, err
 	}
@@ -4969,6 +5297,35 @@ func (q *Queries) SalesTiers(ctx context.Context, arg SalesTiersParams) ([]Sales
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesVoucherIDs = `-- name: SalesVoucherIDs :many
+SELECT voucher_id FROM sale_vouchers WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+`
+
+type SalesVoucherIDsParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+func (q *Queries) SalesVoucherIDs(ctx context.Context, arg SalesVoucherIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, salesVoucherIDs, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var voucher_id uuid.UUID
+		if err := rows.Scan(&voucher_id); err != nil {
+			return nil, err
+		}
+		items = append(items, voucher_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -6855,6 +7212,25 @@ func (q *Queries) VoucherList(ctx context.Context, arg VoucherListParams) ([]Vou
 		return nil, err
 	}
 	return items, nil
+}
+
+const voucherRelease = `-- name: VoucherRelease :execrows
+UPDATE vouchers SET used_count = used_count - 1
+WHERE tenant_id = $1 AND id = $2 AND used_count > 0
+`
+
+type VoucherReleaseParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Mengembalikan satu pemakaian kupon (nota dibatalkan/diedit). Tidak pernah di bawah 0.
+func (q *Queries) VoucherRelease(ctx context.Context, arg VoucherReleaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, voucherRelease, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const voucherSetActive = `-- name: VoucherSetActive :one
