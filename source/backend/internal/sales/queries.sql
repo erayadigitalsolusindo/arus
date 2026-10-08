@@ -77,3 +77,31 @@ SELECT method, amount, ref_no FROM sale_payments WHERE tenant_id = $1 AND sale_i
 
 -- name: SalesSalespersonState :one
 SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2;
+
+-- name: SalesList :many
+SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
+       coalesce(u.name, '')::text AS cashier_name,
+       coalesce(mb.name, '')::text AS member_name,
+       (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
+       -- Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
+       coalesce((SELECT string_agg(m.method || ':' || m.amt::text, ',' ORDER BY m.method)
+                 FROM (SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                       FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method) m), '')::text AS pay_amounts
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+WHERE s.tenant_id = @tenant_id AND s.outlet_id = @outlet_id
+  AND (@all_cashiers::bool OR s.cashier_id = @cashier_id)
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN @from_day::date AND @to_day::date
+  AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%')
+ORDER BY s.created_at DESC, s.doc_no DESC
+LIMIT 500;
+
+-- name: SalesVoucherInsert :exec
+INSERT INTO sale_vouchers (tenant_id, sale_id, voucher_id, position, code, name, kind, value, amount)
+VALUES (@tenant_id, @sale_id, @voucher_id, @position, @code, @name, @kind, @value, @amount);
+
+-- name: SalesVouchers :many
+SELECT code, name, kind, value, amount FROM sale_vouchers
+WHERE tenant_id = @tenant_id AND sale_id = @sale_id ORDER BY position;

@@ -34,8 +34,8 @@ export const nav: NavGroup[] = [
         icon: 'package',
         children: [
           { labelKey: 'nav.itemList', module: 'items', href: '/items' },
-          { labelKey: 'nav.stockCard', module: 'stock_card' },
-          { labelKey: 'nav.coupons', module: 'coupons' }
+          { labelKey: 'nav.stockCard', module: 'stock_card', href: '/stock-card' },
+          { labelKey: 'nav.coupons', module: 'coupons', href: '/vouchers' }
         ]
       },
       {

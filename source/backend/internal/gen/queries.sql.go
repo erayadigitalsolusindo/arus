@@ -4265,6 +4265,89 @@ func (q *Queries) SalesLines(ctx context.Context, arg SalesLinesParams) ([]Sales
 	return items, nil
 }
 
+const salesList = `-- name: SalesList :many
+SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
+       coalesce(u.name, '')::text AS cashier_name,
+       coalesce(mb.name, '')::text AS member_name,
+       (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
+       -- Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
+       coalesce((SELECT string_agg(m.method || ':' || m.amt::text, ',' ORDER BY m.method)
+                 FROM (SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                       FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method) m), '')::text AS pay_amounts
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2
+  AND ($3::bool OR s.cashier_id = $4)
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $5::date AND $6::date
+  AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%')
+ORDER BY s.created_at DESC, s.doc_no DESC
+LIMIT 500
+`
+
+type SalesListParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	AllCashiers bool
+	CashierID   pgtype.UUID
+	FromDay     pgtype.Date
+	ToDay       pgtype.Date
+	Q           string
+}
+
+type SalesListRow struct {
+	ID          uuid.UUID
+	DocNo       string
+	Status      string
+	Total       decimal.Decimal
+	Paid        decimal.Decimal
+	CreatedAt   pgtype.Timestamptz
+	CashierName string
+	MemberName  string
+	LineCount   int32
+	PayAmounts  string
+}
+
+func (q *Queries) SalesList(ctx context.Context, arg SalesListParams) ([]SalesListRow, error) {
+	rows, err := q.db.Query(ctx, salesList,
+		arg.TenantID,
+		arg.OutletID,
+		arg.AllCashiers,
+		arg.CashierID,
+		arg.FromDay,
+		arg.ToDay,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesListRow
+	for rows.Next() {
+		var i SalesListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.Status,
+			&i.Total,
+			&i.Paid,
+			&i.CreatedAt,
+			&i.CashierName,
+			&i.MemberName,
+			&i.LineCount,
+			&i.PayAmounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const salesNextNo = `-- name: SalesNextNo :one
 INSERT INTO sale_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
 ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = sale_counters.last_no + 1
@@ -4434,6 +4517,82 @@ func (q *Queries) SalesTiers(ctx context.Context, arg SalesTiersParams) ([]Sales
 			&i.OutletID,
 			&i.MinQty,
 			&i.Price,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesVoucherInsert = `-- name: SalesVoucherInsert :exec
+INSERT INTO sale_vouchers (tenant_id, sale_id, voucher_id, position, code, name, kind, value, amount)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type SalesVoucherInsertParams struct {
+	TenantID  uuid.UUID
+	SaleID    uuid.UUID
+	VoucherID uuid.UUID
+	Position  int32
+	Code      string
+	Name      string
+	Kind      string
+	Value     decimal.Decimal
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) SalesVoucherInsert(ctx context.Context, arg SalesVoucherInsertParams) error {
+	_, err := q.db.Exec(ctx, salesVoucherInsert,
+		arg.TenantID,
+		arg.SaleID,
+		arg.VoucherID,
+		arg.Position,
+		arg.Code,
+		arg.Name,
+		arg.Kind,
+		arg.Value,
+		arg.Amount,
+	)
+	return err
+}
+
+const salesVouchers = `-- name: SalesVouchers :many
+SELECT code, name, kind, value, amount FROM sale_vouchers
+WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+`
+
+type SalesVouchersParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+type SalesVouchersRow struct {
+	Code   string
+	Name   string
+	Kind   string
+	Value  decimal.Decimal
+	Amount decimal.Decimal
+}
+
+func (q *Queries) SalesVouchers(ctx context.Context, arg SalesVouchersParams) ([]SalesVouchersRow, error) {
+	rows, err := q.db.Query(ctx, salesVouchers, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesVouchersRow
+	for rows.Next() {
+		var i SalesVouchersRow
+		if err := rows.Scan(
+			&i.Code,
+			&i.Name,
+			&i.Kind,
+			&i.Value,
+			&i.Amount,
 		); err != nil {
 			return nil, err
 		}
@@ -4774,6 +4933,307 @@ func (q *Queries) StockBalancesByItem(ctx context.Context, arg StockBalancesByIt
 		return nil, err
 	}
 	return items, nil
+}
+
+const stockCardBefore = `-- name: StockCardBefore :one
+SELECT coalesce(sum(qty_delta), 0)::numeric AS delta
+FROM stock_movements
+WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3
+  AND ($4::text = '' OR bucket = $4)
+  AND created_at >= $5::timestamptz AND created_at < $6::timestamptz AND id <= $7
+`
+
+type StockCardBeforeParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+	StartAt  pgtype.Timestamptz
+	EndAt    pgtype.Timestamptz
+	AfterID  int64
+}
+
+// Jumlah mutasi pada periode sampai (dan termasuk) id kursor: dasar saldo berjalan halaman berikutnya.
+func (q *Queries) StockCardBefore(ctx context.Context, arg StockCardBeforeParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockCardBefore,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.StartAt,
+		arg.EndAt,
+		arg.AfterID,
+	)
+	var delta decimal.Decimal
+	err := row.Scan(&delta)
+	return delta, err
+}
+
+const stockCardBounds = `-- name: StockCardBounds :one
+WITH o AS (
+    SELECT timezone, (now() AT TIME ZONE timezone)::date AS today FROM outlets WHERE tenant_id = $1 AND id = $2
+), t AS (
+    SELECT o.timezone, coalesce($3::date, o.today) AS to_day FROM o
+), d AS (
+    SELECT t.timezone, t.to_day, coalesce($4::date, t.to_day - 29) AS from_day FROM t
+)
+SELECT d.from_day::date AS from_day, d.to_day::date AS to_day,
+       (d.from_day::timestamp AT TIME ZONE d.timezone)::timestamptz AS start_at,
+       ((d.to_day + 1)::timestamp AT TIME ZONE d.timezone)::timestamptz AS end_at
+FROM d
+`
+
+type StockCardBoundsParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ToDay    pgtype.Date
+	FromDay  pgtype.Date
+}
+
+type StockCardBoundsRow struct {
+	FromDay pgtype.Date
+	ToDay   pgtype.Date
+	StartAt pgtype.Timestamptz
+	EndAt   pgtype.Timestamptz
+}
+
+// Batas periode kartu stok menurut zona waktu outlet: tanggal kosong → 30 hari terakhir sampai hari ini. end_at eksklusif.
+func (q *Queries) StockCardBounds(ctx context.Context, arg StockCardBoundsParams) (StockCardBoundsRow, error) {
+	row := q.db.QueryRow(ctx, stockCardBounds,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ToDay,
+		arg.FromDay,
+	)
+	var i StockCardBoundsRow
+	err := row.Scan(
+		&i.FromDay,
+		&i.ToDay,
+		&i.StartAt,
+		&i.EndAt,
+	)
+	return i, err
+}
+
+const stockCardItem = `-- name: StockCardItem :one
+SELECT i.id, i.sku, i.name, i.kind, u.name AS unit_name
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.id = $2
+`
+
+type StockCardItemParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockCardItemRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	UnitName string
+}
+
+func (q *Queries) StockCardItem(ctx context.Context, arg StockCardItemParams) (StockCardItemRow, error) {
+	row := q.db.QueryRow(ctx, stockCardItem, arg.TenantID, arg.ID)
+	var i StockCardItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.UnitName,
+	)
+	return i, err
+}
+
+const stockCardItemSearch = `-- name: StockCardItemSearch :many
+SELECT i.id, i.sku, i.name, u.name AS unit_name, i.active
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.kind = 'goods'
+  AND ($2::text = '' OR i.name ILIKE '%' || $2 || '%' OR i.sku ILIKE '%' || $2 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $2 || '%')
+ORDER BY i.active DESC, lower(i.name), i.id
+LIMIT 20
+`
+
+type StockCardItemSearchParams struct {
+	TenantID uuid.UUID
+	Q        string
+}
+
+type StockCardItemSearchRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	UnitName string
+	Active   bool
+}
+
+// Pemilih barang kartu stok: barang berstok (goods) termasuk yang diarsipkan, karena riwayatnya tetap perlu dibaca.
+func (q *Queries) StockCardItemSearch(ctx context.Context, arg StockCardItemSearchParams) ([]StockCardItemSearchRow, error) {
+	rows, err := q.db.Query(ctx, stockCardItemSearch, arg.TenantID, arg.Q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockCardItemSearchRow
+	for rows.Next() {
+		var i StockCardItemSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockCardOpening = `-- name: StockCardOpening :one
+SELECT coalesce(sum(b.balance_after), 0)::numeric AS opening FROM (
+    SELECT DISTINCT ON (m.bucket) m.balance_after
+    FROM stock_movements m
+    WHERE m.tenant_id = $1 AND m.outlet_id = $2 AND m.item_id = $3
+      AND ($4::text = '' OR m.bucket = $4) AND m.created_at < $5::timestamptz
+    ORDER BY m.bucket, m.id DESC
+) b
+`
+
+type StockCardOpeningParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+	StartAt  pgtype.Timestamptz
+}
+
+// Saldo sebelum periode = saldo-setelah movement terakhir tiap bucket (urutan id = urutan saldo).
+func (q *Queries) StockCardOpening(ctx context.Context, arg StockCardOpeningParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockCardOpening,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.StartAt,
+	)
+	var opening decimal.Decimal
+	err := row.Scan(&opening)
+	return opening, err
+}
+
+const stockCardRows = `-- name: StockCardRows :many
+SELECT m.id, m.created_at, m.bucket, m.qty_delta, m.ref_type, m.ref_id, m.note, coalesce(u.name, '')::text AS actor_name
+FROM stock_movements m
+LEFT JOIN users u ON u.tenant_id = m.tenant_id AND u.id = m.actor_id
+WHERE m.tenant_id = $1 AND m.outlet_id = $2 AND m.item_id = $3
+  AND ($4::text = '' OR m.bucket = $4)
+  AND m.created_at >= $5::timestamptz AND m.created_at < $6::timestamptz AND m.id > $7
+ORDER BY m.id
+LIMIT $8
+`
+
+type StockCardRowsParams struct {
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	ItemID    uuid.UUID
+	Bucket    string
+	StartAt   pgtype.Timestamptz
+	EndAt     pgtype.Timestamptz
+	AfterID   int64
+	PageLimit int32
+}
+
+type StockCardRowsRow struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	Bucket    string
+	QtyDelta  decimal.Decimal
+	RefType   string
+	RefID     pgtype.UUID
+	Note      string
+	ActorName string
+}
+
+func (q *Queries) StockCardRows(ctx context.Context, arg StockCardRowsParams) ([]StockCardRowsRow, error) {
+	rows, err := q.db.Query(ctx, stockCardRows,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.StartAt,
+		arg.EndAt,
+		arg.AfterID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockCardRowsRow
+	for rows.Next() {
+		var i StockCardRowsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.Bucket,
+			&i.QtyDelta,
+			&i.RefType,
+			&i.RefID,
+			&i.Note,
+			&i.ActorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockCardTotals = `-- name: StockCardTotals :one
+SELECT coalesce(sum(qty_delta) FILTER (WHERE qty_delta > 0), 0)::numeric AS qty_in,
+       coalesce(-sum(qty_delta) FILTER (WHERE qty_delta < 0), 0)::numeric AS qty_out
+FROM stock_movements
+WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3
+  AND ($4::text = '' OR bucket = $4)
+  AND created_at >= $5::timestamptz AND created_at < $6::timestamptz
+`
+
+type StockCardTotalsParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+	StartAt  pgtype.Timestamptz
+	EndAt    pgtype.Timestamptz
+}
+
+type StockCardTotalsRow struct {
+	QtyIn  decimal.Decimal
+	QtyOut decimal.Decimal
+}
+
+func (q *Queries) StockCardTotals(ctx context.Context, arg StockCardTotalsParams) (StockCardTotalsRow, error) {
+	row := q.db.QueryRow(ctx, stockCardTotals,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+		arg.StartAt,
+		arg.EndAt,
+	)
+	var i StockCardTotalsRow
+	err := row.Scan(&i.QtyIn, &i.QtyOut)
+	return i, err
 }
 
 const stockConvByIdemKey = `-- name: StockConvByIdemKey :one
@@ -5634,4 +6094,453 @@ type TouchLastLoginParams struct {
 func (q *Queries) TouchLastLogin(ctx context.Context, arg TouchLastLoginParams) error {
 	_, err := q.db.Exec(ctx, touchLastLogin, arg.TenantID, arg.ID)
 	return err
+}
+
+const voucherByCodes = `-- name: VoucherByCodes :many
+SELECT id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active
+FROM vouchers WHERE tenant_id = $1 AND code = ANY($2::text[])
+ORDER BY id
+`
+
+type VoucherByCodesParams struct {
+	TenantID uuid.UUID
+	Codes    []string
+}
+
+type VoucherByCodesRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+}
+
+// Pratinjau (quote): tanpa kunci.
+func (q *Queries) VoucherByCodes(ctx context.Context, arg VoucherByCodesParams) ([]VoucherByCodesRow, error) {
+	rows, err := q.db.Query(ctx, voucherByCodes, arg.TenantID, arg.Codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []VoucherByCodesRow
+	for rows.Next() {
+		var i VoucherByCodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Kind,
+			&i.Value,
+			&i.MaxDiscount,
+			&i.MinSpend,
+			&i.StartsOn,
+			&i.EndsOn,
+			&i.MaxUses,
+			&i.UsedCount,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const voucherByCodesLock = `-- name: VoucherByCodesLock :many
+SELECT id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active
+FROM vouchers WHERE tenant_id = $1 AND code = ANY($2::text[])
+ORDER BY id
+FOR UPDATE
+`
+
+type VoucherByCodesLockParams struct {
+	TenantID uuid.UUID
+	Codes    []string
+}
+
+type VoucherByCodesLockRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+}
+
+// Simpan nota: baris dikunci terurut id (nota yang berebut kupon sama antre, tanpa deadlock) sehingga kuota tak terlampaui.
+func (q *Queries) VoucherByCodesLock(ctx context.Context, arg VoucherByCodesLockParams) ([]VoucherByCodesLockRow, error) {
+	rows, err := q.db.Query(ctx, voucherByCodesLock, arg.TenantID, arg.Codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []VoucherByCodesLockRow
+	for rows.Next() {
+		var i VoucherByCodesLockRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Kind,
+			&i.Value,
+			&i.MaxDiscount,
+			&i.MinSpend,
+			&i.StartsOn,
+			&i.EndsOn,
+			&i.MaxUses,
+			&i.UsedCount,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const voucherCreate = `-- name: VoucherCreate :one
+INSERT INTO vouchers (tenant_id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active, created_at
+`
+
+type VoucherCreateParams struct {
+	TenantID    uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+}
+
+type VoucherCreateRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) VoucherCreate(ctx context.Context, arg VoucherCreateParams) (VoucherCreateRow, error) {
+	row := q.db.QueryRow(ctx, voucherCreate,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.Kind,
+		arg.Value,
+		arg.MaxDiscount,
+		arg.MinSpend,
+		arg.StartsOn,
+		arg.EndsOn,
+		arg.MaxUses,
+	)
+	var i VoucherCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Value,
+		&i.MaxDiscount,
+		&i.MinSpend,
+		&i.StartsOn,
+		&i.EndsOn,
+		&i.MaxUses,
+		&i.UsedCount,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const voucherGet = `-- name: VoucherGet :one
+SELECT id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active, created_at
+FROM vouchers WHERE tenant_id = $1 AND id = $2
+FOR UPDATE
+`
+
+type VoucherGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type VoucherGetRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) VoucherGet(ctx context.Context, arg VoucherGetParams) (VoucherGetRow, error) {
+	row := q.db.QueryRow(ctx, voucherGet, arg.TenantID, arg.ID)
+	var i VoucherGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Value,
+		&i.MaxDiscount,
+		&i.MinSpend,
+		&i.StartsOn,
+		&i.EndsOn,
+		&i.MaxUses,
+		&i.UsedCount,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const voucherList = `-- name: VoucherList :many
+SELECT id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active, created_at,
+       count(*) OVER () AS total
+FROM vouchers
+WHERE tenant_id = $1
+  AND ($2::text = '' OR name ILIKE '%' || $2 || '%' OR code ILIKE '%' || $2 || '%')
+  AND ($3::boolean IS NULL OR active = $3)
+ORDER BY created_at DESC, id
+LIMIT $5 OFFSET $4
+`
+
+type VoucherListParams struct {
+	TenantID   uuid.UUID
+	Q          string
+	Active     pgtype.Bool
+	PageOffset int32
+	PageLimit  int32
+}
+
+type VoucherListRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+	Total       int64
+}
+
+func (q *Queries) VoucherList(ctx context.Context, arg VoucherListParams) ([]VoucherListRow, error) {
+	rows, err := q.db.Query(ctx, voucherList,
+		arg.TenantID,
+		arg.Q,
+		arg.Active,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []VoucherListRow
+	for rows.Next() {
+		var i VoucherListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Kind,
+			&i.Value,
+			&i.MaxDiscount,
+			&i.MinSpend,
+			&i.StartsOn,
+			&i.EndsOn,
+			&i.MaxUses,
+			&i.UsedCount,
+			&i.Active,
+			&i.CreatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const voucherSetActive = `-- name: VoucherSetActive :one
+UPDATE vouchers SET active = $3 WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active, created_at
+`
+
+type VoucherSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type VoucherSetActiveRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) VoucherSetActive(ctx context.Context, arg VoucherSetActiveParams) (VoucherSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, voucherSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i VoucherSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Value,
+		&i.MaxDiscount,
+		&i.MinSpend,
+		&i.StartsOn,
+		&i.EndsOn,
+		&i.MaxUses,
+		&i.UsedCount,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const voucherUpdate = `-- name: VoucherUpdate :one
+UPDATE vouchers SET code = $1, name = $2, kind = $3, value = $4, max_discount = $5,
+       min_spend = $6, starts_on = $7, ends_on = $8, max_uses = $9
+WHERE tenant_id = $10 AND id = $11
+RETURNING id, code, name, kind, value, max_discount, min_spend, starts_on, ends_on, max_uses, used_count, active, created_at
+`
+
+type VoucherUpdateParams struct {
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	TenantID    uuid.UUID
+	ID          uuid.UUID
+}
+
+type VoucherUpdateRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) VoucherUpdate(ctx context.Context, arg VoucherUpdateParams) (VoucherUpdateRow, error) {
+	row := q.db.QueryRow(ctx, voucherUpdate,
+		arg.Code,
+		arg.Name,
+		arg.Kind,
+		arg.Value,
+		arg.MaxDiscount,
+		arg.MinSpend,
+		arg.StartsOn,
+		arg.EndsOn,
+		arg.MaxUses,
+		arg.TenantID,
+		arg.ID,
+	)
+	var i VoucherUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Value,
+		&i.MaxDiscount,
+		&i.MinSpend,
+		&i.StartsOn,
+		&i.EndsOn,
+		&i.MaxUses,
+		&i.UsedCount,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const voucherUse = `-- name: VoucherUse :execrows
+UPDATE vouchers SET used_count = used_count + 1
+WHERE tenant_id = $1 AND id = $2 AND (max_uses IS NULL OR used_count < max_uses)
+`
+
+type VoucherUseParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) VoucherUse(ctx context.Context, arg VoucherUseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, voucherUse, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

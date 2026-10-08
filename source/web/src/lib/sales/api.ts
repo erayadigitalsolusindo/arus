@@ -19,6 +19,8 @@ export type SaleInput = {
   /** Salesman (opsional) untuk laporan/komisi; kosong = Umum. */
   salesperson_id?: string;
   redeem_points?: number;
+  /** Kode kupon belanja (boleh lebih dari satu); potongannya dihitung server sebelum pajak. */
+  voucher_codes?: string[];
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };
 };
@@ -44,6 +46,7 @@ export type Sale = {
   points_earned: number;
   points_redeemed: number;
   redeem_amount: string;
+  vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
@@ -61,9 +64,31 @@ export type Quote = {
   member?: { id: string; code: string; name: string; points: number };
   redeem_amount: string;
   points_earn: number;
+  /** Kupon yang lolos (amount = potongan rupiah; sudah termasuk di discount). */
+  vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
+  voucher_amount: string;
 };
 
+/** Satu baris daftar penjualan kasir; methods = jumlah per metode (tunai sudah bersih dari kembalian). */
+export type SaleListRow = {
+  id: string;
+  doc_no: string;
+  status: string;
+  created_at: string;
+  cashier: string;
+  member?: string;
+  line_count: number;
+  total: string;
+  methods: Partial<Record<PayMethod, string>>;
+};
+export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; from: string; to: string; truncated: boolean };
+
 export const sales = {
+  list: (p: { from?: string; to?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v) qs.set(k, v);
+    return api<SaleList>(`/sales/?${qs}`);
+  },
   quote: (input: Omit<SaleInput, 'payments'>) => api<Quote>('/sales/quote', { method: 'POST', body: JSON.stringify(input) }),
   create: (input: SaleInput, idempotencyKey: string) =>
     api<Sale>('/sales/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),

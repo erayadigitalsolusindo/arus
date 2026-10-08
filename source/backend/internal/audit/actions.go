@@ -129,3 +129,12 @@ const (
 	ActionMemberLevelUpdate = "member_level.update"
 	ActionMemberLevelActive = "member_level.active"
 )
+
+// Kupon belanja global. `voucher.active` = arsip/aktifkan kembali.
+const (
+	EntityVoucher = "voucher"
+
+	ActionVoucherCreate = "voucher.create"
+	ActionVoucherUpdate = "voucher.update"
+	ActionVoucherActive = "voucher.active"
+)
