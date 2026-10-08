@@ -74,7 +74,15 @@ const errors: Messages['errors'] = {
   FIELD_PIN_FORMAT: 'PIN must be exactly 6 digits.',
   FIELD_PASSWORD_WRONG: 'Wrong password.',
   FIELD_DUPLICATE: 'Duplicate entries (same quantity, unit, or barcode).',
-  FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.'
+  FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.',
+  FIELD_SAME_ITEM: 'The target item must differ from the source item.',
+  FIELD_BASE_LEVEL: 'The base level cannot be changed this way.',
+  FIELD_POINTS_INSUFFICIENT: 'Not enough points.',
+  FIELD_MEMBER_REQUIRED: 'Choose a member first.',
+  FIELD_MEMBER_INACTIVE: 'The member is inactive or expired.',
+  FIELD_REDEEM_NOT_ALLOWED: 'This member level cannot redeem points.',
+  FIELD_REDEEM_TOO_HIGH: 'The points value exceeds the purchase amount.',
+  FIELD_REDEEM_BELOW_COST: 'Redeeming this many points would price the sale below cost. Use fewer points.'
 };
 
 export default errors;

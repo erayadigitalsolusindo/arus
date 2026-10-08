@@ -15,7 +15,17 @@ export type StoredLine = {
   imageId: string | null;
 };
 
-export type StoredCart = { lines: StoredLine[]; otherCost: string; taxOn: boolean; note: string };
+/** Satu rincian biaya lain-lain (nama + jumlah desimal bertitik). */
+export type CostEntry = { label: string; amount: string };
+
+/** Member terpilih (hanya penanda; saldo poin selalu diambil ulang dari server). */
+export type StoredMember = { id: string; code: string; name: string; level: string; spend_per_point: string; point_value: string; cover_image_id?: string | null };
+
+export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string };
+
+const validMember = (m: unknown): m is StoredMember => !!m && typeof m === 'object' && ['id', 'code', 'name', 'level', 'spend_per_point', 'point_value'].every((k) => str((m as Record<string, unknown>)[k]));
+
+const validCost = (c: unknown): c is CostEntry => !!c && typeof c === 'object' && str((c as CostEntry).label) && str((c as CostEntry).amount);
 
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_LINES = 500;
@@ -50,8 +60,11 @@ export function loadCart(key: string, now = Date.now()): StoredCart | null {
     return {
       lines: d.lines,
       otherCost: str(d.otherCost) ? d.otherCost : '',
+      costs: Array.isArray(d.costs) ? d.costs.filter(validCost).slice(0, 20) : [],
       taxOn: d.taxOn === true,
-      note: str(d.note) ? d.note : ''
+      note: str(d.note) ? d.note : '',
+      member: validMember(d.member) ? d.member : null,
+      redeem: str(d.redeem) ? d.redeem : ''
     };
   } catch {
     return null;

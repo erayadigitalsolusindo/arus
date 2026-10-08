@@ -21,6 +21,13 @@
     menu = menu === name ? '' : name;
   }
 
+  let fullscreen = $state(!!document.fullscreenElement);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen?.();
+  }
+
   function toggleTheme() {
     theme = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = theme;
@@ -31,6 +38,8 @@
     }
   }
 </script>
+
+<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
 <svelte:window
   onclick={() => (menu = '')}
@@ -102,23 +111,35 @@
         {/if}
       </div>
 
-      <LanguageSwitcher />
-
       <!-- Tema -->
       <button
         type="button"
-        class="grid place-items-center size-7 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]"
+        class="grid place-items-center size-10 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-warning-500)_16%,transparent)] text-[var(--color-warning-600)]"
         aria-label={theme === 'dark' ? t('common.theme.light') : t('common.theme.dark')}
         onclick={toggleTheme}
       >
-        <i class={theme === 'dark' ? 'icon-moon text-[13.5px]' : 'icon-sun-medium text-[13.5px]'}></i>
+        <i class={theme === 'dark' ? 'icon-moon text-[17px]' : 'icon-sun-medium text-[17px]'}></i>
       </button>
 
-      <!-- Notifikasi -->
-      <div class="relative">
+      <!-- Kapsul aksi: bahasa, layar penuh, notifikasi -->
+      <div class="flex items-center gap-1 p-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
+        <LanguageSwitcher variant="circle" />
+
         <button
           type="button"
-          class="header-icon-btn relative"
+          class="hidden sm:grid place-items-center size-9 rounded-full transition-transform hover:scale-105 bg-[var(--surface-sunken)] text-[var(--text-secondary)]"
+          aria-label={t('pos.fullscreen')}
+          title={t('pos.fullscreen')}
+          onclick={toggleFullscreen}
+        >
+          <i class={fullscreen ? 'icon-minimize text-[16px]' : 'icon-maximize text-[16px]'}></i>
+        </button>
+
+        <!-- Notifikasi -->
+        <div class="relative">
+        <button
+          type="button"
+          class="grid place-items-center size-9 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-danger-500)_14%,transparent)] text-[var(--color-danger-600)]"
           aria-label={t('shell.notifications')}
           aria-haspopup="menu"
           aria-expanded={menu === 'notif'}
@@ -127,7 +148,7 @@
             toggle('notif');
           }}
         >
-          <i class="icon-bell text-[17px]"></i>
+          <i class="icon-bell text-[16px]"></i>
         </button>
         {#if menu === 'notif'}
           <div class="absolute end-0 mt-2 w-72 surface-card p-0 z-50 overflow-hidden" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
@@ -139,6 +160,7 @@
             </div>
           </div>
         {/if}
+        </div>
       </div>
 
       <!-- Pengguna -->

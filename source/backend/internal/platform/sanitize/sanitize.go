@@ -160,3 +160,25 @@ func Slug(s string, max int) string {
 	}
 	return v
 }
+
+// Multiline membersihkan teks bebas (mis. markdown): NFC, CRLF→LF, tab/baris baru diizinkan, karakter kontrol,
+// format tak terlihat (zero-width, bidi) dan karakter pengganti ditolak. Teks TIDAK dipadatkan per baris; hanya
+// di-trim di ujung. Mengembalikan teks dan kode galat ("" bila valid; Invalid atau TooLong).
+func Multiline(raw string, max int) (string, string) {
+	if !utf8.ValidString(raw) {
+		return "", Invalid
+	}
+	s := norm.NFC.String(strings.ReplaceAll(strings.ReplaceAll(raw, "\r\n", "\n"), "\r", "\n"))
+	for _, r := range s {
+		switch {
+		case r == '\n' || r == '\t':
+		case unicode.IsControl(r), unicode.Is(unicode.Cf, r), unicode.Is(unicode.Co, r), r == unicode.ReplacementChar:
+			return "", Invalid
+		}
+	}
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) > max {
+		return "", TooLong
+	}
+	return s, ""
+}

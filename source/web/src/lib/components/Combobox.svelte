@@ -32,7 +32,8 @@
   } = $props();
 
   let open = $state(false);
-  let query = $state('');
+  let query = $state(''); // teks pencarian yang dikirim ke server
+  let inputValue = $state(label); // teks yang tampil di kotak: nama terpilih saat tertutup, ketikan saat mencari
   let options = $state<Option[]>([]);
   let loading = $state(false);
   let failed = $state('');
@@ -63,6 +64,13 @@
     return () => clearTimeout(h);
   });
 
+  // Saat tertutup, kotak selalu menampilkan nama terpilih (ketikan yang tidak dipilih dibuang; label yang diubah
+  // dari luar, mis. data item baru dimuat, ikut tampil).
+  $effect(() => {
+    const l = label;
+    if (!open) inputValue = l;
+  });
+
   function onOpenChange(next: boolean) {
     open = next;
     if (!next) query = '';
@@ -70,60 +78,64 @@
 
   function onValueChange(next: string) {
     label = options.find((o) => o.id === next)?.name ?? label;
+    inputValue = label;
   }
 
   function clear() {
     value = '';
     label = '';
     query = '';
+    inputValue = '';
   }
 </script>
 
-<Combobox.Root type="single" bind:value bind:open {onOpenChange} {onValueChange} {disabled}>
+<Combobox.Root type="single" bind:value bind:open {inputValue} {onOpenChange} {onValueChange} {disabled}>
   <div class="relative">
+    <!-- onfocus: teks terpilih semua sehingga mengetik langsung menggantikan nama terpilih. -->
     <Combobox.Input
       {id}
-      class="field-control w-full !pe-14"
+      class="field-control picker-trigger !pe-14 {invalid ? '!border-[var(--color-danger-600)]' : ''}"
       {placeholder}
-      defaultValue={label}
-      clearOnDeselect
       aria-invalid={invalid}
+      autocomplete="off"
       oninput={(e) => {
-        query = e.currentTarget.value;
+        query = inputValue = e.currentTarget.value; // cermin teks kotak (inputValue hanya prop satu arah ke bits-ui)
         open = true; // mengetik membuka daftar (bits-ui tidak melakukannya sendiri)
       }}
       onclick={() => (open = true)}
+      onfocus={(e) => e.currentTarget.select()}
     />
     <div class="absolute end-1.5 top-1/2 -translate-y-1/2 flex items-center">
       {#if clearable && value && !disabled}
         <button type="button" class="header-icon-btn !size-6" aria-label={t('catalog.combobox.clear')} onclick={clear}><i class="icon-x text-[12px]"></i></button>
       {/if}
-      <Combobox.Trigger class="header-icon-btn !size-6" aria-label={placeholder || t('catalog.combobox.placeholder')}><i class="icon-chevron-down text-[12px]"></i></Combobox.Trigger>
+      {#if loading && open}<i class="icon-loader-circle animate-spin text-[13px] mx-1 text-[var(--text-tertiary)]" role="status" aria-label={t('catalog.combobox.searching')}></i>{/if}
+      <Combobox.Trigger class="header-icon-btn !size-6 {open ? '[&_i]:rotate-180' : ''}" aria-label={placeholder || t('catalog.combobox.placeholder')}><i class="icon-chevron-down text-[12px] transition-transform"></i></Combobox.Trigger>
     </div>
   </div>
   <Combobox.Portal>
     <Combobox.Content
       sideOffset={4}
-      class="z-[1100] w-[var(--bits-combobox-anchor-width)] min-w-48 max-h-64 overflow-y-auto scroll-thin rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1 shadow-lg"
+      class="picker-panel scroll-thin w-[var(--bits-combobox-anchor-width)]"
     >
       {#each options as o (o.id)}
         <Combobox.Item
           value={o.id}
           label={o.name}
-          class="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[12.5px] cursor-pointer data-[highlighted]:bg-[var(--surface-sunken)] data-[selected]:font-semibold"
+          class="picker-item"
         >
           {#snippet children({ selected })}
             <span class="truncate">{o.name}</span>
-            {#if selected}<i class="icon-check text-[12px] shrink-0"></i>{/if}
+            {#if selected}<i class="icon-check text-[12px] shrink-0" aria-hidden="true"></i>{/if}
           {/snippet}
         </Combobox.Item>
       {/each}
       {#if failed}
-        <div class="px-2.5 py-2 text-[12px] text-[var(--color-danger-600)]">{t('catalog.combobox.loadFailed')} {failed}</div>
+        <div class="picker-empty !text-[var(--color-danger-600)]" role="alert"><i class="icon-circle-alert text-[13px] shrink-0"></i><span>{t('catalog.combobox.loadFailed')} {failed}</span></div>
       {:else if loading && options.length === 0}
-        <div class="px-2.5 py-2 text-[12px] text-[var(--text-tertiary)]">{t('catalog.combobox.searching')}</div>
+        <div class="picker-empty"><i class="icon-loader-circle animate-spin text-[13px]"></i><span>{t('catalog.combobox.searching')}</span></div>
       {:else if !loading && options.length === 0}
-        <div class="px-2.5 py-2 text-[12px] text-[var(--text-tertiary)]">{t('catalog.combobox.noResults')}</div>
+        <div class="picker-empty"><i class="icon-search-x text-[13px]"></i><span>{t('catalog.combobox.noResults')}</span></div>
       {/if}
     </Combobox.Content>
   </Combobox.Portal>

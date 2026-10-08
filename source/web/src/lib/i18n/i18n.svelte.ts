@@ -99,9 +99,9 @@ export function formatNumber(n: number | bigint, options?: Intl.NumberFormatOpti
   return new Intl.NumberFormat(i18n.intl, options).format(n);
 }
 
-/** Uang rupiah tanpa desimal secara default (FR: tampilan; perhitungan tetap di server). */
+/** Uang rupiah dengan 2 desimal secara default (tampilan; perhitungan tetap di server). */
 export function formatCurrency(n: number | bigint, currency = 'IDR', options?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(i18n.intl, { style: 'currency', currency, maximumFractionDigits: 0, ...options }).format(n);
+  return new Intl.NumberFormat(i18n.intl, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2, ...options }).format(n);
 }
 
 export function formatDate(d: DateInput, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }): string {

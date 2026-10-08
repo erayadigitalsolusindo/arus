@@ -27,6 +27,7 @@ export default {
     buy_price_history: 'History Harga Beli',
     supplier_payables: 'Hutang Suplier',
     stock_opening: 'Saldo Awal Stok',
+    stock_conversion: 'Pecah Satuan',
     stock_opname: 'Trx Opname Barang',
     stock_transfer: 'Mutasi Stok Barang',
     users: 'Pengguna',

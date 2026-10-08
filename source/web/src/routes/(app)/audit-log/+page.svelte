@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
+  import DatePicker from '#lib/components/DatePicker.svelte';
   import { onMount } from 'svelte';
   import { audit as api, type AuditItem } from '#lib/audit/api.ts';
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
@@ -81,25 +83,19 @@
   <form class="surface-card p-4 grid grid-cols-2 lg:grid-cols-6 gap-3 items-end" onsubmit={(e) => (e.preventDefault(), load())}>
     <div>
       <label for="f-entity" class={labelClass}>{t('audit.entity')}</label>
-      <select id="f-entity" class="w-full {fieldClass}" bind:value={entity}>
-        <option value="">{t('audit.all')}</option>
-        {#each ENTITIES as e (e)}<option value={e}>{entityLabel(e)}</option>{/each}
-      </select>
+      <Select id="f-entity" bind:value={entity} options={[{ value: '', label: t('audit.all') }, ...ENTITIES.map((e) => ({ value: e as string, label: entityLabel(e) }))]} />
     </div>
     <div class="lg:col-span-2">
       <label for="f-action" class={labelClass}>{t('audit.action')}</label>
-      <select id="f-action" class="w-full {fieldClass}" bind:value={action}>
-        <option value="">{t('audit.all')}</option>
-        {#each ACTIONS as a (a)}<option value={a}>{actionLabel(a)}</option>{/each}
-      </select>
+      <Select id="f-action" bind:value={action} options={[{ value: '', label: t('audit.all') }, ...ACTIONS.map((a) => ({ value: a as string, label: actionLabel(a) }))]} />
     </div>
     <div>
       <label for="f-from" class={labelClass}>{t('audit.from')}</label>
-      <input id="f-from" type="date" class="w-full {fieldClass}" bind:value={from} max={to || undefined} />
+      <DatePicker id="f-from" bind:value={from} max={to || undefined} />
     </div>
     <div>
       <label for="f-to" class={labelClass}>{t('audit.to')}</label>
-      <input id="f-to" type="date" class="w-full {fieldClass}" bind:value={to} min={from || undefined} />
+      <DatePicker id="f-to" bind:value={to} min={from || undefined} />
     </div>
     <div class="flex gap-2">
       <button type="submit" class="btn btn-primary !text-[12.5px] flex-1" disabled={loading}>{t('audit.apply')}</button>

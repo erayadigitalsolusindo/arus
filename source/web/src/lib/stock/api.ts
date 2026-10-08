@@ -23,3 +23,27 @@ export const opening = {
     api<{ bucket: Bucket; qty: string }>(`/stock/opening/items/${itemId}`, { method: 'PUT', body: JSON.stringify({ bucket, qty }) }),
   lock: (startDate: string) => api<OpeningStatus>('/stock/opening/lock', { method: 'POST', body: JSON.stringify({ start_date: startDate }) })
 };
+
+// ---- Pecah satuan ----
+export type ConvItem = { id: string; sku: string; name: string; unit: string; qty: string };
+export type Conversion = {
+  id: string;
+  doc_no: string;
+  from: ConvItem;
+  to: ConvItem;
+  from_unit_cost: string;
+  to_unit_cost: string;
+  cost_applied: boolean;
+  note: string;
+  actor: string;
+  created_at: string;
+};
+export type ConvertInput = { from_item_id: string; from_qty: string; to_item_id: string; to_qty: string; note?: string };
+
+export const conversions = {
+  /** Barang bertipe goods + stok display outlet aktif (pemilih barang; izin pecah satuan, bukan izin Daftar Item). */
+  items: (q: string, limit = 20) => api<Page<OpeningRow>>(`/stock/conversions/items?${new URLSearchParams({ q, limit: String(limit) })}`),
+  list: (limit = 20, offset = 0) => api<Page<Conversion>>(`/stock/conversions/?limit=${limit}&offset=${offset}`),
+  create: (input: ConvertInput, idempotencyKey: string) =>
+    api<Conversion>('/stock/conversions/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) })
+};

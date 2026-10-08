@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   // Form tambah/ubah item (satu komponen untuk halaman /items/new dan /items/[id]).
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/item).
   import { goto } from '$app/navigation';
@@ -10,8 +11,9 @@
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
-  import { renderMarkdown } from '#lib/markdown.ts';
+  import MarkdownView from '#lib/components/MarkdownView.svelte';
   import Combobox from '#lib/components/Combobox.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Switch from '#lib/components/Switch.svelte';
   import ItemImages, { type PendingImage } from '#lib/components/ItemImages.svelte';
   import WholesaleTiers, { type TierRow, type OutletTierSet, MAX_TIERS } from '#lib/components/WholesaleTiers.svelte';
@@ -366,7 +368,7 @@
           {/if}
           <div>
             <label for="i-weight" class={labelClass}>{t('items.field.weight')}</label>
-            <input id="i-weight" class={inputClass} bind:value={weight} inputmode="decimal" placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />
+            <MoneyInput id="i-weight" class={inputClass} bind:value={weight} decimals={3} pad={false} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />
             {#if errors.weight_grams}<p class={errClass}>{errors.weight_grams}</p>{/if}
           </div>
           <div>
@@ -392,13 +394,13 @@
           {:else}
             <div class="sm:col-span-2">
               <label for="i-cost" class={labelClass}>{t('items.field.cost')}</label>
-              <input id="i-cost" class={inputClass} bind:value={cost} inputmode="decimal" placeholder="0" aria-invalid={!!errors.cost} />
+              <MoneyInput id="i-cost" class={inputClass} bind:value={cost} placeholder="0" aria-invalid={!!errors.cost} />
               {#if errors.cost}<p class={errClass}>{errors.cost}</p>{:else}<p class={hintClass}>{t('items.field.costHint')}</p>{/if}
             </div>
           {/if}
           <div class="sm:col-span-2">
             <label for="i-price" class={labelClass}>{t('items.field.sellPrice')}</label>
-            <input id="i-price" class={inputClass} bind:value={sellPrice} inputmode="decimal" placeholder="0" disabled={!canWrite} aria-invalid={!!errors.sell_price} />
+            <MoneyInput id="i-price" class={inputClass} bind:value={sellPrice} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.sell_price} />
             {#if errors.sell_price}<p class={errClass}>{errors.sell_price}</p>{:else}<p class={hintClass}>{t('items.field.sellPriceHint')}</p>{/if}
           </div>
         </div>
@@ -413,7 +415,7 @@
               {#each outletPrices as p (p.id)}
                 <div>
                   <label for="op-{p.id}" class="text-[12px] font-medium mb-1 block">{p.name}</label>
-                  <input id="op-{p.id}" class={inputClass} bind:value={p.value} inputmode="decimal" placeholder={t('items.outletPrices.placeholder')} disabled={!canWrite} />
+                  <MoneyInput id="op-{p.id}" class={inputClass} bind:value={p.value} placeholder={t('items.outletPrices.placeholder')} disabled={!canWrite} />
                 </div>
               {/each}
             </div>
@@ -451,10 +453,9 @@
           <textarea id="i-desc" rows="8" class="{inputClass} font-mono" bind:value={description} maxlength="5000" disabled={!canWrite} aria-label={t('items.field.description')} aria-invalid={!!errors.description}></textarea>
           {#if errors.description}<p class={errClass}>{errors.description}</p>{:else}<p class={hintClass}>{t('items.field.descriptionHint')}</p>{/if}
         {:else}
-          <div class="md min-h-[8rem] field-control">
+          <div class="min-h-[8rem] field-control">
             {#if description.trim()}
-              <!-- Aman: renderMarkdown mematikan HTML mentah, gambar, dan URL berbahaya (lihat #lib/markdown.ts). -->
-              {@html renderMarkdown(description)}
+              <MarkdownView source={description} />
             {:else}
               <span class="text-[var(--text-tertiary)]">{t('items.field.previewEmpty')}</span>
             {/if}
@@ -500,10 +501,7 @@
         <h3 class="font-display font-bold text-[14px]">{t('items.section.settings')}</h3>
         <div>
           <label for="i-kind" class={labelClass}>{t('items.field.kind')}</label>
-          <select id="i-kind" class={inputClass} bind:value={kind} disabled={!canWrite}>
-            <option value="goods">{t('items.field.kindGoods')}</option>
-            <option value="service">{t('items.field.kindService')}</option>
-          </select>
+          <Select id="i-kind" bind:value={kind} disabled={!canWrite} options={[{ value: 'goods', label: t('items.field.kindGoods') }, { value: 'service', label: t('items.field.kindService') }]} />
         </div>
         <label class="flex items-start gap-2 text-[12.5px]">
           <input type="checkbox" class="mt-0.5" bind:checked={allowNegative} disabled={!canWrite} />
@@ -524,16 +522,3 @@
     {/if}
   </div>
 </form>
-
-<style>
-  .md :global(h1) { font-size: 1.25rem; font-weight: 700; margin: 0.5rem 0; }
-  .md :global(h2) { font-size: 1.1rem; font-weight: 700; margin: 0.5rem 0; }
-  .md :global(h3) { font-size: 1rem; font-weight: 600; margin: 0.5rem 0; }
-  .md :global(p) { margin: 0.4rem 0; }
-  .md :global(ul) { list-style: disc; padding-inline-start: 1.25rem; margin: 0.4rem 0; }
-  .md :global(ol) { list-style: decimal; padding-inline-start: 1.25rem; margin: 0.4rem 0; }
-  .md :global(a) { color: var(--color-primary-600); text-decoration: underline; }
-  .md :global(code) { font-family: ui-monospace, monospace; background: var(--surface-sunken); padding: 0.05rem 0.3rem; border-radius: 4px; }
-  .md :global(pre) { background: var(--surface-sunken); padding: 0.6rem; border-radius: 6px; overflow-x: auto; }
-  .md :global(blockquote) { border-inline-start: 3px solid var(--border-subtle); padding-inline-start: 0.75rem; color: var(--text-tertiary); }
-</style>
