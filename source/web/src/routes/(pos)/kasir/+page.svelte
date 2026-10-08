@@ -7,6 +7,7 @@
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { toCents, toMilli, centsToNumber } from '#lib/pos/money.ts';
+  import { cartStorageKey, loadCart, saveCart } from '#lib/pos/cart-store.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
   import PayModal from '#lib/components/PayModal.svelte';
@@ -57,11 +58,20 @@
     void load(true);
     void refreshOutlets();
     searchEl?.focus();
+    if (restored) flash(t('pos.restored', { count: restored.lines.length }));
     return () => clearTimeout(debounce);
   });
 
   // ---------- Keranjang ----------
-  let cart = $state<Line[]>([]);
+  // Keranjang disimpan di browser (per tenant+outlet+kasir) agar selamat dari tab tertutup / mati lampu.
+  const storeKey = $derived(session.tenant && session.outlet && session.user ? cartStorageKey(session.tenant.id, session.outlet.id, session.user.id) : '');
+  const restored = session.tenant && session.outlet && session.user ? loadCart(cartStorageKey(session.tenant.id, session.outlet.id, session.user.id)) : null;
+  let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null })) : []);
+
+  $effect(() => {
+    const snapshot = { lines: cart.map(({ override: _o, ...l }) => l), otherCost, taxOn, note };
+    if (storeKey) saveCart(storeKey, snapshot);
+  });
 
   function add(l: Omit<Line, 'qty' | 'key' | 'override'> & { key?: string }) {
     const key = l.key ?? `${l.id}:${l.unit}`;
@@ -113,13 +123,13 @@
   }
 
   // Harga, grosir, satuan, dan pajak dihitung SERVER (POST /sales/quote); layar hanya menampilkannya.
-  let otherCost = $state('');
+  let otherCost = $state(restored?.otherCost ?? '');
   const outletTax = $derived(accessibleOutlets.items.find((o) => o.id === session.outlet?.id));
-  let taxOn = $state(false);
+  let taxOn = $state(restored?.taxOn ?? false);
   const calcTax = () => (taxOn = true);
   const cancelTax = () => (taxOn = false);
 
-  let note = $state('');
+  let note = $state(restored?.note ?? '');
   const cartQty = $derived(cart.length);
 
   // forPay: sertakan persetujuan (PIN) untuk dikirim saat simpan nota; quote TIDAK pernah membawa PIN.

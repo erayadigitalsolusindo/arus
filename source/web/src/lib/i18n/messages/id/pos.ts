@@ -44,6 +44,7 @@ export default {
   customerGeneral: 'Member Umum',
   pickCustomer: 'Pilih pelanggan',
   clearCart: 'Kosongkan keranjang',
+  restored: 'Keranjang dipulihkan ({count} baris). Harga yang diubah dikembalikan ke harga normal.',
   emptyCart: 'Keranjang kosong. Pindai barcode atau pilih barang di sebelah kiri.',
   unitPrice: 'HJ @{price}',
   subtotal: 'SUB TOTAL',
