@@ -97,9 +97,9 @@
     URL.revokeObjectURL(a.href);
   }
 
-  const inputClass = 'mt-1.5 w-full px-3 py-2.5 rounded-lg text-[13px] outline-none bg-sunken-bordered';
+  const inputClass = 'w-full field-control';
   const codeClass = `${inputClass} font-mono tracking-[0.2em]`;
-  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
+  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]';
 </script>
 
 <div>
