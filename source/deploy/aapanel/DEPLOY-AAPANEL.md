@@ -109,3 +109,21 @@ Mundur: migrasi bersifat maju-saja. Bila rilis bermasalah, kembalikan binary (`a
 | API tak mau start | Lihat log Supervisor: biasanya `SMTP_HOST` kosong, `JWT_SECRET` < 32 karakter, `APP_BASE_URL` bukan https |
 | PIN penyetuju/2FA mendadak tak valid | `JWT_SECRET` berubah |
 | Gambar tak tampil / hilang setelah update | `UPLOAD_DIR` ada di dalam folder yang ditimpa; harus `/www/wwwroot/arus/data/uploads` |
+
+## Varian Apache + systemd + build di server (terbukti 2026-10-08)
+
+Dipakai bila aaPanel memakai **Apache** (bukan nginx) dan server juga menjalankan situs lain: jangan pasang nginx, jangan ganti web server, jangan ganti Node sistem.
+
+- **Alat build di server (terisolasi):** Go ke `/usr/local/go` (cek sha256 dari go.dev/dl), Node ke `/opt/node26` (tarball resmi + `SHASUMS256.txt`). Skrip build memasang `PATH=/opt/node26/bin:/usr/local/go/bin:$PATH` hanya di dalam skrip. Kode dari `git clone` ke `~/arus-src`; hasil build = `~/release.tar.gz` (aciraba-api, migrations, web) dengan isi diperiksa sebelum dikemas.
+- **API:** unit systemd (bukan Supervisor): `User=www`, `WorkingDirectory=/www/wwwroot/arus/api`, `ExecStart=.../aciraba-api`, `Restart=always`, `ReadWritePaths=/www/wwwroot/arus/data`. Restart di update: `sudo env RESTART_CMD='systemctl restart arus-api' bash /www/wwwroot/arus/deploy/aapanel/update.sh ~/release.tar.gz`.
+- **Situs API (`arus-api...`):** aaPanel → Website → Reverse proxy → target `http://127.0.0.1:8080`, cache mati.
+- **Situs web (`arus...`):** Site directory `/www/wwwroot/arus/web`, **matikan anti-cross-site attack** (`.user.ini` immutable merusak `rsync --delete`), URL rewrite Apache:
+  ```apache
+  RewriteEngine On
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d
+  RewriteRule . /index.html [L]
+  ```
+- **Cloudflare:** SSL/TLS mode **Full (strict)**.
+- **Cek kesehatan:** `curl -s http://127.0.0.1:8080/healthz` harus `postgres: ok` dan `redis: ok`. Redis `down` hampir selalu password `REDIS_URL` di `api/.env` tak sama dengan `REDIS_PASSWORD` di `deploy/.env`.
+- **npm 10:** `npm ci` bisa gagal 'lock file out of sync' (peer opsional `bits-ui`); pakai Node 26 (npm yang sama dengan pembuat lock) atau `npm ci --legacy-peer-deps`.
