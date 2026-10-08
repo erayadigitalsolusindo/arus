@@ -208,6 +208,24 @@ const pos: Messages['pos'] = {
     clear: 'Clear slot',
     cancel: 'Cancel'
   },
+  edit: {
+    banner: 'Editing receipt {docNo}',
+    revisionNext: 'Will be saved as revision {n}',
+    hint: 'Prices and cost of existing items are kept. Stock, points and coupons from the old receipt are returned, then recalculated.',
+    reason: 'Reason for the edit',
+    reasonPlaceholder: 'e.g. wrong quantity entered (min. 3 characters)',
+    approver: 'Approver',
+    approverPlaceholder: 'Choose an approver',
+    pin: 'Approver PIN (6 digits)',
+    noApprover: 'No approver for this outlet yet. Grant "Approve Receipt Edit/Void" to an Owner/Supervisor and ask them to set a PIN.',
+    cancel: 'Cancel edit',
+    cancelAsk: 'Cancel editing this receipt? Changes in the cart will be discarded.',
+    save: 'Save Changes',
+    payTitle: 'Save Receipt Changes',
+    loadFailed: 'Could not load the receipt for editing.',
+    notReady: 'Enter a reason (min. 3 characters), choose an approver and type the 6-digit PIN.',
+    newDoc: 'New revision number'
+  },
   costs: {
     button: 'Other costs breakdown',
     title: 'Other costs breakdown',

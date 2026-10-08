@@ -340,6 +340,8 @@ func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {
 
 type activeRequest struct {
 	Active *bool `json:"active"`
+	// SaleEditWindowDays: batas hari edit/batal nota tenant (0–3650); boleh dikirim bersama atau tanpa active.
+	SaleEditWindowDays *int `json:"sale_edit_window_days"`
 }
 
 func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
@@ -351,9 +353,26 @@ func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Active == nil {
+	if req.Active == nil && req.SaleEditWindowDays == nil {
 		httpx.ValidationError(w, map[string]string{"active": "REQUIRED"})
 		return
+	}
+	if req.SaleEditWindowDays != nil {
+		switch err := h.svc.SetSaleEditWindow(r.Context(), actor(r), id, *req.SaleEditWindowDays); {
+		case errors.Is(err, ErrInvalidWindow):
+			httpx.ValidationError(w, map[string]string{"sale_edit_window_days": "INVALID"})
+			return
+		case errors.Is(err, ErrNotFound):
+			httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Tenant tidak ditemukan.")
+			return
+		case err != nil:
+			h.internal(w, r, "ubah batas edit nota gagal", err)
+			return
+		}
+		if req.Active == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 	}
 	switch err := h.svc.SetTenantActive(r.Context(), actor(r), id, *req.Active); {
 	case errors.Is(err, ErrNotFound):

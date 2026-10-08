@@ -35,7 +35,12 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/", h.Create)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/quote", h.Quote)
 		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
+		r.With(authz.Require(ModuleList, authz.ActView)).Get("/all", h.ListAll)
+		r.With(authz.Require(ModuleList, authz.ActView)).Get("/{id}/detail", h.Detail)
 		r.With(authz.Require(Module, authz.ActView)).Get("/{id}", h.Get)
+		r.With(authz.Require(Module, authz.ActUpdate)).Put("/{id}", h.Edit)
+		r.With(authz.Require(Module, authz.ActUpdate)).Post("/{id}/quote", h.QuoteEdit)
+		r.With(authz.Require(Module, authz.ActDelete)).Post("/{id}/void", h.Void)
 	})
 }
 
@@ -111,6 +116,12 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "IDEMPOTENCY_MISMATCH", "Idempotency-Key sudah dipakai untuk permintaan yang berbeda.")
 	case errors.Is(err, ErrOutletInactive):
 		httpx.Error(w, http.StatusConflict, "OUTLET_NOT_FOUND", "Outlet aktif tidak ditemukan atau tidak aktif.")
+	case errors.Is(err, ErrNotEditable):
+		httpx.Error(w, http.StatusConflict, "SALE_NOT_EDITABLE", "Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).")
+	case errors.Is(err, ErrEditWindow):
+		httpx.Error(w, http.StatusForbidden, "EDIT_WINDOW_CLOSED", "Batas waktu edit nota sudah lewat.")
+	case errors.Is(err, ErrOutletMismatch):
+		httpx.Error(w, http.StatusConflict, "OUTLET_MISMATCH", "Nota ini milik outlet lain; pindah ke outlet nota itu dulu.")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	default:
