@@ -16,6 +16,8 @@ export type SaleInput = {
   note?: string;
   /** Member (opsional) dan poin yang ditukar jadi potongan nota. */
   member_id?: string;
+  /** Salesman (opsional) untuk laporan/komisi; kosong = Umum. */
+  salesperson_id?: string;
   redeem_points?: number;
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };

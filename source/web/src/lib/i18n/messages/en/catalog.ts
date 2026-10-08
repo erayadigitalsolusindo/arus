@@ -45,6 +45,20 @@ const catalog: Messages['catalog'] = {
     address: 'Address',
     note: 'Notes'
   },
+  salespeople: {
+    docTitle: 'Salespeople | ACIRABA',
+    title: 'Salesperson List',
+    subtitle: 'Salespeople the cashier picks on a receipt, for reports and commission. Not a login account.',
+    add: 'Add Salesperson',
+    edit: 'Edit Salesperson',
+    search: 'Search name or code…',
+    code: 'Code',
+    codeHint: 'Optional; letters, digits, dot, dash or slash (max 30).',
+    phone: 'Phone',
+    note: 'Note',
+    commission: 'Commission (%)',
+    commissionHint: 'Optional (0–100). Stored only; not calculated automatically yet.'
+  },
   combobox: {
     placeholder: 'Select…',
     searching: 'Searching…',

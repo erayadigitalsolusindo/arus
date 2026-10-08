@@ -65,3 +65,29 @@ export const suppliers = {
   update: (id: string, input: SupplierInput) => api<Supplier>(`/catalog/suppliers/${id}`, { method: 'PUT', body: json(input) }),
   setActive: (id: string, active: boolean) => api<Supplier>(`/catalog/suppliers/${id}/active`, { method: 'PUT', body: json({ active }) })
 };
+
+/** Salesman: label nota (bukan akun login). commission_pct hanya disimpan; belum dihitung. */
+export type Salesperson = {
+  id: string;
+  code: string;
+  name: string;
+  phone: string;
+  note: string;
+  commission_pct: string;
+  active: boolean;
+  created_at: string;
+};
+
+export type SalespersonInput = { code: string; name: string; phone: string; note: string; commission_pct?: string };
+
+export const salespeople = {
+  list: (p: ListQuery = {}, signal?: AbortSignal) => api<Page<Salesperson>>(`/catalog/salespeople/${qs(p)}`, { signal }),
+  create: (input: SalespersonInput) => api<Salesperson>('/catalog/salespeople/', { method: 'POST', body: json(input) }),
+  update: (id: string, input: SalespersonInput) => api<Salesperson>(`/catalog/salespeople/${id}`, { method: 'PUT', body: json(input) }),
+  setActive: (id: string, active: boolean) => api<Salesperson>(`/catalog/salespeople/${id}/active`, { method: 'PUT', body: json({ active }) })
+};
+
+/** Pilihan salesman di kasir (id + nama, aktif saja); cukup izin kasir, tanpa izin halaman master. */
+export const salespeopleLookup = {
+  search: (q: string, limit = 20) => api<Page<Pick<Entry, 'id' | 'name'>>>(`/catalog/lookup/salespeople/${qs({ q, active: true, limit })}`).then((r) => r.data)
+};

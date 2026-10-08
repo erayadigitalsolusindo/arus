@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"aciraba/internal/approval"
 	"aciraba/internal/authz"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
@@ -44,6 +45,8 @@ type Deps struct {
 	Perms    *authz.Resolver
 	Mailer   mailer.Mailer
 	Jobs     *background.Runner
+	// Approvals memverifikasi PIN penyetuju untuk pindah outlet dari kasir; nil = pindah dari kasir selalu ditolak.
+	Approvals *approval.Service
 	// BaseURL = alamat SPA untuk tautan di email, tanpa slash akhir (mis. https://app.contoh.id).
 	BaseURL string
 }

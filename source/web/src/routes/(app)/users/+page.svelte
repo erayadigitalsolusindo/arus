@@ -30,6 +30,7 @@
   let outlets = $state<Outlet[]>([]); // outlet yang boleh ditugaskan pemanggil (yang ia akses sendiri)
   let loading = $state(true);
   let loadError = $state('');
+  let actionError = $state('');
   let notice = $state('');
   let editor = $state<Editor | null>(null);
   let reset = $state<{ user: User; password: string; busy: boolean; error: string } | null>(null);
@@ -46,6 +47,19 @@
     }
   }
   onMount(load);
+
+  async function verifyManually(u: User) {
+    if (!confirm(t('iam.users.verifyConfirm', { email: u.email }))) return;
+    actionError = '';
+    try {
+      await iam.verifyEmail(u.id);
+      notice = t('iam.users.verifySaved');
+      await load();
+    } catch (err) {
+      notice = '';
+      actionError = errorMessage(err);
+    }
+  }
 
   const isSelf = (u: { id: string }) => u.id === session.user?.id;
 
@@ -178,6 +192,13 @@
     </div>
   {/if}
 
+  {#if actionError}
+    <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
+      <i class="icon-circle-alert text-[14px] shrink-0"></i><span>{actionError}</span>
+      <button type="button" class="ms-auto" aria-label={t('iam.users.close')} onclick={() => (actionError = '')}><i class="icon-x text-[13px]"></i></button>
+    </div>
+  {/if}
+
   {#if loadError}
     <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
       <i class="icon-circle-alert text-[14px] shrink-0"></i><span>{t('iam.users.loadFailed')} {loadError}</span>
@@ -202,7 +223,7 @@
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="p-3">
                 <p class="font-semibold">{u.name}{#if isSelf(u)} <span class="badge-soft badge-info ms-1">{t('iam.users.you')}</span>{/if}</p>
-                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email} <span class="badge-soft {u.email_verified ? 'badge-success' : 'badge-warning'} ms-1">{u.email_verified ? t('iam.users.verified') : t('iam.users.unverified')}</span></p>
+                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email} <span class="badge-soft {u.email_verified ? 'badge-success' : 'badge-warning'} ms-1">{u.email_verified ? t('iam.users.verified') : t('iam.users.unverified')}</span>{#if !u.email_verified && !isSelf(u) && can('users', 'update')}<button type="button" class="ms-1 underline text-[var(--color-primary-600)]" onclick={() => verifyManually(u)}>{t('iam.users.verifyManual')}</button>{/if}</p>
               </td>
               <td class="p-3"><span class="badge-soft badge-primary">{u.role_name}</span></td>
               <td class="p-3 text-[12px]">

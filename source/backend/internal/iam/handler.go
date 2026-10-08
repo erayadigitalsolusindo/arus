@@ -41,6 +41,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require("users", authz.ActCreate)).Post("/users", h.CreateUser)
 		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}", h.UpdateUser)
 		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}/password", h.ResetPassword)
+		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}/verify-email", h.VerifyEmail)
 	})
 }
 
@@ -97,6 +98,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "EMAIL_TAKEN", "Email sudah terdaftar.")
 	case errors.Is(err, ErrLastOwner):
 		httpx.Error(w, http.StatusConflict, "LAST_OWNER", "Pemilik aktif terakhir tidak boleh dinonaktifkan atau diganti rolenya.")
+	case errors.Is(err, ErrSelfVerify):
+		httpx.Error(w, http.StatusConflict, "SELF_VERIFY", "Tidak boleh memverifikasi email akun sendiri.")
 	case errors.Is(err, ErrSelfChange):
 		httpx.Error(w, http.StatusConflict, "SELF_CHANGE", "Tidak boleh menonaktifkan atau mengganti role akun sendiri.")
 	default:

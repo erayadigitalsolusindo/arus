@@ -100,17 +100,29 @@ func (s *Service) material(tenant, user uuid.UUID, pin string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func eligible(perms []byte, outletOK bool) bool {
-	return outletOK && authz.ParseStored(perms).Has(Module, authz.ActApprove)
+// ModuleOutletSwitch = modul izin penyetuju pindah outlet di kasir. PIN-nya sama dengan PIN penyetuju ubah harga
+// (satu PIN per pengguna); yang berbeda hanya izin yang harus dimiliki.
+const ModuleOutletSwitch = "outlet_switch"
+
+// ValidModule: hanya modul penyetuju yang dikenal yang boleh diminta lewat API.
+func ValidModule(m string) bool { return m == Module || m == ModuleOutletSwitch }
+
+func eligible(perms []byte, outletOK bool, module string) bool {
+	return outletOK && authz.ParseStored(perms).Has(module, authz.ActApprove)
 }
 
-// Approvers = daftar penyetuju yang bisa dipilih kasir di outlet aktif.
+// Approvers = daftar penyetuju ubah harga yang bisa dipilih kasir di outlet aktif.
 func (s *Service) Approvers(ctx context.Context, a authz.Actor) ([]Approver, error) {
+	return s.ApproversFor(ctx, a, Module, a.OutletID)
+}
+
+// ApproversFor = penyetuju pemegang izin `module.approve` yang punya akses ke outlet `outletID`.
+func (s *Service) ApproversFor(ctx context.Context, a authz.Actor, module string, outletID uuid.UUID) ([]Approver, error) {
 	out := []Approver{}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		rows, err := gen.New(tx).ApprovalUsers(ctx, gen.ApprovalUsersParams{TenantID: a.TenantID, OutletID: a.OutletID})
+		rows, err := gen.New(tx).ApprovalUsers(ctx, gen.ApprovalUsersParams{TenantID: a.TenantID, OutletID: outletID})
 		for _, r := range rows {
-			if eligible(r.Permissions, r.OutletOk) {
+			if eligible(r.Permissions, r.OutletOk, module) {
 				out = append(out, Approver{ID: r.ID, Name: r.Name})
 			}
 		}
@@ -147,6 +159,11 @@ func (s *Service) fail(ctx context.Context, key string) {
 // Verify memeriksa penyetuju + PIN di dalam transaksi pemanggil. Salah apa pun (penyetuju tak ada, nonaktif, tak
 // berizin, tanpa PIN, PIN salah) menghasilkan ErrInvalidPin yang sama agar tidak membocorkan siapa yang berhak.
 func (s *Service) Verify(ctx context.Context, tx pgx.Tx, a authz.Actor, approverID uuid.UUID, pin string) (Approver, error) {
+	return s.VerifyFor(ctx, tx, a, Module, a.OutletID, approverID, pin)
+}
+
+// VerifyFor = Verify untuk izin `module.approve` dan akses penyetuju ke outlet `outletID` (mis. outlet tujuan).
+func (s *Service) VerifyFor(ctx context.Context, tx pgx.Tx, a authz.Actor, module string, outletID, approverID uuid.UUID, pin string) (Approver, error) {
 	if approverID == uuid.Nil || pin == "" {
 		return Approver{}, ErrPinRequired
 	}
@@ -154,12 +171,12 @@ func (s *Service) Verify(ctx context.Context, tx pgx.Tx, a authz.Actor, approver
 	if err := s.locked(ctx, key); err != nil {
 		return Approver{}, err
 	}
-	u, err := gen.New(tx).ApprovalUserGet(ctx, gen.ApprovalUserGetParams{TenantID: a.TenantID, ID: approverID, OutletID: a.OutletID})
+	u, err := gen.New(tx).ApprovalUserGet(ctx, gen.ApprovalUserGetParams{TenantID: a.TenantID, ID: approverID, OutletID: outletID})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return Approver{}, err
 	}
 	ok := false
-	if err == nil && u.Active && u.PinHash.Valid && eligible(u.Permissions, u.OutletOk) {
+	if err == nil && u.Active && u.PinHash.Valid && eligible(u.Permissions, u.OutletOk, module) {
 		ok, _ = pauth.VerifyPassword(s.material(a.TenantID, approverID, pin), u.PinHash.String)
 	} else {
 		_, _ = pauth.VerifyPassword("x", dummyHash) // samakan waktu respons
@@ -189,7 +206,8 @@ func (s *Service) Check(ctx context.Context, a authz.Actor, approverID uuid.UUID
 func (s *Service) PinStatus(ctx context.Context, a authz.Actor) (hasPin, canApprove bool, err error) {
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		r, e := gen.New(tx).ApprovalSelf(ctx, gen.ApprovalSelfParams{TenantID: a.TenantID, ID: a.UserID})
-		hasPin, canApprove = r.HasPin, authz.ParseStored(r.Permissions).Has(Module, authz.ActApprove)
+		perms := authz.ParseStored(r.Permissions)
+		hasPin, canApprove = r.HasPin, perms.Has(Module, authz.ActApprove) || perms.Has(ModuleOutletSwitch, authz.ActApprove)
 		return e
 	})
 	return
@@ -214,7 +232,7 @@ func (s *Service) SetPin(ctx context.Context, a authz.Actor, password, pin strin
 		if err != nil {
 			return err
 		}
-		if !authz.ParseStored(self.Permissions).Has(Module, authz.ActApprove) {
+		if perms := authz.ParseStored(self.Permissions); !perms.Has(Module, authz.ActApprove) && !perms.Has(ModuleOutletSwitch, authz.ActApprove) {
 			return ErrForbidden
 		}
 		if ok, _ := pauth.VerifyPassword(password, self.PasswordHash); !ok {

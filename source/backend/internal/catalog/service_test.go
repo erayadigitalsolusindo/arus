@@ -96,7 +96,7 @@ func newEnv(t *testing.T) *env {
 	e.a, e.b = actors[0], actors[1]
 	t.Cleanup(func() {
 		for _, tid := range e.tenant {
-			for _, tbl := range []string{"audit_log", "units", "categories", "brands", "principals", "suppliers", "user_outlets", "users", "roles", "outlets"} {
+			for _, tbl := range []string{"audit_log", "units", "categories", "brands", "principals", "suppliers", "salespeople", "user_outlets", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
 			_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tid)

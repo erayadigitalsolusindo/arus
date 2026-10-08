@@ -390,3 +390,34 @@ func sameSet(a, b []uuid.UUID) bool {
 	}
 	return true
 }
+
+// VerifyEmail menandai email pengguna lain sebagai terverifikasi secara manual. Penanda harus punya izin yang
+// mencakup role target (anti-eskalasi, seperti ResetPassword) dan tidak boleh memverifikasi akunnya sendiri.
+// Tercatat di audit sebagai tindakan manual; memanggil ulang pada akun yang sudah terverifikasi tidak berefek.
+func (s *Service) VerifyEmail(ctx context.Context, actor authz.Actor, id uuid.UUID) error {
+	if id == actor.UserID {
+		return ErrSelfVerify
+	}
+	err := db.WithTenant(ctx, s.pool, actor.TenantID, func(tx pgx.Tx) error {
+		q := gen.New(tx)
+		target, err := q.IamGetUser(ctx, gen.IamGetUserParams{TenantID: actor.TenantID, ID: id})
+		if err != nil {
+			return err
+		}
+		if !actor.Perms.Covers(authz.ParseStored(target.RolePermissions)) {
+			return ErrEscalation
+		}
+		n, err := q.IamMarkEmailVerified(ctx, gen.IamMarkEmailVerifiedParams{TenantID: actor.TenantID, ID: id})
+		if err != nil || n == 0 {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.FromActor(actor), audit.Entry{
+			Action: audit.ActionUserEmailVerify, Entity: audit.EntityUser, EntityID: id.String(),
+			Details: map[string]any{"email": target.Email, "manual": true},
+		})
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}

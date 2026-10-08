@@ -281,6 +281,7 @@ type Sale struct {
 	PointsEarned   int32
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
+	SalespersonID  pgtype.UUID
 }
 
 type SaleCounter struct {
@@ -319,6 +320,19 @@ type SalePayment struct {
 	Method   string
 	Amount   decimal.Decimal
 	RefNo    string
+}
+
+type Salesperson struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type StockBalance struct {
