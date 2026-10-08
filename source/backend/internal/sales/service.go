@@ -36,6 +36,7 @@ import (
 	"aciraba/internal/member"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/receivable"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
 )
@@ -72,6 +73,8 @@ const (
 	codeVoucherTooHigh   = "VOUCHER_TOO_HIGH"
 	codeVoucherBelowCost = "VOUCHER_BELOW_COST"
 	codeVoucherDuplicate = "DUPLICATE"
+
+	codeCreditNotNeeded = "CREDIT_NOT_NEEDED"
 )
 
 const (
@@ -84,6 +87,7 @@ var (
 	ErrKeyRequired    = errors.New("Idempotency-Key wajib diisi")
 	ErrKeyMismatch    = errors.New("Idempotency-Key sudah dipakai untuk permintaan yang berbeda")
 	ErrNotFound       = errors.New("nota tidak ditemukan")
+	ErrReceivablePaid = errors.New("piutang nota ini sudah dibayar sebagian/seluruhnya")
 	validMethods      = map[string]bool{"cash": true, "debit": true, "credit_card": true, "ewallet": true, "transfer": true}
 	idemKeyPattern    = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
 )
@@ -92,6 +96,11 @@ var (
 type FieldErrors map[string]string
 
 func (f FieldErrors) Error() string { return "input tidak valid" }
+
+// CreditLimitError = nota kredit melewati limit piutang member dan belum disetujui penyetuju (PIN).
+type CreditLimitError struct{ Limit, Outstanding, Receivable dec }
+
+func (e *CreditLimitError) Error() string { return "limit piutang member terlampaui" }
 
 // StockError = stok barang tidak cukup (nota dibatalkan seluruhnya).
 type StockError struct {
@@ -153,6 +162,9 @@ type Request struct {
 	SalespersonID *uuid.UUID `json:"salesperson_id"`
 	// Kupon belanja global (kode dibuat pemilik): potongan dihitung server sebelum pajak; boleh lebih dari satu.
 	VoucherCodes []string `json:"voucher_codes"`
+	// Credit = nota kredit: bagian yang belum dibayar (total − pembayaran/DP) menjadi piutang member. Wajib memilih member.
+	// Melewati limit piutang member butuh persetujuan PIN penyetuju berizin credit_limit.approve (Approval).
+	Credit bool `json:"credit"`
 }
 
 // ---- Hasil ----
@@ -212,6 +224,9 @@ type Sale struct {
 	Change      string    `json:"change"`
 	// Surcharge = biaya metode yang ditagihkan ke pelanggan (di luar Total). Ditagih = Total + Surcharge.
 	Surcharge string `json:"surcharge"`
+	// Receivable = sisa yang belum dibayar saat nota dibuat (nota kredit); Credit = keadaan piutangnya sekarang.
+	Receivable string               `json:"receivable"`
+	Credit     *receivable.SaleInfo `json:"credit,omitempty"`
 	// Member & poin nota (Discount sudah memuat RedeemAmount).
 	Member         *MemberInfo      `json:"member,omitempty"`
 	Salesperson    *SalespersonInfo `json:"salesperson,omitempty"`
@@ -324,6 +339,7 @@ type norm struct {
 	redeem      int
 	salesperson *uuid.UUID
 	vouchers    []string // kode kupon (HURUF BESAR, tanpa duplikat)
+	credit      bool
 	// keep (hanya edit nota): baris nota asli per item|satuan. Baris yang cocok mempertahankan harga, harga normal, dan HPP
 	// saat transaksi awal (tidak dihitung ulang dari master); hanya baris baru yang memakai harga/HPP sekarang.
 	keep map[string][]gen.SalesLinesRow
@@ -331,9 +347,12 @@ type norm struct {
 
 func normalize(in Request) (norm, FieldErrors) {
 	f := FieldErrors{}
-	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints}
+	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints, credit: in.Credit}
 	if in.MemberID != nil && *in.MemberID == uuid.Nil {
 		n.memberID = nil
+	}
+	if in.Credit && n.memberID == nil {
+		f["credit"] = codeMemberRequired
 	}
 	if in.SalespersonID != nil && *in.SalespersonID != uuid.Nil {
 		n.salesperson = in.SalespersonID
@@ -489,7 +508,8 @@ func (n norm) hash() string {
 		S    string
 		V    []string
 		C    []p
-	}{V: n.vouchers, D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
+		K    bool
+	}{K: n.credit, V: n.vouchers, D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
 	if n.memberID != nil {
 		v.M = n.memberID.String()
 	}
@@ -559,9 +579,9 @@ type calcLine struct {
 }
 
 type totals struct {
-	subtotal, discount, taxStore, taxGov, other, total, paid, change dec
-	taxStorePct, taxGovPct                                           dec
-	surcharge                                                        dec // biaya metode yang ditagihkan ke pelanggan (di luar total)
+	subtotal, discount, taxStore, taxGov, other, total, paid, change, receivable dec
+	taxStorePct, taxGovPct                                                       dec
+	surcharge                                                                    dec // biaya metode yang ditagihkan ke pelanggan (di luar total)
 }
 
 var hundred = decimal.NewFromInt(100)
@@ -792,6 +812,13 @@ func settle(n norm, t totals) (totals, FieldErrors) {
 	switch {
 	case t.paid.Sub(cash).GreaterThan(t.total):
 		return t, FieldErrors{"payments": codeNonCashOver}
+	case n.credit:
+		// Nota kredit: pembayaran (DP) harus kurang dari total; sisanya menjadi piutang. Tidak ada kembalian.
+		if !t.paid.LessThan(t.total) {
+			return t, FieldErrors{"credit": codeCreditNotNeeded}
+		}
+		t.receivable = t.total.Sub(t.paid)
+		return t, nil
 	case t.paid.LessThan(t.total):
 		return t, FieldErrors{"payments": codePaymentShort}
 	}
@@ -932,6 +959,31 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	if t, fe = settle(n, t); len(fe) > 0 {
 		return fe
 	}
+	// Nota kredit: cek limit piutang member (member sudah terkunci FOR UPDATE di resolveMember, jadi dua kasir yang
+	// berkredit ke member yang sama antre dan yang kedua melihat piutang yang pertama).
+	var creditApprover approval.Approver
+	var terms receivable.Terms
+	if t.receivable.IsPositive() {
+		if terms, err = receivable.MemberTerms(ctx, tx, a.TenantID, mc.sm.ID); err != nil {
+			return err
+		}
+		excl := uuid.Nil
+		if ed != nil {
+			excl = ed.orig.ID // piutang nota lama ikut digantikan revisi ini
+		}
+		outstanding, err := receivable.Outstanding(ctx, tx, a.TenantID, mc.sm.ID, excl)
+		if err != nil {
+			return err
+		}
+		if terms.Limit.IsPositive() && outstanding.Add(t.receivable).GreaterThan(terms.Limit) {
+			if s.approvals == nil || approvalIn == nil {
+				return &CreditLimitError{Limit: terms.Limit, Outstanding: outstanding, Receivable: t.receivable}
+			}
+			if creditApprover, err = s.approvals.VerifyFor(ctx, tx, a, approval.ModuleCreditLimit, a.OutletID, approvalIn.UserID, approvalIn.PIN); err != nil {
+				return err
+			}
+		}
+	}
 
 	var docNo string
 	var hdr gen.SalesInsertRow
@@ -947,7 +999,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
 			CashierID: cashier, ApprovedBy: approvedBy, Note: n.note,
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
-			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge, Receivable: t.receivable,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
 		})
@@ -959,7 +1011,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
 			CashierID: ed.orig.CashierID, ApprovedBy: approvedBy, Note: n.note,
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
-			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge, Receivable: t.receivable,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
 			CreatedAt:     ed.orig.CreatedAt, RootID: pgtype.UUID{Bytes: ed.rootID, Valid: true}, Revision: ed.orig.Revision + 1,
@@ -1004,6 +1056,11 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		if l.item.row.Kind == "goods" {
 			moves = append(moves, stock.Movement{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: l.item.row.ID,
 				Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID})
+		}
+	}
+	if t.receivable.IsPositive() {
+		if err := receivable.Create(ctx, tx, a.TenantID, a.OutletID, hdr.ID, mc.sm.ID, t.receivable, receivable.DueDate(day, terms.DueDays)); err != nil {
+			return err
 		}
 	}
 	for i, oc := range n.costs {
@@ -1069,6 +1126,12 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	details := map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "lines": len(lines),
 		"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String(),
 		"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc), "vouchers": vc.codes()}
+	if t.receivable.IsPositive() {
+		details["receivable"] = t.receivable.String()
+		if creditApprover.ID != uuid.Nil {
+			details["credit_approver_id"], details["credit_approver"] = creditApprover.ID.String(), creditApprover.Name
+		}
+	}
 	if ed == nil {
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details})
 	}
@@ -1155,7 +1218,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			ApprovedBy: h.ApproverName, Note: h.Note, Subtotal: h.Subtotal.StringFixed(2), Discount: h.Discount.StringFixed(2),
 			TaxStorePct: h.TaxStorePct.StringFixed(2), TaxGovPct: h.TaxGovPct.StringFixed(2),
 			TaxStore: h.TaxStore.StringFixed(2), TaxGov: h.TaxGov.StringFixed(2), OtherCost: h.OtherCost.StringFixed(2),
-			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2), Surcharge: h.Surcharge.StringFixed(2),
+			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2), Surcharge: h.Surcharge.StringFixed(2), Receivable: h.Receivable.StringFixed(2),
 			Salesperson: spi, Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
 			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps)),
 			Revision: int(h.Revision), RootID: h.ID, RevisionReason: h.RevisionReason, VoidReason: h.VoidReason}
@@ -1191,6 +1254,11 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		for _, c := range cs {
 			out.OtherCosts = append(out.OtherCosts, CostInfo{Name: c.Name, Amount: c.Amount.StringFixed(2)})
 		}
+		if h.Receivable.IsPositive() {
+			if out.Credit, err = receivable.ForSale(ctx, tx, a.TenantID, id); err != nil {
+				return err
+			}
+		}
 		for _, p := range ps {
 			out.Payments = append(out.Payments, Payment{Method: p.Method, MethodID: p.MethodID, MethodName: p.MethodName, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo,
 				FeePct: p.FeePct.StringFixed(2), Fee: p.FeeAmount.StringFixed(2), FeeBearer: p.FeeBearer})
@@ -1219,6 +1287,16 @@ type Quote struct {
 	// Kupon yang lolos dan total potongannya (sudah termasuk di Discount).
 	Vouchers      []VoucherInfo `json:"vouchers"`
 	VoucherAmount string        `json:"voucher_amount"`
+	// Credit (bila member dipilih): syarat kredit member dan piutangnya sekarang, agar kasir tahu apakah nota kredit
+	// melewati limit (Limit "0.00" = tanpa batas). Simpan nota tetap memeriksa ulang di server.
+	Credit *CreditTerms `json:"credit,omitempty"`
+}
+
+// CreditTerms = syarat kredit member saat quote.
+type CreditTerms struct {
+	Limit       string `json:"limit"`
+	Outstanding string `json:"outstanding"`
+	DueDays     int    `json:"due_days"`
 }
 
 func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, error) {
@@ -1229,7 +1307,7 @@ func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, 
 	}
 	var out Quote
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) (err error) {
-		out, err = s.quoteTx(ctx, tx, a, n, nil)
+		out, err = s.quoteTx(ctx, tx, a, n, nil, uuid.Nil)
 		return err
 	})
 	return out, err
@@ -1267,7 +1345,7 @@ func (s *Service) QuoteEdit(ctx context.Context, a authz.Actor, id uuid.UUID, in
 			return err
 		}
 		day := orig.LocalDay
-		if out, err = s.quoteTx(ctx, tx, a, n, &day); err != nil {
+		if out, err = s.quoteTx(ctx, tx, a, n, &day, orig.ID); err != nil {
 			return err
 		}
 		return errQuoteRollback
@@ -1279,7 +1357,7 @@ func (s *Service) QuoteEdit(ctx context.Context, a authz.Actor, id uuid.UUID, in
 }
 
 // quoteTx menghitung quote di dalam transaksi pemanggil (dayOverride = hari bisnis untuk kupon/member).
-func (s *Service) quoteTx(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, dayOverride *pgtype.Date) (Quote, error) {
+func (s *Service) quoteTx(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, dayOverride *pgtype.Date, excludeSale uuid.UUID) (Quote, error) {
 	q := gen.New(tx)
 	o, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !o.Active) {
@@ -1328,6 +1406,15 @@ func (s *Service) quoteTx(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm,
 	out.Vouchers, out.VoucherAmount = vc.infos(), vc.total().StringFixed(2)
 	if mc.sm != nil {
 		out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
+		terms, err := receivable.MemberTerms(ctx, tx, a.TenantID, mc.sm.ID)
+		if err != nil {
+			return Quote{}, err
+		}
+		outstanding, err := receivable.Outstanding(ctx, tx, a.TenantID, mc.sm.ID, excludeSale)
+		if err != nil {
+			return Quote{}, err
+		}
+		out.Credit = &CreditTerms{Limit: terms.Limit.StringFixed(2), Outstanding: outstanding.StringFixed(2), DueDays: terms.DueDays}
 	}
 	for _, l := range lines {
 		out.Lines = append(out.Lines, Line{ItemID: l.item.row.ID, SKU: l.item.row.Sku, Name: l.item.row.Name, UnitID: l.unitID, Unit: l.unitName,

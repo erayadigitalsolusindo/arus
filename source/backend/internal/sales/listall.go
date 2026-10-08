@@ -77,11 +77,12 @@ type AllRow struct {
 	PointsEarned   int      `json:"points_earned"`
 	PriceOverrides int      `json:"price_overrides"` // jumlah baris yang harganya diubah (disetujui PIN)
 
-	TaxStore  string            `json:"tax_store"`
-	TaxGov    string            `json:"tax_gov"`
-	OtherCost string            `json:"other_cost"`
-	Total     string            `json:"total"`
-	Methods   map[string]string `json:"methods"`
+	TaxStore   string            `json:"tax_store"`
+	TaxGov     string            `json:"tax_gov"`
+	OtherCost  string            `json:"other_cost"`
+	Total      string            `json:"total"`
+	Receivable string            `json:"receivable"` // bagian yang dikreditkan (piutang member)
+	Methods    map[string]string `json:"methods"`
 
 	Cost   *string `json:"cost,omitempty"`   // Σ HPP × qty (snapshot saat transaksi)
 	Profit *string `json:"profit,omitempty"` // Subtotal − Discount − Cost (sebelum pajak & biaya lain)
@@ -92,7 +93,8 @@ type AllSummary struct {
 	Count          int               `json:"count"`
 	CompletedCount int               `json:"completed_count"`
 	Total          string            `json:"total"`
-	Discount       string            `json:"discount"` // potongan baris + potongan nota
+	Receivable     string            `json:"receivable"` // Σ yang dikreditkan (piutang member) pada nota selesai
+	Discount       string            `json:"discount"`   // potongan baris + potongan nota
 	Methods        map[string]string `json:"methods"`
 	// ByMethod = rincian per metode (master), Tunai dulu lalu menurut nama.
 	ByMethod []MethodTotal `json:"by_method"`
@@ -245,7 +247,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 		if err != nil {
 			return err
 		}
-		res.Summary = AllSummary{Count: int(sum.SaleCount), CompletedCount: int(sum.CompletedCount), Total: sum.Total.StringFixed(2),
+		res.Summary = AllSummary{Count: int(sum.SaleCount), CompletedCount: int(sum.CompletedCount), Total: sum.Total.StringFixed(2), Receivable: sum.Receivable.StringFixed(2),
 			Discount: sum.Discount.StringFixed(2), Methods: map[string]string{}, ByMethod: []MethodTotal{}}
 		if canCost {
 			cost, profit := sum.Cost.StringFixed(2), sum.NetSales.Sub(sum.Cost).StringFixed(2)
@@ -300,7 +302,7 @@ func allRow(r gen.SalesListAllRow, canCost bool) AllRow {
 		RedeemAmount: r.RedeemAmount.StringFixed(2), PointsRedeemed: int(r.PointsRedeemed), PointsEarned: int(r.PointsEarned),
 		PriceOverrides: int(r.OverrideCount),
 		TaxStore:       r.TaxStore.StringFixed(2), TaxGov: r.TaxGov.StringFixed(2), OtherCost: r.OtherCost.StringFixed(2),
-		Total: r.Total.StringFixed(2), Methods: methods}
+		Total: r.Total.StringFixed(2), Receivable: r.Receivable.StringFixed(2), Methods: methods}
 	if canCost {
 		cost, profit := r.Cost.StringFixed(2), r.Subtotal.Sub(r.Discount).Sub(r.Cost).StringFixed(2)
 		row.Cost, row.Profit = &cost, &profit

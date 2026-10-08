@@ -131,12 +131,15 @@
         {@render stat('icon-trending-up', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.profit'), money(summary.profit), net > 0 ? t('sales.summary.margin', { pct: formatNumber((Number(summary.profit) / net) * 100, { maximumFractionDigits: 1 }) }) : '', Number(summary.profit) < 0 ? lossClass : '')}
       {/if}
     </div>
-    {#if Object.keys(summary.methods).length}
+    {#if Object.keys(summary.methods).length || Number(summary.receivable) > 0}
       <div class="flex flex-wrap items-center gap-2 text-[12px]">
         <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('sales.summary.methods')}</span>
         {#each summary.by_method as m (m.method_id)}
           <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1 font-medium"><i class="{METHOD_ICON[m.kind]} text-[12px] text-[var(--text-tertiary)]"></i>{m.name}<span class="tabular-nums text-[var(--text-secondary)]">{money(m.amount)}</span>{#if Number(m.fee) > 0}<span class="tabular-nums text-[var(--color-warning-600)]">· {t('sales.summary.fee', { amount: money(m.fee) })}</span>{/if}{#if Number(m.surcharge) > 0}<span class="tabular-nums text-[var(--color-success-600)]">· {t('sales.summary.surcharge', { amount: money(m.surcharge) })}</span>{/if}</span>
         {/each}
+        {#if Number(summary.receivable) > 0}
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1 font-medium"><i class="icon-hourglass text-[12px] text-[var(--text-tertiary)]"></i>{t('sales.credit')}<span class="tabular-nums text-[var(--color-danger-600)]">{money(summary.receivable)}</span></span>
+        {/if}
       </div>
     {/if}
   {/if}
@@ -217,6 +220,9 @@
                   {#each PAY_METHODS.filter((m) => r.methods[m] !== undefined) as m (m)}
                     <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px]"><i class="{METHOD_ICON[m]} text-[12px] text-[var(--text-tertiary)]"></i><span class="text-[var(--text-secondary)]">{t(`sales.method.${m}`)}</span><span class="font-medium tabular-nums">{money(r.methods[m] ?? '0')}</span></span>
                   {/each}
+                  {#if Number(r.receivable) > 0}
+                    <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px]"><i class="icon-hourglass text-[12px] text-[var(--text-tertiary)]"></i><span class="text-[var(--text-secondary)]">{t('sales.credit')}</span><span class="font-medium tabular-nums text-[var(--color-danger-600)]">{money(r.receivable)}</span></span>
+                  {/if}
                 </div>
               </td>
               {#if hasCost && r.cost !== undefined && r.profit !== undefined}
