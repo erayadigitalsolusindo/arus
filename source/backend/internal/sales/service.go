@@ -33,6 +33,7 @@ import (
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
 	"aciraba/internal/item"
+	"aciraba/internal/member"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/stock"
@@ -56,7 +57,16 @@ const (
 	codeNonCashOver   = "NON_CASH_OVER"
 	codeTooMany       = "TOO_MANY"
 	codeBaseQtyFormat = "INVALID"
+
+	codeMemberRequired     = "MEMBER_REQUIRED"
+	codeMemberInactive     = "MEMBER_INACTIVE"
+	codePointsInsufficient = "POINTS_INSUFFICIENT"
+	codeRedeemNotAllowed   = "REDEEM_NOT_ALLOWED"
+	codeRedeemTooHigh      = "REDEEM_TOO_HIGH"
+	codeRedeemBelowCost    = "REDEEM_BELOW_COST"
 )
+
+const maxRedeem = 10_000_000
 
 var (
 	ErrOutletInactive = errors.New("outlet tidak aktif")
@@ -114,6 +124,9 @@ type Request struct {
 	ApplyTax  bool        `json:"apply_tax"`  // terapkan pajak toko & negara sesuai tarif outlet
 	Payments  []PaymentIn `json:"payments"`
 	Note      string      `json:"note"`
+	// Member (opsional): nota diperhitungkan poinnya; RedeemPoints = poin yang ditukar jadi potongan nota (level member menentukan nilainya).
+	MemberID     *uuid.UUID `json:"member_id"`
+	RedeemPoints int        `json:"redeem_points"`
 }
 
 // ---- Hasil ----
@@ -166,6 +179,19 @@ type Sale struct {
 	Total       string    `json:"total"`
 	Paid        string    `json:"paid"`
 	Change      string    `json:"change"`
+	// Member & poin nota (Discount sudah memuat RedeemAmount).
+	Member         *MemberInfo `json:"member,omitempty"`
+	PointsEarned   int         `json:"points_earned"`
+	PointsRedeemed int         `json:"points_redeemed"`
+	RedeemAmount   string      `json:"redeem_amount"`
+}
+
+// MemberInfo = identitas member pada nota/quote.
+type MemberInfo struct {
+	ID     uuid.UUID `json:"id"`
+	Code   string    `json:"code"`
+	Name   string    `json:"name"`
+	Points int       `json:"points"` // saldo poin saat quote
 }
 
 type Service struct {
@@ -218,11 +244,21 @@ type norm struct {
 	applyTax  bool
 	payments  []normPayment
 	note      string
+	memberID  *uuid.UUID
+	redeem    int
 }
 
 func normalize(in Request) (norm, FieldErrors) {
 	f := FieldErrors{}
-	n := norm{applyTax: in.ApplyTax}
+	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints}
+	if in.MemberID != nil && *in.MemberID == uuid.Nil {
+		n.memberID = nil
+	}
+	if in.RedeemPoints < 0 || in.RedeemPoints > maxRedeem {
+		f["redeem_points"] = sanitize.Invalid
+	} else if in.RedeemPoints > 0 && n.memberID == nil {
+		f["redeem_points"] = codeMemberRequired
+	}
 	if len(in.Lines) == 0 {
 		f["lines"] = sanitize.Required
 	} else if len(in.Lines) > maxLines {
@@ -311,7 +347,12 @@ func (n norm) hash() string {
 		D, O string
 		T    bool
 		N    string
-	}{D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note}
+		M    string
+		R    int
+	}{D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
+	if n.memberID != nil {
+		v.M = n.memberID.String()
+	}
 	for _, x := range n.lines {
 		u := ""
 		if x.in.UnitID != nil {
@@ -595,6 +636,13 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 		if len(fe) > 0 {
 			return fe
 		}
+		mc, lines, t, fe, err := resolveMember(ctx, tx, a, n, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
+		if err != nil {
+			return err
+		}
+		if len(fe) > 0 {
+			return fe
+		}
 		for i, l := range lines {
 			if l.issue == codeBelowCost {
 				return FieldErrors{fmt.Sprintf("lines.%d.item_id", i): codeBelowCost}
@@ -602,7 +650,8 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 		}
 		var approver approval.Approver
 		overrides := overriddenLines(lines)
-		if len(overrides) > 0 {
+		discounted := discountedLines(lines)
+		if len(overrides) > 0 || len(discounted) > 0 {
 			if s.approvals == nil || in.Approval == nil {
 				return approval.ErrPinRequired
 			}
@@ -625,6 +674,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 			CashierID: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}, ApprovedBy: pgtype.UUID{Bytes: approver.ID, Valid: approver.ID != uuid.Nil}, Note: n.note,
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
 			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
+			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tidak terpakai) lalu kembalikan nota itu.
@@ -662,6 +712,11 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 				return err
 			}
 		}
+		if mc.sm != nil {
+			if err := member.ApplySale(ctx, tx, a, mc.sm.ID, hdr.ID, docNo, n.redeemApplied(mc), mc.earn); err != nil {
+				return err
+			}
+		}
 		moves = mergeMoves(moves)
 		if _, err := stock.ApplyAll(ctx, tx, moves); err != nil {
 			var ins *stock.InsufficientError
@@ -684,10 +739,23 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 				return err
 			}
 		}
+		if len(discounted) > 0 {
+			items := make([]map[string]string, 0, len(discounted))
+			for _, l := range discounted {
+				items = append(items, map[string]string{"sku": l.item.row.Sku, "price": l.unitPrice.String(), "qty": l.qty.String(), "discount": l.discount.String()})
+			}
+			if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+				Action: audit.ActionSaleLineDiscount, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
+				Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
+			}); err != nil {
+				return err
+			}
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
 			Details: map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "lines": len(lines),
-				"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String()},
+				"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String(),
+				"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc)},
 		})
 	})
 	var rp replay
@@ -748,11 +816,16 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		if err != nil {
 			return err
 		}
+		var mi *MemberInfo
+		if h.MemberID.Valid {
+			mi = &MemberInfo{ID: uuid.UUID(h.MemberID.Bytes), Code: h.MemberCode, Name: h.MemberName}
+		}
 		out = Sale{ID: h.ID, DocNo: h.DocNo, Status: h.Status, OutletID: h.OutletID, CashierName: h.CashierName, CreatedAt: h.CreatedAt.Time,
 			ApprovedBy: h.ApproverName, Note: h.Note, Subtotal: h.Subtotal.StringFixed(2), Discount: h.Discount.StringFixed(2),
 			TaxStorePct: h.TaxStorePct.StringFixed(2), TaxGovPct: h.TaxGovPct.StringFixed(2),
 			TaxStore: h.TaxStore.StringFixed(2), TaxGov: h.TaxGov.StringFixed(2), OtherCost: h.OtherCost.StringFixed(2),
 			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2),
+			Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
 			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps))}
 		for _, l := range ls {
 			out.Lines = append(out.Lines, Line{ItemID: l.ItemID, SKU: l.Sku, Name: l.Name, UnitID: l.UnitID, Unit: l.UnitName,
@@ -779,6 +852,10 @@ type Quote struct {
 	TaxGov      string `json:"tax_gov"`
 	OtherCost   string `json:"other_cost"`
 	Total       string `json:"total"`
+	// Member (bila dipilih): potongan dari tukar poin (sudah termasuk di Discount) dan poin yang akan diperoleh.
+	Member       *MemberInfo `json:"member,omitempty"`
+	RedeemAmount string      `json:"redeem_amount"`
+	PointsEarn   int         `json:"points_earn"`
 }
 
 func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, error) {
@@ -813,9 +890,19 @@ func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, 
 		if len(fe) > 0 {
 			return fe
 		}
-		out = Quote{Subtotal: t.subtotal.StringFixed(2), Discount: t.discount.StringFixed(2), TaxStorePct: t.taxStorePct.StringFixed(2),
+		mc, lines, t, fe, err := resolveMember(ctx, tx, a, n, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
+		if err != nil {
+			return err
+		}
+		if len(fe) > 0 {
+			return fe
+		}
+		out = Quote{RedeemAmount: mc.redeemAmt.StringFixed(2), PointsEarn: mc.earn, Subtotal: t.subtotal.StringFixed(2), Discount: t.discount.StringFixed(2), TaxStorePct: t.taxStorePct.StringFixed(2),
 			TaxGovPct: t.taxGovPct.StringFixed(2), TaxStore: t.taxStore.StringFixed(2), TaxGov: t.taxGov.StringFixed(2),
 			OtherCost: t.other.StringFixed(2), Total: t.total.StringFixed(2), Lines: make([]Line, 0, len(lines))}
+		if mc.sm != nil {
+			out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
+		}
 		for _, l := range lines {
 			out.Lines = append(out.Lines, Line{ItemID: l.item.row.ID, SKU: l.item.row.Sku, Name: l.item.row.Name, UnitID: l.unitID, Unit: l.unitName,
 				Factor: l.factor.String(), Qty: l.qty.String(), UnitPrice: l.unitPrice.StringFixed(2), Discount: l.discount.StringFixed(2),
@@ -835,4 +922,95 @@ func overriddenLines(lines []calcLine) []calcLine {
 		}
 	}
 	return out
+}
+
+// discountedLines = baris yang diberi potongan manual (butuh persetujuan PIN seperti ubah harga).
+func discountedLines(lines []calcLine) []calcLine {
+	var out []calcLine
+	for _, l := range lines {
+		if l.discount.IsPositive() {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// memberCalc = hasil perhitungan member untuk satu nota (kosong bila nota tanpa member).
+type memberCalc struct {
+	sm        *member.SaleMember
+	redeemAmt dec
+	earn      int
+}
+
+func (m memberCalc) id() uuid.UUID {
+	if m.sm == nil {
+		return uuid.Nil
+	}
+	return m.sm.ID
+}
+
+func (m memberCalc) code() string {
+	if m.sm == nil {
+		return ""
+	}
+	return m.sm.Code
+}
+
+// redeemApplied = jumlah poin yang benar-benar ditukar pada nota ini.
+func (n norm) redeemApplied(m memberCalc) int {
+	if m.sm == nil {
+		return 0
+	}
+	return n.redeem
+}
+
+// resolveMember memuat member (dikunci bila lock=true), memeriksa dan menghitung tukar poin, lalu poin yang akan
+// diperoleh. Tukar poin menjadi potongan nota tambahan, sehingga total dihitung ulang. Poin diperoleh dihitung dari
+// (subtotal − seluruh potongan) menurut aturan level member saat ini.
+func resolveMember(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, localDay pgtype.Date, lock bool, infos map[uuid.UUID]*itemInfo,
+	taxStorePct, taxGovPct dec, lines []calcLine, t totals) (memberCalc, []calcLine, totals, FieldErrors, error) {
+	if n.memberID == nil {
+		return memberCalc{}, lines, t, nil, nil
+	}
+	sm, err := member.LockForSale(ctx, tx, a.TenantID, *n.memberID, localDay, lock)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return memberCalc{}, lines, t, FieldErrors{"member_id": sanitize.Invalid}, nil
+	case errors.Is(err, member.ErrMemberInactive):
+		return memberCalc{}, lines, t, FieldErrors{"member_id": codeMemberInactive}, nil
+	case err != nil:
+		return memberCalc{}, lines, t, nil, err
+	}
+	mc := memberCalc{sm: &sm}
+	if n.redeem > 0 {
+		switch {
+		case !sm.PointValue.IsPositive():
+			return mc, lines, t, FieldErrors{"redeem_points": codeRedeemNotAllowed}, nil
+		case n.redeem > sm.Points:
+			return mc, lines, t, FieldErrors{"redeem_points": codePointsInsufficient}, nil
+		}
+		amt := member.RedeemAmount(n.redeem, sm.PointValue)
+		if amt.GreaterThan(t.subtotal.Sub(t.discount)) {
+			return mc, lines, t, FieldErrors{"redeem_points": codeRedeemTooHigh}, nil
+		}
+		n.discount = n.discount.Add(amt)
+		var fe FieldErrors
+		if lines, t, fe = price(n, infos, taxStorePct, taxGovPct); len(fe) > 0 {
+			return mc, nil, t, fe, nil
+		}
+		// Potongan dari poin tidak boleh membuat nota di bawah HPP barang (kecuali barang boleh jual rugi): tukar poin tidak
+		// memakai persetujuan PIN seperti ubah harga, jadi batas HPP harus dijaga di sini.
+		costFloor := decimal.Zero
+		for _, l := range lines {
+			if !l.item.row.SellBelowCost {
+				costFloor = costFloor.Add(l.unitCost.Mul(l.qty).Round(2))
+			}
+		}
+		if t.subtotal.Sub(t.discount).LessThan(costFloor) {
+			return mc, lines, t, FieldErrors{"redeem_points": codeRedeemBelowCost}, nil
+		}
+		mc.redeemAmt = amt
+	}
+	mc.earn = member.PointsFor(t.subtotal.Sub(t.discount), sm.SpendPerPoint)
+	return mc, lines, t, nil, nil
 }

@@ -14,6 +14,7 @@ import (
 	"aciraba/internal/catalog"
 	"aciraba/internal/iam"
 	"aciraba/internal/item"
+	"aciraba/internal/member"
 	"aciraba/internal/outlet"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
@@ -21,6 +22,7 @@ import (
 	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/storage"
 	"aciraba/internal/platformadmin"
+	"aciraba/internal/posshortcut"
 	"aciraba/internal/sales"
 	"aciraba/internal/stock"
 )
@@ -78,9 +80,11 @@ func mountModules(r chi.Router, d appDeps) error {
 		return err
 	}
 	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
+	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
+	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

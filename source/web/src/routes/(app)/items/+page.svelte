@@ -1,10 +1,12 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { items as api, type Row } from '#lib/items/api.ts';
   import { lookup } from '#lib/catalog/api.ts';
-  import { can } from '#lib/auth/session.svelte.ts';
+  import { can, session } from '#lib/auth/session.svelte.ts';
+  import { outletScope, supportAllOutlets } from '#lib/outlets/store.svelte.ts';
   import { t, formatCurrency, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Combobox from '#lib/components/Combobox.svelte';
@@ -24,6 +26,17 @@
   let categoryId = $state('');
   let categoryLabel = $state('');
   let busyId = $state<string | null>(null);
+
+  // Mode "Semua Cabang": stok dijumlahkan, harga jadi rentang, baris bisa dibuka untuk rincian per cabang.
+  supportAllOutlets();
+  const allMode = $derived(outletScope.all);
+  let expanded = $state(new Set<string>());
+  function toggleExpand(id: string) {
+    const next = new Set(expanded);
+    if (!next.delete(id)) next.add(id);
+    expanded = next;
+  }
+  const colCount = $derived(allMode ? 15 : 14);
 
   // Kolom stok per bucket (huruf pertama: D = display, G = gudang, R = retur) lalu Σ = total.
   const STOCK_COLS = [
@@ -62,6 +75,7 @@
         q: q.trim(),
         active: filter === 'all' ? undefined : filter === 'active',
         category_id: categoryId || undefined,
+        allOutlets: allMode,
         limit: PAGE,
         offset
       });
@@ -80,6 +94,8 @@
     void q;
     void filter;
     void categoryId;
+    void allMode;
+    void session.outlet?.id; // pindah outlet aktif → muat ulang stok/harga
     const h = setTimeout(() => {
       offset = 0;
       void load();
@@ -160,11 +176,7 @@
         <i class="icon-search text-[13px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"></i>
         <input type="search" class="{inputClass} !ps-8" placeholder={t('items.search')} aria-label={t('items.search')} bind:value={q} maxlength="200" />
       </div>
-      <select class="field-control" aria-label={t('items.col.status')} bind:value={filter}>
-        <option value="all">{t('items.filter.all')}</option>
-        <option value="active">{t('items.filter.active')}</option>
-        <option value="inactive">{t('items.filter.inactive')}</option>
-      </select>
+      <Select class="!w-auto min-w-40" ariaLabel={t('items.col.status')} bind:value={filter} options={[{ value: 'all', label: t('items.filter.all') }, { value: 'active', label: t('items.filter.active') }, { value: 'inactive', label: t('items.filter.inactive') }]} />
       <div class="w-56">
         <Combobox bind:value={categoryId} bind:label={categoryLabel} search={searchCategories} placeholder={t('items.filter.allCategories')} />
       </div>
@@ -172,6 +184,7 @@
 
     {#snippet head()}
       <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-secondary)]">
+        {#if allMode}<th class="w-8" scope="col"><span class="sr-only">{t('items.allOutlets.expand')}</span></th>{/if}
         {#each STOCK_COLS as c (c.bucket)}
           <th class="px-2 py-3 text-center w-12" scope="col" title={t(c.key)}>{c.label}</th>
         {/each}
@@ -195,6 +208,15 @@
         <tbody>
           {#each rows as r (r.id)}
             <tr class="border-t border-[var(--border-subtle)] odd:bg-[var(--surface-sunken)] hover:bg-[var(--surface-hover,var(--surface-sunken))]">
+              {#if allMode}
+                <td class="ps-2 py-3">
+                  {#if r.kind !== 'service'}
+                    <button type="button" class="header-icon-btn !size-7" aria-expanded={expanded.has(r.id)} aria-label={expanded.has(r.id) ? t('items.allOutlets.collapse') : t('items.allOutlets.expand')} title={expanded.has(r.id) ? t('items.allOutlets.collapse') : t('items.allOutlets.expand')} onclick={() => toggleExpand(r.id)}>
+                      <i class="{expanded.has(r.id) ? 'icon-chevron-down' : 'icon-chevron-right'} text-[13px]"></i>
+                    </button>
+                  {/if}
+                </td>
+              {/if}
               {#each STOCK_COLS as c (c.bucket)}
                 <td class="px-2 py-3 text-center tabular-nums {stockClass(r, r.stock[c.bucket])}">{stockText(r, r.stock[c.bucket])}</td>
               {/each}
@@ -216,7 +238,7 @@
                 </div>
               </td>
               <td class="p-3 text-end whitespace-nowrap">
-                {formatCurrency(Number(r.price))}
+                {formatCurrency(Number(r.price))}{#if r.price_max && Number(r.price_max) !== Number(r.price)} – {formatCurrency(Number(r.price_max))}<span class="badge-soft badge-info ms-1.5 align-middle" title={t('items.allOutlets.pricesDiffer')}>≠</span>{/if}
                 {#if r.price_override}<i class="icon-store text-[11px] ms-1 text-[var(--color-primary-600)]" title={t('items.priceOverride')} aria-label={t('items.priceOverride')}></i>{/if}
               </td>
               <td class="p-3 text-end whitespace-nowrap">{formatCurrency(Number(r.avg_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
@@ -243,8 +265,34 @@
                 {/if}
               </td>
             </tr>
+            {#if allMode && expanded.has(r.id) && r.outlets}
+              <tr class="bg-[var(--surface-sunken)]">
+                <td colspan={colCount} class="px-4 py-3">
+                  <table class="text-[12px] w-full max-w-3xl">
+                    <thead>
+                      <tr class="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">
+                        <th class="py-1.5 text-start" scope="col">{t('items.allOutlets.outlet')}</th>
+                        {#each STOCK_COLS as c (c.bucket)}<th class="py-1.5 text-end w-16" scope="col" title={t(c.key)}>{c.label}</th>{/each}
+                        <th class="py-1.5 text-end w-16" scope="col" title={t('items.col.stockTotal')}>Σ</th>
+                        <th class="py-1.5 text-end" scope="col">{t('items.col.price')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each r.outlets as o (o.outlet_id)}
+                        <tr class="border-t border-[var(--border-subtle)]">
+                          <td class="py-1.5">{o.name} <span class="font-mono text-[11px] text-[var(--text-tertiary)]">{o.code}</span></td>
+                          {#each STOCK_COLS as c (c.bucket)}<td class="py-1.5 text-end tabular-nums {stockClass(r, o.stock[c.bucket])}">{stockText(r, o.stock[c.bucket])}</td>{/each}
+                          <td class="py-1.5 text-end font-semibold tabular-nums {stockClass(r, o.stock.total)}">{stockText(r, o.stock.total)}</td>
+                          <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.price))}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            {/if}
           {:else}
-            <tr><td colspan="14" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' || categoryId ? t('items.emptySearch') : t('items.empty')}</td></tr>
+            <tr><td colspan={colCount} class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' || categoryId ? t('items.emptySearch') : t('items.empty')}</td></tr>
           {/each}
         </tbody>
         {#if rows.length > 8}<tfoot class="border-t border-[var(--border-subtle)]">{@render head()}</tfoot>{/if}

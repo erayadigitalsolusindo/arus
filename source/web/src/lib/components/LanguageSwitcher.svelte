@@ -1,7 +1,7 @@
 <script lang="ts">
   import { LOCALES, i18n, setLocale, t, type Locale } from '#lib/i18n/index.ts';
 
-  let { placement = 'down' }: { placement?: 'down' | 'up' } = $props();
+  let { placement = 'down', variant = 'text' }: { placement?: 'down' | 'up'; variant?: 'text' | 'circle' } = $props();
 
   let open = $state(false);
 
@@ -21,17 +21,20 @@
 <div class="relative">
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 h-8 px-2 rounded-full text-[12px] font-semibold hover:text-[var(--color-primary-600)]"
+    class={variant === 'circle'
+      ? 'grid place-items-center size-9 rounded-full transition-transform hover:scale-105 bg-[color-mix(in_oklab,var(--color-primary-500)_16%,transparent)] text-[var(--color-primary-600)]'
+      : 'inline-flex items-center gap-1.5 h-8 px-2 rounded-full text-[12px] font-semibold hover:text-[var(--color-primary-600)]'}
     aria-haspopup="menu"
     aria-expanded={open}
     aria-label={t('common.language')}
+    title={variant === 'circle' ? `${t('common.language')}: ${LOCALES[i18n.locale].short}` : undefined}
     onclick={(e) => {
       e.stopPropagation();
       open = !open;
     }}
   >
-    <i class="icon-languages text-[14px]"></i>
-    <span>{LOCALES[i18n.locale].short}</span>
+    <i class="icon-languages {variant === 'circle' ? 'text-[16px]' : 'text-[14px]'}"></i>
+    {#if variant === 'text'}<span>{LOCALES[i18n.locale].short}</span>{/if}
   </button>
 
   {#if open}

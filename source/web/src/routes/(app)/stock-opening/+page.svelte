@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DatePicker from '#lib/components/DatePicker.svelte';
   import { onMount } from 'svelte';
   import { opening, BUCKETS, type Bucket, type OpeningRow, type OpeningStatus } from '#lib/stock/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -6,6 +7,7 @@
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   const PAGE = 20;
 
@@ -195,11 +197,10 @@
                 {@const c = cells[key(r.id, b)]}
                 <td class="p-2 text-end">
                   {#if c}
-                    <input
+                    <MoneyInput
                       class="field-control !text-end w-28 {c.state === 'error' ? '!border-[var(--color-danger-600)]' : ''}"
-                      inputmode="decimal"
-                      autocomplete="off"
-                      maxlength="16"
+                      decimals={3}
+                      pad={false}
                       aria-label="{r.name} – {t(`stock.opening.bucket.${b}`)}"
                       aria-invalid={c.state === 'error'}
                       disabled={!editable}
@@ -241,7 +242,7 @@
     <p class="text-[12.5px]">{t('stock.opening.lock.body')}</p>
     <div class="mt-3">
       <label for="start-date" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]">{t('stock.opening.lock.date')}</label>
-      <input id="start-date" type="date" class="w-full field-control" bind:value={locking.date} />
+      <DatePicker id="start-date" bind:value={locking.date} clearable={false} />
     </div>
     {#if locking.error}
       <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 mt-3 text-[12.5px] badge-danger">

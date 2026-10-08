@@ -14,6 +14,7 @@ export default {
   col: { code: 'Kode', name: 'Nama', unit: 'Satuan', category: 'Kategori', brand: 'Brand', price: 'Harga jual', stock: 'Stok', stockTotal: 'Total stok', avgCost: 'Harga Rata', lastCost: 'Harga Beli Akhir', status: 'Status' },
   stock: { display: 'Display', warehouse: 'Gudang', returns: 'Retur', none: 'Jasa, tanpa stok', negative: 'Stok minus' },
   priceOverride: 'Harga khusus cabang ini',
+  allOutlets: { expand: 'Rincian per cabang', collapse: 'Tutup rincian', outlet: 'Cabang', pricesDiffer: 'Harga berbeda antar cabang' },
   priceDefault: 'Harga default',
   active: 'Aktif',
   inactive: 'Nonaktif',

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { suppliers as api, type Supplier } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -202,11 +203,7 @@
         <i class="icon-search text-[13px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"></i>
         <input type="search" class="{inputClass} !ps-8" placeholder={t('catalog.suppliers.search')} aria-label={t('catalog.suppliers.search')} bind:value={q} maxlength="100" />
       </div>
-      <select class="field-control" aria-label={t('catalog.status')} bind:value={filter}>
-        <option value="all">{t('catalog.filter.all')}</option>
-        <option value="active">{t('catalog.filter.active')}</option>
-        <option value="inactive">{t('catalog.filter.inactive')}</option>
-      </select>
+      <Select class="!w-auto min-w-40" ariaLabel={t('catalog.status')} bind:value={filter} options={[{ value: 'all', label: t('catalog.filter.all') }, { value: 'active', label: t('catalog.filter.active') }, { value: 'inactive', label: t('catalog.filter.inactive') }]} />
     </div>
 
     <div class="overflow-x-auto scroll-thin">
