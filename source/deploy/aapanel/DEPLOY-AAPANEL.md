@@ -1,0 +1,96 @@
+# Deploy ACIRABA di aaPanel (VPS sendiri)
+
+Domain: **web** `arus.erayadigital.co.id` · **API** `api.arus.erayadigital.co.id`
+(dua nama di bawah satu domain induk = *same-site*, jadi cookie refresh `SameSite=Lax` berfungsi.)
+
+```
+Browser ──https──► nginx aaPanel ─┬─ arus.…     → file statis /www/wwwroot/arus/web
+                                  └─ api.arus.… → 127.0.0.1:8080 (binary Go, Supervisor)
+                                                   ├─ 127.0.0.1:5433 Postgres 16 (Docker)
+                                                   └─ 127.0.0.1:6380 Redis 7 (Docker)
+```
+
+## 0. Prasyarat (sekali)
+- DNS: record **A** `arus` dan `api.arus` (di zona `erayadigital.co.id`) → IP VPS. Tunggu propagasi sebelum minta SSL.
+- aaPanel App Store: pasang **Nginx**, **Docker** (Docker Manager), **Supervisor**. PostgreSQL/Redis bawaan aaPanel **tidak dipakai**.
+- Firewall (aaPanel + panel penyedia VPS): buka hanya 80, 443, SSH, dan port panel. **Jangan buka 5433/6380.**
+- SMTP: siapkan akun pengirim (SPF/DKIM untuk `erayadigital.co.id`); API menolak start tanpa `SMTP_HOST`.
+- Di server: `apt install -y rsync` bila belum ada, dan pasang goose:
+  ```bash
+  curl -fsSL https://github.com/pressly/goose/releases/latest/download/goose_linux_x86_64 -o /usr/local/bin/goose && chmod +x /usr/local/bin/goose
+  ```
+
+## 1. Struktur folder
+```bash
+mkdir -p /www/wwwroot/arus/{api,web,deploy,data/uploads,backups}
+chown -R www:www /www/wwwroot/arus/{api,web,data}
+```
+Salin folder `source/deploy/` repo ke `/www/wwwroot/arus/deploy/` (compose, initdb, aapanel/).
+
+## 2. Postgres + Redis (Docker)
+```bash
+cd /www/wwwroot/arus/deploy
+cp .env.example .env && nano .env      # semua password: openssl rand -hex 24 ; POSTGRES_PORT=5433 REDIS_PORT=6380
+chmod 600 .env
+docker compose --env-file .env up -d
+docker ps                              # aciraba_postgres & aciraba_redis healthy
+ss -tlnp | grep -E '5433|6380'         # harus 127.0.0.1, bukan 0.0.0.0
+```
+`POSTGRES_APP_PASSWORD` hanya dipakai saat volume pertama kali dibuat; mengubahnya kemudian butuh `ALTER ROLE aciraba_app PASSWORD '…'`.
+
+## 3. Konfigurasi API
+```bash
+cp /www/wwwroot/arus/deploy/aapanel/env.production.example /www/wwwroot/arus/api/.env
+nano /www/wwwroot/arus/api/.env        # isi password (sama dengan deploy/.env), JWT_SECRET, SMTP, PLATFORM_SETUP_TOKEN
+chmod 600 /www/wwwroot/arus/api/.env && chown www:www /www/wwwroot/arus/api/.env
+```
+
+## 4. Rilis pertama (build di laptop)
+PowerShell, dari `source/deploy/aapanel`: `.\build-release.ps1` → `release.tar.gz`.
+Unggah ke server (SCP/SFTP/File aaPanel), lalu **pertama kali** jalankan update.sh (ia melakukan migrasi, memasang binary & web; restart akan gagal karena Supervisor belum dibuat — wajar, lanjut langkah 5):
+```bash
+RESTART_CMD=true bash /www/wwwroot/arus/deploy/aapanel/update.sh /root/release.tar.gz
+```
+(`pg_dump` pertama tetap jalan di DB kosong; tak masalah.)
+
+## 5. Jalankan API via Supervisor
+aaPanel → App Store → Supervisor → **Add daemon**:
+| Field | Nilai |
+|---|---|
+| Name | `arus-api` |
+| Run user | `www` |
+| Run directory | `/www/wwwroot/arus/api` |
+| Start command | `/www/wwwroot/arus/api/aciraba-api` |
+| Process count | 1 |
+
+Cek log: tidak ada `konfigurasi tidak valid`. Tes: `curl http://127.0.0.1:8080/healthz` → 200 (db & redis ok).
+Bila nama proses/perintah restart di aaPanel-mu berbeda, set `RESTART_CMD` saat menjalankan update.sh (default `supervisorctl restart arus-api`).
+
+## 6. Situs di aaPanel
+1. **Website → Add site** `api.arus.erayadigital.co.id` (PHP: static/pure) → **SSL → Let's Encrypt** → Force HTTPS. Lalu *Config*: tempel isi `nginx-api.conf` di dalam blok `server { }`.
+2. **Add site** `arus.erayadigital.co.id`, root `/www/wwwroot/arus/web` → SSL + Force HTTPS → *Config*: tempel `nginx-web.conf`.
+3. Uji: `https://api.arus.erayadigital.co.id/healthz` dan buka `https://arus.erayadigital.co.id/login`; reload di `/items` (setelah login) tidak boleh 404.
+
+## 7. Admin platform pertama
+Buka `https://arus.erayadigital.co.id/platform/setup`, masukkan `PLATFORM_SETUP_TOKEN`, buat admin, daftarkan 2FA (wajib).
+Lalu **hapus baris `PLATFORM_SETUP_TOKEN` dari `.env` dan restart API.**
+
+## 8. Backup (cron aaPanel → Shell Script, harian)
+`bash /www/wwwroot/arus/deploy/aapanel/backup.sh` → `/www/wwwroot/arus/backups` (DB + unggahan, simpan 14 hari).
+Wajib: kirim folder itu ke penyimpanan **di luar VPS** (aaPanel Cloud Storage/rclone). **Uji restore sekali** sebelum toko pertama go-live:
+`docker exec -i aciraba_postgres pg_restore -U aciraba -d <db_uji> --no-owner < db-YYYY-MM-DD.dump`.
+
+## 9. Update rilis berikutnya
+`.\build-release.ps1` → unggah → `bash …/update.sh /root/release.tar.gz`.
+Urutannya sudah: backup → migrasi → ganti binary → ganti web → restart → cek `/healthz`.
+Mundur: migrasi bersifat maju-saja. Bila rilis bermasalah, kembalikan binary (`aciraba-api.prev`) **hanya** bila migrasi rilis itu kompatibel; kalau tidak, restore dump `pre-update-*.dump`.
+
+## Pemecahan masalah
+| Gejala | Penyebab umum |
+|---|---|
+| Login berhasil lalu langsung keluar / refresh 401 | Web & API bukan satu domain induk; atau `CORS_ORIGINS`/`APP_BASE_URL` tak persis `https://arus.erayadigital.co.id` (tanpa slash akhir) |
+| Unggah gambar gagal 413 | `client_max_body_size 12m` belum dipasang di situs API |
+| Semua pengguna terlihat dari IP server (rate limit/lockout salah sasaran) | `TRUST_PROXY=true` belum diset, atau header `X-Forwarded-For` tak diteruskan nginx |
+| API tak mau start | Lihat log Supervisor: biasanya `SMTP_HOST` kosong, `JWT_SECRET` < 32 karakter, `APP_BASE_URL` bukan https |
+| PIN penyetuju/2FA mendadak tak valid | `JWT_SECRET` berubah |
+| Gambar tak tampil / hilang setelah update | `UPLOAD_DIR` ada di dalam folder yang ditimpa; harus `/www/wwwroot/arus/data/uploads` |
