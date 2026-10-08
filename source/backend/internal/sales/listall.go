@@ -62,6 +62,7 @@ type AllRow struct {
 	Member    string    `json:"member,omitempty"`
 	Salesman  string    `json:"salesperson,omitempty"`
 	LineCount int       `json:"line_count"`
+	Revision  int       `json:"revision"` // 1 = asli; >1 = hasil edit (nomor berakhiran -R<n>)
 
 	Subtotal string `json:"subtotal"` // Σ baris setelah potongan baris
 	// Rincian potongan: LineDiscount (per baris, sudah ada di Subtotal) + Discount (potongan di tingkat nota) =
@@ -273,7 +274,7 @@ func allRow(r gen.SalesListAllRow, canCost bool) AllRow {
 	}
 	row := AllRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time,
 		Outlet:  OutletRef{ID: r.OutletID, Code: r.OutletCode, Name: r.OutletName},
-		Cashier: r.CashierName, Member: r.MemberName, Salesman: r.SalespersonName, LineCount: int(r.LineCount),
+		Cashier: r.CashierName, Member: r.MemberName, Salesman: r.SalespersonName, LineCount: int(r.LineCount), Revision: int(r.Revision),
 		Subtotal: r.Subtotal.StringFixed(2), LineDiscount: r.LineDiscount.StringFixed(2), Discount: r.Discount.StringFixed(2),
 		ManualDiscount: manual.StringFixed(2), VoucherAmount: r.VoucherAmount.StringFixed(2), VoucherCodes: codes,
 		RedeemAmount: r.RedeemAmount.StringFixed(2), PointsRedeemed: int(r.PointsRedeemed), PointsEarned: int(r.PointsEarned),

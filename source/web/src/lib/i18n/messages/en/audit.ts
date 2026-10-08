@@ -40,6 +40,9 @@ const audit: Messages['audit'] = {
     stock_convert: 'Unit conversion of stock',
     sale_price_override: 'Price changed at register (PIN-approved)',
     sale_line_discount: 'Line discount at register (PIN-approved)',
+    sale_edit: 'Edited a receipt (new revision)',
+    sale_superseded: 'Receipt replaced by a revision',
+    sale_void: 'Voided a receipt',
     role_create: 'Added a role',
     role_update: 'Edited a role',
     role_delete: 'Deleted a role',
@@ -82,7 +85,8 @@ const audit: Messages['audit'] = {
     member_level_update: 'Changed a member level',
     member_level_active: 'Changed member level status',
     platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
-    platform_tenant_status: 'Platform Admin changed the tenant status'
+    platform_tenant_status: 'Platform Admin changed the tenant status',
+    platform_tenant_edit_window: 'Platform Admin changed the receipt edit window'
   }
 };
 

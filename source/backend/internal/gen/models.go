@@ -282,6 +282,16 @@ type Sale struct {
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
 	SalespersonID  pgtype.UUID
+	RootID         pgtype.UUID
+	Revision       int32
+	SupersedesID   pgtype.UUID
+	SupersededBy   pgtype.UUID
+	RevisionReason pgtype.Text
+	RevisedAt      pgtype.Timestamptz
+	RevisedBy      pgtype.UUID
+	VoidReason     pgtype.Text
+	VoidedAt       pgtype.Timestamptz
+	VoidedBy       pgtype.UUID
 }
 
 type SaleCost struct {
@@ -428,6 +438,7 @@ type Tenant struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	OnboardingCompletedAt pgtype.Timestamptz
+	SaleEditWindowDays    int32
 }
 
 type Unit struct {

@@ -11,6 +11,8 @@ export type NavItem = {
   labelKey: MessageKey;
   icon: string; // nama ikon lucide (class `icon-*` dari template)
   module?: string;
+  /** Alternatif izin: item juga tampil bila pengguna punya salah satu modul ini. */
+  anyOf?: string[];
   href?: string;
   children?: NavChild[];
 };
@@ -123,7 +125,7 @@ export const nav: NavGroup[] = [
     items: [
       { id: 'users', labelKey: 'nav.users', icon: 'users', module: 'users', href: '/users' },
       { id: 'roles', labelKey: 'nav.roles', icon: 'shield-check', module: 'roles', href: '/roles' },
-      { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', href: '/pin' },
+      { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', anyOf: ['outlet_switch', 'sale_edit'], href: '/pin' },
       { id: 'outlets', labelKey: 'nav.outlets', icon: 'store', module: 'outlets', href: '/outlets' },
       { id: 'auditLog', labelKey: 'nav.auditLog', icon: 'history', module: 'audit_log', href: '/audit-log' }
     ]
@@ -143,7 +145,7 @@ export function visibleNav(allowed: (module: string) => boolean): NavGroup[] {
         const children = item.children.filter((c) => !c.module || allowed(c.module));
         if (children.length) items.push({ ...item, children });
         else if (item.module && allowed(item.module)) items.push({ ...item, children: undefined });
-      } else if (item.id === 'dashboard' || (item.module && allowed(item.module))) {
+      } else if (item.id === 'dashboard' || (item.module && allowed(item.module)) || item.anyOf?.some(allowed)) {
         items.push(item);
       }
     }

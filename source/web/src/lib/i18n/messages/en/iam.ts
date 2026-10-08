@@ -19,6 +19,7 @@ const iam: Messages['iam'] = {
     sales_orders: 'Sales Orders',
     price_override: 'Approve Price Changes (PIN)',
     outlet_switch: 'Approve Outlet Switch (PIN)',
+    sale_edit: 'Approve Receipt Edit/Void (PIN)',
     pos_only: 'Cashier Only (locked to the register screen)',
     sales_returns: 'Sales Returns',
     sales_list: 'Sales List',

@@ -38,6 +38,9 @@ export default {
     stock_convert: 'Pecah satuan stok',
     sale_price_override: 'Ubah harga di kasir (disetujui PIN)',
     sale_line_discount: 'Potongan harga di kasir (disetujui PIN)',
+    sale_edit: 'Mengedit nota (revisi baru)',
+    sale_superseded: 'Nota digantikan revisi',
+    sale_void: 'Membatalkan nota',
     role_create: 'Menambah role',
     role_update: 'Mengubah role',
     role_delete: 'Menghapus role',
@@ -80,6 +83,7 @@ export default {
     member_level_update: 'Mengubah level member',
     member_level_active: 'Mengubah status level member',
     platform_impersonate: 'Platform Admin melihat data tenant (hanya-baca)',
-    platform_tenant_status: 'Platform Admin mengubah status tenant'
+    platform_tenant_status: 'Platform Admin mengubah status tenant',
+    platform_tenant_edit_window: 'Platform Admin mengubah batas waktu edit nota'
   }
 };
