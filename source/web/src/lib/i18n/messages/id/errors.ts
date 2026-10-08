@@ -104,4 +104,9 @@ export default {
   FIELD_KIND_LOCKED: 'Jenis metode tidak dapat diubah.',
   FIELD_CASH_NO_FEE: 'Tunai tidak dapat dikenai biaya.',
   FIELD_METHOD_INACTIVE: 'Metode pembayaran ini sudah diarsipkan.',
+  CREDIT_LIMIT_EXCEEDED: 'Piutang member melewati limit kredit. Butuh persetujuan Owner/Supervisor (PIN).',
+  RECEIVABLE_PAID: 'Piutang nota ini sudah dibayar sebagian atau seluruhnya, sehingga nota tidak dapat diubah atau dibatalkan.',
+  FIELD_CREDIT_NOT_NEEDED: 'Pembayaran sudah menutup total. Pakai mode Tunai/Non-tunai, bukan Kredit.',
+  FIELD_OVERPAID: 'Jumlah melebihi sisa piutang.',
+  FIELD_SETTLED: 'Piutang ini sudah lunas.',
 };

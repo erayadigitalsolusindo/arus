@@ -34,10 +34,10 @@ RETURNING last_no;
 -- name: SalesInsert :one
 -- DO NOTHING pada kunci idempotensi: pengiriman ulang tidak membuat nota ganda (pemanggil lalu membaca nota lama).
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
-        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge,
+        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge, @receivable,
         sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'))
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at;
@@ -66,7 +66,7 @@ ORDER BY is_system DESC, created_at, id LIMIT 1;
 
 -- name: SalesGet :one
 SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.tax_store_pct, s.tax_gov_pct,
-       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.surcharge, s.created_at,
+       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.surcharge, s.receivable, s.created_at,
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
@@ -90,13 +90,14 @@ SELECT method, method_id, method_name, amount, ref_no, fee_pct, fee_amount, fee_
 SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2;
 
 -- name: SalesList :many
-SELECT s.id, s.doc_no, s.status, s.total, s.paid, s.created_at,
+SELECT s.id, s.doc_no, s.status, s.total, s.surcharge, s.receivable, s.paid, s.created_at,
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
        (SELECT count(*) FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id)::int AS line_count,
        -- Per METODE (id + nama sekarang + jenis). Tunai dihitung bersih (diterima - kembalian); metode lain apa adanya.
        coalesce((SELECT jsonb_agg(jsonb_build_object('id', m.method_id, 'name', m.name, 'kind', m.method, 'amount', m.amt) ORDER BY (m.method <> 'cash'), m.name)
-                 FROM (SELECT p.method_id, pm.name, p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                 -- amt = uang yang masuk lewat metode itu: termasuk biaya yang ditagihkan ke pelanggan (fee_bearer = customer).
+                 FROM (SELECT p.method_id, pm.name, p.method, sum(p.amount) + coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'customer'), 0) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
                        FROM sale_payments p JOIN payment_methods pm ON pm.tenant_id = p.tenant_id AND pm.id = p.method_id
                        WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method_id, pm.name, p.method) m), '[]'::jsonb)::text AS pay_amounts
 FROM sales s
@@ -127,7 +128,7 @@ SELECT s.id, s.doc_no, s.status, s.created_at, s.revision, s.outlet_id, o.code A
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
        coalesce(sp.name, '')::text AS salesperson_name,
-       s.subtotal, s.discount, s.tax_store, s.tax_gov, s.other_cost, s.total, s.change,
+       s.subtotal, s.discount, s.tax_store, s.tax_gov, s.other_cost, s.total, s.change, s.receivable,
        s.points_earned, s.points_redeemed, s.redeem_amount,
        lc.line_count, lc.line_discount, lc.cost, lc.override_count,
        vc.voucher_amount, vc.voucher_codes,
@@ -167,6 +168,7 @@ LIMIT @page_limit;
 SELECT count(*)::int AS sale_count,
        (count(*) FILTER (WHERE s.status = 'completed'))::int AS completed_count,
        coalesce(sum(s.total) FILTER (WHERE s.status = 'completed'), 0)::numeric AS total,
+       coalesce(sum(s.receivable) FILTER (WHERE s.status = 'completed'), 0)::numeric AS receivable,
        coalesce(sum(s.discount + lc.line_discount) FILTER (WHERE s.status = 'completed'), 0)::numeric AS discount,
        coalesce(sum(lc.cost) FILTER (WHERE s.status = 'completed'), 0)::numeric AS cost,
        coalesce(sum(s.subtotal - s.discount) FILTER (WHERE s.status = 'completed'), 0)::numeric AS net_sales
@@ -282,11 +284,11 @@ SELECT voucher_id FROM sale_vouchers WHERE tenant_id = @tenant_id AND sale_id = 
 -- Revisi nota (hasil edit): sama dengan SalesInsert + tautan ke nota yang digantikan. created_at dibawa dari nota asli
 -- (tanggal bisnis tidak bergeser), revised_at = saat edit.
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
-                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
                    member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
                    created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
-        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge,
+        @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge, @receivable,
         sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'),
         @created_at, @root_id, @revision, @supersedes_id, @revision_reason, now(), @revised_by)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING

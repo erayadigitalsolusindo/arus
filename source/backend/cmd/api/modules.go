@@ -24,6 +24,7 @@ import (
 	"aciraba/internal/platform/storage"
 	"aciraba/internal/platformadmin"
 	"aciraba/internal/posshortcut"
+	"aciraba/internal/receivable"
 	"aciraba/internal/sales"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
@@ -87,6 +88,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
+	receivable.NewHandler(receivable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	paymentmethod.NewHandler(paymentmethod.NewService(d.Pool), perms, tokens, d.Log).Routes(r)

@@ -108,11 +108,16 @@ const ModuleOutletSwitch = "outlet_switch"
 // ModuleSaleEdit = modul izin penyetuju edit/batal nota (PIN yang sama).
 const ModuleSaleEdit = "sale_edit"
 
-func ValidModule(m string) bool { return m == Module || m == ModuleOutletSwitch || m == ModuleSaleEdit }
+// ModuleCreditLimit = modul izin penyetuju penjualan kredit yang melewati limit piutang member (PIN yang sama).
+const ModuleCreditLimit = "credit_limit"
+
+func ValidModule(m string) bool {
+	return m == Module || m == ModuleOutletSwitch || m == ModuleSaleEdit || m == ModuleCreditLimit
+}
 
 // canApproveAny = pemegang salah satu izin penyetuju (boleh punya PIN; satu PIN untuk semua jenis persetujuan).
 func canApproveAny(p authz.Permissions) bool {
-	return p.Has(Module, authz.ActApprove) || p.Has(ModuleOutletSwitch, authz.ActApprove) || p.Has(ModuleSaleEdit, authz.ActApprove)
+	return p.Has(Module, authz.ActApprove) || p.Has(ModuleOutletSwitch, authz.ActApprove) || p.Has(ModuleSaleEdit, authz.ActApprove) || p.Has(ModuleCreditLimit, authz.ActApprove)
 }
 
 func eligible(perms []byte, outletOK bool, module string) bool {

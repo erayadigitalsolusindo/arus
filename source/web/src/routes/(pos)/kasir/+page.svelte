@@ -1283,7 +1283,7 @@
 {/if}
 
 {#if paying}
-  <PayModal total={grand} edit={editSale ? { id: editSale.id, reason: editReason.trim() } : undefined} build={() => buildSale(true, true)} lineName={(i) => cart[i]?.name ?? ''} onclose={() => (paying = false)} ondone={saleDone} />
+  <PayModal total={grand} edit={editSale ? { id: editSale.id, reason: editReason.trim() } : undefined} build={() => buildSale(true, true)} lineName={(i) => cart[i]?.name ?? ''} onclose={() => (paying = false)} ondone={saleDone} member={quote?.member ?? null} credit={quote?.credit ?? null} />
 {/if}
 
 {#if costsOpen}

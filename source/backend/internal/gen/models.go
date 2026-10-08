@@ -259,6 +259,46 @@ type Principal struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type Receivable struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	SaleID    uuid.UUID
+	MemberID  uuid.UUID
+	Amount    decimal.Decimal
+	DueDate   pgtype.Date
+	CreatedAt pgtype.Timestamptz
+}
+
+type ReceivablePayment struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ReceivableID   uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	Method         string
+	MethodID       uuid.UUID
+	MethodName     string
+	Amount         decimal.Decimal
+	RefNo          string
+	FeePct         decimal.Decimal
+	FeeFlat        decimal.Decimal
+	FeeAmount      decimal.Decimal
+	FeeBearer      string
+	Note           string
+	ReceivedBy     pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
+type ReceivablePaymentCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
 type Role struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -307,6 +347,7 @@ type Sale struct {
 	VoidedAt       pgtype.Timestamptz
 	VoidedBy       pgtype.UUID
 	Surcharge      decimal.Decimal
+	Receivable     decimal.Decimal
 }
 
 type SaleCost struct {

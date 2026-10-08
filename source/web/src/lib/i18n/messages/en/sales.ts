@@ -43,6 +43,7 @@ const sales: Messages['sales'] = {
     points: 'Redeemed {points} points',
     override: '{count} line(s) had the price changed (PIN-approved)'
   },
+  credit: 'Credit',
   summary: {
     fee: 'fee {amount}',
     surcharge: 'charged +{amount}',
@@ -60,6 +61,7 @@ const sales: Messages['sales'] = {
   showing: 'Showing {shown} of {total} receipts',
   statusSuperseded: 'Replaced by revision',
   detail: {
+    credit: { title: 'This receipt\'s receivable', amount: 'Original receivable', paid: 'Paid so far', balance: 'Remaining', due: 'Due date' },
     open: 'View receipt details',
     title: 'Receipt Details',
     actions: { edit: 'Edit receipt', void: 'Void receipt' },

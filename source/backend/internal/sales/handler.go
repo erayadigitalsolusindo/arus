@@ -100,6 +100,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var fields FieldErrors
 	var se *StockError
+	var cl *CreditLimitError
 	if approval.Fail(w, err) {
 		return
 	}
@@ -116,6 +117,10 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "IDEMPOTENCY_MISMATCH", "Idempotency-Key sudah dipakai untuk permintaan yang berbeda.")
 	case errors.Is(err, ErrOutletInactive):
 		httpx.Error(w, http.StatusConflict, "OUTLET_NOT_FOUND", "Outlet aktif tidak ditemukan atau tidak aktif.")
+	case errors.As(err, &cl):
+		httpx.Error(w, http.StatusForbidden, "CREDIT_LIMIT_EXCEEDED", "Piutang member melewati limit kredit. Butuh persetujuan Owner/Supervisor (PIN).")
+	case errors.Is(err, ErrReceivablePaid):
+		httpx.Error(w, http.StatusConflict, "RECEIVABLE_PAID", "Piutang nota ini sudah dibayar sebagian atau seluruhnya, sehingga nota tidak dapat diubah atau dibatalkan.")
 	case errors.Is(err, ErrNotEditable):
 		httpx.Error(w, http.StatusConflict, "SALE_NOT_EDITABLE", "Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).")
 	case errors.Is(err, ErrEditWindow):
