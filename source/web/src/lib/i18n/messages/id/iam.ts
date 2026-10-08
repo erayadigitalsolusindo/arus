@@ -17,6 +17,7 @@ export default {
     sales_orders: 'Pesanan Penjualan',
     price_override: 'Setujui Ubah Harga (PIN)',
     outlet_switch: 'Setujui Pindah Outlet (PIN)',
+    sale_edit: 'Setujui Edit/Batal Nota (PIN)',
     pos_only: 'Hanya Kasir (terkunci di layar kasir)',
     sales_returns: 'Retur Penjualan',
     sales_list: 'Daftar Penjualan',

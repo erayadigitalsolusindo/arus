@@ -105,7 +105,15 @@ func (s *Service) material(tenant, user uuid.UUID, pin string) string {
 const ModuleOutletSwitch = "outlet_switch"
 
 // ValidModule: hanya modul penyetuju yang dikenal yang boleh diminta lewat API.
-func ValidModule(m string) bool { return m == Module || m == ModuleOutletSwitch }
+// ModuleSaleEdit = modul izin penyetuju edit/batal nota (PIN yang sama).
+const ModuleSaleEdit = "sale_edit"
+
+func ValidModule(m string) bool { return m == Module || m == ModuleOutletSwitch || m == ModuleSaleEdit }
+
+// canApproveAny = pemegang salah satu izin penyetuju (boleh punya PIN; satu PIN untuk semua jenis persetujuan).
+func canApproveAny(p authz.Permissions) bool {
+	return p.Has(Module, authz.ActApprove) || p.Has(ModuleOutletSwitch, authz.ActApprove) || p.Has(ModuleSaleEdit, authz.ActApprove)
+}
 
 func eligible(perms []byte, outletOK bool, module string) bool {
 	return outletOK && authz.ParseStored(perms).Has(module, authz.ActApprove)
@@ -207,7 +215,7 @@ func (s *Service) PinStatus(ctx context.Context, a authz.Actor) (hasPin, canAppr
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		r, e := gen.New(tx).ApprovalSelf(ctx, gen.ApprovalSelfParams{TenantID: a.TenantID, ID: a.UserID})
 		perms := authz.ParseStored(r.Permissions)
-		hasPin, canApprove = r.HasPin, perms.Has(Module, authz.ActApprove) || perms.Has(ModuleOutletSwitch, authz.ActApprove)
+		hasPin, canApprove = r.HasPin, canApproveAny(perms)
 		return e
 	})
 	return
@@ -232,7 +240,7 @@ func (s *Service) SetPin(ctx context.Context, a authz.Actor, password, pin strin
 		if err != nil {
 			return err
 		}
-		if perms := authz.ParseStored(self.Permissions); !perms.Has(Module, authz.ActApprove) && !perms.Has(ModuleOutletSwitch, authz.ActApprove) {
+		if !canApproveAny(authz.ParseStored(self.Permissions)) {
 			return ErrForbidden
 		}
 		if ok, _ := pauth.VerifyPassword(password, self.PasswordHash); !ok {

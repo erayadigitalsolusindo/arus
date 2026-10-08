@@ -34,7 +34,8 @@ export type Sale = {
   cashier: string;
   created_at: string;
   note: string;
-  lines: { item_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; discount: string; line_total: string }[];
+  outlet_id: string;
+  lines: { item_id: string; unit_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; list_price?: string; price_override?: boolean; discount: string; line_total: string }[];
   payments: { method: PayMethod; amount: string; ref_no: string }[];
   subtotal: string;
   discount: string;
@@ -51,6 +52,16 @@ export type Sale = {
   vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
   /** Rincian biaya lain-lain (kosong bila nota hanya punya satu angka); other_cost tetap totalnya. */
   other_costs: { name: string; amount: string }[];
+  tax_store_pct: string;
+  tax_gov_pct: string;
+  salesperson?: { id: string; name: string };
+  /** Edit/batal: revision 1 = asli; superseded_by terisi = sudah digantikan revisi; root_id = nota asli rantai. */
+  revision: number;
+  root_id: string;
+  supersedes_id?: string;
+  superseded_by?: string;
+  revision_reason?: string;
+  void_reason?: string;
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
@@ -98,6 +109,7 @@ export type SaleAllRow = {
   member?: string;
   salesperson?: string;
   line_count: number;
+  revision: number;
   subtotal: string;
   line_discount: string;
   discount: string;
@@ -155,11 +167,22 @@ export type SaleDetail = Omit<Sale, 'lines'> & {
   base_qty_total: string;
   stock: SaleStockMove[];
   events: SaleEvent[];
+  /** Seluruh versi nota (asli + revisi), urut revisi. */
+  revisions: { id: string; doc_no: string; revision: number; status: 'completed' | 'void' | 'superseded'; created_at: string; revised_at?: string; total: string; reason?: string }[];
   cost?: string;
   profit?: string;
 };
 
+export type Approval = { user_id: string; pin: string };
+
 export const sales = {
+  /** Edit nota = revisi baru (nomor sama + -R2…). Idempotency-Key per percobaan simpan, seperti nota baru. */
+  edit: (id: string, input: SaleInput & { reason: string }, idempotencyKey: string) =>
+    api<Sale>(`/sales/${id}`, { method: 'PUT', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  /** Pratinjau hitung untuk edit: dampak nota lama diperhitungkan, harga baris lama dipertahankan; tidak menyimpan apa pun. */
+  quoteEdit: (id: string, input: Omit<SaleInput, 'payments'>) => api<Quote>(`/sales/${id}/quote`, { method: 'POST', body: JSON.stringify(input) }),
+  /** Batalkan nota (alasan + PIN penyetuju); stok, poin, dan kupon dibalik. */
+  void: (id: string, input: { reason: string; approval: Approval }) => api<Sale>(`/sales/${id}/void`, { method: 'POST', body: JSON.stringify(input) }),
   detail: (id: string) => api<SaleDetail>(`/sales/${id}/detail`),
   listAll: (p: SaleAllParams) => {
     const qs = new URLSearchParams();

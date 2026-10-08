@@ -32,7 +32,9 @@ const sales: Messages['sales'] = {
     line: 'Per line',
     points: 'Points',
     override: 'Price changed',
-    voidDoc: 'Voided'
+    voidDoc: 'Voided',
+    revised: 'Rev. {n}',
+    revisedTip: 'Edited — this is revision {n}'
   },
   tip: {
     manual: 'Manual receipt-level discount',
@@ -54,9 +56,34 @@ const sales: Messages['sales'] = {
     margin: 'Margin {pct}%'
   },
   showing: 'Showing {shown} of {total} receipts',
+  statusSuperseded: 'Replaced by revision',
   detail: {
     open: 'View receipt details',
     title: 'Receipt Details',
+    actions: { edit: 'Edit receipt', void: 'Void receipt' },
+    revisions: {
+      title: 'Revision history',
+      original: 'Original',
+      current: 'Current version',
+      superseded: 'Replaced',
+      voided: 'Voided',
+      open: 'Open this version',
+      reason: 'Reason',
+      replacedBy: 'Replaced by a revision — open the current version for the latest contents.'
+    },
+    void: {
+      title: 'Void receipt {docNo}',
+      hint: 'Stock, points and coupons of this receipt are returned. The receipt stays on record as Voided and cannot be restored.',
+      reason: 'Reason for voiding',
+      reasonPlaceholder: 'e.g. customer cancelled (min. 3 characters)',
+      approver: 'Approver',
+      approverPlaceholder: 'Choose an approver',
+      pin: 'Approver PIN (6 digits)',
+      noApprover: 'No approver for this receipt’s outlet yet.',
+      confirm: 'Void receipt',
+      cancel: 'Back',
+      working: 'Voiding…'
+    },
     loadFailed: 'Could not load the receipt details.',
     tabs: { items: 'Items', discounts: 'Discounts', payments: 'Payments', stock: 'Stock', history: 'History' },
     info: { time: 'Time', outlet: 'Outlet', cashier: 'Cashier', member: 'Member', salesperson: 'Salesperson', approvedBy: 'Approved by', note: 'Receipt note' },

@@ -211,6 +211,13 @@ type Sale struct {
 	Vouchers       []VoucherInfo    `json:"vouchers"`
 	// OtherCosts = rincian biaya lain-lain (kosong untuk nota tanpa rincian; OtherCost tetap totalnya).
 	OtherCosts []CostInfo `json:"other_costs"`
+	// Revisi/batal: Revision 1 = nota asli; RootID = nota asli rantai; SupersededBy terisi bila sudah digantikan revisi.
+	Revision       int        `json:"revision"`
+	RootID         uuid.UUID  `json:"root_id"`
+	SupersedesID   *uuid.UUID `json:"supersedes_id,omitempty"`
+	SupersededBy   *uuid.UUID `json:"superseded_by,omitempty"`
+	RevisionReason string     `json:"revision_reason,omitempty"`
+	VoidReason     string     `json:"void_reason,omitempty"`
 }
 
 // CostInfo = satu baris rincian biaya lain-lain pada nota.
@@ -301,6 +308,9 @@ type norm struct {
 	redeem      int
 	salesperson *uuid.UUID
 	vouchers    []string // kode kupon (HURUF BESAR, tanpa duplikat)
+	// keep (hanya edit nota): baris nota asli per item|satuan. Baris yang cocok mempertahankan harga, harga normal, dan HPP
+	// saat transaksi awal (tidak dihitung ulang dari master); hanya baris baru yang memakai harga/HPP sekarang.
+	keep map[string][]gen.SalesLinesRow
 }
 
 func normalize(in Request) (norm, FieldErrors) {
@@ -519,6 +529,8 @@ type calcLine struct {
 	available  string
 	listPrice  dec
 	overridden bool
+	keptPrice  bool // harga ubahan dari nota asli (sudah disetujui dulu): tidak butuh PIN lagi
+	keptDisc   bool // potongan baris sama dengan nota asli: tidak butuh PIN lagi
 }
 
 type totals struct {
@@ -607,6 +619,7 @@ func price(n norm, infos map[uuid.UUID]*itemInfo, taxStorePct, taxGovPct dec) ([
 
 	// Pass 2: harga, potongan, HPP.
 	var t totals
+	keep := cloneKeep(n.keep)
 	for i := range lines {
 		k := fmt.Sprintf("lines.%d.", i)
 		cl := &lines[i]
@@ -630,6 +643,15 @@ func price(n norm, infos map[uuid.UUID]*itemInfo, taxStorePct, taxGovPct dec) ([
 			cl.unitPrice, cl.overridden = *ov, true
 		}
 		cl.unitCost = info.row.AvgCost.Mul(cl.factor).Round(2)
+		if k := popKeep(keep, info.row.ID, cl.unitID); k != nil {
+			// Baris yang sudah ada di nota asli: harga, harga normal, dan HPP dipertahankan.
+			cl.listPrice, cl.unitCost = k.ListPrice, k.UnitCost
+			cl.unitPrice, cl.overridden, cl.keptPrice = k.UnitPrice, k.PriceOverride, true
+			if ov := n.lines[i].override; ov != nil && !ov.Equal(k.UnitPrice) {
+				cl.unitPrice, cl.overridden, cl.keptPrice = *ov, !ov.Equal(cl.listPrice), false
+			}
+			cl.keptDisc = cl.discount.Equal(k.Discount)
+		}
 		gross := cl.unitPrice.Mul(cl.qty).Round(2)
 		if cl.discount.GreaterThan(gross) {
 			f[k+"discount"] = codeDiscountOver
@@ -717,195 +739,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 	h := n.hash()
 
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		q := gen.New(tx)
-		if ex, err := q.SalesByIdemKey(ctx, gen.SalesByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key}); err == nil {
-			if ex.RequestHash != h {
-				return ErrKeyMismatch
-			}
-			return replay{ex.ID}
-		} else if !errors.Is(err, pgx.ErrNoRows) {
-			return err
-		}
-
-		out, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !out.Active) {
-			return ErrOutletInactive
-		}
-		if err != nil {
-			return err
-		}
-
-		idSet := map[uuid.UUID]bool{}
-		var ids []uuid.UUID
-		for _, l := range n.lines {
-			if !idSet[l.in.ItemID] {
-				idSet[l.in.ItemID] = true
-				ids = append(ids, l.in.ItemID)
-			}
-		}
-		infos, err := s.loadInfo(ctx, q, a, ids)
-		if err != nil {
-			return err
-		}
-		lines, t, fe := price(n, infos, out.TaxStorePct, out.TaxGovPct)
-		if len(fe) > 0 {
-			return fe
-		}
-		vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
-		if err != nil {
-			return err
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
-		if err != nil {
-			return err
-		}
-		if n.salesperson != nil {
-			sp, err := q.SalesSalespersonState(ctx, gen.SalesSalespersonStateParams{TenantID: a.TenantID, ID: *n.salesperson})
-			if errors.Is(err, pgx.ErrNoRows) {
-				return FieldErrors{"salesperson_id": sanitize.Invalid}
-			}
-			if err != nil {
-				return err
-			}
-			if !sp.Active {
-				return FieldErrors{"salesperson_id": codeSalespersonInactive}
-			}
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		for i, l := range lines {
-			if l.issue == codeBelowCost {
-				return FieldErrors{fmt.Sprintf("lines.%d.item_id", i): codeBelowCost}
-			}
-		}
-		var approver approval.Approver
-		overrides := overriddenLines(lines)
-		discounted := discountedLines(lines)
-		if len(overrides) > 0 || len(discounted) > 0 {
-			if s.approvals == nil || in.Approval == nil {
-				return approval.ErrPinRequired
-			}
-			if approver, err = s.approvals.Verify(ctx, tx, a, in.Approval.UserID, in.Approval.PIN); err != nil {
-				return err
-			}
-		}
-		if t, fe = settle(n, t); len(fe) > 0 {
-			return fe
-		}
-
-		no, err := q.SalesNextNo(ctx, gen.SalesNextNoParams{TenantID: a.TenantID, OutletID: a.OutletID, Day: out.LocalDay})
-		if err != nil {
-			return err
-		}
-		docNo := fmt.Sprintf("%s-%s-%04d", strings.ToUpper(out.Code), out.LocalDay.Time.Format("060102"), no)
-
-		hdr, err := q.SalesInsert(ctx, gen.SalesInsertParams{
-			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
-			CashierID: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}, ApprovedBy: pgtype.UUID{Bytes: approver.ID, Valid: approver.ID != uuid.Nil}, Note: n.note,
-			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
-			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
-			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
-			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
-		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tidak terpakai) lalu kembalikan nota itu.
-			ex, e2 := q.SalesByIdemKey(ctx, gen.SalesByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key})
-			if e2 != nil {
-				return e2
-			}
-			if ex.RequestHash != h {
-				return ErrKeyMismatch
-			}
-			return replay{ex.ID}
-		}
-		if err != nil {
-			return err
-		}
-
-		var moves []stock.Movement
-		for i, l := range lines {
-			if err := q.SalesLineInsert(ctx, gen.SalesLineInsertParams{
-				TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1), ItemID: l.item.row.ID, Sku: l.item.row.Sku,
-				Name: l.item.row.Name, UnitID: l.unitID, UnitName: l.unitName, Factor: l.factor, Qty: l.qty,
-				UnitPrice: l.unitPrice, UnitCost: l.unitCost, Discount: l.discount, LineTotal: l.total, Note: l.note,
-				ListPrice: l.listPrice, PriceOverride: l.overridden,
-			}); err != nil {
-				return err
-			}
-			if l.item.row.Kind == "goods" {
-				moves = append(moves, stock.Movement{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: l.item.row.ID,
-					Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID})
-			}
-		}
-		for i, oc := range n.costs {
-			if err := q.SalesCostInsert(ctx, gen.SalesCostInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1), Name: oc.name, Amount: oc.amount}); err != nil {
-				return err
-			}
-		}
-		for i, p := range n.payments {
-			if err := q.SalesPaymentInsert(ctx, gen.SalesPaymentInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1),
-				Method: p.method, Amount: p.amount, RefNo: p.refNo}); err != nil {
-				return err
-			}
-		}
-		if mc.sm != nil {
-			if err := member.ApplySale(ctx, tx, a, mc.sm.ID, hdr.ID, docNo, n.redeemApplied(mc), mc.earn); err != nil {
-				return err
-			}
-		}
-		for i, v := range vc.applied {
-			if err := q.SalesVoucherInsert(ctx, gen.SalesVoucherInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, VoucherID: v.ID, Position: int32(i + 1),
-				Code: v.Code, Name: v.Name, Kind: v.Kind, Value: v.Value, Amount: v.Amount}); err != nil {
-				return err
-			}
-			if err := voucher.Consume(ctx, tx, a.TenantID, v.ID); err != nil {
-				return err
-			}
-		}
-		moves = mergeMoves(moves)
-		if _, err := stock.ApplyAll(ctx, tx, moves); err != nil {
-			var ins *stock.InsufficientError
-			if errors.As(err, &ins) {
-				if info := infos[ins.ItemID]; info != nil {
-					return &StockError{ItemID: ins.ItemID, SKU: info.row.Sku, Name: info.row.Name}
-				}
-			}
-			return err
-		}
-		if len(overrides) > 0 {
-			items := make([]map[string]string, 0, len(overrides))
-			for _, l := range overrides {
-				items = append(items, map[string]string{"sku": l.item.row.Sku, "list_price": l.listPrice.String(), "price": l.unitPrice.String()})
-			}
-			if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
-				Action: audit.ActionSalePriceOverride, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
-				Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
-			}); err != nil {
-				return err
-			}
-		}
-		if len(discounted) > 0 {
-			items := make([]map[string]string, 0, len(discounted))
-			for _, l := range discounted {
-				items = append(items, map[string]string{"sku": l.item.row.Sku, "price": l.unitPrice.String(), "qty": l.qty.String(), "discount": l.discount.String()})
-			}
-			if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
-				Action: audit.ActionSaleLineDiscount, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
-				Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
-			}); err != nil {
-				return err
-			}
-		}
-		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
-			Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
-			Details: map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "lines": len(lines),
-				"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String(),
-				"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc), "vouchers": vc.codes()},
-		})
+		return s.save(ctx, tx, a, n, key, h, in.Approval, nil)
 	})
 	var rp replay
 	if errors.As(err, &rp) {
@@ -927,6 +761,263 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 	}
 	sale, err = s.Get(ctx, a, id)
 	return sale, false, err
+}
+
+// save menyimpan satu nota di dalam transaksi pemanggil: hitung harga/kupon/member, nomor, header, baris, pembayaran,
+// stok, poin, kupon, dan audit. ed != nil = revisi hasil edit (nota lama sudah dibalik dampaknya oleh pemanggil).
+func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, key, h string, approvalIn *ApprovalIn, ed *editCtx) error {
+	q := gen.New(tx)
+	if ex, err := q.SalesByIdemKey(ctx, gen.SalesByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key}); err == nil {
+		if ex.RequestHash != h {
+			return ErrKeyMismatch
+		}
+		return replay{ex.ID}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+
+	out, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !out.Active) {
+		return ErrOutletInactive
+	}
+	if err != nil {
+		return err
+	}
+
+	day := out.LocalDay // hari bisnis untuk kupon/member; revisi memakai hari nota asli
+	if ed != nil {
+		day = ed.localDay
+	}
+
+	idSet := map[uuid.UUID]bool{}
+	var ids []uuid.UUID
+	for _, l := range n.lines {
+		if !idSet[l.in.ItemID] {
+			idSet[l.in.ItemID] = true
+			ids = append(ids, l.in.ItemID)
+		}
+	}
+	infos, err := s.loadInfo(ctx, q, a, ids)
+	if err != nil {
+		return err
+	}
+	lines, t, fe := price(n, infos, out.TaxStorePct, out.TaxGovPct)
+	if len(fe) > 0 {
+		return fe
+	}
+	vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, day, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
+	if err != nil {
+		return err
+	}
+	if len(fe) > 0 {
+		return fe
+	}
+	mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, day, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
+	if err != nil {
+		return err
+	}
+	if n.salesperson != nil {
+		sp, err := q.SalesSalespersonState(ctx, gen.SalesSalespersonStateParams{TenantID: a.TenantID, ID: *n.salesperson})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return FieldErrors{"salesperson_id": sanitize.Invalid}
+		}
+		if err != nil {
+			return err
+		}
+		if !sp.Active {
+			return FieldErrors{"salesperson_id": codeSalespersonInactive}
+		}
+	}
+	if len(fe) > 0 {
+		return fe
+	}
+	for i, l := range lines {
+		if l.issue == codeBelowCost {
+			return FieldErrors{fmt.Sprintf("lines.%d.item_id", i): codeBelowCost}
+		}
+	}
+	var approver approval.Approver
+	overrides := overriddenLines(lines)
+	discounted := discountedLines(lines)
+	if len(overrides) > 0 || len(discounted) > 0 {
+		if s.approvals == nil || approvalIn == nil {
+			return approval.ErrPinRequired
+		}
+		if approver, err = s.approvals.Verify(ctx, tx, a, approvalIn.UserID, approvalIn.PIN); err != nil {
+			return err
+		}
+	}
+	if t, fe = settle(n, t); len(fe) > 0 {
+		return fe
+	}
+
+	var docNo string
+	var hdr gen.SalesInsertRow
+	cashier := pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}
+	approvedBy := pgtype.UUID{Bytes: approver.ID, Valid: approver.ID != uuid.Nil}
+	if ed == nil {
+		no, nerr := q.SalesNextNo(ctx, gen.SalesNextNoParams{TenantID: a.TenantID, OutletID: a.OutletID, Day: out.LocalDay})
+		if nerr != nil {
+			return nerr
+		}
+		docNo = fmt.Sprintf("%s-%s-%04d", strings.ToUpper(out.Code), out.LocalDay.Time.Format("060102"), no)
+		hdr, err = q.SalesInsert(ctx, gen.SalesInsertParams{
+			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
+			CashierID: cashier, ApprovedBy: approvedBy, Note: n.note,
+			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
+			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
+			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
+		})
+	} else {
+		// Revisi: nomor = nomor asli + penanda revisi; kasir & tanggal bisnis dibawa dari nota asli.
+		docNo = ed.docNo
+		var r gen.SalesInsertRevisionRow
+		r, err = q.SalesInsertRevision(ctx, gen.SalesInsertRevisionParams{
+			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
+			CashierID: ed.orig.CashierID, ApprovedBy: approvedBy, Note: n.note,
+			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
+			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
+			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
+			CreatedAt:     ed.orig.CreatedAt, RootID: pgtype.UUID{Bytes: ed.rootID, Valid: true}, Revision: ed.orig.Revision + 1,
+			SupersedesID: pgtype.UUID{Bytes: ed.orig.ID, Valid: true}, RevisionReason: pgtype.Text{String: ed.reason, Valid: true},
+			RevisedBy: cashier,
+		})
+		hdr = gen.SalesInsertRow{ID: r.ID, CreatedAt: r.CreatedAt}
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tidak terpakai) lalu kembalikan nota itu.
+		ex, e2 := q.SalesByIdemKey(ctx, gen.SalesByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key})
+		if e2 != nil {
+			return e2
+		}
+		if ex.RequestHash != h {
+			return ErrKeyMismatch
+		}
+		return replay{ex.ID}
+	}
+	if err != nil {
+		return err
+	}
+	if ed != nil {
+		// Nota lama resmi digantikan; baris kunci FOR UPDATE sudah dipegang pemanggil, jadi tepat satu baris berubah.
+		if n, uerr := q.SalesMarkSuperseded(ctx, gen.SalesMarkSupersededParams{TenantID: a.TenantID, ID: ed.orig.ID, SupersededBy: pgtype.UUID{Bytes: hdr.ID, Valid: true}}); uerr != nil {
+			return uerr
+		} else if n != 1 {
+			return ErrNotEditable
+		}
+	}
+
+	var moves []stock.Movement
+	for i, l := range lines {
+		if err := q.SalesLineInsert(ctx, gen.SalesLineInsertParams{
+			TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1), ItemID: l.item.row.ID, Sku: l.item.row.Sku,
+			Name: l.item.row.Name, UnitID: l.unitID, UnitName: l.unitName, Factor: l.factor, Qty: l.qty,
+			UnitPrice: l.unitPrice, UnitCost: l.unitCost, Discount: l.discount, LineTotal: l.total, Note: l.note,
+			ListPrice: l.listPrice, PriceOverride: l.overridden,
+		}); err != nil {
+			return err
+		}
+		if l.item.row.Kind == "goods" {
+			moves = append(moves, stock.Movement{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: l.item.row.ID,
+				Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID})
+		}
+	}
+	for i, oc := range n.costs {
+		if err := q.SalesCostInsert(ctx, gen.SalesCostInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1), Name: oc.name, Amount: oc.amount}); err != nil {
+			return err
+		}
+	}
+	for i, p := range n.payments {
+		if err := q.SalesPaymentInsert(ctx, gen.SalesPaymentInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1),
+			Method: p.method, Amount: p.amount, RefNo: p.refNo}); err != nil {
+			return err
+		}
+	}
+	if mc.sm != nil {
+		if err := member.ApplySale(ctx, tx, a, mc.sm.ID, hdr.ID, docNo, n.redeemApplied(mc), mc.earn); err != nil {
+			return err
+		}
+	}
+	for i, v := range vc.applied {
+		if err := q.SalesVoucherInsert(ctx, gen.SalesVoucherInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, VoucherID: v.ID, Position: int32(i + 1),
+			Code: v.Code, Name: v.Name, Kind: v.Kind, Value: v.Value, Amount: v.Amount}); err != nil {
+			return err
+		}
+		if err := voucher.Consume(ctx, tx, a.TenantID, v.ID); err != nil {
+			return err
+		}
+	}
+	moves = mergeMoves(moves)
+	if _, err := stock.ApplyAll(ctx, tx, moves); err != nil {
+		var ins *stock.InsufficientError
+		if errors.As(err, &ins) {
+			if info := infos[ins.ItemID]; info != nil {
+				return &StockError{ItemID: ins.ItemID, SKU: info.row.Sku, Name: info.row.Name}
+			}
+		}
+		return err
+	}
+	if len(overrides) > 0 {
+		items := make([]map[string]string, 0, len(overrides))
+		for _, l := range overrides {
+			items = append(items, map[string]string{"sku": l.item.row.Sku, "list_price": l.listPrice.String(), "price": l.unitPrice.String()})
+		}
+		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+			Action: audit.ActionSalePriceOverride, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
+			Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
+		}); err != nil {
+			return err
+		}
+	}
+	if len(discounted) > 0 {
+		items := make([]map[string]string, 0, len(discounted))
+		for _, l := range discounted {
+			items = append(items, map[string]string{"sku": l.item.row.Sku, "price": l.unitPrice.String(), "qty": l.qty.String(), "discount": l.discount.String()})
+		}
+		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+			Action: audit.ActionSaleLineDiscount, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
+			Details: map[string]any{"doc_no": docNo, "approver_id": approver.ID.String(), "approver": approver.Name, "lines": items},
+		}); err != nil {
+			return err
+		}
+	}
+	details := map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "lines": len(lines),
+		"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String(),
+		"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc), "vouchers": vc.codes()}
+	if ed == nil {
+		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details})
+	}
+	details["previous_doc_no"], details["previous_total"] = ed.orig.DocNo, ed.orig.Total.String()
+	details["revision"], details["reason"] = ed.orig.Revision+1, ed.reason
+	details["approver_id"], details["approver"] = ed.editor.ID.String(), ed.editor.Name
+	if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleEdit, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details}); err != nil {
+		return err
+	}
+	return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleSuperseded, Entity: audit.EntitySale, EntityID: ed.orig.ID.String(),
+		Details: map[string]any{"doc_no": ed.orig.DocNo, "superseded_by": docNo, "reason": ed.reason, "approver_id": ed.editor.ID.String(), "approver": ed.editor.Name}})
+}
+
+func keepKey(item, unit uuid.UUID) string { return item.String() + "|" + unit.String() }
+
+func cloneKeep(in map[string][]gen.SalesLinesRow) map[string][]gen.SalesLinesRow {
+	out := make(map[string][]gen.SalesLinesRow, len(in))
+	for k, v := range in {
+		out[k] = append([]gen.SalesLinesRow(nil), v...)
+	}
+	return out
+}
+
+// popKeep mengambil baris nota asli berikutnya untuk item+satuan itu (urutan baris dipertahankan bila ada baris ganda).
+func popKeep(keep map[string][]gen.SalesLinesRow, item, unit uuid.UUID) *gen.SalesLinesRow {
+	k := keepKey(item, unit)
+	if len(keep[k]) == 0 {
+		return nil
+	}
+	row := keep[k][0]
+	keep[k] = keep[k][1:]
+	return &row
 }
 
 // mergeMoves menjumlahkan movement untuk barang yang sama (baris ganda/satuan berbeda) menjadi satu pengurangan,
@@ -983,7 +1074,19 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			TaxStore: h.TaxStore.StringFixed(2), TaxGov: h.TaxGov.StringFixed(2), OtherCost: h.OtherCost.StringFixed(2),
 			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2),
 			Salesperson: spi, Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
-			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps))}
+			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps)),
+			Revision: int(h.Revision), RootID: h.ID, RevisionReason: h.RevisionReason, VoidReason: h.VoidReason}
+		if h.RootID.Valid {
+			out.RootID = uuid.UUID(h.RootID.Bytes)
+		}
+		if h.SupersedesID.Valid {
+			v := uuid.UUID(h.SupersedesID.Bytes)
+			out.SupersedesID = &v
+		}
+		if h.SupersededBy.Valid {
+			v := uuid.UUID(h.SupersededBy.Bytes)
+			out.SupersededBy = &v
+		}
 		for _, l := range ls {
 			out.Lines = append(out.Lines, Line{ItemID: l.ItemID, SKU: l.Sku, Name: l.Name, UnitID: l.UnitID, Unit: l.UnitName,
 				Factor: l.Factor.String(), Qty: l.Qty.String(), UnitPrice: l.UnitPrice.StringFixed(2), Discount: l.Discount.StringFixed(2),
@@ -1041,67 +1144,120 @@ func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, 
 		return Quote{}, f
 	}
 	var out Quote
-	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		q := gen.New(tx)
-		o, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !o.Active) {
-			return ErrOutletInactive
-		}
-		if err != nil {
-			return err
-		}
-		seen := map[uuid.UUID]bool{}
-		var ids []uuid.UUID
-		for _, l := range n.lines {
-			if !seen[l.in.ItemID] {
-				seen[l.in.ItemID] = true
-				ids = append(ids, l.in.ItemID)
-			}
-		}
-		infos, err := s.loadInfo(ctx, q, a, ids)
-		if err != nil {
-			return err
-		}
-		lines, t, fe := price(n, infos, o.TaxStorePct, o.TaxGovPct)
-		if len(fe) > 0 {
-			return fe
-		}
-		vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
-		if err != nil {
-			return err
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
-		if err != nil {
-			return err
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		out = Quote{RedeemAmount: mc.redeemAmt.StringFixed(2), PointsEarn: mc.earn, Subtotal: t.subtotal.StringFixed(2), Discount: t.discount.StringFixed(2), TaxStorePct: t.taxStorePct.StringFixed(2),
-			TaxGovPct: t.taxGovPct.StringFixed(2), TaxStore: t.taxStore.StringFixed(2), TaxGov: t.taxGov.StringFixed(2),
-			OtherCost: t.other.StringFixed(2), Total: t.total.StringFixed(2), Lines: make([]Line, 0, len(lines))}
-		out.Vouchers, out.VoucherAmount = vc.infos(), vc.total().StringFixed(2)
-		if mc.sm != nil {
-			out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
-		}
-		for _, l := range lines {
-			out.Lines = append(out.Lines, Line{ItemID: l.item.row.ID, SKU: l.item.row.Sku, Name: l.item.row.Name, UnitID: l.unitID, Unit: l.unitName,
-				Factor: l.factor.String(), Qty: l.qty.String(), UnitPrice: l.unitPrice.StringFixed(2), Discount: l.discount.StringFixed(2),
-				LineTotal: l.total.StringFixed(2), Note: l.note, Issue: l.issue, Available: l.available, ListPrice: l.listPrice.StringFixed(2), PriceOverride: l.overridden})
-		}
-		return nil
+	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) (err error) {
+		out, err = s.quoteTx(ctx, tx, a, n, nil)
+		return err
 	})
 	return out, err
+}
+
+// errQuoteRollback membatalkan transaksi pratinjau edit (hasil sudah diambil; tidak ada yang boleh tersimpan).
+var errQuoteRollback = errors.New("pratinjau edit selesai")
+
+// QuoteEdit = pratinjau hitung untuk EDIT nota: persis seperti Edit, dampak nota lama dibalik lebih dulu (stok, poin yang
+// ditukar, kuota kupon kembali) dan baris yang sudah ada mempertahankan harga/HPP aslinya — lalu SELURUH transaksi
+// dibatalkan. Total yang tampil di layar edit = total yang akan disimpan.
+func (s *Service) QuoteEdit(ctx context.Context, a authz.Actor, id uuid.UUID, in Request) (Quote, error) {
+	in.Payments = nil
+	n, f := normalize(in)
+	if len(f) > 0 {
+		return Quote{}, f
+	}
+	var out Quote
+	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		q := gen.New(tx)
+		orig, err := lockForEdit(ctx, q, a, id, true)
+		if err != nil {
+			return err
+		}
+		olds, err := q.SalesLines(ctx, gen.SalesLinesParams{TenantID: a.TenantID, SaleID: orig.ID})
+		if err != nil {
+			return err
+		}
+		n.keep = make(map[string][]gen.SalesLinesRow, len(olds))
+		for _, l := range olds {
+			k := keepKey(l.ItemID, l.UnitID)
+			n.keep[k] = append(n.keep[k], l)
+		}
+		if err := reverseEffects(ctx, tx, q, a, orig); err != nil {
+			return err
+		}
+		day := orig.LocalDay
+		if out, err = s.quoteTx(ctx, tx, a, n, &day); err != nil {
+			return err
+		}
+		return errQuoteRollback
+	})
+	if errors.Is(err, errQuoteRollback) {
+		err = nil
+	}
+	return out, err
+}
+
+// quoteTx menghitung quote di dalam transaksi pemanggil (dayOverride = hari bisnis untuk kupon/member).
+func (s *Service) quoteTx(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, dayOverride *pgtype.Date) (Quote, error) {
+	q := gen.New(tx)
+	o, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !o.Active) {
+		return Quote{}, ErrOutletInactive
+	}
+	if err != nil {
+		return Quote{}, err
+	}
+	day := o.LocalDay // hari bisnis untuk kupon/member; pratinjau edit memakai hari nota asli
+	if dayOverride != nil {
+		day = *dayOverride
+	}
+	seen := map[uuid.UUID]bool{}
+	var ids []uuid.UUID
+	for _, l := range n.lines {
+		if !seen[l.in.ItemID] {
+			seen[l.in.ItemID] = true
+			ids = append(ids, l.in.ItemID)
+		}
+	}
+	infos, err := s.loadInfo(ctx, q, a, ids)
+	if err != nil {
+		return Quote{}, err
+	}
+	lines, t, fe := price(n, infos, o.TaxStorePct, o.TaxGovPct)
+	if len(fe) > 0 {
+		return Quote{}, fe
+	}
+	vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, day, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
+	if err != nil {
+		return Quote{}, err
+	}
+	if len(fe) > 0 {
+		return Quote{}, fe
+	}
+	mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, day, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
+	if err != nil {
+		return Quote{}, err
+	}
+	if len(fe) > 0 {
+		return Quote{}, fe
+	}
+	out := Quote{RedeemAmount: mc.redeemAmt.StringFixed(2), PointsEarn: mc.earn, Subtotal: t.subtotal.StringFixed(2), Discount: t.discount.StringFixed(2), TaxStorePct: t.taxStorePct.StringFixed(2),
+		TaxGovPct: t.taxGovPct.StringFixed(2), TaxStore: t.taxStore.StringFixed(2), TaxGov: t.taxGov.StringFixed(2),
+		OtherCost: t.other.StringFixed(2), Total: t.total.StringFixed(2), Lines: make([]Line, 0, len(lines))}
+	out.Vouchers, out.VoucherAmount = vc.infos(), vc.total().StringFixed(2)
+	if mc.sm != nil {
+		out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
+	}
+	for _, l := range lines {
+		out.Lines = append(out.Lines, Line{ItemID: l.item.row.ID, SKU: l.item.row.Sku, Name: l.item.row.Name, UnitID: l.unitID, Unit: l.unitName,
+			Factor: l.factor.String(), Qty: l.qty.String(), UnitPrice: l.unitPrice.StringFixed(2), Discount: l.discount.StringFixed(2),
+			LineTotal: l.total.StringFixed(2), Note: l.note, Issue: l.issue, Available: l.available, ListPrice: l.listPrice.StringFixed(2), PriceOverride: l.overridden})
+	}
+	return out, nil
 }
 
 // overriddenLines = baris yang harganya diubah dari harga hasil hitung server.
 func overriddenLines(lines []calcLine) []calcLine {
 	var out []calcLine
 	for _, l := range lines {
-		if l.overridden {
+		if l.overridden && !l.keptPrice {
 			out = append(out, l)
 		}
 	}
@@ -1112,7 +1268,7 @@ func overriddenLines(lines []calcLine) []calcLine {
 func discountedLines(lines []calcLine) []calcLine {
 	var out []calcLine
 	for _, l := range lines {
-		if l.discount.IsPositive() {
+		if l.discount.IsPositive() && !l.keptDisc {
 			out = append(out, l)
 		}
 	}

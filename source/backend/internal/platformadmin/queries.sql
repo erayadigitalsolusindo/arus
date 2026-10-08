@@ -30,10 +30,13 @@ LIMIT sqlc.arg(max_rows);
 
 -- Dijalankan di bawah WithTenant(tenant yang dituju): RLS membatasi baris ke tenant itu.
 -- name: PlatformTenantGet :one
-SELECT id, code, name, active, created_at FROM tenants WHERE id = $1;
+SELECT id, code, name, active, created_at, sale_edit_window_days FROM tenants WHERE id = $1;
 
 -- name: PlatformTenantSetActive :execrows
 UPDATE tenants SET active = sqlc.arg(active) WHERE id = sqlc.arg(id);
+
+-- name: PlatformTenantSetEditWindow :execrows
+UPDATE tenants SET sale_edit_window_days = sqlc.arg(days) WHERE id = sqlc.arg(id);
 
 -- name: PlatformTenantOutlets :many
 SELECT id, code, name, active FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code;
