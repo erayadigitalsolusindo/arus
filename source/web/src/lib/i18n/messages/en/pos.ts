@@ -6,6 +6,7 @@ const pos: Messages['pos'] = {
   toggleTheme: 'Toggle theme',
   fullscreen: 'Full screen',
   info: 'Outlet information',
+  tabs: { label: 'Register sections', main: 'Main', items: 'Items', cart: 'Cart' },
   collapseInfo: 'Collapse outlet panel',
   expandInfo: 'Expand outlet panel',
   switchOutlet: 'Switch outlet?',
@@ -132,7 +133,52 @@ const pos: Messages['pos'] = {
     saved: 'PIN saved.'
   },
   issue: { stock: 'Only {available} in stock.', stockNone: 'Out of stock.', belowCost: 'Selling price is below cost.' },
-  lineError: 'Line {n} ({name})'
+  lineError: 'Line {n} ({name})',
+  qtyField: 'QTY',
+  qtyFieldHint: 'Quantity for the next item you press Enter on (empty = 1). Enter on an empty field moves focus to the other field.',
+  cartTable: {
+    button: 'View cart as a table',
+    title: 'Cart contents',
+    search: 'Search the cart…',
+    empty: 'The cart is empty.',
+    noMatch: 'No matching lines.',
+    no: 'No',
+    code: 'Code',
+    name: 'Item name',
+    unit: 'Unit',
+    price: 'Price',
+    total: 'Amount'
+  },
+  slots: {
+    button: 'Quick items (no scanning)',
+    title: 'Quick items',
+    hint: 'Click an item to put it straight into the cart. Right-click / long-press to replace or clear a slot; click an empty slot to fill it.',
+    empty: 'Slot {n} is empty — click to assign an item',
+    filled: '{name} — click: add to cart · right-click / long-press: replace or clear',
+    inactive: 'Inactive item',
+    assignTitle: 'Choose an item for slot {n}',
+    assignHint: 'The chosen item stays in this slot until you replace it.',
+    search: 'Search item code / name…',
+    menuTitle: 'Slot {n}',
+    replace: 'Replace item',
+    clear: 'Clear slot',
+    cancel: 'Cancel'
+  },
+  costs: {
+    button: 'Other costs breakdown',
+    title: 'Other costs breakdown',
+    hint: 'Record what makes up this total (e.g. delivery, packaging). The breakdown is also saved in the receipt note.',
+    name: 'Cost name',
+    namePlaceholder: 'e.g. Delivery fee',
+    amount: 'Amount',
+    add: 'Add cost',
+    remove: 'Remove cost',
+    total: 'Total other costs',
+    done: 'Save breakdown',
+    clear: 'Clear breakdown',
+    prefix: 'Other costs',
+    unnamed: 'Other'
+  }
 };
 
 export default pos;

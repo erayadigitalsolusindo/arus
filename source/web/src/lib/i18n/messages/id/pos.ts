@@ -5,6 +5,7 @@ export default {
   toggleTheme: 'Ganti tema',
   fullscreen: 'Layar penuh',
   info: 'Informasi outlet',
+  tabs: { label: 'Bagian kasir', main: 'Main', items: 'Barang', cart: 'Keranjang' },
   collapseInfo: 'Ciutkan panel outlet',
   expandInfo: 'Bentangkan panel outlet',
   switchOutlet: 'Mau Pindah Outlet ?',
@@ -131,5 +132,50 @@ export default {
     saved: 'PIN tersimpan.'
   },
   issue: { stock: 'Stok hanya tersedia {available}.', stockNone: 'Stok habis.', belowCost: 'Harga jual di bawah harga beli.' },
-  lineError: 'Baris {n} ({name})'
+  lineError: 'Baris {n} ({name})',
+  qtyField: 'QTY',
+  qtyFieldHint: 'Jumlah untuk barang berikutnya yang di-Enter (kosong = 1). Enter di kolom kosong memindahkan fokus ke kolom lain.',
+  cartTable: {
+    button: 'Lihat keranjang sebagai tabel',
+    title: 'Isi keranjang',
+    search: 'Cari di keranjang…',
+    empty: 'Keranjang kosong.',
+    noMatch: 'Tidak ada baris yang cocok.',
+    no: 'No',
+    code: 'Kode',
+    name: 'Nama barang',
+    unit: 'Satuan',
+    price: 'Harga',
+    total: 'Jumlah'
+  },
+  slots: {
+    button: 'Pilih barang cepat (tanpa pindai)',
+    title: 'Barang cepat',
+    hint: 'Klik barang untuk langsung memasukkannya ke keranjang. Klik kanan / tekan lama untuk mengganti atau mengosongkan slot; klik slot kosong untuk mengisinya.',
+    empty: 'Slot {n} kosong — klik untuk mengisi dengan barang',
+    filled: '{name} — klik: masuk keranjang · klik kanan / tekan lama: ganti atau kosongkan',
+    inactive: 'Barang nonaktif',
+    assignTitle: 'Pilih barang untuk slot {n}',
+    assignHint: 'Barang yang dipilih tersimpan di slot ini sampai Anda menggantinya.',
+    search: 'Cari kode / nama barang…',
+    menuTitle: 'Slot {n}',
+    replace: 'Ganti barang',
+    clear: 'Kosongkan slot',
+    cancel: 'Batal'
+  },
+  costs: {
+    button: 'Rincian biaya lain-lain',
+    title: 'Rincian biaya lain-lain',
+    hint: 'Catat biaya apa saja yang membentuk total ini (mis. ongkir, bungkus). Rinciannya ikut tercatat di keterangan nota.',
+    name: 'Nama biaya',
+    namePlaceholder: 'mis. Ongkos kirim',
+    amount: 'Jumlah',
+    add: 'Tambah biaya',
+    remove: 'Hapus biaya',
+    total: 'Total biaya lain-lain',
+    done: 'Simpan rincian',
+    clear: 'Hapus semua rincian',
+    prefix: 'Biaya lain',
+    unnamed: 'Lainnya'
+  }
 };

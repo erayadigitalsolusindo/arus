@@ -171,6 +171,14 @@ type PlatformRecoveryCode struct {
 	UsedAt   pgtype.Timestamptz
 }
 
+type PosShortcut struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	Slot      int16
+	ItemID    uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Principal struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
