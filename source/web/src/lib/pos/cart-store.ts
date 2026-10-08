@@ -21,7 +21,12 @@ export type CostEntry = { label: string; amount: string };
 /** Member terpilih (hanya penanda; saldo poin selalu diambil ulang dari server). */
 export type StoredMember = { id: string; code: string; name: string; level: string; spend_per_point: string; point_value: string; cover_image_id?: string | null };
 
-export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string };
+/** Salesman terpilih (hanya penanda; server memvalidasi aktif/tidaknya saat nota disimpan). */
+export type StoredSalesperson = { id: string; name: string };
+
+export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string; salesperson?: StoredSalesperson | null };
+
+const validSalesperson = (s: unknown): s is StoredSalesperson => !!s && typeof s === 'object' && str((s as StoredSalesperson).id) && str((s as StoredSalesperson).name);
 
 const validMember = (m: unknown): m is StoredMember => !!m && typeof m === 'object' && ['id', 'code', 'name', 'level', 'spend_per_point', 'point_value'].every((k) => str((m as Record<string, unknown>)[k]));
 
@@ -64,7 +69,8 @@ export function loadCart(key: string, now = Date.now()): StoredCart | null {
       taxOn: d.taxOn === true,
       note: str(d.note) ? d.note : '',
       member: validMember(d.member) ? d.member : null,
-      redeem: str(d.redeem) ? d.redeem : ''
+      redeem: str(d.redeem) ? d.redeem : '',
+      salesperson: validSalesperson(d.salesperson) ? d.salesperson : null
     };
   } catch {
     return null;

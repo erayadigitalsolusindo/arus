@@ -45,7 +45,7 @@ export const nav: NavGroup[] = [
         children: [
           { labelKey: 'nav.suppliers', module: 'suppliers', href: '/suppliers' },
           { labelKey: 'nav.members', module: 'members', href: '/members' },
-          { labelKey: 'nav.salespeople', module: 'salespeople' }
+          { labelKey: 'nav.salespeople', module: 'salespeople', href: '/salespeople' }
         ]
       },
       {

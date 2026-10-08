@@ -87,3 +87,25 @@ func TestRegistryIsConsistent(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizePosOnlyIsFixedBundle(t *testing.T) {
+	p, err := Normalize(map[string][]string{"pos_only": {"view"}, "users": {"view", "update"}, "items": {"view", "create"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := PosOnlyGrants()
+	if len(p.Grants) != len(want) {
+		t.Fatalf("grants = %v, want exactly %v", p.Grants, want)
+	}
+	for m, acts := range want {
+		if !p.Has(m, acts[0]) || len(p.Grants[m]) != len(acts) {
+			t.Errorf("modul %s = %v, want %v", m, p.Grants[m], acts)
+		}
+	}
+	if p.Has("users", ActView) {
+		t.Error("Hanya Kasir tidak boleh membawa izin lain")
+	}
+	if _, err := Normalize(map[string][]string{"pos_only": {"view"}, "tidak_ada": {"view"}}); err == nil {
+		t.Error("modul tak dikenal harus tetap ditolak")
+	}
+}

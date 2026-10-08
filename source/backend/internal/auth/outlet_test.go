@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"aciraba/internal/approval"
 	pauth "aciraba/internal/platform/auth"
 )
 
@@ -142,5 +143,94 @@ func TestOwnerAccessesEveryOutletWithoutAssignment(t *testing.T) {
 	}
 	if sw, err := h.svc.SwitchOutlet(ctx, a, owner.RefreshToken, out2); err != nil || sw.Outlet.ID != out2.String() {
 		t.Errorf("owner pindah ke outlet mana pun: %v", err)
+	}
+}
+
+// mkUser membuat pengguna ber-role `perms` yang ditugaskan ke `outlets`; mengembalikan sesi hasil login.
+func mkUser(t *testing.T, h *harness, tenant, name, perms string, outlets ...string) *Session {
+	t.Helper()
+	ctx := context.Background()
+	pw := "uji-pass-12345"
+	hash, err := pauth.HashPassword(pw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleID, userID := uuid.New(), uuid.New()
+	email := fmt.Sprintf("%s-%d@rec.test", name, os.Getpid())
+	if _, err := h.admin.Exec(ctx, `INSERT INTO roles (id, tenant_id, name, permissions) VALUES ($1, $2, $3, $4::jsonb)`, roleID, tenant, name, perms); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.admin.Exec(ctx, `INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, $5, $6)`, userID, tenant, roleID, email, name, hash); err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range outlets {
+		if _, err := h.admin.Exec(ctx, `INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3)`, tenant, userID, o); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sess, err := h.svc.Login(ctx, LoginInput{Email: email, Password: pw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sess
+}
+
+// Pindah outlet dari kasir wajib disetujui penyetuju ber-PIN yang punya izin `outlet_switch.approve` dan akses ke
+// outlet tujuan; pemegang izin itu sendiri tidak perlu PIN; pindah di luar kasir tidak diwajibkan.
+func TestPosSwitchOutletNeedsApproval(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	_, owner := registered(t, h, "PosPindah")
+	tid, o1 := owner.Tenant.ID, owner.Outlet.ID
+	o2, o3 := addOutlet(t, h, tid, "Cabang 2").String(), addOutlet(t, h, tid, "Cabang 3").String()
+	h.svc.Approvals = approval.NewService(h.svc.Pool, h.rdb, "uji-rahasia-uji-rahasia-uji-rahasia")
+
+	kasir := mkUser(t, h, tid, "kasir", `{"sales_orders":["view","create"]}`, o1, o2, o3)
+	spv := mkUser(t, h, tid, "spv", `{"outlet_switch":["view","approve"]}`, o2)
+	spvActor := actorOf(t, h, spv)
+	if err := h.svc.Approvals.SetPin(ctx, spvActor, "uji-pass-12345", "482915"); err != nil {
+		t.Fatal(err)
+	}
+	spvID := spvActor.UserID
+	ka := actorOf(t, h, kasir)
+	to := func(id string, ap *ApprovalIn) error {
+		_, err := h.svc.SwitchOutletWith(ctx, ka, kasir.RefreshToken, uuid.MustParse(id), SwitchOpts{POS: true, Approval: ap})
+		return err
+	}
+
+	if err := to(o2, nil); !errors.Is(err, approval.ErrPinRequired) {
+		t.Errorf("tanpa persetujuan: err = %v, want ErrPinRequired", err)
+	}
+	if err := to(o2, &ApprovalIn{UserID: spvID, PIN: "000111"}); !errors.Is(err, approval.ErrInvalidPin) {
+		t.Errorf("PIN salah: err = %v, want ErrInvalidPin", err)
+	}
+	// Penyetuju tidak punya akses ke outlet tujuan (hanya o2) → ditolak walau PIN benar.
+	if err := to(o3, &ApprovalIn{UserID: spvID, PIN: "482915"}); !errors.Is(err, approval.ErrInvalidPin) {
+		t.Errorf("penyetuju tanpa akses outlet tujuan: err = %v, want ErrInvalidPin", err)
+	}
+	// Pelaku bukan penyetuju tidak bisa menyetujui dirinya sendiri.
+	if err := to(o2, &ApprovalIn{UserID: ka.UserID, PIN: "482915"}); !errors.Is(err, approval.ErrInvalidPin) {
+		t.Errorf("setuju diri sendiri: err = %v, want ErrInvalidPin", err)
+	}
+	if n := count(t, h.admin, `SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND action = 'auth.outlet_switch'`, tid); n != 0 {
+		t.Errorf("penolakan tidak boleh mencatat perpindahan, got %d", n)
+	}
+	if err := to(o2, &ApprovalIn{UserID: spvID, PIN: "482915"}); err != nil {
+		t.Fatalf("persetujuan benar: %v", err)
+	}
+	if n := count(t, h.admin, `SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND action = 'auth.outlet_switch' AND details->>'approved_by' = 'spv'`, tid); n != 1 {
+		t.Errorf("audit dengan penyetuju = %d, want 1", n)
+	}
+
+	// Pindah di luar kasir (pemilih sidebar) tidak diwajibkan.
+	if _, err := h.svc.SwitchOutletWith(ctx, ka, kasir.RefreshToken, uuid.MustParse(o3), SwitchOpts{}); err != nil {
+		t.Errorf("non-kasir tanpa PIN: %v", err)
+	}
+	// Pemegang izin penyetuju memindahkan dirinya sendiri tanpa PIN.
+	if _, err := h.svc.SwitchOutletWith(ctx, spvActor, spv.RefreshToken, uuid.MustParse(o2), SwitchOpts{POS: true}); err != nil {
+		t.Errorf("penyetuju sendiri: %v", err)
+	}
+	if _, err := h.svc.SwitchOutletWith(ctx, actorOf(t, h, owner), owner.RefreshToken, uuid.MustParse(o3), SwitchOpts{POS: true}); err != nil {
+		t.Errorf("owner: %v", err)
 	}
 }

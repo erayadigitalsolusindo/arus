@@ -3,6 +3,7 @@ import type { Messages } from '../../types.ts';
 const pos: Messages['pos'] = {
   docTitle: 'Point of Sale | ACIRABA',
   back: 'Back to dashboard',
+  logout: 'Sign out',
   toggleTheme: 'Toggle theme',
   fullscreen: 'Full screen',
   info: 'Outlet information',
@@ -15,6 +16,9 @@ const pos: Messages['pos'] = {
   cashier: 'Cashier',
   salesperson: 'Salesperson',
   salespersonNone: 'General salesperson',
+  salespersonPick: 'Select salesperson',
+  salespersonHint: 'Leave empty for the general salesperson.',
+  salespersonDone: 'Done',
   pendingReceipt: 'Pending Receipts',
   cashDrawer: 'Cash Flow',
   shortcuts: {
@@ -120,10 +124,17 @@ const pos: Messages['pos'] = {
     unitTotal: 'Rp line total',
     reset: 'Restore normal price'
   },
+  outletApproval: {
+    title: 'Switch outlet',
+    body: 'Switching outlet from the register needs approval from an Owner/Supervisor using their PIN. The cart will be cleared.',
+    target: 'Destination outlet',
+    noApprovers: 'No Owner/Supervisor with a PIN is allowed to approve a switch to this outlet. Set up their permission and PIN first.',
+    apply: 'Approve & Switch'
+  },
   pinPage: {
     docTitle: 'Approver PIN | ACIRABA',
     title: 'Approver PIN',
-    subtitle: 'A 6-digit PIN used to approve price changes at the register. Keep it secret; never share it with cashiers.',
+    subtitle: 'A 6-digit PIN used to approve price changes and outlet switches at the register. Keep it secret; never share it with cashiers.',
     status: { set: 'Your PIN is set. You can change it below.', unset: 'No PIN yet — you cannot approve price changes.' },
     password: 'Account password (confirmation)',
     pin: 'New PIN (6 digits)',

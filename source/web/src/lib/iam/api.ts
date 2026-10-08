@@ -46,5 +46,6 @@ export const iam = {
     api<User>('/iam/users', { method: 'POST', body: json(u) }),
   updateUser: (id: string, u: { name: string; phone: string; role_id: string; active: boolean; outlet_ids: string[] }) =>
     api<User>(`/iam/users/${id}`, { method: 'PUT', body: json(u) }),
-  resetPassword: (id: string, password: string) => api<null>(`/iam/users/${id}/password`, { method: 'PUT', body: json({ password }) })
+  resetPassword: (id: string, password: string) => api<null>(`/iam/users/${id}/password`, { method: 'PUT', body: json({ password }) }),
+  verifyEmail: (id: string) => api<null>(`/iam/users/${id}/verify-email`, { method: 'PUT' })
 };

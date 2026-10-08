@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -51,6 +52,14 @@ func (h *Handler) Routes(r chi.Router) {
 				r.With(authz.RequireAny([2]string{k.Path, authz.ActView}, [2]string{ItemsModule, authz.ActView})).Get("/"+k.Path+"/", h.listSimple(k))
 			}
 			r.With(authz.RequireAny([2]string{SupplierModule, authz.ActView}, [2]string{ItemsModule, authz.ActView})).Get("/suppliers/", h.lookupSuppliers)
+			// Kasir memilih salesman di nota tanpa izin halaman master.
+			r.With(authz.RequireAny([2]string{SalespersonModule, authz.ActView}, [2]string{"sales_orders", authz.ActCreate})).Get("/salespeople/", h.lookupSalespeople)
+		})
+		r.Route("/salespeople", func(r chi.Router) {
+			r.With(authz.Require(SalespersonModule, authz.ActView)).Get("/", h.listSalespeople)
+			r.With(authz.Require(SalespersonModule, authz.ActCreate)).Post("/", h.createSalesperson)
+			r.With(authz.Require(SalespersonModule, authz.ActUpdate)).Put("/{id}", h.updateSalesperson)
+			r.With(authz.Require(SalespersonModule, authz.ActUpdate)).Put("/{id}/active", h.activeSalesperson)
 		})
 		r.Route("/suppliers", func(r chi.Router) {
 			r.With(authz.Require(SupplierModule, authz.ActView)).Get("/", h.listSuppliers)
@@ -271,4 +280,90 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		h.log.Error("katalog gagal", "err", err, "req_id", middleware.GetReqID(r.Context()))
 		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
 	}
+}
+
+type salespersonRequest struct {
+	Code          string      `json:"code"`
+	Name          string      `json:"name"`
+	Phone         string      `json:"phone"`
+	Note          string      `json:"note"`
+	CommissionPct json.Number `json:"commission_pct"`
+}
+
+func (s salespersonRequest) input() SalespersonInput {
+	return SalespersonInput{Code: s.Code, Name: s.Name, Phone: s.Phone, Note: s.Note, CommissionPct: s.CommissionPct}
+}
+
+func (h *Handler) listSalespeople(w http.ResponseWriter, r *http.Request) {
+	list, total, err := h.svc.ListSalespeople(r.Context(), actor(r), listParams(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": list, "total": total})
+}
+
+// lookupSalespeople = id + nama saja (tanpa telepon/komisi) untuk pemilih di kasir.
+func (h *Handler) lookupSalespeople(w http.ResponseWriter, r *http.Request) {
+	list, total, err := h.svc.ListSalespeople(r.Context(), actor(r), listParams(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	out := make([]Entry, 0, len(list))
+	for _, s := range list {
+		out = append(out, Entry{ID: s.ID, Name: s.Name, Active: s.Active, CreatedAt: s.CreatedAt})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": out, "total": total})
+}
+
+func (h *Handler) createSalesperson(w http.ResponseWriter, r *http.Request) {
+	var req salespersonRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	s, err := h.svc.CreateSalesperson(r.Context(), actor(r), req.input())
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, s)
+}
+
+func (h *Handler) updateSalesperson(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var req salespersonRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	s, err := h.svc.UpdateSalesperson(r.Context(), actor(r), id, req.input())
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, s)
+}
+
+func (h *Handler) activeSalesperson(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var req activeRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if req.Active == nil {
+		httpx.ValidationError(w, map[string]string{"active": "REQUIRED"})
+		return
+	}
+	s, err := h.svc.SetSalespersonActive(r.Context(), actor(r), id, *req.Active)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, s)
 }

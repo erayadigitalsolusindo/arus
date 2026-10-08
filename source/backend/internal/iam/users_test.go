@@ -245,3 +245,47 @@ func TestLastOwnerRaceBetweenTwoOwners(t *testing.T) {
 		t.Fatalf("pemilik aktif = %d, want 1", n)
 	}
 }
+
+func TestManualEmailVerification(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	kasirRole := e.role(t, e.owner, "Kasir", map[string][]string{"items": {"view"}})
+	adminRole := e.role(t, e.owner, "Admin", map[string][]string{"items": {"view"}, "users": {"view", "update"}})
+	u := e.user(t, e.owner, e.mail("belum"), kasirRole.ID)
+	adm := e.user(t, e.owner, e.mail("adm"), adminRole.ID)
+	admin := e.actor(adm.ID, adminRole.Permissions)
+
+	verified := func(id uuid.UUID) bool {
+		var ok bool
+		if err := e.admin.QueryRow(ctx, `SELECT email_verified_at IS NOT NULL FROM users WHERE id = $1`, id).Scan(&ok); err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if verified(u.ID) {
+		t.Fatal("pengguna baru seharusnya belum terverifikasi")
+	}
+	if err := e.svc.VerifyEmail(ctx, admin, adm.ID); !errors.Is(err, ErrSelfVerify) {
+		t.Errorf("verifikasi akun sendiri: err = %v, want ErrSelfVerify", err)
+	}
+	if err := e.svc.VerifyEmail(ctx, admin, e.owner.UserID); !errors.Is(err, ErrEscalation) {
+		t.Errorf("admin memverifikasi pemilik: err = %v, want ErrEscalation", err)
+	}
+	if err := e.svc.VerifyEmail(ctx, admin, uuid.New()); !errors.Is(err, ErrNotFound) {
+		t.Errorf("pengguna tak ada: err = %v, want ErrNotFound", err)
+	}
+	if err := e.svc.VerifyEmail(ctx, admin, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !verified(u.ID) {
+		t.Error("email seharusnya terverifikasi")
+	}
+	// Panggilan ulang tidak berefek dan tidak menggandakan audit.
+	if err := e.svc.VerifyEmail(ctx, admin, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := e.admin.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND action = 'user.email_verify' AND entity_id = $2 AND details->>'manual' = 'true'`, e.tenant, u.ID.String()).Scan(&n); err != nil || n != 1 {
+		t.Errorf("audit verifikasi manual = %d (%v), want 1", n, err)
+	}
+}

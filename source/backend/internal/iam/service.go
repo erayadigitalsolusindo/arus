@@ -22,6 +22,7 @@ var (
 	ErrEscalation      = errors.New("tidak boleh memberi izin melebihi izin sendiri")
 	ErrLastOwner       = errors.New("pemilik aktif terakhir tidak boleh dinonaktifkan atau diganti rolenya")
 	ErrSelfChange      = errors.New("tidak boleh menonaktifkan atau mengganti role akun sendiri")
+	ErrSelfVerify      = errors.New("tidak boleh memverifikasi email akun sendiri")
 	ErrOutletForbidden = errors.New("tidak punya akses ke outlet yang dipilih")
 )
 
