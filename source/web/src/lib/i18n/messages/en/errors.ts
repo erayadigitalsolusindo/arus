@@ -22,6 +22,8 @@ const errors: Messages['errors'] = {
   SYSTEM_ROLE: 'System roles cannot be edited or deleted.',
   ROLE_IN_USE: 'This role is still assigned to users. Reassign them first.',
   NAME_TAKEN: 'This name is already taken.',
+  METHOD_LOCKED: 'The built-in method (Cash) cannot be archived.',
+  METHOD_LIMIT: 'The payment method limit has been reached. Archived methods still count; rename an existing one instead.',
   CODE_TAKEN: 'This code is already taken.',
   IMAGE_LIMIT: 'The item already has the maximum number of images.',
   IMAGE_TOO_LARGE: 'The image is larger than 10 MB.',
@@ -100,6 +102,9 @@ const errors: Messages['errors'] = {
   FIELD_LOCKED: 'The code is locked because the coupon has been used.',
   FIELD_BELOW_USED: 'The limit cannot be lower than the number already used.',
   FIELD_BEFORE_START: 'The end date cannot be before the start date.',
+  FIELD_KIND_LOCKED: 'The method type cannot be changed.',
+  FIELD_CASH_NO_FEE: 'Cash cannot carry a fee.',
+  FIELD_METHOD_INACTIVE: 'This payment method has been archived.',
 };
 
 export default errors;

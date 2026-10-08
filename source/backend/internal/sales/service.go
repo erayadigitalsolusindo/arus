@@ -116,9 +116,12 @@ type LineIn struct {
 }
 
 type PaymentIn struct {
-	Method string      `json:"method"`
-	Amount json.Number `json:"amount"` // yang DITERIMA; tunai boleh melebihi sisa (selisihnya kembalian)
-	RefNo  string      `json:"ref_no"`
+	// MethodID = metode dari master Metode Pembayaran (disarankan). Method (jenis dasar: cash, debit, ...) hanya untuk
+	// pemanggil lama: dipetakan ke metode aktif tertua berjenis itu.
+	MethodID *uuid.UUID  `json:"method_id"`
+	Method   string      `json:"method"`
+	Amount   json.Number `json:"amount"` // yang DITERIMA; tunai boleh melebihi sisa (selisihnya kembalian)
+	RefNo    string      `json:"ref_no"`
 }
 
 // ApprovalIn = penyetuju (Owner/Supervisor) beserta PIN-nya untuk ubah harga.
@@ -176,9 +179,14 @@ type Line struct {
 }
 
 type Payment struct {
-	Method string `json:"method"`
-	Amount string `json:"amount"`
-	RefNo  string `json:"ref_no"`
+	Method     string    `json:"method"` // jenis dasar
+	MethodID   uuid.UUID `json:"method_id"`
+	MethodName string    `json:"method_name"` // nama saat nota dibuat
+	Amount     string    `json:"amount"`
+	RefNo      string    `json:"ref_no"`
+	FeePct     string    `json:"fee_pct"`
+	Fee        string    `json:"fee"`        // biaya metode (MDR)
+	FeeBearer  string    `json:"fee_bearer"` // "store" = ditanggung toko; "customer" = ditagihkan ke pelanggan
 }
 
 type Sale struct {
@@ -202,6 +210,8 @@ type Sale struct {
 	Total       string    `json:"total"`
 	Paid        string    `json:"paid"`
 	Change      string    `json:"change"`
+	// Surcharge = biaya metode yang ditagihkan ke pelanggan (di luar Total). Ditagih = Total + Surcharge.
+	Surcharge string `json:"surcharge"`
 	// Member & poin nota (Discount sudah memuat RedeemAmount).
 	Member         *MemberInfo      `json:"member,omitempty"`
 	Salesperson    *SalespersonInfo `json:"salesperson,omitempty"`
@@ -291,9 +301,15 @@ type normCost struct {
 }
 
 type normPayment struct {
-	method string
-	amount dec
-	refNo  string
+	method   string // jenis dasar (diisi saat normalize bila hanya jenis dikirim; selalu diisi resolvePayments)
+	methodID *uuid.UUID
+	name     string
+	amount   dec
+	refNo    string
+	feePct   dec    // snapshot tarif metode saat nota dibuat
+	bearer   string // "store" | "customer"
+	feeFlat  dec
+	fee      dec // biaya yang ditanggung toko (tidak mengubah total belanja)
 }
 
 type norm struct {
@@ -432,8 +448,13 @@ func normalize(in Request) (norm, FieldErrors) {
 			break
 		}
 		k := fmt.Sprintf("payments.%d.", i)
-		np := normPayment{method: p.Method}
-		if !validMethods[p.Method] {
+		np := normPayment{method: p.Method, methodID: p.MethodID}
+		if p.MethodID != nil {
+			np.method = "" // jenis ditentukan dari master
+			if *p.MethodID == uuid.Nil {
+				f[k+"method_id"] = sanitize.Invalid
+			}
+		} else if !validMethods[p.Method] {
 			f[k+"method"] = sanitize.Invalid
 		}
 		if np.amount, c = parseDec(p.Amount, 2, true); c != "" {
@@ -490,7 +511,11 @@ func (n norm) hash() string {
 		v.L = append(v.L, l{x.in.ItemID.String(), u, x.qty.String(), x.discount.String(), x.note, pr})
 	}
 	for _, x := range n.payments {
-		v.P = append(v.P, p{x.method, x.amount.String(), x.refNo})
+		m := x.method
+		if x.methodID != nil {
+			m = x.methodID.String()
+		}
+		v.P = append(v.P, p{m, x.amount.String(), x.refNo})
 	}
 	raw, _ := json.Marshal(v)
 	sum := sha256.Sum256(raw)
@@ -536,6 +561,7 @@ type calcLine struct {
 type totals struct {
 	subtotal, discount, taxStore, taxGov, other, total, paid, change dec
 	taxStorePct, taxGovPct                                           dec
+	surcharge                                                        dec // biaya metode yang ditagihkan ke pelanggan (di luar total)
 }
 
 var hundred = decimal.NewFromInt(100)
@@ -700,12 +726,65 @@ func price(n norm, infos map[uuid.UUID]*itemInfo, taxStorePct, taxGovPct dec) ([
 	return lines, t, nil
 }
 
+// resolvePayments memetakan tiap pembayaran ke metode di master (harus ada dan aktif) dan mengisi jenis dasar + nama
+// (snapshot untuk nota). Hanya dipanggil saat menyimpan; jenis dari master-lah yang dipakai settle().
+func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm) (norm, FieldErrors) {
+	f := FieldErrors{}
+	out := make([]normPayment, len(n.payments))
+	for i, p := range n.payments {
+		k := fmt.Sprintf("payments.%d.", i)
+		var id uuid.UUID
+		var name, kind string
+		var active bool
+		var feePct, feeFlat dec
+		var bearer string
+		var err error
+		if p.methodID != nil {
+			var r gen.SalesPaymentMethodByIDRow
+			r, err = q.SalesPaymentMethodByID(ctx, gen.SalesPaymentMethodByIDParams{TenantID: a.TenantID, ID: *p.methodID})
+			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
+		} else {
+			var r gen.SalesPaymentMethodByKindRow
+			r, err = q.SalesPaymentMethodByKind(ctx, gen.SalesPaymentMethodByKindParams{TenantID: a.TenantID, Kind: p.method})
+			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
+		}
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			f[k+"method_id"] = sanitize.Invalid
+		case err != nil:
+			return n, FieldErrors{"payments": "INTERNAL"}
+		case !active:
+			f[k+"method_id"] = "METHOD_INACTIVE"
+		}
+		p.methodID, p.name, p.method = &id, name, kind
+		p.feePct, p.feeFlat, p.bearer = feePct, feeFlat, bearer
+		p.fee = methodFee(p.amount, feePct, feeFlat)
+		out[i] = p
+	}
+	if len(f) > 0 {
+		return n, f
+	}
+	n.payments = out
+	return n, nil
+}
+
+// methodFee = biaya metode (MDR) atas jumlah yang dibayar: amount × pct% + flat, dibulatkan 2 desimal. Ditanggung toko.
+func methodFee(amount, pct, flat dec) dec {
+	if !pct.IsPositive() && !flat.IsPositive() {
+		return decimal.Zero
+	}
+	return amount.Mul(pct).Div(decimal.NewFromInt(100)).Add(flat).Round(2)
+}
+
 // settle memeriksa pembayaran terhadap total: non-tunai tidak boleh melebihi total (tidak ada kembalian kartu) dan
 // total harus tertutup penuh; kembalian = diterima − total (selalu bisa diambil dari tunai).
 func settle(n norm, t totals) (totals, FieldErrors) {
 	cash := decimal.Zero
 	for _, p := range n.payments {
 		t.paid = t.paid.Add(p.amount)
+		if p.bearer == "customer" {
+			t.surcharge = t.surcharge.Add(p.fee)
+		}
 		if p.method == "cash" {
 			cash = cash.Add(p.amount)
 		}
@@ -847,6 +926,9 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			return err
 		}
 	}
+	if n, fe = resolvePayments(ctx, q, a, n); len(fe) > 0 {
+		return fe
+	}
 	if t, fe = settle(n, t); len(fe) > 0 {
 		return fe
 	}
@@ -865,7 +947,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
 			CashierID: cashier, ApprovedBy: approvedBy, Note: n.note,
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
-			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
 		})
@@ -877,7 +959,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TenantID: a.TenantID, OutletID: a.OutletID, DocNo: docNo, IdempotencyKey: key, RequestHash: h,
 			CashierID: ed.orig.CashierID, ApprovedBy: approvedBy, Note: n.note,
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
-			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
+			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
 			CreatedAt:     ed.orig.CreatedAt, RootID: pgtype.UUID{Bytes: ed.rootID, Valid: true}, Revision: ed.orig.Revision + 1,
@@ -931,7 +1013,8 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	}
 	for i, p := range n.payments {
 		if err := q.SalesPaymentInsert(ctx, gen.SalesPaymentInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1),
-			Method: p.method, Amount: p.amount, RefNo: p.refNo}); err != nil {
+			Method: p.method, MethodID: *p.methodID, MethodName: p.name, Amount: p.amount, RefNo: p.refNo,
+			FeePct: p.feePct, FeeFlat: p.feeFlat, FeeAmount: p.fee, FeeBearer: p.bearer}); err != nil {
 			return err
 		}
 	}
@@ -1072,7 +1155,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			ApprovedBy: h.ApproverName, Note: h.Note, Subtotal: h.Subtotal.StringFixed(2), Discount: h.Discount.StringFixed(2),
 			TaxStorePct: h.TaxStorePct.StringFixed(2), TaxGovPct: h.TaxGovPct.StringFixed(2),
 			TaxStore: h.TaxStore.StringFixed(2), TaxGov: h.TaxGov.StringFixed(2), OtherCost: h.OtherCost.StringFixed(2),
-			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2),
+			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2), Surcharge: h.Surcharge.StringFixed(2),
 			Salesperson: spi, Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
 			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps)),
 			Revision: int(h.Revision), RootID: h.ID, RevisionReason: h.RevisionReason, VoidReason: h.VoidReason}
@@ -1109,7 +1192,8 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			out.OtherCosts = append(out.OtherCosts, CostInfo{Name: c.Name, Amount: c.Amount.StringFixed(2)})
 		}
 		for _, p := range ps {
-			out.Payments = append(out.Payments, Payment{Method: p.Method, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo})
+			out.Payments = append(out.Payments, Payment{Method: p.Method, MethodID: p.MethodID, MethodName: p.MethodName, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo,
+				FeePct: p.FeePct.StringFixed(2), Fee: p.FeeAmount.StringFixed(2), FeeBearer: p.FeeBearer})
 		}
 		return nil
 	})

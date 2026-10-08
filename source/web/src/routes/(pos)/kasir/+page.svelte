@@ -244,6 +244,7 @@
   const costRows = $derived(costs.filter((c) => toCents(c.amount) > 0n).map((c) => ({ name: c.label.trim(), amount: centsStr(toCents(c.amount)) })));
   const outletTax = $derived(accessibleOutlets.items.find((o) => o.id === session.outlet?.id));
   let taxOn = $state(restored?.taxOn ?? false);
+  const pct = (v: string | number) => formatNumber(Number(v), { maximumFractionDigits: 2 });
   const calcTax = () => (taxOn = true);
   const cancelTax = () => (taxOn = false);
 
@@ -1152,11 +1153,11 @@
           </div>
         {/if}
         <label class="flex items-center gap-2">
-          <span class="w-28 shrink-0">{t('pos.storeTax')}</span>
+          <span class="w-28 shrink-0 leading-tight">{t('pos.storeTax')}{#if outletTax}<span class="block text-[10.5px] text-[var(--text-tertiary)]">{pct(outletTax.tax_store_pct)}%</span>{/if}</span>
           <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)]" title={t('pos.taxPreview')}>{money(taxStore)}</output>
         </label>
         <label class="flex items-center gap-2">
-          <span class="w-28 shrink-0">{t('pos.govTax')}</span>
+          <span class="w-28 shrink-0 leading-tight">{t('pos.govTax')}{#if outletTax}<span class="block text-[10.5px] text-[var(--text-tertiary)]">{pct(outletTax.tax_gov_pct)}%</span>{/if}</span>
           <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)]" title={t('pos.taxPreview')}>{money(taxGov)}</output>
         </label>
         <div class="grid grid-cols-2 gap-2 pt-1">

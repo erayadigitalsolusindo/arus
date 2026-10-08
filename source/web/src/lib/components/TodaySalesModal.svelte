@@ -124,7 +124,7 @@
               <td class="px-3 py-1.5 text-end tabular-nums whitespace-nowrap">{money(r.total)}</td>
               <td class="px-3 py-1.5 text-center tabular-nums whitespace-nowrap">{dt(r.created_at)}</td>
               <td class="px-3 py-1.5 text-center tabular-nums whitespace-nowrap">{dt(r.created_at)}</td>
-              <td class="px-3 py-1.5 text-center">{Object.keys(r.methods).map(methodLabel).join(', ')}</td>
+              <td class="px-3 py-1.5 text-center">{r.pays.map((p) => p.name).join(', ')}</td>
             </tr>
             {#if d}
               <tr class="bg-[var(--surface-sunken)]">
@@ -169,7 +169,7 @@
                           {/each}
                           <tr class="font-bold"><td colspan="4" class="px-2.5 py-1.5 text-end">{t('pos.today.sumRow.total')}</td><td class="px-2.5 py-1.5 text-end tabular-nums">{money(d.total)}</td></tr>
                           {#each d.payments as p}
-                            <tr><td colspan="4" class="px-2.5 py-1 text-end text-[var(--text-secondary)]">{methodLabel(p.method)}{#if p.ref_no} · {p.ref_no}{/if}</td><td class="px-2.5 py-1 text-end tabular-nums">{money(p.amount)}</td></tr>
+                            <tr><td colspan="4" class="px-2.5 py-1 text-end text-[var(--text-secondary)]">{p.method_name || methodLabel(p.method)}{#if p.ref_no} · {p.ref_no}{/if}</td><td class="px-2.5 py-1 text-end tabular-nums">{money(p.amount)}</td></tr>
                           {/each}
                           {#if Number(d.change)}
                             <tr><td colspan="4" class="px-2.5 py-1 text-end text-[var(--text-secondary)]">{t('pos.today.sumRow.change')}</td><td class="px-2.5 py-1 text-end tabular-nums">{money(d.change)}</td></tr>
@@ -202,12 +202,16 @@
     <div class="pt-1">
       <table class="w-full text-[13px] tabular-nums rounded-md border border-[var(--border-subtle)] overflow-hidden">
         <tbody class="divide-y divide-[var(--border-subtle)]">
-          {#each ['cash', 'credit', 'transfer', 'debit', 'credit_card', 'ewallet'] as m}
+          {#each data?.by_method ?? [] as m (m.method_id)}
             <tr>
-              <th scope="row" class="px-3 py-1.5 text-start font-semibold">{methodLabel(m)}</th>
-              <td class="px-3 py-1.5 text-end">{money(data?.totals[m as keyof typeof data.totals])}</td>
+              <th scope="row" class="px-3 py-1.5 text-start font-semibold">{m.name}</th>
+              <td class="px-3 py-1.5 text-end">{money(m.amount)}</td>
             </tr>
           {/each}
+          <tr>
+            <th scope="row" class="px-3 py-1.5 text-start font-semibold">{methodLabel('credit')}</th>
+            <td class="px-3 py-1.5 text-end">{money(data?.totals['credit' as keyof typeof data.totals])}</td>
+          </tr>
         </tbody>
         <tfoot>
           <tr class="bg-[var(--surface-sunken)] font-bold border-t border-[var(--border-default)]">

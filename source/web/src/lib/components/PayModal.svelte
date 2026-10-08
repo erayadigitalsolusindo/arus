@@ -4,8 +4,10 @@
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import Select from '#lib/components/Select.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
-  import { newIdempotencyKey, sales, type PayMethod, type Sale, type SaleInput } from '#lib/sales/api.ts';
+  import { newIdempotencyKey, sales, type Sale, type SaleInput } from '#lib/sales/api.ts';
+  import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
 
   let {
@@ -31,35 +33,39 @@
 
   // Jenis transaksi mengikuti layar legacy: F1 Tunai, F2 Kredit, F3 Non-tunai, F4 Split.
   type Mode = 'cash' | 'credit' | 'noncash' | 'split';
-  type Field = { amount: string; bank: string; ref: string };
+  type Field = { amount: string; ref: string };
   const MODES: { id: Mode; key: string; label: string; enabled: boolean }[] = [
     { id: 'cash', key: 'F1', label: 'pos.mode.cash', enabled: true },
     { id: 'credit', key: 'F2', label: 'pos.mode.credit', enabled: false }, // menunggu modul piutang
     { id: 'noncash', key: 'F3', label: 'pos.mode.noncash', enabled: true },
     { id: 'split', key: 'F4', label: 'pos.mode.split', enabled: true }
   ];
-  /** Metode yang tampil (berurutan) untuk tiap jenis. Hanya yang tampil yang ikut dikirim. */
-  const SHOWN: Record<Mode, PayMethod[]> = {
-    cash: ['cash'],
-    credit: [],
-    noncash: ['transfer', 'debit', 'credit_card', 'ewallet'],
-    split: ['cash', 'transfer']
+  /** Metode yang tampil untuk tiap jenis transaksi (dari master Metode Pembayaran). Hanya yang tampil yang ikut dikirim. */
+  const showFor = (list: PaymentMethod[], mode: Mode, pickedId = '', splitIds: string[] = []): PaymentMethod[] => {
+    switch (mode) {
+      case 'cash':
+        return list.filter((m) => m.kind === 'cash');
+      case 'noncash':
+        return list.filter((m) => m.id === pickedId); // satu metode dipilih kasir (QRIS, DANA, Debit BCA, ...)
+      case 'split':
+        return splitIds.flatMap((id) => list.filter((m) => m.id === id)); // baris yang ditambahkan kasir, berurutan
+      default:
+        return [];
+    }
   };
-  const needsBank = (m: PayMethod) => m !== 'cash';
+  const hasRef = (m: PaymentMethod) => m.kind !== 'cash';
 
   /** sen → string desimal untuk input/API ("12500" atau "12500.50"), tanpa float. */
   const dec = (c: bigint) => (c % 100n === 0n ? String(c / 100n) : `${c / 100n}.${String(c % 100n).padStart(2, '0')}`);
   const money = (c: bigint) => formatCurrency(centsToNumber(c), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const blank = (): Record<PayMethod, Field> => ({
-    cash: { amount: '', bank: '', ref: '' },
-    transfer: { amount: '', bank: '', ref: '' },
-    debit: { amount: '', bank: '', ref: '' },
-    credit_card: { amount: '', bank: '', ref: '' },
-    ewallet: { amount: '', bank: '', ref: '' }
-  });
+  /** Isian kosong untuk tiap metode; tunai langsung berisi uang pas bila diminta. */
+  const blank = (list: PaymentMethod[], exactCash = false): Record<string, Field> =>
+    Object.fromEntries(list.map((m) => [m.id, { amount: exactCash && m.kind === 'cash' ? dec(untrack(() => total)) : '', ref: '' }]));
 
+  let methods = $state<PaymentMethod[]>([]);
+  let methodsReady = $state(false);
   let mode = $state<Mode>('cash');
-  let fields = $state(untrack(() => ({ ...blank(), cash: { amount: dec(total), bank: '', ref: '' } }))); // default: uang pas
+  let fields = $state<Record<string, Field>>({}); // default: uang pas (diisi setelah metode termuat)
   let submitting = $state(false);
   let error = $state('');
   let done = $state<Sale | null>(null);
@@ -67,13 +73,82 @@
   // Satu kunci selama jendela ini terbuka: klik ganda / ulang setelah jaringan putus mengembalikan nota yang sama.
   const key = newIdempotencyKey();
 
-  const shown = $derived(SHOWN[mode]);
-  const entered = $derived(shown.filter((m) => toCents(fields[m].amount) > 0n));
-  const paid = $derived(entered.reduce((s, m) => s + toCents(fields[m].amount), 0n));
-  const cashPaid = $derived(entered.includes('cash') ? toCents(fields.cash.amount) : 0n);
+  let pickedId = $state('');
+  const nonCashMethods = $derived(methods.filter((m) => m.kind !== 'cash'));
+  const KIND_ORDER = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer'];
+  const kindName = (k: string) => t(`sales.method.${k}` as 'sales.method.cash');
+  /** Jenis yang punya metode aktif, urut tetap (Tunai dulu). */
+  const kindsOf = (list: PaymentMethod[]) => KIND_ORDER.filter((k) => list.some((m) => m.kind === k));
+  const nonCashKinds = $derived(kindsOf(nonCashMethods));
+  const pickedKind = $derived(methods.find((m) => m.id === pickedId)?.kind ?? '');
+  /** Jenis -> metode pertama yang bebas (dipakai saat kasir mengganti jenis). */
+  const firstOfKind = (k: string, taken: string[] = []) => methods.find((m) => m.kind === k && !taken.includes(m.id));
+  /** Baris MDR di bawah isian: tarif, nominal biaya, dan siapa yang menanggung. Kosong bila metode tanpa biaya atau jumlah belum diisi. */
+  const feeLine = (m: PaymentMethod) => {
+    const amt = amountOf(m);
+    if (amt <= 0n || !feeLabel(m)) return '';
+    return t('pos.feeLine', { rate: feeLabel(m), fee: money(feeCents(m, amt)), who: t(m.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore') });
+  };
+  let splitIds = $state<string[]>([]);
+  const shown = $derived(showFor(methods, mode, pickedId, splitIds));
+  const splitFree = $derived(methods.filter((m) => !splitIds.includes(m.id)));
+  /** Split: tambah satu baris metode; jumlah awalnya = sisa yang belum terbayar. */
+  async function addSplit(id?: string) {
+    const m = id ? methods.find((x) => x.id === id) : splitFree[0];
+    if (!m || splitIds.includes(m.id)) return;
+    const rest = total - paid;
+    splitIds = [...splitIds, m.id];
+    fields[m.id] = { amount: rest > 0n ? dec(rest) : '', ref: '' };
+    await tick();
+    const el = [...(body?.querySelectorAll<HTMLInputElement>('input[data-pay]') ?? [])].find((x) => x.getAttribute('aria-label') === m.name);
+    el?.focus();
+    el?.select();
+  }
+  /** Ganti jenis pada baris split: pindah ke metode bebas pertama dari jenis itu. */
+  function changeKind(oldId: string, kind: string) {
+    const next = firstOfKind(kind, splitIds);
+    if (next) swapSplit(oldId, next.id);
+  }
+  function removeSplit(id: string) {
+    splitIds = splitIds.filter((x) => x !== id);
+    fields[id] = { amount: '', ref: '' };
+  }
+  /** Ganti metode pada baris split (jumlah dan referensi ikut pindah). */
+  function swapSplit(oldId: string, newId: string) {
+    if (oldId === newId || splitIds.includes(newId)) return;
+    fields[newId] = { ...fields[oldId] };
+    fields[oldId] = { amount: '', ref: '' };
+    splitIds = splitIds.map((x) => (x === oldId ? newId : x));
+  }
+  /** "0,7%" / "Rp1.000" / "0,7% + Rp1.000" untuk label chip; kosong bila tanpa biaya. */
+  const feeLabel = (m: PaymentMethod) => {
+    const pct = Number(m.fee_pct ?? 0);
+    const flat = toCents(m.fee_flat ?? '');
+    return [pct > 0 ? `${pct}%` : '', flat > 0n ? money(flat) : ''].filter(Boolean).join(' + ');
+  };
+  /** Pilih metode non-tunai: isian lain dikosongkan, jumlah langsung pas dengan total. */
+  async function pick(id: string) {
+    pickedId = id;
+    fields = blank(methods);
+    if (fields[id]) fields[id].amount = dec(total);
+    await tick();
+    focusFirst();
+  }
+  const amountOf = (m: PaymentMethod) => toCents(fields[m.id]?.amount ?? '');
+  const entered = $derived(shown.filter((m) => amountOf(m) > 0n));
+  const paid = $derived(entered.reduce((s, m) => s + amountOf(m), 0n));
+  const cashPaid = $derived(entered.filter((m) => m.kind === 'cash').reduce((s, m) => s + amountOf(m), 0n));
   const nonCashOver = $derived(paid - cashPaid > total);
   const diff = $derived(paid - total); // negatif = masih kurang
-  const canSubmit = $derived(!submitting && entered.length > 0 && paid >= total && !nonCashOver);
+  /** Pratinjau biaya metode (rumus sama dengan server: jumlah × persen + tetap, dibulatkan sen). Server yang menentukan. */
+  const feeCents = (m: PaymentMethod, amount: bigint): bigint => {
+    const pctH = BigInt(Math.round(Number(m.fee_pct ?? 0) * 100));
+    const flat = toCents(m.fee_flat ?? '');
+    return pctH === 0n && flat === 0n ? 0n : (amount * pctH + 5000n) / 10000n + flat;
+  };
+  const customerFees = $derived(entered.filter((m) => m.fee_bearer === 'customer').map((m) => ({ m, amount: amountOf(m), fee: feeCents(m, amountOf(m)) })));
+  const surcharge = $derived(customerFees.reduce((s, x) => s + x.fee, 0n));
+  const canSubmit = $derived(methodsReady && !submitting && entered.length > 0 && paid >= total && !nonCashOver);
 
   function focusFirst() {
     const el = body?.querySelector<HTMLInputElement>('input[data-pay]');
@@ -84,17 +159,35 @@
   async function setMode(next: Mode) {
     if (!MODES.find((m) => m.id === next)?.enabled || next === mode) return;
     mode = next;
-    fields = blank();
-    if (next === 'cash') fields.cash.amount = dec(total);
+    fields = blank(methods, next === 'cash');
     error = '';
+    splitIds = [];
+    if (next === 'split') {
+      await addSplit(methods.find((m) => m.kind === 'cash')?.id);
+      return;
+    }
+    if (next === 'noncash') {
+      await pick(methods.some((m) => m.id === pickedId && m.kind !== 'cash') ? pickedId : (nonCashMethods[0]?.id ?? ''));
+      return;
+    }
     await tick();
     focusFirst();
   }
 
   onMount(() => {
-    // Modal merebut fokus ke dialog saat dibuka; tunggu satu putaran lalu pindah ke kolom utama.
-    const id = setTimeout(focusFirst, 0);
-    return () => clearTimeout(id);
+    void paymentMethodsLookup
+      .all()
+      .then(async (list) => {
+        methods = list;
+        pickedId = list.find((m) => m.kind !== 'cash')?.id ?? '';
+        fields = blank(list, true);
+        methodsReady = true;
+        await tick();
+        focusFirst();
+      })
+      .catch((e) => {
+        error = errorMessage(e);
+      });
   });
 
   /** Enter di kolom isian = pindah ke kolom berikutnya, terakhir ke tombol Simpan (UX kasir legacy). */
@@ -142,9 +235,9 @@
       const payload = {
           ...build(),
           payments: entered.map((m) => {
-            const f = fields[m];
-            const ref = [f.bank.trim(), f.ref.trim()].filter(Boolean).join(' · ').slice(0, 100);
-            return { method: m, amount: dec(toCents(f.amount)), ...(ref ? { ref_no: ref } : {}) };
+            const f = fields[m.id];
+            const ref = f.ref.trim().slice(0, 100);
+            return { method_id: m.id, amount: dec(toCents(f.amount)), ...(ref ? { ref_no: ref } : {}) };
           })
         };
       done = edit ? await sales.edit(edit.id, { ...payload, reason: edit.reason }, key) : await sales.create(payload, key);
@@ -167,6 +260,10 @@
       <dl class="text-[13px] space-y-1 text-start max-w-xs mx-auto">
         <div class="flex justify-between"><dt>{t('pos.payTotal')}</dt><dd class="font-semibold tabular-nums">{money(toCents(done.total))}</dd></div>
         <div class="flex justify-between"><dt>{t('pos.payPaid')}</dt><dd class="tabular-nums">{money(toCents(done.paid))}</dd></div>
+        {#if Number(done.surcharge) > 0}
+          <div class="flex justify-between"><dt>{t('pos.surcharge')}</dt><dd class="tabular-nums">+{money(toCents(done.surcharge))}</dd></div>
+          <div class="flex justify-between font-semibold"><dt>{t('pos.charged')}</dt><dd class="tabular-nums">{money(toCents(done.total) + toCents(done.surcharge))}</dd></div>
+        {/if}
         <div class="flex justify-between text-[16px] font-extrabold text-[var(--color-success-600)]"><dt>{t('pos.paidChange')}</dt><dd class="tabular-nums">{money(toCents(done.change))}</dd></div>
       </dl>
       {#if done.member}
@@ -201,26 +298,100 @@
         </div>
       </div>
 
-      {#each shown as m (m)}
+      {#if !methodsReady && !error}
+        <p class="text-[12.5px] text-[var(--text-tertiary)]">{t('pos.methodsLoading')}</p>
+      {/if}
+      {#if mode === 'noncash' && methodsReady}
+        {#if nonCashMethods.length === 0}
+          <p class="text-[12.5px] text-[var(--color-danger-600)]">{t('pos.noNonCash')}</p>
+        {:else}
+          <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-start">
+            <div class="text-[16px] font-semibold pt-1">{t('pos.pickKind')}:</div>
+            <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('pos.pickKind')}>
+              {#each nonCashKinds as k (k)}
+                <label class="cursor-pointer select-none rounded border border-[var(--border-default)] px-3 py-1.5 text-[13px] font-semibold has-[:checked]:border-[var(--color-primary-500)] has-[:checked]:bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)]">
+                  <input type="radio" name="paykind" class="sr-only" value={k} checked={pickedKind === k} onchange={() => { const n = firstOfKind(k); if (n) void pick(n.id); }} />
+                  {kindName(k)}
+                </label>
+              {/each}
+            </div>
+            <div class="text-[16px] font-semibold pt-1">{t('pos.pickMethod')}:</div>
+            <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('pos.pickMethod')}>
+              {#each nonCashMethods.filter((x) => x.kind === pickedKind) as m (m.id)}
+                <label class="cursor-pointer select-none rounded border border-[var(--border-default)] px-3 py-1.5 text-[13px] font-semibold has-[:checked]:border-[var(--color-primary-500)] has-[:checked]:bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)]">
+                  <input type="radio" name="paymethod" class="sr-only" value={m.id} checked={pickedId === m.id} onchange={() => pick(m.id)} />
+                  {m.name}
+                  {#if feeLabel(m)}<span class="ms-1 text-[11px] font-normal text-[var(--text-tertiary)]">{feeLabel(m)}{m.fee_bearer === 'customer' ? ' ↗' : ''}</span>{/if}
+                </label>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/if}
+      {#each shown as m (m.id)}
+      <div class={mode === 'split' ? 'rounded border border-[var(--border-subtle)] p-2.5 space-y-2' : ''}>
+        {#if mode === 'split'}
+          <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
+            <div class="text-[16px] font-semibold">{t('pos.pickKind')}:</div>
+            <div class="flex items-center gap-1">
+              <div class="min-w-0 grow">
+                <Select
+                  ariaLabel={t('pos.pickKind')}
+                  value={m.kind}
+                  onchange={(k) => changeKind(m.id, k)}
+                  options={KIND_ORDER.filter((k) => k === m.kind || methods.some((x) => x.kind === k && !splitIds.includes(x.id))).map((k) => ({ value: k, label: kindName(k) }))}
+                />
+              </div>
+              {#if splitIds.length > 1}
+                <button type="button" class="header-icon-btn shrink-0" aria-label={t('pos.splitRemove')} title={t('pos.splitRemove')} onclick={() => removeSplit(m.id)}><i class="icon-x text-[15px]"></i></button>
+              {/if}
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
+            <div class="text-[16px] font-semibold">{t('pos.pickMethod')}:</div>
+            <Select
+              ariaLabel={t('pos.pickMethod')}
+              value={m.id}
+              onchange={(v) => swapSplit(m.id, v)}
+              options={methods.filter((x) => x.kind === m.kind && (x.id === m.id || !splitIds.includes(x.id))).map((x) => ({ value: x.id, label: x.name }))}
+            />
+          </div>
+        {/if}
         <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-start">
-          <div class="text-[16px] font-semibold pt-1">{t(`pos.fieldLabel.${m}` as 'pos.fieldLabel.cash')}</div>
+          <div class="text-[16px] font-semibold pt-1 break-words">{mode === 'split' ? t('pos.splitAmount') : m.name}:</div>
           <div class="space-y-1.5">
             <MoneyInput
               data-pay
-              bind:value={fields[m].amount}
+              bind:value={fields[m.id].amount}
               placeholder="0"
-              aria-label={t(`pos.fieldLabel.${m}` as 'pos.fieldLabel.cash')}
+              aria-label={m.name}
               class="w-full h-11 px-3 text-end text-[22px] tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]"
             />
-            {#if needsBank(m)}
-              <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-1.5">
-                <input data-pay bind:value={fields[m].bank} maxlength="40" autocomplete="off" placeholder={t('pos.bank')} aria-label={t('pos.bank')} class="h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
-                <input data-pay bind:value={fields[m].ref} maxlength="50" autocomplete="off" placeholder={t('pos.payRefFor.' + m as 'pos.payRefFor.transfer')} aria-label={t('pos.payRef')} class="h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
-              </div>
+            {#if feeLine(m)}<p class="text-[12px] text-[var(--color-warning-600)]">{feeLine(m)}</p>{/if}
+            {#if hasRef(m)}
+              <input data-pay bind:value={fields[m.id].ref} maxlength="100" autocomplete="off" placeholder={t(('pos.payRefFor.' + (m.kind === 'cash' ? 'transfer' : m.kind)) as 'pos.payRefFor.transfer')} aria-label={t('pos.payRef')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
             {/if}
           </div>
         </div>
+      </div>
       {/each}
+
+      {#if mode === 'split' && splitFree.length > 0}
+        <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2">
+          <span></span>
+          <button type="button" class="btn btn-sm justify-self-start" onclick={() => addSplit()}><i class="icon-plus me-1"></i>{t('pos.splitAdd')}</button>
+        </div>
+      {/if}
+
+      {#if surcharge > 0n}
+        <div class="rounded border border-[var(--color-warning-500)]/40 bg-[color-mix(in_oklab,var(--color-warning-500)_10%,transparent)] p-2.5 space-y-1 text-[13px]">
+          {#each customerFees as x (x.m.id)}
+            <div class="flex justify-between gap-3"><span>{x.m.name}: {t('pos.feeCustomerHint', { amount: money(x.amount + x.fee), fee: money(x.fee) })}</span></div>
+          {/each}
+          <div class="flex justify-between gap-3 font-semibold"><span>{t('pos.surcharge')}</span><span class="tabular-nums">+{money(surcharge)}</span></div>
+          <div class="flex justify-between gap-3 text-[15px] font-bold text-[var(--color-danger-600)]"><span>{t('pos.charged')}</span><span class="tabular-nums">{money(total + surcharge)}</span></div>
+        </div>
+      {/if}
 
       <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
         <div class="text-[16px] font-semibold text-[var(--color-primary-600)]">{t('pos.payTotalPaid')}</div>

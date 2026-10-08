@@ -2,8 +2,10 @@ package sales
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -33,14 +35,24 @@ type ListRow struct {
 	Member    string            `json:"member,omitempty"`
 	LineCount int               `json:"line_count"`
 	Total     string            `json:"total"`
-	Methods   map[string]string `json:"methods"` // metode → jumlah (tunai sudah bersih dari kembalian)
+	Methods   map[string]string `json:"methods"` // jenis → jumlah (tunai sudah bersih dari kembalian)
+	Pays      []MethodAmount    `json:"pays"`    // per metode (id + nama sekarang)
+}
+
+// MethodAmount = jumlah per metode pembayaran (tunai bersih dari kembalian).
+type MethodAmount struct {
+	MethodID uuid.UUID `json:"method_id"`
+	Name     string    `json:"name"`
+	Kind     string    `json:"kind"`
+	Amount   string    `json:"amount"`
 }
 
 // ListResult: Totals = jumlah per metode atas SELURUH baris yang dikembalikan; Truncated bila terpotong batas.
 type ListResult struct {
 	Data      []ListRow         `json:"data"`
 	Total     string            `json:"total"`
-	Totals    map[string]string `json:"totals"`
+	Totals    map[string]string `json:"totals"`    // per jenis
+	ByMethod  []MethodAmount    `json:"by_method"` // per metode: Tunai dulu, lalu menurut nama
 	From      string            `json:"from"`
 	To        string            `json:"to"`
 	Truncated bool              `json:"truncated"`
@@ -48,7 +60,7 @@ type ListResult struct {
 
 // List = nota outlet aktif milik KASIR YANG SEDANG LOGIN (untuk mencocokkan uang fisik di lacinya; kasir lain tak terlihat) pada rentang tanggal (zona waktu outlet; kosong = hari ini), terbaru dulu, opsional cari no. nota.
 func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (ListResult, error) {
-	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}}
+	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}, ByMethod: []MethodAmount{}}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		qr := gen.New(tx)
 		o, err := qr.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
@@ -89,32 +101,56 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		res.From, res.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
 		res.Truncated = len(rows) >= listLimit
 		sums := map[string]decimal.Decimal{}
+		perMethod := map[uuid.UUID]*MethodAmount{}
+		perAmt := map[uuid.UUID]decimal.Decimal{}
+		var order []uuid.UUID
 		all := decimal.Zero
 		for _, r := range rows {
 			if r.Status != "completed" {
 				// Nota batal tetap terlihat di daftar tapi tidak masuk hitungan uang (laci kasir).
 				res.Data = append(res.Data, ListRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time, Cashier: r.CashierName,
-					Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: map[string]string{}})
+					Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: map[string]string{}, Pays: []MethodAmount{}})
 				continue
 			}
 			methods := map[string]string{}
-			for _, part := range strings.Split(r.PayAmounts, ",") {
-				m, v, ok := strings.Cut(part, ":")
-				if !ok {
-					continue
+			pays := []MethodAmount{}
+			var parts []struct {
+				ID     uuid.UUID       `json:"id"`
+				Name   string          `json:"name"`
+				Kind   string          `json:"kind"`
+				Amount decimal.Decimal `json:"amount"`
+			}
+			if err := json.Unmarshal([]byte(r.PayAmounts), &parts); err != nil {
+				return err
+			}
+			for _, p := range parts {
+				prev, _ := decimal.NewFromString(methods[p.Kind])
+				methods[p.Kind] = prev.Add(p.Amount).StringFixed(2)
+				sums[p.Kind] = sums[p.Kind].Add(p.Amount)
+				pays = append(pays, MethodAmount{MethodID: p.ID, Name: p.Name, Kind: p.Kind, Amount: p.Amount.StringFixed(2)})
+				if _, ok := perMethod[p.ID]; !ok {
+					perMethod[p.ID] = &MethodAmount{MethodID: p.ID, Name: p.Name, Kind: p.Kind}
+					order = append(order, p.ID)
 				}
-				d, err := decimal.NewFromString(v)
-				if err != nil {
-					continue
-				}
-				methods[m] = d.StringFixed(2)
-				sums[m] = sums[m].Add(d)
+				perAmt[p.ID] = perAmt[p.ID].Add(p.Amount)
 			}
 			all = all.Add(r.Total)
 			res.Data = append(res.Data, ListRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time, Cashier: r.CashierName,
-				Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: methods})
+				Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: methods, Pays: pays})
 		}
 		res.Total = all.StringFixed(2)
+		for _, id := range order {
+			m := perMethod[id]
+			m.Amount = perAmt[id].StringFixed(2)
+			res.ByMethod = append(res.ByMethod, *m)
+		}
+		sort.SliceStable(res.ByMethod, func(i, j int) bool {
+			ci, cj := res.ByMethod[i].Kind == "cash", res.ByMethod[j].Kind == "cash"
+			if ci != cj {
+				return ci
+			}
+			return strings.ToLower(res.ByMethod[i].Name) < strings.ToLower(res.ByMethod[j].Name)
+		})
 		for m, v := range sums {
 			res.Totals[m] = v.StringFixed(2)
 		}
