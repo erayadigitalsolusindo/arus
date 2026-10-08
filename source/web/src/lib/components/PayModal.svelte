@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
-  import { t, formatCurrency } from '#lib/i18n/index.ts';
+  import { t, formatCurrency, formatDate } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
   import Select from '#lib/components/Select.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
-  import { newIdempotencyKey, sales, type Sale, type SaleInput } from '#lib/sales/api.ts';
+  import { newIdempotencyKey, sales, type Quote, type Sale, type SaleInput } from '#lib/sales/api.ts';
+  import { approvals, type Approver } from '#lib/approval/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
 
@@ -16,7 +17,9 @@
     lineName,
     onclose,
     ondone,
-    edit
+    edit,
+    member = null,
+    credit = null
   }: {
     /** Total pratinjau (sen). Total resmi dihitung server; bila beda, server yang benar dan pembayaran divalidasi ulang. */
     total: bigint;
@@ -29,6 +32,9 @@
     ondone: () => void;
     /** Mode edit nota: simpan sebagai revisi nota `id` (alasan sudah diisi di layar kasir; penyetuju ikut di build()). */
     edit?: { id: string; reason: string };
+    /** Member yang dipilih di kasir (kredit hanya untuk member) dan syarat kreditnya dari quote. */
+    member?: { id: string; name: string } | null;
+    credit?: Quote['credit'] | null;
   } = $props();
 
   // Jenis transaksi mengikuti layar legacy: F1 Tunai, F2 Kredit, F3 Non-tunai, F4 Split.
@@ -36,7 +42,7 @@
   type Field = { amount: string; ref: string };
   const MODES: { id: Mode; key: string; label: string; enabled: boolean }[] = [
     { id: 'cash', key: 'F1', label: 'pos.mode.cash', enabled: true },
-    { id: 'credit', key: 'F2', label: 'pos.mode.credit', enabled: false }, // menunggu modul piutang
+    { id: 'credit', key: 'F2', label: 'pos.mode.credit', enabled: true },
     { id: 'noncash', key: 'F3', label: 'pos.mode.noncash', enabled: true },
     { id: 'split', key: 'F4', label: 'pos.mode.split', enabled: true }
   ];
@@ -48,6 +54,7 @@
       case 'noncash':
         return list.filter((m) => m.id === pickedId); // satu metode dipilih kasir (QRIS, DANA, Debit BCA, ...)
       case 'split':
+      case 'credit': // kredit: baris pembayaran di muka (DP) yang ditambahkan kasir; boleh kosong
         return splitIds.flatMap((id) => list.filter((m) => m.id === id)); // baris yang ditambahkan kasir, berurutan
       default:
         return [];
@@ -92,13 +99,15 @@
   let splitIds = $state<string[]>([]);
   const shown = $derived(showFor(methods, mode, pickedId, splitIds));
   const splitFree = $derived(methods.filter((m) => !splitIds.includes(m.id)));
+  const multi = $derived(mode === 'split' || mode === 'credit'); // beberapa baris metode
+  const isCredit = $derived(mode === 'credit');
   /** Split: tambah satu baris metode; jumlah awalnya = sisa yang belum terbayar. */
   async function addSplit(id?: string) {
     const m = id ? methods.find((x) => x.id === id) : splitFree[0];
     if (!m || splitIds.includes(m.id)) return;
     const rest = total - paid;
     splitIds = [...splitIds, m.id];
-    fields[m.id] = { amount: rest > 0n ? dec(rest) : '', ref: '' };
+    fields[m.id] = { amount: rest > 0n && mode !== 'credit' ? dec(rest) : '', ref: '' };
     await tick();
     const el = [...(body?.querySelectorAll<HTMLInputElement>('input[data-pay]') ?? [])].find((x) => x.getAttribute('aria-label') === m.name);
     el?.focus();
@@ -148,7 +157,32 @@
   };
   const customerFees = $derived(entered.filter((m) => m.fee_bearer === 'customer').map((m) => ({ m, amount: amountOf(m), fee: feeCents(m, amountOf(m)) })));
   const surcharge = $derived(customerFees.reduce((s, x) => s + x.fee, 0n));
-  const canSubmit = $derived(methodsReady && !submitting && entered.length > 0 && paid >= total && !nonCashOver);
+  // Kredit: sisa yang belum dibayar menjadi piutang member. Pratinjau sen BigInt; server yang menentukan dan memeriksa limit.
+  const receivable = $derived(isCredit && paid < total ? total - paid : 0n);
+  const limitC = $derived(toCents(credit?.limit ?? '0'));
+  const outstandingC = $derived(toCents(credit?.outstanding ?? '0'));
+  let serverOver = $state(false); // server menolak karena limit walau pratinjau belum tahu
+  const overLimit = $derived(isCredit && receivable > 0n && ((limitC > 0n && outstandingC + receivable > limitC) || serverOver));
+  const baseApproval = $derived(isCredit ? build().approval : undefined); // sudah ada penyetuju (ubah harga / edit nota)
+  let creditApprovers = $state<Approver[] | null>(null);
+  let creditApproverId = $state('');
+  let creditPin = $state('');
+  $effect(() => {
+    if (overLimit && !baseApproval && creditApprovers === null) {
+      creditApprovers = [];
+      void approvals
+        .approvers('credit_limit')
+        .then((l) => {
+          creditApprovers = l;
+          if (l.length === 1) creditApproverId = l[0].id;
+        })
+        .catch((e) => (error = errorMessage(e)));
+    }
+  });
+  const approvalOk = $derived(!overLimit || !!baseApproval || (creditApproverId !== '' && /^d{6}$/.test(creditPin)));
+  const canSubmit = $derived(
+    methodsReady && !submitting && !nonCashOver && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
+  );
 
   function focusFirst() {
     const el = body?.querySelector<HTMLInputElement>('input[data-pay]');
@@ -162,10 +196,12 @@
     fields = blank(methods, next === 'cash');
     error = '';
     splitIds = [];
+    serverOver = false;
     if (next === 'split') {
       await addSplit(methods.find((m) => m.kind === 'cash')?.id);
       return;
     }
+    if (next === 'credit') return; // tanpa DP dulu; kasir menambah pembayaran di muka bila ada
     if (next === 'noncash') {
       await pick(methods.some((m) => m.id === pickedId && m.kind !== 'cash') ? pickedId : (nonCashMethods[0]?.id ?? ''));
       return;
@@ -215,6 +251,7 @@
 
   function describe(err: unknown): string {
     if (err instanceof ApiError && err.code === 'STOCK_INSUFFICIENT') return err.message; // memuat nama barang
+    if (err instanceof ApiError && err.code === 'CREDIT_LIMIT_EXCEEDED') serverOver = true; // minta persetujuan penyetuju
     if (err instanceof ApiError && err.code === 'VALIDATION') {
       return Object.entries(err.fields)
         .map(([f, c]) => {
@@ -232,8 +269,11 @@
     submitting = true;
     error = '';
     try {
+      const base = build();
       const payload = {
-          ...build(),
+          ...base,
+          ...(isCredit ? { credit: true } : {}),
+          ...(overLimit && !baseApproval ? { approval: { user_id: creditApproverId, pin: creditPin } } : {}),
           payments: entered.map((m) => {
             const f = fields[m.id];
             const ref = f.ref.trim().slice(0, 100);
@@ -264,7 +304,14 @@
           <div class="flex justify-between"><dt>{t('pos.surcharge')}</dt><dd class="tabular-nums">+{money(toCents(done.surcharge))}</dd></div>
           <div class="flex justify-between font-semibold"><dt>{t('pos.charged')}</dt><dd class="tabular-nums">{money(toCents(done.total) + toCents(done.surcharge))}</dd></div>
         {/if}
-        <div class="flex justify-between text-[16px] font-extrabold text-[var(--color-success-600)]"><dt>{t('pos.paidChange')}</dt><dd class="tabular-nums">{money(toCents(done.change))}</dd></div>
+        {#if Number(done.receivable) > 0}
+          <div class="flex justify-between text-[16px] font-extrabold text-[var(--color-danger-600)]"><dt>{t('pos.credit.receivable')}</dt><dd class="tabular-nums">{money(toCents(done.receivable))}</dd></div>
+          {#if done.credit?.due_date}
+            <div class="flex justify-between text-[12.5px] text-[var(--text-secondary)]"><dt>{t('pos.credit.dueOn')}</dt><dd>{formatDate(done.credit.due_date)}</dd></div>
+          {/if}
+        {:else}
+          <div class="flex justify-between text-[16px] font-extrabold text-[var(--color-success-600)]"><dt>{t('pos.paidChange')}</dt><dd class="tabular-nums">{money(toCents(done.change))}</dd></div>
+        {/if}
       </dl>
       {#if done.member}
         <p class="text-[12.5px] text-[var(--text-secondary)]">
@@ -329,8 +376,8 @@
         {/if}
       {/if}
       {#each shown as m (m.id)}
-      <div class={mode === 'split' ? 'rounded border border-[var(--border-subtle)] p-2.5 space-y-2' : ''}>
-        {#if mode === 'split'}
+      <div class={multi ? 'rounded border border-[var(--border-subtle)] p-2.5 space-y-2' : ''}>
+        {#if multi}
           <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
             <div class="text-[16px] font-semibold">{t('pos.pickKind')}:</div>
             <div class="flex items-center gap-1">
@@ -342,7 +389,7 @@
                   options={KIND_ORDER.filter((k) => k === m.kind || methods.some((x) => x.kind === k && !splitIds.includes(x.id))).map((k) => ({ value: k, label: kindName(k) }))}
                 />
               </div>
-              {#if splitIds.length > 1}
+              {#if splitIds.length > 1 || isCredit}
                 <button type="button" class="header-icon-btn shrink-0" aria-label={t('pos.splitRemove')} title={t('pos.splitRemove')} onclick={() => removeSplit(m.id)}><i class="icon-x text-[15px]"></i></button>
               {/if}
             </div>
@@ -358,7 +405,7 @@
           </div>
         {/if}
         <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-start">
-          <div class="text-[16px] font-semibold pt-1 break-words">{mode === 'split' ? t('pos.splitAmount') : m.name}:</div>
+          <div class="text-[16px] font-semibold pt-1 break-words">{isCredit ? t('pos.credit.dpAmount') : mode === 'split' ? t('pos.splitAmount') : m.name}:</div>
           <div class="space-y-1.5">
             <MoneyInput
               data-pay
@@ -376,11 +423,54 @@
       </div>
       {/each}
 
-      {#if mode === 'split' && splitFree.length > 0}
+      {#if multi && splitFree.length > 0}
         <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2">
           <span></span>
-          <button type="button" class="btn btn-sm justify-self-start" onclick={() => addSplit()}><i class="icon-plus me-1"></i>{t('pos.splitAdd')}</button>
+          <button type="button" class="btn btn-sm justify-self-start" onclick={() => addSplit()}><i class="icon-plus me-1"></i>{isCredit ? t('pos.credit.dpAdd') : t('pos.splitAdd')}</button>
         </div>
+      {/if}
+
+      {#if isCredit}
+        <div class="rounded border border-[var(--border-default)] p-2.5 space-y-1.5 text-[13px]">
+          {#if !member}
+            <p role="alert" class="text-[var(--color-danger-600)] font-semibold"><i class="icon-user-round me-1"></i>{t('pos.credit.noMember')}</p>
+          {:else}
+            <div class="flex justify-between gap-3"><span>{t('pos.credit.member')}</span><span class="font-semibold text-end">{member.name}</span></div>
+            <div class="flex justify-between gap-3">
+              <span>{t('pos.credit.due')}</span>
+              <span class="font-semibold text-end">{credit && credit.due_days > 0 ? t('pos.credit.dueDays', { days: credit.due_days }) : t('pos.credit.noDue')}</span>
+            </div>
+            {#if credit}
+              <div class="flex justify-between gap-3">
+                <span>{t('pos.credit.limit')}</span>
+                <span class="font-semibold text-end">{limitC > 0n ? money(limitC) : t('pos.credit.noLimit')}</span>
+              </div>
+              <div class="flex justify-between gap-3"><span>{t('pos.credit.outstanding')}</span><span class="tabular-nums text-end">{money(outstandingC)}</span></div>
+              <div class="flex justify-between gap-3"><span>{t('pos.credit.after')}</span><span class="tabular-nums font-semibold text-end">{money(outstandingC + receivable)}</span></div>
+            {/if}
+          {/if}
+          {#if member && receivable <= 0n && paid > 0n}
+            <p class="text-[12px] text-[var(--color-warning-600)]">{fieldMessage('CREDIT_NOT_NEEDED')}</p>
+          {/if}
+        </div>
+        {#if overLimit}
+          <div class="rounded border border-[var(--color-warning-500)]/50 bg-[color-mix(in_oklab,var(--color-warning-500)_10%,transparent)] p-2.5 space-y-2 text-[13px]">
+            <p class="font-semibold text-[var(--color-warning-600)]"><i class="icon-shield-alert me-1"></i>{t('pos.credit.overLimit')}</p>
+            {#if baseApproval}
+              <p class="text-[12px] text-[var(--text-secondary)]">{t('pos.credit.sameApprover')}</p>
+            {:else}
+              <label class="block">
+                <span class="font-semibold">{t('pos.override.approver')}</span>
+                <div class="mt-1"><Select bind:value={creditApproverId} options={[{ value: '', label: t('pos.override.pickApprover'), disabled: true }, ...(creditApprovers ?? []).map((a) => ({ value: a.id, label: a.name }))]} /></div>
+                {#if creditApprovers && creditApprovers.length === 0}<span class="text-[12px] text-[var(--color-danger-600)]">{t('pos.credit.noApprovers')}</span>{/if}
+              </label>
+              <label class="block">
+                <span class="font-semibold">{t('pos.override.pin')}</span>
+                <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" bind:value={creditPin} autocomplete="new-password" class="mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] tracking-[0.4em]" />
+              </label>
+            {/if}
+          </div>
+        {/if}
       {/if}
 
       {#if surcharge > 0n}
@@ -397,10 +487,17 @@
         <div class="text-[16px] font-semibold text-[var(--color-primary-600)]">{t('pos.payTotalPaid')}</div>
         <input readonly tabindex="-1" value={money(paid)} aria-label={t('pos.payTotalPaid')} class="w-full h-11 px-3 text-end text-[22px] tabular-nums rounded border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--color-danger-500)_16%,transparent)]" />
       </div>
-      <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
-        <div class="text-[16px] font-semibold text-[var(--color-primary-600)]">{diff < 0n ? t('pos.payShort') : t('pos.payChange')}</div>
-        <input readonly tabindex="-1" value={money(diff)} aria-label={t('pos.payChange')} class="w-full h-11 px-3 text-end text-[22px] tabular-nums rounded border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--color-success-500)_22%,transparent)]" />
-      </div>
+      {#if isCredit}
+        <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
+          <div class="text-[16px] font-semibold text-[var(--color-danger-600)]">{t('pos.credit.receivable')}:</div>
+          <input readonly tabindex="-1" value={money(receivable)} aria-label={t('pos.credit.receivable')} class="w-full h-11 px-3 text-end text-[22px] font-bold tabular-nums rounded border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--color-danger-500)_16%,transparent)]" />
+        </div>
+      {:else}
+        <div class="grid sm:grid-cols-[170px_minmax(0,1fr)] gap-2 items-center">
+          <div class="text-[16px] font-semibold text-[var(--color-primary-600)]">{diff < 0n ? t('pos.payShort') : t('pos.payChange')}</div>
+          <input readonly tabindex="-1" value={money(diff)} aria-label={t('pos.payChange')} class="w-full h-11 px-3 text-end text-[22px] tabular-nums rounded border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--color-success-500)_22%,transparent)]" />
+        </div>
+      {/if}
 
       {#if nonCashOver}<p class="text-[12px] text-[var(--color-danger-600)]">{fieldMessage('NON_CASH_OVER')}</p>{/if}
       {#if error}<p role="alert" class="text-[12.5px] text-[var(--color-danger-600)]">{error}</p>{/if}

@@ -48,7 +48,8 @@ var Modules = []Module{
 	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
 	{"outlet_switch", []string{ActView, ActApprove}},  // Owner/Supervisor yang boleh menyetujui pindah outlet di kasir lewat PIN
 	{"sale_edit", []string{ActView, ActApprove}},      // Owner/Supervisor yang boleh menyetujui edit/batal nota lewat PIN
-	{"pos_only", viewing}, // "Hanya Kasir": SPA mengunci akun ke layar kasir (pengunci tampilan; data tetap dibatasi izin role)
+	{"credit_limit", []string{ActView, ActApprove}},   // Owner/Supervisor yang boleh menyetujui penjualan kredit melewati limit piutang member lewat PIN
+	{"pos_only", viewing},                             // "Hanya Kasir": SPA mengunci akun ke layar kasir (pengunci tampilan; data tetap dibatasi izin role)
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
 	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)

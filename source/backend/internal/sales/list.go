@@ -27,16 +27,18 @@ const (
 
 // ListRow = ringkasan satu nota pada daftar penjualan kasir.
 type ListRow struct {
-	ID        uuid.UUID         `json:"id"`
-	DocNo     string            `json:"doc_no"`
-	Status    string            `json:"status"`
-	CreatedAt time.Time         `json:"created_at"`
-	Cashier   string            `json:"cashier"`
-	Member    string            `json:"member,omitempty"`
-	LineCount int               `json:"line_count"`
-	Total     string            `json:"total"`
-	Methods   map[string]string `json:"methods"` // jenis → jumlah (tunai sudah bersih dari kembalian)
-	Pays      []MethodAmount    `json:"pays"`    // per metode (id + nama sekarang)
+	ID         uuid.UUID         `json:"id"`
+	DocNo      string            `json:"doc_no"`
+	Status     string            `json:"status"`
+	CreatedAt  time.Time         `json:"created_at"`
+	Cashier    string            `json:"cashier"`
+	Member     string            `json:"member,omitempty"`
+	LineCount  int               `json:"line_count"`
+	Total      string            `json:"total"`
+	Surcharge  string            `json:"surcharge"`  // biaya metode yang ditagihkan ke pelanggan; ditagih = total + surcharge
+	Receivable string            `json:"receivable"` // bagian nota yang dikreditkan (piutang member); bukan uang di laci
+	Methods    map[string]string `json:"methods"`    // jenis → jumlah (tunai sudah bersih dari kembalian)
+	Pays       []MethodAmount    `json:"pays"`       // per metode (id + nama sekarang)
 }
 
 // MethodAmount = jumlah per metode pembayaran (tunai bersih dari kembalian).
@@ -50,7 +52,9 @@ type MethodAmount struct {
 // ListResult: Totals = jumlah per metode atas SELURUH baris yang dikembalikan; Truncated bila terpotong batas.
 type ListResult struct {
 	Data      []ListRow         `json:"data"`
-	Total     string            `json:"total"`
+	Total     string            `json:"total"`     // Σ total nota = omzet (tanpa biaya metode)
+	Surcharge string            `json:"surcharge"` // Σ biaya metode yang ditagihkan ke pelanggan (bukan pendapatan)
+	Received  string            `json:"received"`  // Total + Surcharge = Σ per metode (cocokkan dengan EDC/QRIS/laci)
 	Totals    map[string]string `json:"totals"`    // per jenis
 	ByMethod  []MethodAmount    `json:"by_method"` // per metode: Tunai dulu, lalu menurut nama
 	From      string            `json:"from"`
@@ -104,12 +108,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		perMethod := map[uuid.UUID]*MethodAmount{}
 		perAmt := map[uuid.UUID]decimal.Decimal{}
 		var order []uuid.UUID
-		all := decimal.Zero
+		all, sur, credit := decimal.Zero, decimal.Zero, decimal.Zero
 		for _, r := range rows {
 			if r.Status != "completed" {
 				// Nota batal tetap terlihat di daftar tapi tidak masuk hitungan uang (laci kasir).
 				res.Data = append(res.Data, ListRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time, Cashier: r.CashierName,
-					Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: map[string]string{}, Pays: []MethodAmount{}})
+					Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Surcharge: r.Surcharge.StringFixed(2), Receivable: r.Receivable.StringFixed(2), Methods: map[string]string{}, Pays: []MethodAmount{}})
 				continue
 			}
 			methods := map[string]string{}
@@ -134,11 +138,11 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 				}
 				perAmt[p.ID] = perAmt[p.ID].Add(p.Amount)
 			}
-			all = all.Add(r.Total)
+			all, sur, credit = all.Add(r.Total), sur.Add(r.Surcharge), credit.Add(r.Receivable)
 			res.Data = append(res.Data, ListRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time, Cashier: r.CashierName,
-				Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: methods, Pays: pays})
+				Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Surcharge: r.Surcharge.StringFixed(2), Receivable: r.Receivable.StringFixed(2), Methods: methods, Pays: pays})
 		}
-		res.Total = all.StringFixed(2)
+		res.Total, res.Surcharge, res.Received = all.StringFixed(2), sur.StringFixed(2), all.Add(sur).StringFixed(2)
 		for _, id := range order {
 			m := perMethod[id]
 			m.Amount = perAmt[id].StringFixed(2)
@@ -153,6 +157,9 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		})
 		for m, v := range sums {
 			res.Totals[m] = v.StringFixed(2)
+		}
+		if credit.IsPositive() {
+			res.Totals["credit"] = credit.StringFixed(2) // piutang dari nota kredit (bukan metode bayar)
 		}
 		return nil
 	})

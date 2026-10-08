@@ -105,6 +105,11 @@ const errors: Messages['errors'] = {
   FIELD_KIND_LOCKED: 'The method type cannot be changed.',
   FIELD_CASH_NO_FEE: 'Cash cannot carry a fee.',
   FIELD_METHOD_INACTIVE: 'This payment method has been archived.',
+  CREDIT_LIMIT_EXCEEDED: "The member's receivable exceeds the credit limit. Owner/Supervisor approval (PIN) is required.",
+  RECEIVABLE_PAID: 'This receipt\'s receivable has been paid in part or in full, so the receipt can no longer be edited or voided.',
+  FIELD_CREDIT_NOT_NEEDED: 'The payment already covers the total. Use Cash/Non-cash, not Credit.',
+  FIELD_OVERPAID: 'The amount exceeds the remaining receivable.',
+  FIELD_SETTLED: 'This receivable is already settled.',
 };
 
 export default errors;

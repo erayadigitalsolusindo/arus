@@ -31,7 +31,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require("sales_orders", authz.ActCreate)).Get("/approvers", h.Approvers)
 		r.With(authz.Require("sales_orders", authz.ActCreate)).Post("/check", h.Check)
 		// PIN milik sendiri (hanya pemegang izin penyetuju).
-		anyApprove := authz.RequireAny([2]string{Module, authz.ActApprove}, [2]string{ModuleOutletSwitch, authz.ActApprove})
+		anyApprove := authz.RequireAny([2]string{Module, authz.ActApprove}, [2]string{ModuleOutletSwitch, authz.ActApprove}, [2]string{ModuleSaleEdit, authz.ActApprove}, [2]string{ModuleCreditLimit, authz.ActApprove})
 		r.With(anyApprove).Get("/pin", h.PinStatus)
 		r.With(anyApprove).Put("/pin", h.SetPin)
 	})
