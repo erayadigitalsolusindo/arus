@@ -2571,6 +2571,106 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 	return items, nil
 }
 
+const posShortcutClear = `-- name: PosShortcutClear :exec
+DELETE FROM pos_shortcuts WHERE tenant_id = $1 AND user_id = $2 AND slot = $3
+`
+
+type PosShortcutClearParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	Slot     int16
+}
+
+func (q *Queries) PosShortcutClear(ctx context.Context, arg PosShortcutClearParams) error {
+	_, err := q.db.Exec(ctx, posShortcutClear, arg.TenantID, arg.UserID, arg.Slot)
+	return err
+}
+
+const posShortcutList = `-- name: PosShortcutList :many
+SELECT s.slot, i.id, i.sku, i.name, i.kind, i.active, i.sell_price AS default_price, op.sell_price AS outlet_price,
+       u.name AS unit_name, mi.id AS main_image_id
+FROM pos_shortcuts s
+JOIN items i ON i.tenant_id = s.tenant_id AND i.id = s.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+WHERE s.tenant_id = $2 AND s.user_id = $3
+ORDER BY s.slot
+`
+
+type PosShortcutListParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+type PosShortcutListRow struct {
+	Slot         int16
+	ID           uuid.UUID
+	Sku          string
+	Name         string
+	Kind         string
+	Active       bool
+	DefaultPrice decimal.Decimal
+	OutletPrice  pgtype.Numeric
+	UnitName     string
+	MainImageID  pgtype.UUID
+}
+
+// Pintasan milik satu kasir beserta data barang; harga = harga efektif outlet aktif (harga cabang bila ada, selain itu default).
+func (q *Queries) PosShortcutList(ctx context.Context, arg PosShortcutListParams) ([]PosShortcutListRow, error) {
+	rows, err := q.db.Query(ctx, posShortcutList, arg.OutletID, arg.TenantID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PosShortcutListRow
+	for rows.Next() {
+		var i PosShortcutListRow
+		if err := rows.Scan(
+			&i.Slot,
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.Kind,
+			&i.Active,
+			&i.DefaultPrice,
+			&i.OutletPrice,
+			&i.UnitName,
+			&i.MainImageID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const posShortcutSet = `-- name: PosShortcutSet :exec
+INSERT INTO pos_shortcuts (tenant_id, user_id, slot, item_id) VALUES ($1, $2, $3, $4)
+ON CONFLICT (tenant_id, user_id, slot) DO UPDATE SET item_id = EXCLUDED.item_id, updated_at = now()
+`
+
+type PosShortcutSetParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	Slot     int16
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) PosShortcutSet(ctx context.Context, arg PosShortcutSetParams) error {
+	_, err := q.db.Exec(ctx, posShortcutSet,
+		arg.TenantID,
+		arg.UserID,
+		arg.Slot,
+		arg.ItemID,
+	)
+	return err
+}
+
 const salesAltUnits = `-- name: SalesAltUnits :many
 SELECT iu.item_id, iu.unit_id, u.name AS unit_name, iu.factor, iu.sell_price
 FROM item_units iu
