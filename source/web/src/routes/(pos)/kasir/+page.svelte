@@ -9,7 +9,8 @@
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { toCents, toMilli, centsToNumber, lineTotal } from '#lib/pos/money.ts';
-  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredMember, type StoredSalesperson } from '#lib/pos/cart-store.ts';
+  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredCart, type StoredMember, type StoredSalesperson } from '#lib/pos/cart-store.ts';
+  import { loadPending, savePending, nextPendingNo, pendingStorageKey, MAX_PENDING, MAX_LABEL, type PendingNote } from '#lib/pos/pending-store.ts';
   import MemberPicker from '#lib/components/MemberPicker.svelte';
   import MemberCover from '#lib/components/MemberCover.svelte';
   import type { Lookup } from '#lib/members/api.ts';
@@ -83,10 +84,76 @@
   const restored = session.tenant && session.outlet && session.user ? loadCart(cartStorageKey(session.tenant.id, session.outlet.id, session.user.id)) : null;
   let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
+  const cartSnapshot = (): StoredCart => ({ lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson) });
+
   $effect(() => {
-    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson) };
+    const snapshot = cartSnapshot();
     if (storeKey) saveCart(storeKey, snapshot);
   });
+
+  // ---------- Nota pending ----------
+  // Keranjang diparkir di browser (per tenant+outlet+kasir); dibuka lagi kapan saja. Harga & stok dihitung ulang oleh quote.
+  const pendingKey = $derived(session.tenant && session.outlet && session.user ? pendingStorageKey(session.tenant.id, session.outlet.id, session.user.id) : '');
+  let pending = $state<PendingNote[]>([]); // diisi efek di bawah
+  let pendingOpen = $state(false);
+  $effect(() => {
+    const k = pendingKey; // pindah outlet/kasir = daftar lain
+    untrack(() => (pending = k ? loadPending(k) : []));
+  });
+  function setPending(list: PendingNote[]) {
+    pending = list;
+    if (pendingKey) savePending(pendingKey, $state.snapshot(list));
+  }
+  /** Memarkir keranjang sekarang ke `list`; mengembalikan daftar baru + nomornya (null bila keranjang kosong). */
+  function parkInto(list: PendingNote[], label = ''): { list: PendingNote[]; no: number } | null {
+    if (!cart.length) return null;
+    const no = nextPendingNo(list);
+    const n: PendingNote = { ...cartSnapshot(), id: crypto.randomUUID(), no, at: Date.now(), label: label.trim().slice(0, MAX_LABEL), total: fresh ? centsToNumber(grand).toFixed(2) : null };
+    return { list: [n, ...list], no };
+  }
+  let holdAsk = $state(false);
+  let holdLabel = $state('');
+  function askHold() {
+    if (!cart.length) return;
+    if (pending.length >= MAX_PENDING) return flash(t('pos.pendingFull', { max: MAX_PENDING }));
+    holdLabel = member?.name ?? ''; // usulan: nama member bila ada
+    holdAsk = true;
+  }
+  function holdCart() {
+    holdAsk = false;
+    if (pending.length >= MAX_PENDING) return flash(t('pos.pendingFull', { max: MAX_PENDING }));
+    const r = parkInto(pending, holdLabel);
+    if (!r) return;
+    setPending(r.list);
+    resetCart();
+    flash(t('pos.pendingSaved', { no: r.no }));
+  }
+  function openPending(n: PendingNote) {
+    // Keranjang yang sedang berisi otomatis diparkir dulu (menggantikan slot nota yang dibuka).
+    const rest = pending.filter((p) => p.id !== n.id);
+    const parked = parkInto(rest);
+    setPending(parked ? parked.list : rest);
+    cart = n.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false }));
+    otherCost = n.otherCost;
+    costs = n.costs ?? [];
+    taxOn = n.taxOn;
+    note = n.note;
+    member = n.member ?? null;
+    redeem = n.redeem ?? '';
+    salesperson = n.salesperson ?? null;
+    approval = null;
+    pendingOpen = false;
+    flash(parked ? t('pos.pendingOpenedSwapped', { no: n.no, saved: parked.no }) : t('pos.pendingOpened', { no: n.no }));
+    searchEl?.focus();
+  }
+  function renamePending(n: PendingNote, label: string) {
+    const v = label.trim().slice(0, MAX_LABEL);
+    if (v !== n.label) setPending(pending.map((p) => (p.id === n.id ? { ...p, label: v } : p)));
+  }
+  function deletePending(n: PendingNote) {
+    if (!confirm(t('pos.pendingDeleteAsk', { no: n.no }))) return;
+    setPending(pending.filter((p) => p.id !== n.id));
+  }
 
   /** `qty` (string desimal, opsional) = jumlah yang langsung masuk; kosong/tak valid = 1. */
   function add(l: Omit<Line, 'qty' | 'key' | 'override' | 'disc' | 'discTotal'> & { key?: string }, qty = '') {
@@ -326,8 +393,7 @@
 
   // ---------- Bayar ----------
   let paying = $state(false);
-  function saleDone() {
-    paying = false;
+  function resetCart() {
     cart = [];
     approval = null;
     note = '';
@@ -337,8 +403,12 @@
     member = null;
     redeem = '';
     salesperson = null;
-    void load(true); // stok berubah
     searchEl?.focus();
+  }
+  function saleDone() {
+    paying = false;
+    resetCart();
+    void load(true); // stok berubah
   }
 
   // ---------- Pindai / Enter ----------
@@ -701,7 +771,9 @@
           </div>
         </dl>
         <div class="flex gap-2 pt-1">
-          <button type="button" class="btn btn-primary btn-sm" disabled title={t('pos.soon')}>{t('pos.pendingReceipt')}</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick={() => (pendingOpen = true)}>
+            {t('pos.pendingReceipt')}{#if pending.length}<span class="ms-1.5 min-w-5 px-1 rounded-full bg-white/25 text-[11px] tabular-nums">{pending.length}</span>{/if}
+          </button>
           <button type="button" class="btn btn-sm" disabled title={t('pos.soon')}>{t('pos.cashDrawer')}</button>
         </div>
       </section>
@@ -833,7 +905,10 @@
             <MemberCover memberId={member.id} coverId={member.cover_image_id ?? null} name={member.name} class="size-9 rounded-full object-cover text-[12px] ring-2 ring-[var(--color-primary-600)]" />
           </button>
         {:else}
-          <button type="button" class="header-icon-btn" disabled aria-label={t('pos.pendingReceipt')} title={t('pos.soon')}><i class="icon-list text-[16px]"></i></button>
+          <button type="button" class="header-icon-btn relative" aria-label={t('pos.pendingReceipt')} title={t('pos.pendingReceipt')} onclick={() => (pendingOpen = true)}>
+            <i class="icon-list text-[16px]"></i>
+            {#if pending.length}<span class="absolute -top-1 -end-1 min-w-4 h-4 px-1 grid place-items-center rounded-full bg-[var(--color-warning-500)] text-black text-[10px] font-bold tabular-nums">{pending.length}</span>{/if}
+          </button>
         {/if}
         <div class="min-w-0 ps-1 leading-tight">
           <div class="text-[11.5px] font-semibold">{t('pos.customer')}</div>
@@ -977,7 +1052,7 @@
       </div>
 
       <div class="shrink-0 grid grid-cols-[96px_1fr] gap-2 p-3 max-lg:sticky max-lg:bottom-0 max-lg:bg-[var(--surface-card)] max-lg:border-t max-lg:border-[var(--border-subtle)]">
-        <button type="button" class="h-12 rounded text-[12px] font-bold bg-[var(--color-warning-500)] text-black disabled:opacity-60" disabled title={t('pos.soon')}>
+        <button type="button" class="h-12 rounded text-[12px] font-bold bg-[var(--color-warning-500)] text-black disabled:opacity-60" disabled={!cart.length} onclick={askHold}>
           <i class="icon-pause block mx-auto mb-0.5 text-[13px]"></i>{t('pos.pending')}
         </button>
         <button type="button" class="h-12 rounded text-[16px] font-extrabold text-white bg-[var(--color-success-600)] disabled:opacity-60 tabular-nums" disabled={!fresh || quoting || hasIssue || grand <= 0n} onclick={() => (paying = true)}>
@@ -1240,6 +1315,59 @@
 
 {#if toast}
   <div role="status" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-md text-[13px] text-white bg-[var(--color-danger-600)] shadow-[var(--shadow-lg)]">{toast}</div>
+{/if}
+
+{#if holdAsk}
+  <Modal title={t('pos.pending')} onclose={() => (holdAsk = false)}>
+    <form onsubmit={(e) => { e.preventDefault(); holdCart(); }} class="space-y-3">
+      <label class="block text-[12.5px] font-semibold">
+        {t('pos.pendingLabel')}
+        <input class="mt-1 w-full h-10 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2" maxlength={MAX_LABEL} bind:value={holdLabel} placeholder={t('pos.pendingLabelPh')} use:focusOnMount />
+      </label>
+      <p class="text-[12px] text-[var(--text-tertiary)]">{t('pos.pendingLabelHint')}</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn btn-sm" onclick={() => (holdAsk = false)}>{t('pos.pendingCancel')}</button>
+        <button type="submit" class="btn btn-primary btn-sm">{t('pos.pendingSave')}</button>
+      </div>
+    </form>
+  </Modal>
+{/if}
+
+{#if pendingOpen}
+  <Modal title={t('pos.pendingTitle')} wide onclose={() => (pendingOpen = false)}>
+    {#if pending.length === 0}
+      <p class="py-8 text-center text-[13px] text-[var(--text-tertiary)]">{t('pos.pendingEmpty')}</p>
+    {:else}
+      <p class="mb-3 text-[12px] text-[var(--text-tertiary)]">{t('pos.pendingHint')}</p>
+      <ul class="divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)]">
+        {#each pending as n (n.id)}
+          <li class="flex items-center gap-3 p-3">
+            <div class="min-w-0 grow leading-tight">
+              <div class="text-[13.5px] font-bold">{n.label || t('pos.pendingNo', { no: n.no })}
+                <span class="ms-1 font-normal text-[12px] text-[var(--text-tertiary)]">{formatDateTime(new Date(n.at), { timeStyle: 'short' })}</span>
+              </div>
+              <div class="text-[12px] text-[var(--text-secondary)] truncate">
+                {#if n.label}{t('pos.pendingNo', { no: n.no })} · {/if}{t('pos.pendingLines', { count: n.lines.length })} · {n.member ? n.member.name : t('pos.customerGeneral')}
+              </div>
+              <div class="text-[11.5px] text-[var(--text-tertiary)] truncate">{n.lines.slice(0, 3).map((l) => l.name).join(', ')}{n.lines.length > 3 ? ', …' : ''}</div>
+            </div>
+            <input
+              class="w-32 sm:w-44 text-[12px] h-8 shrink-0 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2"
+              maxlength={MAX_LABEL}
+              value={n.label}
+              placeholder={t('pos.pendingLabelPh')}
+              aria-label={t('pos.pendingLabel')}
+              onchange={(e) => renamePending(n, e.currentTarget.value)}
+              onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
+            {#if n.total}<span class="shrink-0 font-bold tabular-nums text-[13px]">{formatCurrency(Number(n.total), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>{/if}
+            <button type="button" class="btn btn-primary btn-sm" onclick={() => openPending(n)}>{t('pos.pendingOpen')}</button>
+            <button type="button" class="header-icon-btn" aria-label={t('pos.pendingDelete')} title={t('pos.pendingDelete')} onclick={() => deletePending(n)}><i class="icon-trash-2 text-[15px]"></i></button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </Modal>
 {/if}
 
 {#if picks}
