@@ -1,4 +1,4 @@
-# Jalankan di laptop (PowerShell) dari folder source/deploy/aapanel:  .\build-release.ps1
+# [Jalur cadangan] Build di laptop (PowerShell) dari folder source/deploy/aapanel:  .\build-release.ps1 — jalur utama kini build di server (build-release.sh, lihat DEPLOY-AAPANEL.md).
 # Hasil: release.tar.gz (binary Linux + migration + web statis). Unggah ke server lalu jalankan update.sh.
 $ErrorActionPreference = 'Stop'
 $ApiUrl = 'https://arus-api.erayadigital.co.id'
