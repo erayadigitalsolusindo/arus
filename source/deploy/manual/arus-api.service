@@ -1,0 +1,29 @@
+# /etc/systemd/system/arus-api.service
+[Unit]
+Description=ACIRABA API (Go)
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=arus
+Group=arus
+# API membaca .env dari direktori kerja (godotenv), jadi EnvironmentFile tidak dipakai.
+WorkingDirectory=/srv/arus/api
+ExecStart=/srv/arus/api/aciraba-api
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+
+# Pengerasan: proses hanya boleh menulis ke folder unggahan.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/arus/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
