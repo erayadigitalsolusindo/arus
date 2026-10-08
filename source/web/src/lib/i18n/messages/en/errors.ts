@@ -74,7 +74,8 @@ const errors: Messages['errors'] = {
   FIELD_PIN_FORMAT: 'PIN must be exactly 6 digits.',
   FIELD_PASSWORD_WRONG: 'Wrong password.',
   FIELD_DUPLICATE: 'Duplicate entries (same quantity, unit, or barcode).',
-  FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.'
+  FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.',
+  FIELD_SAME_ITEM: 'The target item must differ from the source item.'
 };
 
 export default errors;

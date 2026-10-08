@@ -18,7 +18,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
-	"golang.org/x/text/unicode/norm"
 
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
@@ -215,24 +214,7 @@ func optID(s string) (uuid.UUID, bool) {
 
 // multiline membersihkan teks bebas (markdown): NFC, CRLF→LF, tab/baris baru diizinkan, karakter kontrol,
 // format tak terlihat (zero-width, bidi) dan karakter pengganti ditolak. Teks TIDAK di-trim per baris.
-func multiline(raw string, max int) (string, string) {
-	if !utf8.ValidString(raw) {
-		return "", sanitize.Invalid
-	}
-	s := norm.NFC.String(strings.ReplaceAll(strings.ReplaceAll(raw, "\r\n", "\n"), "\r", "\n"))
-	for _, r := range s {
-		switch {
-		case r == '\n' || r == '\t':
-		case unicode.IsControl(r), unicode.Is(unicode.Cf, r), unicode.Is(unicode.Co, r), r == unicode.ReplacementChar:
-			return "", sanitize.Invalid
-		}
-	}
-	s = strings.TrimSpace(s)
-	if utf8.RuneCountInString(s) > max {
-		return "", sanitize.TooLong
-	}
-	return s, ""
-}
+func multiline(raw string, max int) (string, string) { return sanitize.Multiline(raw, max) }
 
 // scanValue memvalidasi nilai pemindai (barcode/QR): apa adanya (spasi di tengah boleh), tanpa karakter
 // kontrol/format tak terlihat.

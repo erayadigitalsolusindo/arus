@@ -73,5 +73,6 @@ export default {
   FIELD_PIN_FORMAT: 'PIN harus tepat 6 digit angka.',
   FIELD_PASSWORD_WRONG: 'Password salah.',
   FIELD_DUPLICATE: 'Ada isian ganda (jumlah, satuan, atau barcode yang sama).',
-  FIELD_NOT_DECREASING: 'Harga tidak boleh lebih tinggi pada jumlah yang lebih banyak.'
+  FIELD_NOT_DECREASING: 'Harga tidak boleh lebih tinggi pada jumlah yang lebih banyak.',
+  FIELD_SAME_ITEM: 'Barang tujuan harus berbeda dari barang asal.'
 };

@@ -34,6 +34,7 @@ export default {
   buyPriceHistory: 'History Harga Beli',
   supplierPayables: 'Daftar Hutang Suplier',
   stockOpening: 'Saldo Awal Stok',
+  stockConversion: 'Pecah Satuan',
   pin: 'PIN Penyetuju',
   pos: 'Kasir',
   stockOpname: 'Trx Opname Barang',

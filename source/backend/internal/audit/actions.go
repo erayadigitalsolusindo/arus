@@ -91,6 +91,7 @@ const (
 
 	ActionStockOpening     = "stock.opening"
 	ActionStockOpeningLock = "stock.opening_lock"
+	ActionStockConvert     = "stock.convert"
 )
 
 // Penjualan (Fase 5.1).

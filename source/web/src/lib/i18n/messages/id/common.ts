@@ -5,5 +5,11 @@ export default {
   theme: { light: 'Mode terang', dark: 'Mode gelap' },
   paid: 'Lunas',
   live: 'Live',
-  close: 'Tutup'
+  close: 'Tutup',
+  markdown: {
+    write: 'Tulis',
+    preview: 'Pratinjau',
+    empty: 'Belum ada isi.',
+    hint: 'Mendukung markdown: **tebal**, *miring*, daftar, tautan. HTML mentah tidak ditampilkan.'
+  }
 };

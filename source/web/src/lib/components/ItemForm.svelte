@@ -10,7 +10,7 @@
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
-  import { renderMarkdown } from '#lib/markdown.ts';
+  import MarkdownView from '#lib/components/MarkdownView.svelte';
   import Combobox from '#lib/components/Combobox.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Switch from '#lib/components/Switch.svelte';
@@ -452,10 +452,9 @@
           <textarea id="i-desc" rows="8" class="{inputClass} font-mono" bind:value={description} maxlength="5000" disabled={!canWrite} aria-label={t('items.field.description')} aria-invalid={!!errors.description}></textarea>
           {#if errors.description}<p class={errClass}>{errors.description}</p>{:else}<p class={hintClass}>{t('items.field.descriptionHint')}</p>{/if}
         {:else}
-          <div class="md min-h-[8rem] field-control">
+          <div class="min-h-[8rem] field-control">
             {#if description.trim()}
-              <!-- Aman: renderMarkdown mematikan HTML mentah, gambar, dan URL berbahaya (lihat #lib/markdown.ts). -->
-              {@html renderMarkdown(description)}
+              <MarkdownView source={description} />
             {:else}
               <span class="text-[var(--text-tertiary)]">{t('items.field.previewEmpty')}</span>
             {/if}
@@ -525,16 +524,3 @@
     {/if}
   </div>
 </form>
-
-<style>
-  .md :global(h1) { font-size: 1.25rem; font-weight: 700; margin: 0.5rem 0; }
-  .md :global(h2) { font-size: 1.1rem; font-weight: 700; margin: 0.5rem 0; }
-  .md :global(h3) { font-size: 1rem; font-weight: 600; margin: 0.5rem 0; }
-  .md :global(p) { margin: 0.4rem 0; }
-  .md :global(ul) { list-style: disc; padding-inline-start: 1.25rem; margin: 0.4rem 0; }
-  .md :global(ol) { list-style: decimal; padding-inline-start: 1.25rem; margin: 0.4rem 0; }
-  .md :global(a) { color: var(--color-primary-600); text-decoration: underline; }
-  .md :global(code) { font-family: ui-monospace, monospace; background: var(--surface-sunken); padding: 0.05rem 0.3rem; border-radius: 4px; }
-  .md :global(pre) { background: var(--surface-sunken); padding: 0.6rem; border-radius: 6px; overflow-x: auto; }
-  .md :global(blockquote) { border-inline-start: 3px solid var(--border-subtle); padding-inline-start: 0.75rem; color: var(--text-tertiary); }
-</style>

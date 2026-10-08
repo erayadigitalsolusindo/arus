@@ -261,6 +261,32 @@ type StockBalance struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type StockConversion struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromItemID     uuid.UUID
+	FromQty        decimal.Decimal
+	ToItemID       uuid.UUID
+	ToQty          decimal.Decimal
+	FromUnitCost   decimal.Decimal
+	ToUnitCost     decimal.Decimal
+	CostApplied    bool
+	Note           string
+	ActorID        pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
+type StockConversionCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
 type StockMovement struct {
 	ID           int64
 	TenantID     uuid.UUID

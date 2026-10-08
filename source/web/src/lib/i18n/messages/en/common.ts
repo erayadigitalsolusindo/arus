@@ -7,7 +7,13 @@ const common: Messages['common'] = {
   theme: { light: 'Light mode', dark: 'Dark mode' },
   paid: 'Paid',
   live: 'Live',
-  close: 'Close'
+  close: 'Close',
+  markdown: {
+    write: 'Write',
+    preview: 'Preview',
+    empty: 'Nothing to preview.',
+    hint: 'Markdown supported: **bold**, *italic*, lists, links. Raw HTML is not rendered.'
+  }
 };
 
 export default common;

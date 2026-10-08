@@ -3190,6 +3190,318 @@ func (q *Queries) StockBalancesByItem(ctx context.Context, arg StockBalancesByIt
 	return items, nil
 }
 
+const stockConvByIdemKey = `-- name: StockConvByIdemKey :one
+SELECT id, request_hash FROM stock_conversions WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type StockConvByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type StockConvByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) StockConvByIdemKey(ctx context.Context, arg StockConvByIdemKeyParams) (StockConvByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, stockConvByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i StockConvByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const stockConvGet = `-- name: StockConvGet :one
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = $1 AND c.id = $2
+`
+
+type StockConvGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvGetRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	FromQty      decimal.Decimal
+	ToQty        decimal.Decimal
+	FromUnitCost decimal.Decimal
+	ToUnitCost   decimal.Decimal
+	CostApplied  bool
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	FromID       uuid.UUID
+	FromSku      string
+	FromName     string
+	FromUnit     string
+	ToID         uuid.UUID
+	ToSku        string
+	ToName       string
+	ToUnit       string
+	ActorName    string
+}
+
+func (q *Queries) StockConvGet(ctx context.Context, arg StockConvGetParams) (StockConvGetRow, error) {
+	row := q.db.QueryRow(ctx, stockConvGet, arg.TenantID, arg.ID)
+	var i StockConvGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.FromQty,
+		&i.ToQty,
+		&i.FromUnitCost,
+		&i.ToUnitCost,
+		&i.CostApplied,
+		&i.Note,
+		&i.CreatedAt,
+		&i.FromID,
+		&i.FromSku,
+		&i.FromName,
+		&i.FromUnit,
+		&i.ToID,
+		&i.ToSku,
+		&i.ToName,
+		&i.ToUnit,
+		&i.ActorName,
+	)
+	return i, err
+}
+
+const stockConvInsert = `-- name: StockConvInsert :one
+INSERT INTO stock_conversions (id, tenant_id, outlet_id, doc_no, idempotency_key, request_hash, from_item_id, from_qty, to_item_id, to_qty,
+                               from_unit_cost, to_unit_cost, cost_applied, note, actor_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type StockConvInsertParams struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromItemID     uuid.UUID
+	FromQty        decimal.Decimal
+	ToItemID       uuid.UUID
+	ToQty          decimal.Decimal
+	FromUnitCost   decimal.Decimal
+	ToUnitCost     decimal.Decimal
+	CostApplied    bool
+	Note           string
+	ActorID        pgtype.UUID
+}
+
+// DO NOTHING pada kunci idempotensi: pengiriman ganda bersamaan tidak membuat dokumen ganda.
+func (q *Queries) StockConvInsert(ctx context.Context, arg StockConvInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, stockConvInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.FromItemID,
+		arg.FromQty,
+		arg.ToItemID,
+		arg.ToQty,
+		arg.FromUnitCost,
+		arg.ToUnitCost,
+		arg.CostApplied,
+		arg.Note,
+		arg.ActorID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const stockConvItemLock = `-- name: StockConvItemLock :one
+SELECT i.id, i.sku, i.name, i.kind, i.avg_cost, u.name AS unit_name
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.id = $2 FOR UPDATE OF i
+`
+
+type StockConvItemLockParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvItemLockRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	AvgCost  decimal.Decimal
+	UnitName string
+}
+
+// Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP + satuan dasarnya.
+func (q *Queries) StockConvItemLock(ctx context.Context, arg StockConvItemLockParams) (StockConvItemLockRow, error) {
+	row := q.db.QueryRow(ctx, stockConvItemLock, arg.TenantID, arg.ID)
+	var i StockConvItemLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.AvgCost,
+		&i.UnitName,
+	)
+	return i, err
+}
+
+const stockConvList = `-- name: StockConvList :many
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name,
+       count(*) OVER () AS total
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = $1 AND c.outlet_id = $2
+ORDER BY c.created_at DESC, c.id
+LIMIT $4 OFFSET $3
+`
+
+type StockConvListParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type StockConvListRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	FromQty      decimal.Decimal
+	ToQty        decimal.Decimal
+	FromUnitCost decimal.Decimal
+	ToUnitCost   decimal.Decimal
+	CostApplied  bool
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	FromID       uuid.UUID
+	FromSku      string
+	FromName     string
+	FromUnit     string
+	ToID         uuid.UUID
+	ToSku        string
+	ToName       string
+	ToUnit       string
+	ActorName    string
+	Total        int64
+}
+
+func (q *Queries) StockConvList(ctx context.Context, arg StockConvListParams) ([]StockConvListRow, error) {
+	rows, err := q.db.Query(ctx, stockConvList,
+		arg.TenantID,
+		arg.OutletID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockConvListRow
+	for rows.Next() {
+		var i StockConvListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OutletID,
+			&i.DocNo,
+			&i.FromQty,
+			&i.ToQty,
+			&i.FromUnitCost,
+			&i.ToUnitCost,
+			&i.CostApplied,
+			&i.Note,
+			&i.CreatedAt,
+			&i.FromID,
+			&i.FromSku,
+			&i.FromName,
+			&i.FromUnit,
+			&i.ToID,
+			&i.ToSku,
+			&i.ToName,
+			&i.ToUnit,
+			&i.ActorName,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockConvNextNo = `-- name: StockConvNextNo :one
+INSERT INTO stock_conversion_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_conversion_counters.last_no + 1
+RETURNING last_no
+`
+
+type StockConvNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) StockConvNextNo(ctx context.Context, arg StockConvNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockConvNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const stockConvOutletInfo = `-- name: StockConvOutletInfo :one
+
+SELECT code, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type StockConvOutletInfoParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockConvOutletInfoRow struct {
+	Code     string
+	Active   bool
+	LocalDay pgtype.Date
+}
+
+// ---- Pecah satuan (Fase 4.3) ----
+func (q *Queries) StockConvOutletInfo(ctx context.Context, arg StockConvOutletInfoParams) (StockConvOutletInfoRow, error) {
+	row := q.db.QueryRow(ctx, stockConvOutletInfo, arg.TenantID, arg.ID)
+	var i StockConvOutletInfoRow
+	err := row.Scan(&i.Code, &i.Active, &i.LocalDay)
+	return i, err
+}
+
 const stockItemInfo = `-- name: StockItemInfo :one
 SELECT kind, allow_negative_stock FROM items WHERE tenant_id = $1 AND id = $2
 `
@@ -3392,6 +3704,21 @@ func (q *Queries) StockOutletLockState(ctx context.Context, arg StockOutletLockS
 	return i, err
 }
 
+const stockSetCost = `-- name: StockSetCost :exec
+UPDATE items SET avg_cost = $1, last_cost = $1 WHERE tenant_id = $2 AND id = $3
+`
+
+type StockSetCostParams struct {
+	Cost     decimal.Decimal
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) StockSetCost(ctx context.Context, arg StockSetCostParams) error {
+	_, err := q.db.Exec(ctx, stockSetCost, arg.Cost, arg.TenantID, arg.ItemID)
+	return err
+}
+
 const stockSubtractGuarded = `-- name: StockSubtractGuarded :one
 UPDATE stock_balances SET qty = qty + $1
 WHERE tenant_id = $2 AND outlet_id = $3 AND item_id = $4 AND bucket = $5 AND qty + $1 >= 0
@@ -3416,6 +3743,23 @@ func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGua
 		arg.ItemID,
 		arg.Bucket,
 	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockTotalQty = `-- name: StockTotalQty :one
+SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND item_id = $2
+`
+
+type StockTotalQtyParams struct {
+	TenantID uuid.UUID
+	ItemID   uuid.UUID
+}
+
+// Total stok barang di semua outlet & bucket (dasar keputusan memasang HPP hasil pecah satuan).
+func (q *Queries) StockTotalQty(ctx context.Context, arg StockTotalQtyParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockTotalQty, arg.TenantID, arg.ItemID)
 	var qty decimal.Decimal
 	err := row.Scan(&qty)
 	return qty, err
