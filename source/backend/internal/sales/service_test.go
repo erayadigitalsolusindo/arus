@@ -75,8 +75,15 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sales", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
 				"items", "units", "users", "roles", "outlets"} {
+				if tbl == "sales" {
+					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.
+					_, _ = admin.Exec(ctx, `UPDATE sales SET status = 'completed', superseded_by = NULL WHERE tenant_id = $1 AND superseded_by IS NOT NULL`, tid)
+					for rev := 12; rev >= 2; rev-- {
+						_, _ = admin.Exec(ctx, `DELETE FROM sales WHERE tenant_id = $1 AND revision = $2`, tid, rev)
+					}
+				}
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
 			_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tid)
@@ -731,5 +738,110 @@ func TestLineDiscountNeedsApproverPin(t *testing.T) {
 	// Tanpa potongan tidak butuh PIN.
 	if _, _, err := e.svc.Create(ctx, cashier, key(), Request{Lines: []LineIn{line(a, "1")}, Payments: []PaymentIn{pay("cash", "10000")}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Daftar penjualan kasir: default hari ini di outlet aktif, rentang tanggal, cari no. nota, total per metode (tunai bersih).
+func TestListRangeSearchAndTotals(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	it := e.item(t, "goods", "1000", "0", 10, false)
+	a := e.actor(e.tenant)
+	var ids []uuid.UUID
+	for i := 0; i < 2; i++ {
+		s, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "1500")}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, s.ID)
+	}
+	e.exec(t, `UPDATE sales SET created_at = created_at - interval '2 days' WHERE id = $1`, ids[0])
+	res, err := e.svc.List(ctx, a, "", "", "")
+	if err != nil || len(res.Data) != 1 || res.Data[0].ID != ids[1] || res.Data[0].Total != "1000.00" || res.Data[0].LineCount != 1 {
+		t.Fatalf("hari ini: %+v %v", res, err)
+	}
+	if res.Totals["cash"] != "1000.00" || res.Total != "1000.00" { // 1500 diterima - 500 kembalian
+		t.Fatalf("total tunai bersih: %+v", res)
+	}
+	from := time.Now().AddDate(0, 0, -3).Format("2006-01-02")
+	to := time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+	if wide, err := e.svc.List(ctx, a, from, to, ""); err != nil || len(wide.Data) != 2 || wide.Total != "2000.00" {
+		t.Fatalf("rentang: %+v %v", wide, err)
+	}
+	if none, err := e.svc.List(ctx, a, from, to, "tidak-ada"); err != nil || len(none.Data) != 0 {
+		t.Fatalf("cari: %+v %v", none, err)
+	}
+	var fe FieldErrors
+	if _, err := e.svc.List(ctx, a, "2026-13-40", "", ""); !errors.As(err, &fe) {
+		t.Fatalf("tanggal salah: %v", err)
+	}
+	if _, err := e.svc.List(ctx, a, "2026-01-01", "2026-12-31", ""); !errors.As(err, &fe) {
+		t.Fatalf("rentang kepanjangan: %v", err)
+	}
+	// Outlet milik tenant lain tidak terlihat sama sekali.
+	if _, err := e.svc.List(ctx, e.actor(e.other), "", "", ""); !errors.Is(err, ErrOutletInactive) {
+		t.Fatalf("tenant lain: %v", err)
+	}
+}
+
+// Daftar penjualan & detail nota hanya milik kasir yang login (untuk mencocokkan uang fisik); kasir lain tak terlihat.
+func TestListAndGetAreScopedToCashier(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	it := e.item(t, "goods", "1000", "0", 10, false)
+	var role uuid.UUID
+	if err := e.admin.QueryRow(ctx, `SELECT id FROM roles WHERE tenant_id = $1 LIMIT 1`, e.tenant).Scan(&role); err != nil {
+		t.Fatal(err)
+	}
+	userB := uuid.New()
+	e.exec(t, `INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, 'Kasir B', 'x')`, userB, e.tenant, role, "b-"+userB.String()+"@example.test")
+	a, b := e.actor(e.tenant), e.actor(e.tenant)
+	b.UserID = userB
+
+	sa, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "1000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb, _, err := e.svc.Create(ctx, b, key(), Request{Lines: []LineIn{line(it, "2")}, Payments: []PaymentIn{pay("cash", "2000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra, _ := e.svc.List(ctx, a, "", "", "")
+	rb, _ := e.svc.List(ctx, b, "", "", "")
+	if len(ra.Data) != 1 || ra.Data[0].ID != sa.ID || ra.Total != "1000.00" || len(rb.Data) != 1 || rb.Data[0].ID != sb.ID || rb.Total != "2000.00" {
+		t.Fatalf("daftar harus per kasir: A=%+v B=%+v", ra, rb)
+	}
+	if _, err := e.svc.Get(ctx, a, sb.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("nota kasir lain tidak boleh dibuka: %v", err)
+	}
+	if _, err := e.svc.Get(ctx, a, sa.ID); err != nil {
+		t.Fatalf("nota sendiri: %v", err)
+	}
+	// Pemegang izin daftar penjualan boleh membuka nota kasir lain.
+	a.Perms = authz.Permissions{All: false, Grants: map[string][]string{"sales_list": {"view"}}}
+	if _, err := e.svc.Get(ctx, a, sb.ID); err != nil {
+		t.Fatalf("pemegang sales_list.view: %v", err)
+	}
+}
+
+// 12 kasir menyimpan nota bersamaan di outlet yang sama: nomor harus unik, berurutan 1..12, tanpa celah.
+func TestTwelveCashiersGetDistinctGaplessNumbers(t *testing.T) {
+	e := newEnv(t)
+	it := e.item(t, "goods", "1000", "0", 100, false)
+	var wg sync.WaitGroup
+	for range 12 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, _, err := e.svc.Create(context.Background(), e.actor(e.tenant), key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "1000")}}); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	var distinct, maxNo int
+	_ = e.admin.QueryRow(context.Background(), `SELECT count(DISTINCT doc_no), max(right(doc_no, 4)::int) FROM sales WHERE tenant_id=$1`, e.tenant).Scan(&distinct, &maxNo)
+	if distinct != 12 || maxNo != 12 {
+		t.Fatalf("nomor unik=%d terbesar=%d, harus 12 dan 12", distinct, maxNo)
 	}
 }

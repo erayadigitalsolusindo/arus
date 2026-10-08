@@ -54,6 +54,9 @@ const errors: Messages['errors'] = {
   ALREADY_LOCKED: 'The operations start date is already locked.',
   NOT_STOCKED: 'This item does not hold stock.',
   OUTLET_NOT_FOUND: 'No active outlet found.',
+  SALE_NOT_EDITABLE: 'This receipt can no longer be changed (it was voided or replaced by a revision).',
+  EDIT_WINDOW_CLOSED: 'The time window for editing this receipt has passed.',
+  OUTLET_MISMATCH: 'This receipt belongs to another outlet; switch to that outlet first.',
   FIELD_REQUIRED: 'This field is required.',
   FIELD_INVALID: 'Invalid value or contains disallowed characters.',
   FIELD_TOO_LONG: 'Too long.',
@@ -84,7 +87,19 @@ const errors: Messages['errors'] = {
   FIELD_MEMBER_INACTIVE: 'The member is inactive or expired.',
   FIELD_REDEEM_NOT_ALLOWED: 'This member level cannot redeem points.',
   FIELD_REDEEM_TOO_HIGH: 'The points value exceeds the purchase amount.',
-  FIELD_REDEEM_BELOW_COST: 'Redeeming this many points would price the sale below cost. Use fewer points.'
+  FIELD_REDEEM_BELOW_COST: 'Redeeming this many points would price the sale below cost. Use fewer points.',
+  FIELD_VOUCHER_UNKNOWN: 'Coupon code not found.',
+  FIELD_VOUCHER_INACTIVE: 'This coupon is inactive.',
+  FIELD_VOUCHER_NOT_STARTED: 'This coupon is not valid yet.',
+  FIELD_VOUCHER_EXPIRED: 'This coupon has expired.',
+  FIELD_VOUCHER_EXHAUSTED: 'This coupon has reached its usage limit.',
+  FIELD_VOUCHER_MIN_SPEND: 'The purchase has not reached the minimum for this coupon.',
+  FIELD_VOUCHER_EMPTY: 'This coupon gives no discount on this purchase.',
+  FIELD_VOUCHER_TOO_HIGH: 'The coupons discount exceeds the purchase amount.',
+  FIELD_VOUCHER_BELOW_COST: 'The coupon discount would price the sale below cost. Remove a coupon.',
+  FIELD_LOCKED: 'The code is locked because the coupon has been used.',
+  FIELD_BELOW_USED: 'The limit cannot be lower than the number already used.',
+  FIELD_BEFORE_START: 'The end date cannot be before the start date.',
 };
 
 export default errors;

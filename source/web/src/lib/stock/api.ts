@@ -47,3 +47,42 @@ export const conversions = {
   create: (input: ConvertInput, idempotencyKey: string) =>
     api<Conversion>('/stock/conversions/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) })
 };
+
+// ---- Kartu stok ----
+export type CardItem = { id: string; sku: string; name: string; unit: string };
+export type CardRow = {
+  id: number;
+  at: string;
+  bucket: Bucket;
+  ref_type: string;
+  ref_id?: string;
+  note: string;
+  actor: string;
+  qty_delta: string;
+  balance: string;
+};
+export type CardResult = {
+  item: CardItem;
+  from: string;
+  to: string;
+  bucket: Bucket | '';
+  opening: string;
+  in: string;
+  out: string;
+  closing: string;
+  rows: CardRow[];
+  next_cursor: number | null;
+};
+
+export const card = {
+  /** Pemilih barang berstok (izin Kartu Stok; termasuk barang yang diarsipkan). */
+  items: (q: string) => api<{ data: CardItem[] }>(`/stock/card/items?${new URLSearchParams({ q })}`),
+  get: (p: { itemId: string; from?: string; to?: string; bucket?: Bucket | ''; cursor?: number | null }) => {
+    const s = new URLSearchParams({ item_id: p.itemId });
+    if (p.from) s.set('from', p.from);
+    if (p.to) s.set('to', p.to);
+    if (p.bucket) s.set('bucket', p.bucket);
+    if (p.cursor) s.set('cursor', String(p.cursor));
+    return api<CardResult>(`/stock/card/?${s}`);
+  }
+};

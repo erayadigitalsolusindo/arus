@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -40,6 +40,9 @@ const audit: Messages['audit'] = {
     stock_convert: 'Unit conversion of stock',
     sale_price_override: 'Price changed at register (PIN-approved)',
     sale_line_discount: 'Line discount at register (PIN-approved)',
+    sale_edit: 'Edited a receipt (new revision)',
+    sale_superseded: 'Receipt replaced by a revision',
+    sale_void: 'Voided a receipt',
     role_create: 'Added a role',
     role_update: 'Edited a role',
     role_delete: 'Deleted a role',
@@ -63,6 +66,9 @@ const audit: Messages['audit'] = {
     salesperson_create: 'Added a salesperson',
     salesperson_update: 'Edited a salesperson',
     salesperson_active: 'Changed a salesperson status',
+    voucher_create: 'Added a shopping coupon',
+    voucher_update: 'Edited a shopping coupon',
+    voucher_active: 'Changed a coupon status',
     item_create: 'Added an item',
     item_update: 'Edited an item',
     item_price: 'Changed an item selling price',
@@ -79,7 +85,8 @@ const audit: Messages['audit'] = {
     member_level_update: 'Changed a member level',
     member_level_active: 'Changed member level status',
     platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
-    platform_tenant_status: 'Platform Admin changed the tenant status'
+    platform_tenant_status: 'Platform Admin changed the tenant status',
+    platform_tenant_edit_window: 'Platform Admin changed the receipt edit window'
   }
 };
 

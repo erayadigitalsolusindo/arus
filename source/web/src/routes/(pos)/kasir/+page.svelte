@@ -9,7 +9,8 @@
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { toCents, toMilli, centsToNumber, lineTotal } from '#lib/pos/money.ts';
-  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredMember, type StoredSalesperson } from '#lib/pos/cart-store.ts';
+  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredCart, type StoredMember, type StoredSalesperson } from '#lib/pos/cart-store.ts';
+  import { loadPending, savePending, nextPendingNo, pendingStorageKey, MAX_PENDING, MAX_LABEL, type PendingNote } from '#lib/pos/pending-store.ts';
   import MemberPicker from '#lib/components/MemberPicker.svelte';
   import MemberCover from '#lib/components/MemberCover.svelte';
   import type { Lookup } from '#lib/members/api.ts';
@@ -18,9 +19,11 @@
   import { formatNumber } from '#lib/i18n/index.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
+  import TodaySalesModal from '#lib/components/TodaySalesModal.svelte';
   import Combobox from '#lib/components/Combobox.svelte';
   import { salespeopleLookup } from '#lib/catalog/api.ts';
   import PayModal from '#lib/components/PayModal.svelte';
+  import VoucherModal from '#lib/components/VoucherModal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { fitText } from '#lib/fitText.ts';
   import { focusOnMount } from '#lib/focus.ts';
@@ -28,6 +31,9 @@
   import PriceOverrideModal from '#lib/components/PriceOverrideModal.svelte';
   import type { Approver } from '#lib/approval/api.ts';
   import { sales, type Quote, type SaleInput } from '#lib/sales/api.ts';
+  import { approvals as approvalApi } from '#lib/approval/api.ts';
+  import { members as memberApi } from '#lib/members/api.ts';
+  import { page } from '$app/state';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { initials } from '#lib/auth/initials.ts';
 
@@ -73,7 +79,11 @@
     void refreshOutlets();
     void loadSlots();
     searchEl?.focus();
-    if (restored) flash(t('pos.restored', { count: restored.lines.length }));
+    const editId = page.url.searchParams.get('edit');
+    if (editId) {
+      void goto('/kasir', { replaceState: true });
+      void startEdit(editId);
+    } else if (restored) flash(t('pos.restored', { count: restored.lines.length }));
     return () => clearTimeout(debounce);
   });
 
@@ -83,10 +93,78 @@
   const restored = session.tenant && session.outlet && session.user ? loadCart(cartStorageKey(session.tenant.id, session.outlet.id, session.user.id)) : null;
   let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
+  const cartSnapshot = (): StoredCart => ({ lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson), vouchers: $state.snapshot(vouchers) });
+
   $effect(() => {
-    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson) };
-    if (storeKey) saveCart(storeKey, snapshot);
+    const snapshot = cartSnapshot();
+    if (storeKey && !editSale) saveCart(storeKey, snapshot);
   });
+
+  // ---------- Nota pending ----------
+  // Keranjang diparkir di browser (per tenant+outlet+kasir); dibuka lagi kapan saja. Harga & stok dihitung ulang oleh quote.
+  const pendingKey = $derived(session.tenant && session.outlet && session.user ? pendingStorageKey(session.tenant.id, session.outlet.id, session.user.id) : '');
+  let pending = $state<PendingNote[]>([]); // diisi efek di bawah
+  let pendingOpen = $state(false);
+  let todayOpen = $state(false);
+  $effect(() => {
+    const k = pendingKey; // pindah outlet/kasir = daftar lain
+    untrack(() => (pending = k ? loadPending(k) : []));
+  });
+  function setPending(list: PendingNote[]) {
+    pending = list;
+    if (pendingKey) savePending(pendingKey, $state.snapshot(list));
+  }
+  /** Memarkir keranjang sekarang ke `list`; mengembalikan daftar baru + nomornya (null bila keranjang kosong). */
+  function parkInto(list: PendingNote[], label = ''): { list: PendingNote[]; no: number } | null {
+    if (!cart.length) return null;
+    const no = nextPendingNo(list);
+    const n: PendingNote = { ...cartSnapshot(), id: crypto.randomUUID(), no, at: Date.now(), label: label.trim().slice(0, MAX_LABEL), total: fresh ? centsToNumber(grand).toFixed(2) : null };
+    return { list: [n, ...list], no };
+  }
+  let holdAsk = $state(false);
+  let holdLabel = $state('');
+  function askHold() {
+    if (!cart.length) return;
+    if (pending.length >= MAX_PENDING) return flash(t('pos.pendingFull', { max: MAX_PENDING }));
+    holdLabel = member?.name ?? ''; // usulan: nama member bila ada
+    holdAsk = true;
+  }
+  function holdCart() {
+    holdAsk = false;
+    if (pending.length >= MAX_PENDING) return flash(t('pos.pendingFull', { max: MAX_PENDING }));
+    const r = parkInto(pending, holdLabel);
+    if (!r) return;
+    setPending(r.list);
+    resetCart();
+    flash(t('pos.pendingSaved', { no: r.no }));
+  }
+  function openPending(n: PendingNote) {
+    // Keranjang yang sedang berisi otomatis diparkir dulu (menggantikan slot nota yang dibuka).
+    const rest = pending.filter((p) => p.id !== n.id);
+    const parked = parkInto(rest);
+    setPending(parked ? parked.list : rest);
+    cart = n.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false }));
+    otherCost = n.otherCost;
+    costs = n.costs ?? [];
+    taxOn = n.taxOn;
+    note = n.note;
+    member = n.member ?? null;
+    redeem = n.redeem ?? '';
+    salesperson = n.salesperson ?? null;
+    vouchers = n.vouchers ?? [];
+    approval = null;
+    pendingOpen = false;
+    flash(parked ? t('pos.pendingOpenedSwapped', { no: n.no, saved: parked.no }) : t('pos.pendingOpened', { no: n.no }));
+    searchEl?.focus();
+  }
+  function renamePending(n: PendingNote, label: string) {
+    const v = label.trim().slice(0, MAX_LABEL);
+    if (v !== n.label) setPending(pending.map((p) => (p.id === n.id ? { ...p, label: v } : p)));
+  }
+  function deletePending(n: PendingNote) {
+    if (!confirm(t('pos.pendingDeleteAsk', { no: n.no }))) return;
+    setPending(pending.filter((p) => p.id !== n.id));
+  }
 
   /** `qty` (string desimal, opsional) = jumlah yang langsung masuk; kosong/tak valid = 1. */
   function add(l: Omit<Line, 'qty' | 'key' | 'override' | 'disc' | 'discTotal'> & { key?: string }, qty = '') {
@@ -160,15 +238,10 @@
     costs = costs.filter((c) => c.label.trim() !== '' || toCents(c.amount) > 0n);
     costsOpen = false;
   }
-  /** Keterangan nota + rincian biaya lain-lain (server hanya menyimpan satu total, jadi rincian ikut di keterangan). */
-  function saleNote(): string {
-    const base = note.trim();
-    const parts = costs.filter((c) => toCents(c.amount) > 0n).map((c) => `${c.label.trim() || t('pos.costs.unnamed')} ${money(toCents(c.amount))}`);
-    if (!parts.length) return base;
-    const extra = `${t('pos.costs.prefix')}: ${parts.join(', ')}`;
-    const full = (base ? `${base} | ${extra}` : extra).replace(/\s+/g, ' ');
-    return full.length > 500 ? `${full.slice(0, 499)}…` : full;
-  }
+  /** Keterangan nota apa adanya; rincian biaya lain-lain dikirim terstruktur lewat `other_costs` (bukan ditempel ke teks). */
+  const saleNote = () => note.trim();
+  /** Rincian biaya lain-lain yang dikirim ke server; kosong = pakai isian tunggal `other_cost`. */
+  const costRows = $derived(costs.filter((c) => toCents(c.amount) > 0n).map((c) => ({ name: c.label.trim(), amount: centsStr(toCents(c.amount)) })));
   const outletTax = $derived(accessibleOutlets.items.find((o) => o.id === session.outlet?.id));
   let taxOn = $state(restored?.taxOn ?? false);
   const calcTax = () => (taxOn = true);
@@ -181,6 +254,9 @@
   let redeem = $state(restored?.redeem ?? '');
   // Salesman nota (opsional; kosong = Umum). Hanya label untuk laporan/komisi.
   let salesperson = $state<StoredSalesperson | null>(restored?.salesperson ?? null);
+  // Kupon belanja (kode); potongan dihitung server pada quote. Dipakai sebelum pajak.
+  let vouchers = $state<string[]>(restored?.vouchers ?? []);
+  let voucherOpen = $state(false);
   let pickingSalesperson = $state(false);
   let spValue = $state('');
   let spLabel = $state('');
@@ -212,10 +288,11 @@
   // forPay: sertakan persetujuan (PIN) untuk dikirim saat simpan nota; quote TIDAK pernah membawa PIN.
   const buildSale = (withNote = true, forPay = false): Omit<SaleInput, 'payments'> => ({
     lines: cart.map((l) => ({ item_id: l.id, ...(l.unitId ? { unit_id: l.unitId } : {}), qty: fmtMilli(toMilli(l.qty)), ...(l.override ? { unit_price: l.override } : {}), ...(l.disc ? { discount: discountOf(l) } : {}) })),
-    ...(forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
-    ...(otherCostValue ? { other_cost: otherCostValue } : {}),
+    ...(forPay && editSale && editApproverId ? { approval: { user_id: editApproverId, pin: editPin } } : forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
+    ...(costRows.length ? { other_costs: costRows } : otherCostValue && !costs.length ? { other_cost: otherCostValue } : {}),
     apply_tax: taxOn,
     ...(salesperson ? { salesperson_id: salesperson.id } : {}),
+    ...(vouchers.length ? { voucher_codes: vouchers } : {}),
     ...(member ? { member_id: member.id, ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}) } : {}),
     ...(withNote && saleNote() ? { note: saleNote() } : {})
   });
@@ -223,6 +300,75 @@
   // Persetujuan ubah harga: penyetuju + PIN hanya di memori halaman ini; dibuang saat nota selesai/keranjang dikosongkan.
   let approval = $state<{ id: string; name: string; pin: string } | null>(null);
   let editing = $state<number | null>(null); // indeks baris yang sedang diubah harganya
+
+  // ---------- Mode EDIT nota ----------
+  // Nota diedit lewat revisi: keranjang diisi dari nota lama, quote memakai /sales/{id}/quote (harga baris lama dipertahankan,
+  // stok/poin/kupon nota lama sudah diperhitungkan), simpan = PUT /sales/{id}. Penyetuju (PIN) hanya di memori halaman ini.
+  type EditCtx = { id: string; docNo: string; revision: number; outletId: string };
+  let editSale = $state<EditCtx | null>(null);
+  let editReason = $state('');
+  let editApprovers = $state<Approver[]>([]);
+  let editApproverId = $state('');
+  let editPin = $state('');
+  const editReady = $derived(!editSale || (editReason.trim().length >= 3 && editApproverId !== '' && /^[0-9]{6}$/.test(editPin)));
+  const approverOptions = $derived([{ value: '', label: t('pos.edit.approverPlaceholder'), disabled: true }, ...editApprovers.map((a) => ({ value: a.id, label: a.name }))]);
+
+  function clearEdit() {
+    editSale = null;
+    editReason = '';
+    editApproverId = '';
+    editPin = '';
+    editApprovers = [];
+  }
+  async function startEdit(id: string) {
+    try {
+      const s = await sales.get(id);
+      if (s.status !== 'completed') return flash(errorMessage(new ApiError(409, 'SALE_NOT_EDITABLE', '')));
+      if (s.outlet_id !== session.outlet?.id) return flash(errorMessage(new ApiError(409, 'OUTLET_MISMATCH', '')));
+      // Keranjang yang sedang berisi diparkir dulu (tidak hilang).
+      const parked = parkInto(pending, '');
+      if (parked) setPending(parked.list);
+      cart = s.lines.map((l) => {
+        const hasDisc = Number(l.discount) > 0;
+        return { key: l.item_id + ':' + l.unit, id: l.item_id, override: null, disc: hasDisc ? l.discount : null, discTotal: hasDisc, unitId: l.unit_id, sku: l.sku, name: l.name, unit: l.unit, price: l.unit_price, qty: l.qty, goods: true, imageId: null };
+      });
+      costs = s.other_costs.map((c) => ({ label: c.name, amount: c.amount }));
+      otherCost = costs.length === 0 && Number(s.other_cost) > 0 ? s.other_cost : '';
+      taxOn = Number(s.tax_store_pct) > 0 || Number(s.tax_gov_pct) > 0;
+      note = s.note;
+      salesperson = s.salesperson ?? null;
+      vouchers = s.vouchers.map((v) => v.code);
+      redeem = s.points_redeemed > 0 ? String(s.points_redeemed) : '';
+      member = null;
+      if (s.member) {
+        const found = (await memberApi.lookup(s.member.code).catch(() => [])).find((m) => m.id === s.member?.id);
+        member = found
+          ? { id: found.id, code: found.code, name: found.name, level: found.level, spend_per_point: found.spend_per_point, point_value: found.point_value, cover_image_id: found.cover_image_id }
+          : { id: s.member.id, code: s.member.code, name: s.member.name, level: '', spend_per_point: '0', point_value: '0', cover_image_id: null };
+      }
+      approval = null;
+      editSale = { id: s.id, docNo: s.doc_no, revision: s.revision, outletId: s.outlet_id };
+      editApprovers = await approvalApi.approvers('sale_edit').catch(() => []);
+    } catch (e) {
+      flash(t('pos.edit.loadFailed') + ' ' + errorMessage(e));
+    }
+  }
+  function cancelEdit() {
+    if (!confirm(t('pos.edit.cancelAsk'))) return;
+    clearEdit();
+    resetCart();
+    if (can('sales_list', 'view')) void goto('/sales');
+  }
+  // Pindah outlet saat mengedit = edit batal (nota hanya bisa diedit dari outletnya).
+  $effect(() => {
+    const oid = editSale?.outletId;
+    if (oid && session.outlet?.id && session.outlet.id !== oid) {
+      untrack(() => {
+        clearEdit();
+        resetCart();
+      });
+    }
+  });
   // Potongan manual disimpan per satuan (Rp) agar ikut menyesuaikan saat qty diubah; server menerima total potongan baris.
   function discountOf(l: Line): string {
     const c = l.discTotal ? toCents(l.disc ?? '0') : lineTotal(toCents(l.disc ?? '0'), toMilli(l.qty));
@@ -276,6 +422,16 @@
     if (l.issue === 'BELOW_COST') return t('pos.issue.belowCost');
     return toMilli(l.available ?? '0') <= 0n ? t('pos.issue.stockNone') : t('pos.issue.stock', { available: l.available ?? '0' });
   };
+  /** Pesan galat validasi quote: kupon yang tak lagi sah disebut dengan kodenya agar kasir tahu mana yang harus dilepas. */
+  function validationText(e: ApiError): string {
+    for (const [k, c] of Object.entries(e.fields)) {
+      if (!k.startsWith('voucher_codes')) continue;
+      const code = vouchers[Number(k.split('.')[1])];
+      const msg = fieldMessage(c) ?? errorMessage(e);
+      return code ? t('vouchers.pos.stale', { code, reason: msg }) : msg;
+    }
+    return fieldMessage(e.fields.redeem_points ?? e.fields.member_id) ?? errorMessage(e);
+  }
   const hasIssue = $derived(fresh && !!quote?.lines.some((l) => l.issue));
   const lineTotalOf = (i: number) => (fresh && quote?.lines[i] ? toCents(quote.lines[i].line_total) : null);
 
@@ -303,7 +459,8 @@
     quoting = true;
     const timer = setTimeout(async () => {
       try {
-        const r = await sales.quote(JSON.parse(key));
+        const body = JSON.parse(key);
+        const r = editSale ? await sales.quoteEdit(editSale.id, body) : await sales.quote(body);
         if (mine !== qseq) return;
         const before = quote?.lines.filter((l) => l.issue).length ?? 0;
         quote = r;
@@ -313,7 +470,7 @@
       } catch (e) {
         if (mine !== qseq) return;
         quote = null;
-        quoteError = e instanceof ApiError && e.code === 'VALIDATION' ? (fieldMessage(e.fields.redeem_points ?? e.fields.member_id) ?? errorMessage(e)) : errorMessage(e);
+        quoteError = e instanceof ApiError && e.code === 'VALIDATION' ? validationText(e) : errorMessage(e);
       } finally {
         if (mine === qseq) {
           quoteFor = key;
@@ -326,8 +483,7 @@
 
   // ---------- Bayar ----------
   let paying = $state(false);
-  function saleDone() {
-    paying = false;
+  function resetCart() {
     cart = [];
     approval = null;
     note = '';
@@ -337,8 +493,16 @@
     member = null;
     redeem = '';
     salesperson = null;
-    void load(true); // stok berubah
+    vouchers = [];
     searchEl?.focus();
+  }
+  function saleDone() {
+    paying = false;
+    const wasEdit = editSale !== null;
+    clearEdit();
+    resetCart();
+    void load(true); // stok berubah
+    if (wasEdit && can('sales_list', 'view')) void goto('/sales');
   }
 
   // ---------- Pindai / Enter ----------
@@ -618,13 +782,6 @@
     else void document.documentElement.requestFullscreen?.();
   }
 
-  const shortcuts = [
-    { abbr: 'DG', title: 'pos.shortcuts.wallet', desc: 'pos.shortcuts.walletDesc' },
-    { abbr: 'DA', title: 'pos.shortcuts.members', desc: 'pos.shortcuts.membersDesc' },
-    { abbr: 'DS', title: 'pos.shortcuts.salespeople', desc: 'pos.shortcuts.salespeopleDesc' },
-    { abbr: 'PH', title: 'pos.shortcuts.today', desc: 'pos.shortcuts.todayDesc' }
-  ] as const;
-
   function onkeydown(e: KeyboardEvent) {
     if (e.key === 'F2') {
       e.preventDefault();
@@ -701,22 +858,20 @@
           </div>
         </dl>
         <div class="flex gap-2 pt-1">
-          <button type="button" class="btn btn-primary btn-sm" disabled title={t('pos.soon')}>{t('pos.pendingReceipt')}</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick={() => (pendingOpen = true)}>
+            {t('pos.pendingReceipt')}{#if pending.length}<span class="ms-1.5 min-w-5 px-1 rounded-full bg-white/25 text-[11px] tabular-nums">{pending.length}</span>{/if}
+          </button>
           <button type="button" class="btn btn-sm" disabled title={t('pos.soon')}>{t('pos.cashDrawer')}</button>
         </div>
       </section>
 
-      <ul class="rounded-lg border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)] overflow-hidden">
-        {#each shortcuts as s (s.abbr)}
-          <li class="flex items-start gap-3 p-2.5 opacity-70" title={t('pos.soon')}>
-            <span class="grid place-items-center size-8 shrink-0 rounded-full text-[11px] font-bold bg-[color-mix(in_oklab,var(--color-success-500)_18%,transparent)] text-[var(--color-success-700)]">{s.abbr}</span>
-            <span class="min-w-0">
-              <span class="block text-[12px] font-semibold">{t(s.title)}</span>
-              <span class="block text-[10.5px] leading-snug text-[var(--text-tertiary)]">{t(s.desc)}</span>
-            </span>
-          </li>
-        {/each}
-      </ul>
+      <button type="button" class="flex items-start gap-3 p-2.5 rounded-lg border border-[var(--border-subtle)] text-start hover:bg-[var(--surface-sunken)]" onclick={() => (todayOpen = true)}>
+        <span class="grid place-items-center size-8 shrink-0 rounded-full text-[11px] font-bold bg-[color-mix(in_oklab,var(--color-success-500)_18%,transparent)] text-[var(--color-success-700)]">PH</span>
+        <span class="min-w-0">
+          <span class="block text-[12px] font-semibold">{t('pos.shortcuts.today')}</span>
+          <span class="block text-[10.5px] leading-snug text-[var(--text-tertiary)]">{t('pos.shortcuts.todayDesc')}</span>
+        </span>
+      </button>
 
       <span class="grow"></span>
       <button type="button" class="btn btn-sm w-full" disabled title={t('pos.soon')}>{t('pos.orderStatus')}</button>
@@ -833,7 +988,10 @@
             <MemberCover memberId={member.id} coverId={member.cover_image_id ?? null} name={member.name} class="size-9 rounded-full object-cover text-[12px] ring-2 ring-[var(--color-primary-600)]" />
           </button>
         {:else}
-          <button type="button" class="header-icon-btn" disabled aria-label={t('pos.pendingReceipt')} title={t('pos.soon')}><i class="icon-list text-[16px]"></i></button>
+          <button type="button" class="header-icon-btn relative" aria-label={t('pos.pendingReceipt')} title={t('pos.pendingReceipt')} onclick={() => (pendingOpen = true)}>
+            <i class="icon-list text-[16px]"></i>
+            {#if pending.length}<span class="absolute -top-1 -end-1 min-w-4 h-4 px-1 grid place-items-center rounded-full bg-[var(--color-warning-500)] text-black text-[10px] font-bold tabular-nums">{pending.length}</span>{/if}
+          </button>
         {/if}
         <div class="min-w-0 ps-1 leading-tight">
           <div class="text-[11.5px] font-semibold">{t('pos.customer')}</div>
@@ -857,11 +1015,40 @@
           </button>
         {/if}
         {#if cart.length}
-          <button type="button" class="{member ? '' : 'ms-auto '}header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null), (redeem = ''))}>
+          <button type="button" class="relative {member ? '' : 'ms-auto '}header-icon-btn" aria-label={t('vouchers.pos.button')} title={t('vouchers.pos.button')} onclick={() => (voucherOpen = true)}>
+            <i class="icon-ticket-percent text-[15px]"></i>
+            {#if vouchers.length}<span class="absolute -top-1 -end-1 min-w-4 h-4 px-1 grid place-items-center rounded-full bg-[var(--color-success-600)] text-[9.5px] font-bold leading-4 text-white">{vouchers.length}</span>{/if}
+          </button>
+        {/if}
+        {#if cart.length}
+          <button type="button" class="header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null), (redeem = ''), (vouchers = []))}>
             <i class="icon-trash-2 text-[15px]"></i>
           </button>
         {/if}
       </div>
+
+      {#if editSale}
+        <div class="mx-3 mt-2 shrink-0 space-y-2 rounded-lg border border-[var(--color-warning-500)] bg-[color-mix(in_oklab,var(--color-warning-500)_12%,transparent)] p-3 text-[12px]">
+          <div class="flex items-start gap-2">
+            <i class="icon-pencil mt-0.5 text-[15px] text-[var(--color-warning-600)]"></i>
+            <div class="min-w-0 grow">
+              <div class="truncate text-[13px] font-bold">{t('pos.edit.banner', { docNo: editSale.docNo })}</div>
+              <div class="text-[11.5px] text-[var(--text-secondary)]">{t('pos.edit.revisionNext', { n: editSale.revision + 1 })}</div>
+            </div>
+            <button type="button" class="btn btn-sm shrink-0" onclick={cancelEdit}>{t('pos.edit.cancel')}</button>
+          </div>
+          <p class="text-[11.5px] leading-snug text-[var(--text-secondary)]">{t('pos.edit.hint')}</p>
+          <input bind:value={editReason} maxlength="200" autocomplete="off" aria-label={t('pos.edit.reason')} placeholder={t('pos.edit.reasonPlaceholder')} class="h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2 text-[12.5px] outline-none focus:border-[var(--color-primary-500)]" />
+          {#if editApprovers.length === 0}
+            <p class="text-[11.5px] text-[var(--color-danger-600)]">{t('pos.edit.noApprover')}</p>
+          {:else}
+            <div class="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+              <Select bind:value={editApproverId} options={approverOptions} ariaLabel={t('pos.edit.approver')} />
+              <input type="password" inputmode="numeric" autocomplete="off" maxlength="6" bind:value={editPin} aria-label={t('pos.edit.pin')} placeholder={t('pos.edit.pin')} class="h-9 min-w-0 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2 text-center text-[12.5px] tracking-widest outline-none focus:border-[var(--color-primary-500)]" />
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <!-- Total besar -->
       <div class="px-4 py-3 text-end shrink-0" aria-live="polite">
@@ -958,6 +1145,12 @@
             {/each}
           </ul>
         {/if}
+        {#if fresh && quote && quote.vouchers.length}
+          <div class="flex items-center gap-2">
+            <span class="w-28 shrink-0">{t('vouchers.pos.row')}</span>
+            <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--color-success-600)] font-semibold" title={quote.vouchers.map((v) => v.code).join(', ')}>−{money(toCents(quote.voucher_amount))}</output>
+          </div>
+        {/if}
         <label class="flex items-center gap-2">
           <span class="w-28 shrink-0">{t('pos.storeTax')}</span>
           <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)]" title={t('pos.taxPreview')}>{money(taxStore)}</output>
@@ -977,11 +1170,11 @@
       </div>
 
       <div class="shrink-0 grid grid-cols-[96px_1fr] gap-2 p-3 max-lg:sticky max-lg:bottom-0 max-lg:bg-[var(--surface-card)] max-lg:border-t max-lg:border-[var(--border-subtle)]">
-        <button type="button" class="h-12 rounded text-[12px] font-bold bg-[var(--color-warning-500)] text-black disabled:opacity-60" disabled title={t('pos.soon')}>
+        <button type="button" class="h-12 rounded text-[12px] font-bold bg-[var(--color-warning-500)] text-black disabled:opacity-60" disabled={!cart.length || !!editSale} onclick={askHold}>
           <i class="icon-pause block mx-auto mb-0.5 text-[13px]"></i>{t('pos.pending')}
         </button>
-        <button type="button" class="h-12 rounded text-[16px] font-extrabold text-white bg-[var(--color-success-600)] disabled:opacity-60 tabular-nums" disabled={!fresh || quoting || hasIssue || grand <= 0n} onclick={() => (paying = true)}>
-          <i class="icon-wallet me-1.5"></i>{t('pos.pay')} : {money(grand)}
+        <button type="button" class="h-12 rounded text-[16px] font-extrabold text-white bg-[var(--color-success-600)] disabled:opacity-60 tabular-nums" disabled={!fresh || quoting || hasIssue || grand <= 0n || !editReady} title={editReady ? '' : t('pos.edit.notReady')} onclick={() => (paying = true)}>
+          <i class="{editSale ? 'icon-save' : 'icon-wallet'} me-1.5"></i>{editSale ? t('pos.edit.save') : t('pos.pay')} : {money(grand)}
         </button>
       </div>
     </section>
@@ -1039,6 +1232,21 @@
   <MemberPicker onpick={pickMember} onclose={() => (pickingMember = false)} current={member?.name ?? ''} onclear={member ? () => { clearMember(); pickingMember = false; } : undefined} />
 {/if}
 
+{#if voucherOpen}
+  <VoucherModal
+    codes={vouchers}
+    applied={fresh && quote ? quote.vouchers : []}
+    money={(a) => money(toCents(a))}
+    check={(codes) => sales.quote({ ...JSON.parse(cartKey), voucher_codes: codes })}
+    onadd={(c) => (vouchers = [...vouchers, c])}
+    onremove={(c) => (vouchers = vouchers.filter((x) => x !== c))}
+    onclose={() => {
+      voucherOpen = false;
+      searchEl?.focus();
+    }}
+  />
+{/if}
+
 {#if redeemOpen && member}
   <Modal title={t('members.pos.redeem')} onclose={() => (redeemOpen = false)}>
     <div class="space-y-3">
@@ -1074,7 +1282,7 @@
 {/if}
 
 {#if paying}
-  <PayModal total={grand} build={() => buildSale(true, true)} lineName={(i) => cart[i]?.name ?? ''} onclose={() => (paying = false)} ondone={saleDone} />
+  <PayModal total={grand} edit={editSale ? { id: editSale.id, reason: editReason.trim() } : undefined} build={() => buildSale(true, true)} lineName={(i) => cart[i]?.name ?? ''} onclose={() => (paying = false)} ondone={saleDone} />
 {/if}
 
 {#if costsOpen}
@@ -1240,6 +1448,63 @@
 
 {#if toast}
   <div role="status" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-md text-[13px] text-white bg-[var(--color-danger-600)] shadow-[var(--shadow-lg)]">{toast}</div>
+{/if}
+
+{#if holdAsk}
+  <Modal title={t('pos.pending')} onclose={() => (holdAsk = false)}>
+    <form onsubmit={(e) => { e.preventDefault(); holdCart(); }} class="space-y-3">
+      <label class="block text-[12.5px] font-semibold">
+        {t('pos.pendingLabel')}
+        <input class="mt-1 w-full h-10 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2" maxlength={MAX_LABEL} bind:value={holdLabel} placeholder={t('pos.pendingLabelPh')} use:focusOnMount />
+      </label>
+      <p class="text-[12px] text-[var(--text-tertiary)]">{t('pos.pendingLabelHint')}</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn btn-sm" onclick={() => (holdAsk = false)}>{t('pos.pendingCancel')}</button>
+        <button type="submit" class="btn btn-primary btn-sm">{t('pos.pendingSave')}</button>
+      </div>
+    </form>
+  </Modal>
+{/if}
+
+{#if todayOpen}
+  <TodaySalesModal onclose={() => (todayOpen = false)} />
+{/if}
+
+{#if pendingOpen}
+  <Modal title={t('pos.pendingTitle')} wide onclose={() => (pendingOpen = false)}>
+    {#if pending.length === 0}
+      <p class="py-8 text-center text-[13px] text-[var(--text-tertiary)]">{t('pos.pendingEmpty')}</p>
+    {:else}
+      <p class="mb-3 text-[12px] text-[var(--text-tertiary)]">{t('pos.pendingHint')}</p>
+      <ul class="divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)]">
+        {#each pending as n (n.id)}
+          <li class="flex items-center gap-3 p-3">
+            <div class="min-w-0 grow leading-tight">
+              <div class="text-[13.5px] font-bold">{n.label || t('pos.pendingNo', { no: n.no })}
+                <span class="ms-1 font-normal text-[12px] text-[var(--text-tertiary)]">{formatDateTime(new Date(n.at), { timeStyle: 'short' })}</span>
+              </div>
+              <div class="text-[12px] text-[var(--text-secondary)] truncate">
+                {#if n.label}{t('pos.pendingNo', { no: n.no })} · {/if}{t('pos.pendingLines', { count: n.lines.length })} · {n.member ? n.member.name : t('pos.customerGeneral')}
+              </div>
+              <div class="text-[11.5px] text-[var(--text-tertiary)] truncate">{n.lines.slice(0, 3).map((l) => l.name).join(', ')}{n.lines.length > 3 ? ', …' : ''}</div>
+            </div>
+            <input
+              class="w-32 sm:w-44 text-[12px] h-8 shrink-0 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2"
+              maxlength={MAX_LABEL}
+              value={n.label}
+              placeholder={t('pos.pendingLabelPh')}
+              aria-label={t('pos.pendingLabel')}
+              onchange={(e) => renamePending(n, e.currentTarget.value)}
+              onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
+            {#if n.total}<span class="shrink-0 font-bold tabular-nums text-[13px]">{formatCurrency(Number(n.total), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>{/if}
+            <button type="button" class="btn btn-primary btn-sm" onclick={() => openPending(n)}>{t('pos.pendingOpen')}</button>
+            <button type="button" class="header-icon-btn" aria-label={t('pos.pendingDelete')} title={t('pos.pendingDelete')} onclick={() => deletePending(n)}><i class="icon-trash-2 text-[15px]"></i></button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </Modal>
 {/if}
 
 {#if picks}

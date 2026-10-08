@@ -3,7 +3,10 @@
   // Form tambah/ubah member (satu komponen untuk /members/new dan /members/[id]). Tata letak mengikuti halaman member
   // legacy: cover foto di atas, empat kartu ringkasan, lalu kartu "Informasi" bertab (Biodata / Pengaturan / Poin).
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/member).
+  import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { drafts } from '#lib/tabs/drafts.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { members as api, type Gender, type Member, type MemberInput, type MemberSale, type PointMove } from '#lib/members/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -79,6 +82,24 @@
   const initialSnapshot = snapshot();
   let saved = false;
   $effect(() => guard.register(() => canWrite && !saved && snapshot() !== initialSnapshot));
+
+  // Draf per tab (lihat lib/tabs/drafts.ts): disimpan saat form dilepas, dipulihkan saat tab dibuka lagi. Cover belum diunggah tidak ikut.
+  const draftPath = page.url.pathname;
+  const collect = () => ({ active, code, name, gender, phone, email, address, district, city, province, postalCode, notes, creditLimit, dueDays, validity, validUntil });
+  type Draft = ReturnType<typeof collect>;
+  let restored = $state(false);
+  if (canWrite) {
+    const d = drafts.load<Draft>(draftPath);
+    if (d) {
+      ({ active, code, name, gender, phone, email, address, district, city, province, postalCode, notes, creditLimit, dueDays, validity, validUntil } = d);
+      restored = true;
+    }
+  }
+  onDestroy(() => {
+    if (!canWrite || drafts.takeDiscard(draftPath)) return;
+    if (saved || snapshot() === initialSnapshot) drafts.clear(draftPath);
+    else drafts.save(draftPath, collect());
+  });
 
   $effect(() => {
     if (!pendingCover) {
@@ -319,6 +340,11 @@
 </script>
 
 <form class="space-y-4" onsubmit={save} novalidate>
+  {#if restored}
+    <div role="status" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-info">
+      <i class="icon-eye text-[14px] shrink-0"></i><span>{t('shell.unsaved.restored')}</span>
+    </div>
+  {/if}
   {#if error}
     <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
       <i class="icon-circle-alert text-[14px] mt-px shrink-0"></i><span>{error}</span>

@@ -24,7 +24,7 @@ export type StoredMember = { id: string; code: string; name: string; level: stri
 /** Salesman terpilih (hanya penanda; server memvalidasi aktif/tidaknya saat nota disimpan). */
 export type StoredSalesperson = { id: string; name: string };
 
-export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string; salesperson?: StoredSalesperson | null };
+export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string; salesperson?: StoredSalesperson | null; vouchers?: string[] };
 
 const validSalesperson = (s: unknown): s is StoredSalesperson => !!s && typeof s === 'object' && str((s as StoredSalesperson).id) && str((s as StoredSalesperson).name);
 
@@ -48,6 +48,22 @@ function validLine(l: unknown): l is StoredLine {
   );
 }
 
+/** Memeriksa bentuk keranjang tersimpan (dipakai juga oleh nota pending); null bila kosong/rusak. */
+export function parseCart(d: Record<string, unknown>): StoredCart | null {
+  if (!Array.isArray(d.lines) || d.lines.length === 0 || d.lines.length > MAX_LINES || !d.lines.every(validLine)) return null;
+  return {
+    lines: d.lines,
+    otherCost: str(d.otherCost) ? d.otherCost : '',
+    costs: Array.isArray(d.costs) ? d.costs.filter(validCost).slice(0, 20) : [],
+    taxOn: d.taxOn === true,
+    note: str(d.note) ? d.note : '',
+    member: validMember(d.member) ? d.member : null,
+    redeem: str(d.redeem) ? d.redeem : '',
+    salesperson: validSalesperson(d.salesperson) ? d.salesperson : null,
+    vouchers: Array.isArray(d.vouchers) ? d.vouchers.filter(str).slice(0, 5) : []
+  };
+}
+
 /** Mengembalikan keranjang tersimpan, atau null bila kosong/rusak/kedaluwarsa. */
 export function loadCart(key: string, now = Date.now()): StoredCart | null {
   try {
@@ -58,20 +74,9 @@ export function loadCart(key: string, now = Date.now()): StoredCart | null {
       localStorage.removeItem(key);
       return null;
     }
-    if (!Array.isArray(d.lines) || d.lines.length === 0 || d.lines.length > MAX_LINES || !d.lines.every(validLine)) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    return {
-      lines: d.lines,
-      otherCost: str(d.otherCost) ? d.otherCost : '',
-      costs: Array.isArray(d.costs) ? d.costs.filter(validCost).slice(0, 20) : [],
-      taxOn: d.taxOn === true,
-      note: str(d.note) ? d.note : '',
-      member: validMember(d.member) ? d.member : null,
-      redeem: str(d.redeem) ? d.redeem : '',
-      salesperson: validSalesperson(d.salesperson) ? d.salesperson : null
-    };
+    const cart = parseCart(d);
+    if (!cart) localStorage.removeItem(key);
+    return cart;
   } catch {
     return null;
   }

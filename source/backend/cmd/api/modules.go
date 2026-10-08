@@ -25,6 +25,7 @@ import (
 	"aciraba/internal/posshortcut"
 	"aciraba/internal/sales"
 	"aciraba/internal/stock"
+	"aciraba/internal/voucher"
 )
 
 // appDeps = infrastruktur bersama yang dirakit main() lalu diteruskan ke semua modul.
@@ -86,5 +87,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

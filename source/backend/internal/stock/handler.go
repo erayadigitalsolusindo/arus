@@ -40,6 +40,11 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(OpeningModule, authz.ActCreate)).Put("/items/{id}", h.Set)
 		r.With(authz.Require(OpeningModule, authz.ActApprove)).Post("/lock", h.Lock)
 	})
+	r.Route("/stock/card", func(r chi.Router) {
+		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate, authz.Require(CardModule, authz.ActView))
+		r.Get("/", h.Card)
+		r.Get("/items", h.CardItems)
+	})
 	r.Route("/stock/conversions", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(ConversionModule, authz.ActView)).Get("/", h.ListConversions)

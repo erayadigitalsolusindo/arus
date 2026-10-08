@@ -5,11 +5,18 @@ export default {
   collapseSidebar: 'Ciutkan sidebar',
   tabs: 'Tab halaman',
   closeTab: 'Tutup tab',
+  tabMenu: {
+    close: 'Tutup tab',
+    closeOthers: 'Tutup tab lainnya',
+    closeRight: 'Tutup tab di sebelah kanan',
+    closeAll: 'Tutup semua tab'
+  },
   unsaved: {
     title: 'Perubahan belum disimpan',
-    body: 'Isian form ini belum disimpan dan akan hilang jika Anda meninggalkan halaman. Buang perubahan?',
+    body: 'Isian form ini belum disimpan dan akan hilang jika tab ditutup. Buang perubahan?',
     stay: 'Tetap di sini',
-    discard: 'Buang perubahan'
+    discard: 'Buang perubahan',
+    restored: 'Draf yang belum disimpan dipulihkan. Isian tetap tersimpan selama tab ini terbuka; gambar/foto perlu dipilih ulang.'
   },
   mainNav: 'Navigasi utama',
   sidebar: 'Sidebar',

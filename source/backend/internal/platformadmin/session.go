@@ -27,6 +27,7 @@ const (
 	ActionAdminStatus   = "platform.admin_status"
 	ActionAdminPassword = "platform.admin_password"
 	ActionTenantStatus  = "platform.tenant_status"
+	ActionEditWindow    = "platform.tenant_edit_window"
 	ActionImpersonate   = "platform.impersonate"
 
 	platformRole = "platform"
