@@ -190,6 +190,68 @@ type Role struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type Sale struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	CashierID      pgtype.UUID
+	Status         string
+	Note           string
+	Subtotal       decimal.Decimal
+	Discount       decimal.Decimal
+	TaxStorePct    decimal.Decimal
+	TaxGovPct      decimal.Decimal
+	TaxStore       decimal.Decimal
+	TaxGov         decimal.Decimal
+	OtherCost      decimal.Decimal
+	Total          decimal.Decimal
+	Paid           decimal.Decimal
+	Change         decimal.Decimal
+	CreatedAt      pgtype.Timestamptz
+	ApprovedBy     pgtype.UUID
+}
+
+type SaleCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type SaleLine struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	SaleID        uuid.UUID
+	Position      int32
+	ItemID        uuid.UUID
+	Sku           string
+	Name          string
+	UnitID        uuid.UUID
+	UnitName      string
+	Factor        decimal.Decimal
+	Qty           decimal.Decimal
+	UnitPrice     decimal.Decimal
+	UnitCost      decimal.Decimal
+	Discount      decimal.Decimal
+	LineTotal     decimal.Decimal
+	Note          string
+	ListPrice     decimal.Decimal
+	PriceOverride bool
+}
+
+type SalePayment struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+	Position int32
+	Method   string
+	Amount   decimal.Decimal
+	RefNo    string
+}
+
 type StockBalance struct {
 	TenantID  uuid.UUID
 	OutletID  uuid.UUID

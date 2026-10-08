@@ -45,6 +45,7 @@ var Modules = []Module{
 	{"brands", crud},
 	{"principals", crud},
 	{"sales_orders", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}},
+	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
 	{"sell_price_history", viewing},

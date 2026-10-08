@@ -175,9 +175,9 @@ SELECT id, active FROM units WHERE tenant_id = @tenant_id AND id = ANY(@ids::uui
 -- name: ItemByBarcode :many
 -- Semua barang yang memakai barcode ini, sebagai barcode barang maupun barcode satuan tambahan (barcode boleh kembar).
 -- exclude_id: abaikan satu item (form ubah item tidak perlu diperingatkan oleh dirinya sendiri).
-SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
+SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_id, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
 FROM (
-    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, u.name AS unit_name,
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, i.unit_id, u.name AS unit_name,
            1::numeric AS factor, NULL::numeric AS unit_price,
            i.sell_price AS default_price, op.sell_price AS outlet_price
     FROM items i
@@ -186,7 +186,7 @@ FROM (
     WHERE i.tenant_id = @tenant_id AND i.barcode = @barcode::text
       AND (sqlc.narg('exclude_id')::uuid IS NULL OR i.id <> sqlc.narg('exclude_id')::uuid)
     UNION ALL
-    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, au.name AS unit_name,
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, iu.unit_id, au.name AS unit_name,
            iu.factor::numeric AS factor, iu.sell_price::numeric AS unit_price,
            i.sell_price AS default_price, op.sell_price AS outlet_price
     FROM item_units iu
