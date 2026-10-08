@@ -6,6 +6,7 @@
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   const PAGE = 20;
 
@@ -195,11 +196,10 @@
                 {@const c = cells[key(r.id, b)]}
                 <td class="p-2 text-end">
                   {#if c}
-                    <input
+                    <MoneyInput
                       class="field-control !text-end w-28 {c.state === 'error' ? '!border-[var(--color-danger-600)]' : ''}"
-                      inputmode="decimal"
-                      autocomplete="off"
-                      maxlength="16"
+                      decimals={3}
+                      pad={false}
                       aria-label="{r.name} – {t(`stock.opening.bucket.${b}`)}"
                       aria-invalid={c.state === 'error'}
                       disabled={!editable}

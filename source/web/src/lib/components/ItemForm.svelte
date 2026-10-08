@@ -12,6 +12,7 @@
   import { checkName } from '#lib/validation.ts';
   import { renderMarkdown } from '#lib/markdown.ts';
   import Combobox from '#lib/components/Combobox.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Switch from '#lib/components/Switch.svelte';
   import ItemImages, { type PendingImage } from '#lib/components/ItemImages.svelte';
   import WholesaleTiers, { type TierRow, type OutletTierSet, MAX_TIERS } from '#lib/components/WholesaleTiers.svelte';
@@ -366,7 +367,7 @@
           {/if}
           <div>
             <label for="i-weight" class={labelClass}>{t('items.field.weight')}</label>
-            <input id="i-weight" class={inputClass} bind:value={weight} inputmode="decimal" placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />
+            <MoneyInput id="i-weight" class={inputClass} bind:value={weight} decimals={3} pad={false} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />
             {#if errors.weight_grams}<p class={errClass}>{errors.weight_grams}</p>{/if}
           </div>
           <div>
@@ -392,13 +393,13 @@
           {:else}
             <div class="sm:col-span-2">
               <label for="i-cost" class={labelClass}>{t('items.field.cost')}</label>
-              <input id="i-cost" class={inputClass} bind:value={cost} inputmode="decimal" placeholder="0" aria-invalid={!!errors.cost} />
+              <MoneyInput id="i-cost" class={inputClass} bind:value={cost} placeholder="0" aria-invalid={!!errors.cost} />
               {#if errors.cost}<p class={errClass}>{errors.cost}</p>{:else}<p class={hintClass}>{t('items.field.costHint')}</p>{/if}
             </div>
           {/if}
           <div class="sm:col-span-2">
             <label for="i-price" class={labelClass}>{t('items.field.sellPrice')}</label>
-            <input id="i-price" class={inputClass} bind:value={sellPrice} inputmode="decimal" placeholder="0" disabled={!canWrite} aria-invalid={!!errors.sell_price} />
+            <MoneyInput id="i-price" class={inputClass} bind:value={sellPrice} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.sell_price} />
             {#if errors.sell_price}<p class={errClass}>{errors.sell_price}</p>{:else}<p class={hintClass}>{t('items.field.sellPriceHint')}</p>{/if}
           </div>
         </div>
@@ -413,7 +414,7 @@
               {#each outletPrices as p (p.id)}
                 <div>
                   <label for="op-{p.id}" class="text-[12px] font-medium mb-1 block">{p.name}</label>
-                  <input id="op-{p.id}" class={inputClass} bind:value={p.value} inputmode="decimal" placeholder={t('items.outletPrices.placeholder')} disabled={!canWrite} />
+                  <MoneyInput id="op-{p.id}" class={inputClass} bind:value={p.value} placeholder={t('items.outletPrices.placeholder')} disabled={!canWrite} />
                 </div>
               {/each}
             </div>

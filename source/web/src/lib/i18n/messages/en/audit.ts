@@ -35,6 +35,7 @@ const audit: Messages['audit'] = {
     user_pin_set: 'Set approver PIN',
     sale_create: 'Saved a sale',
     sale_price_override: 'Price changed at register (PIN-approved)',
+    sale_line_discount: 'Line discount at register (PIN-approved)',
     role_create: 'Added a role',
     role_update: 'Edited a role',
     role_delete: 'Deleted a role',

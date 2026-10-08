@@ -9,6 +9,7 @@
   // harga tier berlaku untuk SELURUH jumlah; batas atas tier = tier berikutnya; tier terakhir berlaku sampai stok habis;
   // set cabang menggantikan default sepenuhnya; jumlah dalam satuan dasar.
   import { t, formatNumber } from '#lib/i18n/index.ts';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   let {
     defaultTiers = $bindable([]),
@@ -68,8 +69,8 @@
     </div>
     {#each rows as row, i (i)}
       <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5.5rem_2rem] gap-2 items-center">
-        <input id="{idPrefix}-min-{i}" class={cell} bind:value={row.min} inputmode="decimal" aria-label={t('items.wholesale.minQty')} disabled={readOnly} />
-        <input id="{idPrefix}-price-{i}" class={cell} bind:value={row.price} inputmode="decimal" aria-label={t('items.wholesale.price')} disabled={readOnly} />
+        <MoneyInput id="{idPrefix}-min-{i}" class={cell} bind:value={row.min} decimals={3} pad={false} aria-label={t('items.wholesale.minQty')} disabled={readOnly} />
+        <MoneyInput id="{idPrefix}-price-{i}" class={cell} bind:value={row.price} aria-label={t('items.wholesale.price')} disabled={readOnly} />
         <span class="text-[12px] text-[var(--text-secondary)] whitespace-nowrap">{labels[i]}</span>
         {#if !readOnly}
           <button type="button" class="header-icon-btn !size-8" aria-label={t('items.wholesale.remove')} title={t('items.wholesale.remove')} onclick={() => removeRow(rows, i)}>
