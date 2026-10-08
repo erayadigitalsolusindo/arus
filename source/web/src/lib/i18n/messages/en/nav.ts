@@ -36,6 +36,8 @@ const nav: Messages['nav'] = {
   buyPriceHistory: 'Buying Price History',
   supplierPayables: 'Supplier Payables',
   stockOpening: 'Opening Stock',
+  pin: 'Approver PIN',
+  pos: 'Cashier (POS)',
   stockOpname: 'Stock Count Transactions',
   stockTransfer: 'Stock Transfers'
 };

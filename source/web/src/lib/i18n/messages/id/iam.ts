@@ -15,6 +15,7 @@ export default {
     brands: 'Data Brand',
     principals: 'Data Principal',
     sales_orders: 'Pesanan Penjualan',
+    price_override: 'Setujui Ubah Harga (PIN)',
     sales_returns: 'Retur Penjualan',
     sales_list: 'Daftar Penjualan',
     sell_price_history: 'History Harga Jual',

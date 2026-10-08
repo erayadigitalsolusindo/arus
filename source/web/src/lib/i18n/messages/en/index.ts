@@ -14,7 +14,8 @@ import platform from './platform.ts';
 import catalog from './catalog.ts';
 import items from './items.ts';
 import stock from './stock.ts';
+import pos from './pos.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos };
 
 export default en;

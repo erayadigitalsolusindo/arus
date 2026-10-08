@@ -415,6 +415,7 @@ type BarcodeMatch struct {
 	Origin  string          `json:"origin"`
 	Active  bool            `json:"active"`
 	Matched string          `json:"matched"`
+	UnitID  uuid.UUID       `json:"unit_id"`
 	Unit    string          `json:"unit"`
 	Factor  decimal.Decimal `json:"factor"`
 	Price   decimal.Decimal `json:"price"`
@@ -446,7 +447,7 @@ func (s *Service) ByBarcode(ctx context.Context, a authz.Actor, code string, exc
 				}
 			}
 			out = append(out, BarcodeMatch{ID: r.ID, SKU: r.Sku, Name: r.Name, Origin: r.Origin, Active: r.Active, Matched: r.Matched,
-				Unit: r.UnitName, Factor: r.Factor, Price: price.Round(2)})
+				UnitID: r.UnitID, Unit: r.UnitName, Factor: r.Factor, Price: price.Round(2)})
 		}
 		return err
 	})

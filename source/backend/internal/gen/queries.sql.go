@@ -13,6 +13,127 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const approvalSelf = `-- name: ApprovalSelf :one
+SELECT u.password_hash, (u.pin_hash IS NOT NULL)::boolean AS has_pin, r.permissions
+FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $1 AND u.id = $2 AND u.active
+`
+
+type ApprovalSelfParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ApprovalSelfRow struct {
+	PasswordHash string
+	HasPin       bool
+	Permissions  []byte
+}
+
+func (q *Queries) ApprovalSelf(ctx context.Context, arg ApprovalSelfParams) (ApprovalSelfRow, error) {
+	row := q.db.QueryRow(ctx, approvalSelf, arg.TenantID, arg.ID)
+	var i ApprovalSelfRow
+	err := row.Scan(&i.PasswordHash, &i.HasPin, &i.Permissions)
+	return i, err
+}
+
+const approvalSetPin = `-- name: ApprovalSetPin :exec
+UPDATE users SET pin_hash = $3 WHERE tenant_id = $1 AND id = $2
+`
+
+type ApprovalSetPinParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	PinHash  pgtype.Text
+}
+
+func (q *Queries) ApprovalSetPin(ctx context.Context, arg ApprovalSetPinParams) error {
+	_, err := q.db.Exec(ctx, approvalSetPin, arg.TenantID, arg.ID, arg.PinHash)
+	return err
+}
+
+const approvalUserGet = `-- name: ApprovalUserGet :one
+SELECT u.id, u.name, u.active, u.pin_hash, r.permissions,
+       (coalesce(r.permissions ->> '*' = 'true', false) OR EXISTS (SELECT 1 FROM user_outlets uo WHERE uo.tenant_id = u.tenant_id AND uo.user_id = u.id AND uo.outlet_id = $1))::boolean AS outlet_ok
+FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $2 AND u.id = $3
+`
+
+type ApprovalUserGetParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ApprovalUserGetRow struct {
+	ID          uuid.UUID
+	Name        string
+	Active      bool
+	PinHash     pgtype.Text
+	Permissions []byte
+	OutletOk    bool
+}
+
+func (q *Queries) ApprovalUserGet(ctx context.Context, arg ApprovalUserGetParams) (ApprovalUserGetRow, error) {
+	row := q.db.QueryRow(ctx, approvalUserGet, arg.OutletID, arg.TenantID, arg.ID)
+	var i ApprovalUserGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Active,
+		&i.PinHash,
+		&i.Permissions,
+		&i.OutletOk,
+	)
+	return i, err
+}
+
+const approvalUsers = `-- name: ApprovalUsers :many
+SELECT u.id, u.name, r.permissions,
+       (coalesce(r.permissions ->> '*' = 'true', false) OR EXISTS (SELECT 1 FROM user_outlets uo WHERE uo.tenant_id = u.tenant_id AND uo.user_id = u.id AND uo.outlet_id = $1))::boolean AS outlet_ok
+FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+WHERE u.tenant_id = $2 AND u.active AND u.pin_hash IS NOT NULL
+ORDER BY lower(u.name), u.id
+`
+
+type ApprovalUsersParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+}
+
+type ApprovalUsersRow struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	OutletOk    bool
+}
+
+// Kandidat penyetuju untuk outlet ini: pengguna aktif ber-PIN. Izin dicek di Go (role.permissions), akses outlet di sini.
+func (q *Queries) ApprovalUsers(ctx context.Context, arg ApprovalUsersParams) ([]ApprovalUsersRow, error) {
+	rows, err := q.db.Query(ctx, approvalUsers, arg.OutletID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApprovalUsersRow
+	for rows.Next() {
+		var i ApprovalUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Permissions,
+			&i.OutletOk,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const auditInsert = `-- name: AuditInsert :exec
 INSERT INTO audit_log (tenant_id, outlet_id, actor_id, actor_name, action, entity, entity_id, details, ip, request_id)
 VALUES ($1, $2, $3, $4, $5,
@@ -828,9 +949,9 @@ func (q *Queries) IamUpdateUser(ctx context.Context, arg IamUpdateUserParams) (i
 }
 
 const itemByBarcode = `-- name: ItemByBarcode :many
-SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
+SELECT m.id, m.sku, m.name, m.origin, m.active, m.matched, m.unit_id, m.unit_name, m.factor, m.unit_price, m.default_price, m.outlet_price
 FROM (
-    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, u.name AS unit_name,
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'item'::text AS matched, i.unit_id, u.name AS unit_name,
            1::numeric AS factor, NULL::numeric AS unit_price,
            i.sell_price AS default_price, op.sell_price AS outlet_price
     FROM items i
@@ -839,7 +960,7 @@ FROM (
     WHERE i.tenant_id = $2 AND i.barcode = $3::text
       AND ($4::uuid IS NULL OR i.id <> $4::uuid)
     UNION ALL
-    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, au.name AS unit_name,
+    SELECT i.id, i.sku, i.name, i.origin, i.active, 'unit'::text AS matched, iu.unit_id, au.name AS unit_name,
            iu.factor::numeric AS factor, iu.sell_price::numeric AS unit_price,
            i.sell_price AS default_price, op.sell_price AS outlet_price
     FROM item_units iu
@@ -867,6 +988,7 @@ type ItemByBarcodeRow struct {
 	Origin       string
 	Active       bool
 	Matched      string
+	UnitID       uuid.UUID
 	UnitName     string
 	Factor       decimal.Decimal
 	UnitPrice    pgtype.Numeric
@@ -897,6 +1019,7 @@ func (q *Queries) ItemByBarcode(ctx context.Context, arg ItemByBarcodeParams) ([
 			&i.Origin,
 			&i.Active,
 			&i.Matched,
+			&i.UnitID,
 			&i.UnitName,
 			&i.Factor,
 			&i.UnitPrice,
@@ -2437,6 +2560,537 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 			&i.LastLoginAt,
 			&i.EmailVerified,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesAltUnits = `-- name: SalesAltUnits :many
+SELECT iu.item_id, iu.unit_id, u.name AS unit_name, iu.factor, iu.sell_price
+FROM item_units iu
+JOIN units u ON u.tenant_id = iu.tenant_id AND u.id = iu.unit_id
+WHERE iu.tenant_id = $1 AND iu.item_id = ANY($2::uuid[])
+`
+
+type SalesAltUnitsParams struct {
+	TenantID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type SalesAltUnitsRow struct {
+	ItemID    uuid.UUID
+	UnitID    uuid.UUID
+	UnitName  string
+	Factor    decimal.Decimal
+	SellPrice pgtype.Numeric
+}
+
+func (q *Queries) SalesAltUnits(ctx context.Context, arg SalesAltUnitsParams) ([]SalesAltUnitsRow, error) {
+	rows, err := q.db.Query(ctx, salesAltUnits, arg.TenantID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesAltUnitsRow
+	for rows.Next() {
+		var i SalesAltUnitsRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.UnitID,
+			&i.UnitName,
+			&i.Factor,
+			&i.SellPrice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesByIdemKey = `-- name: SalesByIdemKey :one
+SELECT id, request_hash FROM sales WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type SalesByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type SalesByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) SalesByIdemKey(ctx context.Context, arg SalesByIdemKeyParams) (SalesByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, salesByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i SalesByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const salesGet = `-- name: SalesGet :one
+SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.tax_store_pct, s.tax_gov_pct,
+       s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
+       s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name
+FROM sales s LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+LEFT JOIN users ap ON ap.tenant_id = s.tenant_id AND ap.id = s.approved_by
+WHERE s.tenant_id = $1 AND s.id = $2
+`
+
+type SalesGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalesGetRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	Status       string
+	Note         string
+	Subtotal     decimal.Decimal
+	Discount     decimal.Decimal
+	TaxStorePct  decimal.Decimal
+	TaxGovPct    decimal.Decimal
+	TaxStore     decimal.Decimal
+	TaxGov       decimal.Decimal
+	OtherCost    decimal.Decimal
+	Total        decimal.Decimal
+	Paid         decimal.Decimal
+	Change       decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
+	CashierID    pgtype.UUID
+	CashierName  string
+	ApproverName string
+}
+
+func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow, error) {
+	row := q.db.QueryRow(ctx, salesGet, arg.TenantID, arg.ID)
+	var i SalesGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.Status,
+		&i.Note,
+		&i.Subtotal,
+		&i.Discount,
+		&i.TaxStorePct,
+		&i.TaxGovPct,
+		&i.TaxStore,
+		&i.TaxGov,
+		&i.OtherCost,
+		&i.Total,
+		&i.Paid,
+		&i.Change,
+		&i.CreatedAt,
+		&i.CashierID,
+		&i.CashierName,
+		&i.ApproverName,
+	)
+	return i, err
+}
+
+const salesInsert = `-- name: SalesInsert :one
+INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
+                   tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17, $18)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id, created_at
+`
+
+type SalesInsertParams struct {
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	CashierID      pgtype.UUID
+	ApprovedBy     pgtype.UUID
+	Note           string
+	Subtotal       decimal.Decimal
+	Discount       decimal.Decimal
+	TaxStorePct    decimal.Decimal
+	TaxGovPct      decimal.Decimal
+	TaxStore       decimal.Decimal
+	TaxGov         decimal.Decimal
+	OtherCost      decimal.Decimal
+	Total          decimal.Decimal
+	Paid           decimal.Decimal
+	Change         decimal.Decimal
+}
+
+type SalesInsertRow struct {
+	ID        uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+// DO NOTHING pada kunci idempotensi: pengiriman ulang tidak membuat nota ganda (pemanggil lalu membaca nota lama).
+func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (SalesInsertRow, error) {
+	row := q.db.QueryRow(ctx, salesInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.CashierID,
+		arg.ApprovedBy,
+		arg.Note,
+		arg.Subtotal,
+		arg.Discount,
+		arg.TaxStorePct,
+		arg.TaxGovPct,
+		arg.TaxStore,
+		arg.TaxGov,
+		arg.OtherCost,
+		arg.Total,
+		arg.Paid,
+		arg.Change,
+	)
+	var i SalesInsertRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
+const salesItemsForPricing = `-- name: SalesItemsForPricing :many
+SELECT i.id, i.sku, i.name, i.kind, i.active, i.sell_below_cost, i.allow_negative_stock, i.avg_cost, i.sell_price,
+       i.unit_id, u.name AS unit_name, op.sell_price AS outlet_price,
+       coalesce(sb.qty, 0)::numeric AS stock_display
+FROM items i
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+LEFT JOIN stock_balances sb ON sb.tenant_id = i.tenant_id AND sb.outlet_id = $1 AND sb.item_id = i.id AND sb.bucket = 'display'
+WHERE i.tenant_id = $2 AND i.id = ANY($3::uuid[])
+`
+
+type SalesItemsForPricingParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type SalesItemsForPricingRow struct {
+	ID                 uuid.UUID
+	Sku                string
+	Name               string
+	Kind               string
+	Active             bool
+	SellBelowCost      bool
+	AllowNegativeStock bool
+	AvgCost            decimal.Decimal
+	SellPrice          decimal.Decimal
+	UnitID             uuid.UUID
+	UnitName           string
+	OutletPrice        pgtype.Numeric
+	StockDisplay       decimal.Decimal
+}
+
+// Data harga/stok semua barang dalam satu nota (satu kueri). outlet_price NULL = pakai harga default.
+func (q *Queries) SalesItemsForPricing(ctx context.Context, arg SalesItemsForPricingParams) ([]SalesItemsForPricingRow, error) {
+	rows, err := q.db.Query(ctx, salesItemsForPricing, arg.OutletID, arg.TenantID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesItemsForPricingRow
+	for rows.Next() {
+		var i SalesItemsForPricingRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Name,
+			&i.Kind,
+			&i.Active,
+			&i.SellBelowCost,
+			&i.AllowNegativeStock,
+			&i.AvgCost,
+			&i.SellPrice,
+			&i.UnitID,
+			&i.UnitName,
+			&i.OutletPrice,
+			&i.StockDisplay,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesLineInsert = `-- name: SalesLineInsert :exec
+INSERT INTO sale_lines (tenant_id, sale_id, position, item_id, sku, name, unit_id, unit_name, factor, qty, unit_price,
+                        unit_cost, discount, line_total, note, list_price, price_override)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17)
+`
+
+type SalesLineInsertParams struct {
+	TenantID      uuid.UUID
+	SaleID        uuid.UUID
+	Position      int32
+	ItemID        uuid.UUID
+	Sku           string
+	Name          string
+	UnitID        uuid.UUID
+	UnitName      string
+	Factor        decimal.Decimal
+	Qty           decimal.Decimal
+	UnitPrice     decimal.Decimal
+	UnitCost      decimal.Decimal
+	Discount      decimal.Decimal
+	LineTotal     decimal.Decimal
+	Note          string
+	ListPrice     decimal.Decimal
+	PriceOverride bool
+}
+
+func (q *Queries) SalesLineInsert(ctx context.Context, arg SalesLineInsertParams) error {
+	_, err := q.db.Exec(ctx, salesLineInsert,
+		arg.TenantID,
+		arg.SaleID,
+		arg.Position,
+		arg.ItemID,
+		arg.Sku,
+		arg.Name,
+		arg.UnitID,
+		arg.UnitName,
+		arg.Factor,
+		arg.Qty,
+		arg.UnitPrice,
+		arg.UnitCost,
+		arg.Discount,
+		arg.LineTotal,
+		arg.Note,
+		arg.ListPrice,
+		arg.PriceOverride,
+	)
+	return err
+}
+
+const salesLines = `-- name: SalesLines :many
+SELECT item_id, sku, name, unit_id, unit_name, factor, qty, unit_price, unit_cost, discount, line_total, note, list_price, price_override
+FROM sale_lines WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+`
+
+type SalesLinesParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+type SalesLinesRow struct {
+	ItemID        uuid.UUID
+	Sku           string
+	Name          string
+	UnitID        uuid.UUID
+	UnitName      string
+	Factor        decimal.Decimal
+	Qty           decimal.Decimal
+	UnitPrice     decimal.Decimal
+	UnitCost      decimal.Decimal
+	Discount      decimal.Decimal
+	LineTotal     decimal.Decimal
+	Note          string
+	ListPrice     decimal.Decimal
+	PriceOverride bool
+}
+
+func (q *Queries) SalesLines(ctx context.Context, arg SalesLinesParams) ([]SalesLinesRow, error) {
+	rows, err := q.db.Query(ctx, salesLines, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesLinesRow
+	for rows.Next() {
+		var i SalesLinesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Sku,
+			&i.Name,
+			&i.UnitID,
+			&i.UnitName,
+			&i.Factor,
+			&i.Qty,
+			&i.UnitPrice,
+			&i.UnitCost,
+			&i.Discount,
+			&i.LineTotal,
+			&i.Note,
+			&i.ListPrice,
+			&i.PriceOverride,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesNextNo = `-- name: SalesNextNo :one
+INSERT INTO sale_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = sale_counters.last_no + 1
+RETURNING last_no
+`
+
+type SalesNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) SalesNextNo(ctx context.Context, arg SalesNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, salesNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const salesOutletInfo = `-- name: SalesOutletInfo :one
+SELECT code, name, tax_store_pct, tax_gov_pct, active,
+       (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type SalesOutletInfoParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalesOutletInfoRow struct {
+	Code        string
+	Name        string
+	TaxStorePct decimal.Decimal
+	TaxGovPct   decimal.Decimal
+	Active      bool
+	LocalDay    pgtype.Date
+}
+
+func (q *Queries) SalesOutletInfo(ctx context.Context, arg SalesOutletInfoParams) (SalesOutletInfoRow, error) {
+	row := q.db.QueryRow(ctx, salesOutletInfo, arg.TenantID, arg.ID)
+	var i SalesOutletInfoRow
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.TaxStorePct,
+		&i.TaxGovPct,
+		&i.Active,
+		&i.LocalDay,
+	)
+	return i, err
+}
+
+const salesPaymentInsert = `-- name: SalesPaymentInsert :exec
+INSERT INTO sale_payments (tenant_id, sale_id, position, method, amount, ref_no)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type SalesPaymentInsertParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+	Position int32
+	Method   string
+	Amount   decimal.Decimal
+	RefNo    string
+}
+
+func (q *Queries) SalesPaymentInsert(ctx context.Context, arg SalesPaymentInsertParams) error {
+	_, err := q.db.Exec(ctx, salesPaymentInsert,
+		arg.TenantID,
+		arg.SaleID,
+		arg.Position,
+		arg.Method,
+		arg.Amount,
+		arg.RefNo,
+	)
+	return err
+}
+
+const salesPayments = `-- name: SalesPayments :many
+SELECT method, amount, ref_no FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+`
+
+type SalesPaymentsParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+type SalesPaymentsRow struct {
+	Method string
+	Amount decimal.Decimal
+	RefNo  string
+}
+
+func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([]SalesPaymentsRow, error) {
+	rows, err := q.db.Query(ctx, salesPayments, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesPaymentsRow
+	for rows.Next() {
+		var i SalesPaymentsRow
+		if err := rows.Scan(&i.Method, &i.Amount, &i.RefNo); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesTiers = `-- name: SalesTiers :many
+SELECT item_id, outlet_id, min_qty, price FROM item_wholesale_tiers
+WHERE tenant_id = $1 AND item_id = ANY($2::uuid[]) AND (outlet_id IS NULL OR outlet_id = $3)
+ORDER BY item_id, outlet_id NULLS FIRST, min_qty
+`
+
+type SalesTiersParams struct {
+	TenantID uuid.UUID
+	Ids      []uuid.UUID
+	OutletID pgtype.UUID
+}
+
+type SalesTiersRow struct {
+	ItemID   uuid.UUID
+	OutletID pgtype.UUID
+	MinQty   decimal.Decimal
+	Price    decimal.Decimal
+}
+
+// Tier grosir default (outlet_id NULL) dan milik outlet ini untuk barang-barang nota.
+func (q *Queries) SalesTiers(ctx context.Context, arg SalesTiersParams) ([]SalesTiersRow, error) {
+	rows, err := q.db.Query(ctx, salesTiers, arg.TenantID, arg.Ids, arg.OutletID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesTiersRow
+	for rows.Next() {
+		var i SalesTiersRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.OutletID,
+			&i.MinQty,
+			&i.Price,
 		); err != nil {
 			return nil, err
 		}

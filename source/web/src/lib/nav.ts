@@ -66,6 +66,7 @@ export const nav: NavGroup[] = [
   {
     titleKey: 'nav.group.sales',
     items: [
+      { id: 'pos', labelKey: 'nav.pos', icon: 'monitor-smartphone', module: 'sales_orders', href: '/kasir' },
       {
         id: 'salesOrders',
         labelKey: 'nav.salesOrdersReturns',
@@ -121,6 +122,7 @@ export const nav: NavGroup[] = [
     items: [
       { id: 'users', labelKey: 'nav.users', icon: 'users', module: 'users', href: '/users' },
       { id: 'roles', labelKey: 'nav.roles', icon: 'shield-check', module: 'roles', href: '/roles' },
+      { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', href: '/pin' },
       { id: 'outlets', labelKey: 'nav.outlets', icon: 'store', module: 'outlets', href: '/outlets' },
       { id: 'auditLog', labelKey: 'nav.auditLog', icon: 'history', module: 'audit_log', href: '/audit-log' }
     ]
