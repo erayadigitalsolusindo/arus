@@ -44,3 +44,8 @@ FOR UPDATE;
 -- name: VoucherUse :execrows
 UPDATE vouchers SET used_count = used_count + 1
 WHERE tenant_id = @tenant_id AND id = @id AND (max_uses IS NULL OR used_count < max_uses);
+
+-- name: VoucherRelease :execrows
+-- Mengembalikan satu pemakaian kupon (nota dibatalkan/diedit). Tidak pernah di bawah 0.
+UPDATE vouchers SET used_count = used_count - 1
+WHERE tenant_id = @tenant_id AND id = @id AND used_count > 0;

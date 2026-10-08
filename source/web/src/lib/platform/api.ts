@@ -26,7 +26,7 @@ export type UserRow = {
   email_verified: boolean;
   created_at: string;
 };
-export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; outlets: OutletRow[]; users: UserRow[] };
+export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; sale_edit_window_days: number; outlets: OutletRow[]; users: UserRow[] };
 
 export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string };
 
@@ -58,6 +58,8 @@ const json = (v: unknown) => JSON.stringify(v);
 export const platformApi = {
   tenants: (q: string, limit: number, offset: number) => papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
+  /** Batas hari edit/batal nota tenant (0 = hanya hari nota dibuat, maks 3650). Hanya operator platform yang boleh mengubah. */
+  setSaleEditWindow: (id: string, days: number) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ sale_edit_window_days: days }) }),
   setTenantActive: (id: string, active: boolean) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ active }) }),
   tenantAudit: (id: string, cursor = '') =>
     papi<{ items: TenantAuditItem[]; next_cursor: string }>(`/platform/tenants/${id}/audit?${new URLSearchParams({ limit: '30', ...(cursor ? { cursor } : {}) })}`),

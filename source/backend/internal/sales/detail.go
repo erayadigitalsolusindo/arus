@@ -62,20 +62,33 @@ type Event struct {
 	Details json.RawMessage `json:"details"`
 }
 
+// RevisionInfo = satu versi dalam rantai edit nota (asli + revisi).
+type RevisionInfo struct {
+	ID        uuid.UUID  `json:"id"`
+	DocNo     string     `json:"doc_no"`
+	Revision  int        `json:"revision"`
+	Status    string     `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
+	RevisedAt *time.Time `json:"revised_at,omitempty"`
+	Total     string     `json:"total"`
+	Reason    string     `json:"reason,omitempty"`
+}
+
 // Detail = nota lengkap untuk panel detail Daftar Penjualan. `Lines` di tingkat ini menggantikan Sale.Lines pada JSON
 // (field paling dangkal menang), sehingga klien hanya melihat satu `lines` yang kaya.
 type Detail struct {
 	Sale
-	Lines          []DetailLine `json:"lines"`
-	Outlet         OutletRef    `json:"outlet"`
-	LineDiscount   string       `json:"line_discount"`
-	ManualDiscount string       `json:"manual_discount"`
-	VoucherAmount  string       `json:"voucher_amount"`
-	BaseQtyTotal   string       `json:"base_qty_total"`
-	Stock          []StockMove  `json:"stock"`
-	Events         []Event      `json:"events"`
-	Cost           *string      `json:"cost,omitempty"`
-	Profit         *string      `json:"profit,omitempty"` // Subtotal − Discount − HPP (sebelum pajak & biaya lain)
+	Lines          []DetailLine   `json:"lines"`
+	Outlet         OutletRef      `json:"outlet"`
+	LineDiscount   string         `json:"line_discount"`
+	ManualDiscount string         `json:"manual_discount"`
+	VoucherAmount  string         `json:"voucher_amount"`
+	BaseQtyTotal   string         `json:"base_qty_total"`
+	Revisions      []RevisionInfo `json:"revisions"` // seluruh versi nota (asli + revisi), urut revisi
+	Stock          []StockMove    `json:"stock"`
+	Events         []Event        `json:"events"`
+	Cost           *string        `json:"cost,omitempty"`
+	Profit         *string        `json:"profit,omitempty"` // Subtotal − Discount − HPP (sebelum pajak & biaya lain)
 }
 
 // Detail membaca satu nota lengkap. Tenant dari token (+RLS); nota di cabang yang tidak boleh diakses pemanggil = tidak ditemukan.
@@ -88,7 +101,7 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 		return Detail{}, ErrNotFound
 	}
 	canCost := a.Perms.Has(ModuleCost, authz.ActView)
-	out := Detail{Sale: sale, Lines: []DetailLine{}, Stock: []StockMove{}, Events: []Event{}}
+	out := Detail{Sale: sale, Lines: []DetailLine{}, Stock: []StockMove{}, Events: []Event{}, Revisions: []RevisionInfo{}}
 	out.Sale.Lines = nil
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
@@ -137,7 +150,28 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 			out.Cost, out.Profit = &c, &p
 		}
 
-		ms, err := q.SalesStockMovements(ctx, gen.SalesStockMovementsParams{TenantID: a.TenantID, SaleID: pgtype.UUID{Bytes: id, Valid: true}})
+		chain, err := q.SalesRevisionChain(ctx, gen.SalesRevisionChainParams{TenantID: a.TenantID, RootID: pgtype.UUID{Bytes: sale.RootID, Valid: true}})
+		if err != nil {
+			return err
+		}
+		ids, sids := []uuid.UUID{id}, []string{id.String()}
+		if len(chain) > 0 {
+			ids, sids = ids[:0], sids[:0]
+		}
+		for _, c := range chain {
+			ids, sids = append(ids, c.ID), append(sids, c.ID.String())
+			ri := RevisionInfo{ID: c.ID, DocNo: c.DocNo, Revision: int(c.Revision), Status: c.Status, CreatedAt: c.CreatedAt.Time, Total: c.Total.StringFixed(2),
+				Reason: c.RevisionReason.String}
+			if c.VoidReason.Valid {
+				ri.Reason = c.VoidReason.String
+			}
+			if c.RevisedAt.Valid {
+				t := c.RevisedAt.Time
+				ri.RevisedAt = &t
+			}
+			out.Revisions = append(out.Revisions, ri)
+		}
+		ms, err := q.SalesStockMovements(ctx, gen.SalesStockMovementsParams{TenantID: a.TenantID, SaleIds: ids})
 		if err != nil {
 			return err
 		}
@@ -145,7 +179,7 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 			out.Stock = append(out.Stock, StockMove{ID: m.ID, At: m.CreatedAt.Time, Type: m.RefType, Bucket: m.Bucket, ItemID: m.ItemID.String(), SKU: m.Sku,
 				Name: m.Name, Unit: m.UnitName, Delta: m.QtyDelta.String(), BalanceAfter: m.BalanceAfter.String(), Actor: m.ActorName})
 		}
-		es, err := q.SalesAuditEvents(ctx, gen.SalesAuditEventsParams{TenantID: a.TenantID, SaleID: id.String()})
+		es, err := q.SalesAuditEvents(ctx, gen.SalesAuditEventsParams{TenantID: a.TenantID, SaleIds: sids})
 		if err != nil {
 			return err
 		}

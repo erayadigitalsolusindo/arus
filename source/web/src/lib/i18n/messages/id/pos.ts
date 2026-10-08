@@ -207,6 +207,24 @@ export default {
     clear: 'Kosongkan slot',
     cancel: 'Batal'
   },
+  edit: {
+    banner: 'Mengedit nota {docNo}',
+    revisionNext: 'Akan disimpan sebagai revisi ke-{n}',
+    hint: 'Harga dan HPP barang yang sudah ada dipertahankan. Stok, poin, dan kupon nota lama dikembalikan lalu dihitung ulang.',
+    reason: 'Alasan edit',
+    reasonPlaceholder: 'mis. salah input qty (min. 3 karakter)',
+    approver: 'Penyetuju',
+    approverPlaceholder: 'Pilih penyetuju',
+    pin: 'PIN penyetuju (6 digit)',
+    noApprover: 'Belum ada penyetuju untuk outlet ini. Beri izin "Setujui Edit/Batal Nota" pada Owner/Supervisor lalu minta mereka mengatur PIN.',
+    cancel: 'Batal edit',
+    cancelAsk: 'Batalkan edit nota ini? Perubahan di keranjang akan dibuang.',
+    save: 'Simpan Perubahan',
+    payTitle: 'Simpan Perubahan Nota',
+    loadFailed: 'Gagal memuat nota untuk diedit.',
+    notReady: 'Isi alasan (min. 3 karakter), pilih penyetuju, dan masukkan PIN 6 digit.',
+    newDoc: 'Nomor revisi baru'
+  },
   costs: {
     button: 'Rincian biaya lain-lain',
     title: 'Rincian biaya lain-lain',

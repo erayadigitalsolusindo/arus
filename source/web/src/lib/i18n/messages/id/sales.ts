@@ -30,7 +30,9 @@ const sales = {
     line: 'Per baris',
     points: 'Poin',
     override: 'Harga diubah',
-    voidDoc: 'Batal'
+    voidDoc: 'Batal',
+    revised: 'Revisi {n}',
+    revisedTip: 'Sudah diedit — ini revisi ke-{n}'
   },
   tip: {
     manual: 'Potongan manual di tingkat nota',
@@ -52,9 +54,34 @@ const sales = {
     margin: 'Margin {pct}%'
   },
   showing: 'Menampilkan {shown} dari {total} nota',
+  statusSuperseded: 'Digantikan revisi',
   detail: {
     open: 'Lihat detail nota',
     title: 'Detail Nota',
+    actions: { edit: 'Edit nota', void: 'Batalkan nota' },
+    revisions: {
+      title: 'Riwayat revisi',
+      original: 'Asli',
+      current: 'Versi aktif',
+      superseded: 'Digantikan',
+      voided: 'Dibatalkan',
+      open: 'Buka versi ini',
+      reason: 'Alasan',
+      replacedBy: 'Sudah digantikan revisi — lihat versi aktif untuk isi terbaru.'
+    },
+    void: {
+      title: 'Batalkan nota {docNo}',
+      hint: 'Stok, poin, dan kupon nota ini dikembalikan. Nota tetap tercatat berstatus Dibatalkan dan tidak bisa dipulihkan.',
+      reason: 'Alasan pembatalan',
+      reasonPlaceholder: 'mis. pelanggan batal beli (min. 3 karakter)',
+      approver: 'Penyetuju',
+      approverPlaceholder: 'Pilih penyetuju',
+      pin: 'PIN penyetuju',
+      noApprover: 'Belum ada penyetuju untuk outlet nota ini.',
+      confirm: 'Batalkan nota',
+      cancel: 'Kembali',
+      working: 'Membatalkan…'
+    },
     loadFailed: 'Gagal memuat detail nota.',
     tabs: { items: 'Barang', discounts: 'Potongan', payments: 'Pembayaran', stock: 'Stok', history: 'Riwayat' },
     info: { time: 'Waktu', outlet: 'Cabang', cashier: 'Kasir', member: 'Member', salesperson: 'Salesman', approvedBy: 'Disetujui oleh', note: 'Catatan nota' },

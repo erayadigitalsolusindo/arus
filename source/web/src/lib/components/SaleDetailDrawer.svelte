@@ -2,11 +2,14 @@
   // Panel detail nota (slide-over kanan): barang yang dibeli, harga daftar → harga jual, HPP/laba (bila berizin),
   // sumber potongan (manual/kupon/poin), pembayaran, dampak stok, dan riwayat audit. Hanya baca.
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import VoidSaleModal from '#lib/components/VoidSaleModal.svelte';
+  import { can, session } from '#lib/auth/session.svelte.ts';
   import { sales as api, PAY_METHODS, type SaleDetail } from '#lib/sales/api.ts';
   import { t, tryT, formatCurrency, formatNumber, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
-  let { saleId, onclose }: { saleId: string; onclose: () => void } = $props();
+  let { saleId, onclose, onswitch, onchanged }: { saleId: string; onclose: () => void; onswitch?: (id: string) => void; onchanged?: () => void } = $props();
 
   type Tab = 'items' | 'discounts' | 'payments' | 'stock' | 'history';
   let tab = $state<Tab>('items');
@@ -17,12 +20,35 @@
   onMount(() => {
     const previous = document.activeElement as HTMLElement | null;
     panel?.focus();
-    api
-      .detail(saleId)
-      .then((res) => (d = res))
-      .catch((err) => (error = errorMessage(err)));
     return () => previous?.focus?.();
   });
+
+  // Muat ulang saat berpindah antar versi nota (revisi) dari dalam panel.
+  let seq = 0;
+  function load() {
+    const mine = ++seq;
+    d = null;
+    error = '';
+    api
+      .detail(saleId)
+      .then((res) => mine === seq && (d = res))
+      .catch((err) => mine === seq && (error = errorMessage(err)));
+  }
+  $effect(() => {
+    void saleId;
+    load();
+  });
+
+  let voiding = $state(false);
+  const isCompleted = $derived(d?.status === 'completed');
+  const sameOutlet = $derived(!!d && d.outlet.id === session.outlet?.id);
+  const canEdit = $derived(isCompleted && can('sales_orders', 'update'));
+  const canVoid = $derived(isCompleted && can('sales_orders', 'delete'));
+  function startEdit() {
+    if (!d) return;
+    void goto('/kasir?edit=' + d.id);
+  }
+  const statusLabel = (s: string) => (s === 'void' ? t('sales.status.void') : s === 'superseded' ? t('sales.statusSuperseded') : t('sales.status.completed'));
 
   const money = (v: string | number) => formatCurrency(Number(v));
   const qty = (v: string) => formatNumber(Number(v), { maximumFractionDigits: 3 });
@@ -31,6 +57,7 @@
   const actionLabel = (a: string) => tryT(`audit.actions.${a.replace('.', '_')}`) ?? a;
 
   const voided = $derived(d?.status === 'void');
+  const superseded = $derived(d?.status === 'superseded');
   const hasCost = $derived(d?.cost !== undefined);
   const margin = $derived(d && d.cost !== undefined && d.profit !== undefined && num(d.subtotal) - num(d.discount) > 0 ? (num(d.profit) / (num(d.subtotal) - num(d.discount))) * 100 : null);
   const discountTotal = $derived(d ? num(d.discount) + num(d.line_discount) : 0);
@@ -86,13 +113,31 @@
         <div class="min-w-0 grow">
           <div class="flex flex-wrap items-center gap-2">
             <h2 class="font-mono text-[17px] font-bold tracking-tight">{d?.doc_no ?? '…'}</h2>
-            {#if d}<span class="badge-soft {voided ? 'badge-danger' : 'badge-success'}">{voided ? t('sales.status.void') : t('sales.status.completed')}</span>{/if}
+            {#if d}<span class="badge-soft {voided ? 'badge-danger' : superseded ? 'badge-warning' : 'badge-success'}">{statusLabel(d.status)}</span>{/if}
             {#if overrides > 0}<span class="badge-soft badge-warning">{t('sales.badge.override')} ×{overrides}</span>{/if}
           </div>
           {#if d}<div class="mt-0.5 text-[12px] text-[var(--text-tertiary)]">{formatDateTime(d.created_at)}</div>{/if}
         </div>
+        {#if canEdit}
+          <button type="button" class="btn btn-sm" disabled={!sameOutlet} title={sameOutlet ? '' : t('errors.OUTLET_MISMATCH')} onclick={startEdit}><i class="icon-pencil me-1 text-[12px]"></i>{t('sales.detail.actions.edit')}</button>
+        {/if}
+        {#if canVoid}
+          <button type="button" class="btn btn-sm text-[var(--color-danger-600)]" onclick={() => (voiding = true)}><i class="icon-ban me-1 text-[12px]"></i>{t('sales.detail.actions.void')}</button>
+        {/if}
         <button type="button" class="header-icon-btn" onclick={onclose} aria-label={t('common.close')}><i class="icon-x text-[16px]"></i></button>
       </div>
+
+      {#if d && d.revisions.length > 1}
+        <div class="mt-3 flex flex-wrap items-center gap-1.5 text-[11.5px]" aria-label={t('sales.detail.revisions.title')}>
+          <span class="font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('sales.detail.revisions.title')}</span>
+          {#each d.revisions as r (r.id)}
+            <button type="button" class="rounded-full border px-2 py-0.5 font-medium transition-colors {r.id === d.id ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--color-primary)]'}" title={(r.reason ? t('sales.detail.revisions.reason') + ': ' + r.reason + ' · ' : '') + statusLabel(r.status)} aria-current={r.id === d.id ? 'true' : undefined} onclick={() => onswitch?.(r.id)}>
+              R{r.revision}{#if r.status === 'completed'} · {t('sales.detail.revisions.current')}{:else if r.status === 'void'} · {t('sales.detail.revisions.voided')}{/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      {#if superseded}<p class="mt-2 rounded-md bg-[var(--color-warning-500)]/10 px-2.5 py-1.5 text-[11.5px] text-[var(--color-warning-600)]">{t('sales.detail.revisions.replacedBy')}</p>{/if}
 
       {#if d}
         <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12.5px] sm:grid-cols-4">
@@ -361,6 +406,10 @@
     {/if}
   </div>
 </div>
+
+{#if voiding && d}
+  <VoidSaleModal saleId={d.id} docNo={d.doc_no} onclose={() => (voiding = false)} ondone={() => { voiding = false; onchanged?.(); load(); }} />
+{/if}
 
 <style>
   .sd-fade {

@@ -91,6 +91,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		sums := map[string]decimal.Decimal{}
 		all := decimal.Zero
 		for _, r := range rows {
+			if r.Status != "completed" {
+				// Nota batal tetap terlihat di daftar tapi tidak masuk hitungan uang (laci kasir).
+				res.Data = append(res.Data, ListRow{ID: r.ID, DocNo: r.DocNo, Status: r.Status, CreatedAt: r.CreatedAt.Time, Cashier: r.CashierName,
+					Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Methods: map[string]string{}})
+				continue
+			}
 			methods := map[string]string{}
 			for _, part := range strings.Split(r.PayAmounts, ",") {
 				m, v, ok := strings.Cut(part, ":")

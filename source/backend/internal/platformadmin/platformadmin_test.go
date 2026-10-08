@@ -407,6 +407,33 @@ func TestKelolaAdminDanTenant(t *testing.T) {
 	if rec := e.do("GET", "/platform/tenants/"+uuid.NewString(), tok, ""); rec.Code != 404 {
 		t.Errorf("tenant tak ada: %d, want 404", rec.Code)
 	}
+
+	// Batas hari edit/batal nota: bawaan 0; hanya operator platform yang mengubah; nilai di luar 0–3650 ditolak; tercatat di audit.
+	var days int
+	_ = e.admin.QueryRow(ctx, `SELECT sale_edit_window_days FROM tenants WHERE id = $1`, f.ID).Scan(&days)
+	if days != 0 {
+		t.Fatalf("bawaan batas edit = %d, want 0", days)
+	}
+	for _, bad := range []string{`{"sale_edit_window_days":-1}`, `{"sale_edit_window_days":3651}`} {
+		if rec := e.do("PATCH", "/platform/tenants/"+f.ID.String(), tok, bad); rec.Code != 422 {
+			t.Errorf("%s: %d, want 422", bad, rec.Code)
+		}
+	}
+	if rec := e.do("PATCH", "/platform/tenants/"+f.ID.String(), tok, `{"sale_edit_window_days":7}`); rec.Code != 204 {
+		t.Fatalf("atur batas edit: %d %s", rec.Code, rec.Body)
+	}
+	_ = e.admin.QueryRow(ctx, `SELECT sale_edit_window_days FROM tenants WHERE id = $1`, f.ID).Scan(&days)
+	if days != 7 {
+		t.Errorf("batas edit = %d, want 7", days)
+	}
+	rec = e.do("GET", "/platform/tenants/"+f.ID.String(), tok, "")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"sale_edit_window_days":7`) {
+		t.Errorf("detail memuat batas edit: %d %s", rec.Code, rec.Body)
+	}
+	rec = e.do("GET", "/platform/audit?tenant_id="+f.ID.String(), tok, "")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "platform.tenant_edit_window") {
+		t.Errorf("audit batas edit: %d %s", rec.Code, rec.Body)
+	}
 }
 
 // extract mengambil nilai string sederhana dari JSON datar (cukup untuk test; menghindari struct per respons).

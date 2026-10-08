@@ -79,7 +79,16 @@ const platform: Messages['platform'] = {
     auditTitle: 'Recent tenant activity',
     auditEmpty: 'No records yet.',
     loadMore: 'Load more',
-    noActiveOutlet: 'This tenant has no active outlet.'
+    noActiveOutlet: 'This tenant has no active outlet.',
+    editWindow: 'Receipt edit/void window',
+    editWindowHelp: 'How many days after the day a receipt was created it can still be edited or voided (outlet time zone). Only the platform operator can change this; shop owners cannot.',
+    editWindowDays: 'Days after the receipt date',
+    editWindowSave: 'Save',
+    editWindowSaving: 'Saving…',
+    editWindowSaved: 'Saved',
+    editWindowInvalid: 'Enter a number from 0 to 3650.',
+    editWindowSameDay: '0 = a receipt can only be edited/voided on the day it was created.',
+    editWindowDaysHint: 'Receipts can be edited/voided up to {days} days after the day they were created (3650 ≈ no limit).'
   },
   security: {
     title: 'Account security',
@@ -155,6 +164,7 @@ const platform: Messages['platform'] = {
       platform_admin_status: 'Changed Platform Admin status',
       platform_admin_password: 'Reset Platform Admin password',
       platform_tenant_status: 'Changed tenant status',
+      platform_tenant_edit_window: 'Changed the receipt edit window',
       platform_impersonate: 'Entered as tenant'
     }
   }
