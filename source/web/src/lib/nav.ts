@@ -82,7 +82,7 @@ export const nav: NavGroup[] = [
         icon: 'file-text',
         children: [
           { labelKey: 'nav.salesList', module: 'sales_list', href: '/sales' },
-          { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history' },
+          { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history', href: '/sell-price-history' },
           { labelKey: 'nav.memberReceivables', module: 'member_receivables', href: '/receivables' }
         ]
       },
