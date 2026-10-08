@@ -35,6 +35,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/", h.Create)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/quote", h.Quote)
 		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
+		r.With(authz.Require(ModuleList, authz.ActView)).Get("/all", h.ListAll)
+		r.With(authz.Require(ModuleList, authz.ActView)).Get("/{id}/detail", h.Detail)
 		r.With(authz.Require(Module, authz.ActView)).Get("/{id}", h.Get)
 	})
 }

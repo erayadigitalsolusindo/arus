@@ -3906,6 +3906,50 @@ func (q *Queries) SalesAltUnits(ctx context.Context, arg SalesAltUnitsParams) ([
 	return items, nil
 }
 
+const salesAuditEvents = `-- name: SalesAuditEvents :many
+SELECT action, actor_name, details, created_at FROM audit_log
+WHERE tenant_id = $1 AND entity = 'sale' AND entity_id = $2::text
+ORDER BY id
+`
+
+type SalesAuditEventsParams struct {
+	TenantID uuid.UUID
+	SaleID   string
+}
+
+type SalesAuditEventsRow struct {
+	Action    string
+	ActorName string
+	Details   []byte
+	CreatedAt pgtype.Timestamptz
+}
+
+// Riwayat audit satu nota (buat, ubah harga/potongan disetujui PIN; edit/void nanti ikut tercatat di sini).
+func (q *Queries) SalesAuditEvents(ctx context.Context, arg SalesAuditEventsParams) ([]SalesAuditEventsRow, error) {
+	rows, err := q.db.Query(ctx, salesAuditEvents, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesAuditEventsRow
+	for rows.Next() {
+		var i SalesAuditEventsRow
+		if err := rows.Scan(
+			&i.Action,
+			&i.ActorName,
+			&i.Details,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const salesByIdemKey = `-- name: SalesByIdemKey :one
 SELECT id, request_hash FROM sales WHERE tenant_id = $1 AND idempotency_key = $2
 `
@@ -3925,6 +3969,64 @@ func (q *Queries) SalesByIdemKey(ctx context.Context, arg SalesByIdemKeyParams) 
 	var i SalesByIdemKeyRow
 	err := row.Scan(&i.ID, &i.RequestHash)
 	return i, err
+}
+
+const salesCostInsert = `-- name: SalesCostInsert :exec
+INSERT INTO sale_costs (tenant_id, sale_id, position, name, amount)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type SalesCostInsertParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+	Position int32
+	Name     string
+	Amount   decimal.Decimal
+}
+
+func (q *Queries) SalesCostInsert(ctx context.Context, arg SalesCostInsertParams) error {
+	_, err := q.db.Exec(ctx, salesCostInsert,
+		arg.TenantID,
+		arg.SaleID,
+		arg.Position,
+		arg.Name,
+		arg.Amount,
+	)
+	return err
+}
+
+const salesCosts = `-- name: SalesCosts :many
+SELECT name, amount FROM sale_costs WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position
+`
+
+type SalesCostsParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+type SalesCostsRow struct {
+	Name   string
+	Amount decimal.Decimal
+}
+
+func (q *Queries) SalesCosts(ctx context.Context, arg SalesCostsParams) ([]SalesCostsRow, error) {
+	rows, err := q.db.Query(ctx, salesCosts, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesCostsRow
+	for rows.Next() {
+		var i SalesCostsRow
+		if err := rows.Scan(&i.Name, &i.Amount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const salesGet = `-- name: SalesGet :one
@@ -4348,6 +4450,289 @@ func (q *Queries) SalesList(ctx context.Context, arg SalesListParams) ([]SalesLi
 	return items, nil
 }
 
+const salesListAll = `-- name: SalesListAll :many
+SELECT s.id, s.doc_no, s.status, s.created_at, s.outlet_id, o.code AS outlet_code, o.name AS outlet_name,
+       coalesce(u.name, '')::text AS cashier_name,
+       coalesce(mb.name, '')::text AS member_name,
+       coalesce(sp.name, '')::text AS salesperson_name,
+       s.subtotal, s.discount, s.tax_store, s.tax_gov, s.other_cost, s.total, s.change,
+       s.points_earned, s.points_redeemed, s.redeem_amount,
+       lc.line_count, lc.line_discount, lc.cost, lc.override_count,
+       vc.voucher_amount, vc.voucher_codes,
+       coalesce((SELECT string_agg(m.method || ':' || m.amt::text, ',' ORDER BY m.method)
+                 FROM (SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+                       FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method) m), '')::text AS pay_amounts
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS line_count,
+           coalesce(sum(l.discount), 0)::numeric AS line_discount,
+           coalesce(sum(l.unit_cost * l.qty), 0)::numeric AS cost,
+           count(*) FILTER (WHERE l.price_override)::int AS override_count
+    FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id
+) lc
+CROSS JOIN LATERAL (
+    SELECT coalesce(sum(v.amount), 0)::numeric AS voucher_amount,
+           coalesce(string_agg(v.code, ',' ORDER BY v.position), '')::text AS voucher_codes
+    FROM sale_vouchers v WHERE v.tenant_id = s.tenant_id AND v.sale_id = s.id
+) vc
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[])
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+  AND ($5::text = '' OR s.status = $5::text)
+  AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $6::uuid)
+  AND ($7::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $7::text))
+  AND ($8::text = '' OR s.doc_no ILIKE '%' || $8::text || '%' OR mb.name ILIKE '%' || $8::text || '%'
+       OR mb.code ILIKE '%' || $8::text || '%' OR u.name ILIKE '%' || $8::text || '%')
+  AND (NOT $9::bool OR (s.created_at, s.id) < ($10::timestamptz, $11::uuid))
+ORDER BY s.created_at DESC, s.id DESC
+LIMIT $12
+`
+
+type SalesListAllParams struct {
+	TenantID  uuid.UUID
+	OutletIds []uuid.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Status    string
+	CashierID uuid.UUID
+	Method    string
+	Q         string
+	HasCursor bool
+	CursorAt  pgtype.Timestamptz
+	CursorID  uuid.UUID
+	PageLimit int32
+}
+
+type SalesListAllRow struct {
+	ID              uuid.UUID
+	DocNo           string
+	Status          string
+	CreatedAt       pgtype.Timestamptz
+	OutletID        uuid.UUID
+	OutletCode      string
+	OutletName      string
+	CashierName     string
+	MemberName      string
+	SalespersonName string
+	Subtotal        decimal.Decimal
+	Discount        decimal.Decimal
+	TaxStore        decimal.Decimal
+	TaxGov          decimal.Decimal
+	OtherCost       decimal.Decimal
+	Total           decimal.Decimal
+	Change          decimal.Decimal
+	PointsEarned    int32
+	PointsRedeemed  int32
+	RedeemAmount    decimal.Decimal
+	LineCount       int32
+	LineDiscount    decimal.Decimal
+	Cost            decimal.Decimal
+	OverrideCount   int32
+	VoucherAmount   decimal.Decimal
+	VoucherCodes    string
+	PayAmounts      string
+}
+
+// Daftar penjualan lintas kasir untuk pemegang sales_list.view: satu atau beberapa outlet (outlet_ids = yang boleh diakses
+// pemanggil), semua kasir. Keyset: urut (created_at, id) menurun, @has_cursor + (cursor_at, cursor_id) = halaman berikutnya.
+// Nilai HPP (cost) selalu dibaca; yang memutuskan dikirim ke klien adalah service (izin sales_cost).
+func (q *Queries) SalesListAll(ctx context.Context, arg SalesListAllParams) ([]SalesListAllRow, error) {
+	rows, err := q.db.Query(ctx, salesListAll,
+		arg.TenantID,
+		arg.OutletIds,
+		arg.FromDay,
+		arg.ToDay,
+		arg.Status,
+		arg.CashierID,
+		arg.Method,
+		arg.Q,
+		arg.HasCursor,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesListAllRow
+	for rows.Next() {
+		var i SalesListAllRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.Status,
+			&i.CreatedAt,
+			&i.OutletID,
+			&i.OutletCode,
+			&i.OutletName,
+			&i.CashierName,
+			&i.MemberName,
+			&i.SalespersonName,
+			&i.Subtotal,
+			&i.Discount,
+			&i.TaxStore,
+			&i.TaxGov,
+			&i.OtherCost,
+			&i.Total,
+			&i.Change,
+			&i.PointsEarned,
+			&i.PointsRedeemed,
+			&i.RedeemAmount,
+			&i.LineCount,
+			&i.LineDiscount,
+			&i.Cost,
+			&i.OverrideCount,
+			&i.VoucherAmount,
+			&i.VoucherCodes,
+			&i.PayAmounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesListAllMethodTotals = `-- name: SalesListAllMethodTotals :many
+SELECT m.method::text AS method, sum(m.amt)::numeric AS amount
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+CROSS JOIN LATERAL (
+    SELECT p.method, sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amt
+    FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id GROUP BY p.method
+) m
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status = 'completed'
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+  AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5::uuid)
+  AND ($6::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $6::text))
+  AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%' OR mb.name ILIKE '%' || $7::text || '%'
+       OR mb.code ILIKE '%' || $7::text || '%' OR u.name ILIKE '%' || $7::text || '%')
+GROUP BY m.method
+ORDER BY m.method
+`
+
+type SalesListAllMethodTotalsParams struct {
+	TenantID  uuid.UUID
+	OutletIds []uuid.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	CashierID uuid.UUID
+	Method    string
+	Q         string
+}
+
+type SalesListAllMethodTotalsRow struct {
+	Method string
+	Amount decimal.Decimal
+}
+
+// Jumlah per metode bayar (tunai bersih dari kembalian) untuk nota completed pada filter yang sama.
+func (q *Queries) SalesListAllMethodTotals(ctx context.Context, arg SalesListAllMethodTotalsParams) ([]SalesListAllMethodTotalsRow, error) {
+	rows, err := q.db.Query(ctx, salesListAllMethodTotals,
+		arg.TenantID,
+		arg.OutletIds,
+		arg.FromDay,
+		arg.ToDay,
+		arg.CashierID,
+		arg.Method,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesListAllMethodTotalsRow
+	for rows.Next() {
+		var i SalesListAllMethodTotalsRow
+		if err := rows.Scan(&i.Method, &i.Amount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salesListAllSummary = `-- name: SalesListAllSummary :one
+SELECT count(*)::int AS sale_count,
+       (count(*) FILTER (WHERE s.status = 'completed'))::int AS completed_count,
+       coalesce(sum(s.total) FILTER (WHERE s.status = 'completed'), 0)::numeric AS total,
+       coalesce(sum(s.discount + lc.line_discount) FILTER (WHERE s.status = 'completed'), 0)::numeric AS discount,
+       coalesce(sum(lc.cost) FILTER (WHERE s.status = 'completed'), 0)::numeric AS cost,
+       coalesce(sum(s.subtotal - s.discount) FILTER (WHERE s.status = 'completed'), 0)::numeric AS net_sales
+FROM sales s
+JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
+LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+CROSS JOIN LATERAL (
+    SELECT coalesce(sum(l.discount), 0)::numeric AS line_discount,
+           coalesce(sum(l.unit_cost * l.qty), 0)::numeric AS cost
+    FROM sale_lines l WHERE l.tenant_id = s.tenant_id AND l.sale_id = s.id
+) lc
+WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[])
+  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+  AND ($5::text = '' OR s.status = $5::text)
+  AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $6::uuid)
+  AND ($7::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $7::text))
+  AND ($8::text = '' OR s.doc_no ILIKE '%' || $8::text || '%' OR mb.name ILIKE '%' || $8::text || '%'
+       OR mb.code ILIKE '%' || $8::text || '%' OR u.name ILIKE '%' || $8::text || '%')
+`
+
+type SalesListAllSummaryParams struct {
+	TenantID  uuid.UUID
+	OutletIds []uuid.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Status    string
+	CashierID uuid.UUID
+	Method    string
+	Q         string
+}
+
+type SalesListAllSummaryRow struct {
+	SaleCount      int32
+	CompletedCount int32
+	Total          decimal.Decimal
+	Discount       decimal.Decimal
+	Cost           decimal.Decimal
+	NetSales       decimal.Decimal
+}
+
+// Ringkasan atas SELURUH hasil filter (bukan hanya halaman yang tampil). Uang hanya dari nota berstatus completed.
+func (q *Queries) SalesListAllSummary(ctx context.Context, arg SalesListAllSummaryParams) (SalesListAllSummaryRow, error) {
+	row := q.db.QueryRow(ctx, salesListAllSummary,
+		arg.TenantID,
+		arg.OutletIds,
+		arg.FromDay,
+		arg.ToDay,
+		arg.Status,
+		arg.CashierID,
+		arg.Method,
+		arg.Q,
+	)
+	var i SalesListAllSummaryRow
+	err := row.Scan(
+		&i.SaleCount,
+		&i.CompletedCount,
+		&i.Total,
+		&i.Discount,
+		&i.Cost,
+		&i.NetSales,
+	)
+	return i, err
+}
+
 const salesNextNo = `-- name: SalesNextNo :one
 INSERT INTO sale_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
 ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = sale_counters.last_no + 1
@@ -4481,6 +4866,69 @@ func (q *Queries) SalesSalespersonState(ctx context.Context, arg SalesSalesperso
 	var i SalesSalespersonStateRow
 	err := row.Scan(&i.Active, &i.Name)
 	return i, err
+}
+
+const salesStockMovements = `-- name: SalesStockMovements :many
+SELECT m.id, m.created_at, m.ref_type, m.bucket, m.qty_delta, m.balance_after, m.item_id,
+       i.sku, i.name, un.name AS unit_name, coalesce(u.name, '')::text AS actor_name
+FROM stock_movements m
+JOIN items i ON i.tenant_id = m.tenant_id AND i.id = m.item_id
+JOIN units un ON un.tenant_id = i.tenant_id AND un.id = i.unit_id
+LEFT JOIN users u ON u.tenant_id = m.tenant_id AND u.id = m.actor_id
+WHERE m.tenant_id = $1 AND m.ref_id = $2 AND m.ref_type IN ('SALE', 'SALE_VOID', 'SALE_RETURN')
+ORDER BY m.id
+`
+
+type SalesStockMovementsParams struct {
+	TenantID uuid.UUID
+	SaleID   pgtype.UUID
+}
+
+type SalesStockMovementsRow struct {
+	ID           int64
+	CreatedAt    pgtype.Timestamptz
+	RefType      string
+	Bucket       string
+	QtyDelta     decimal.Decimal
+	BalanceAfter decimal.Decimal
+	ItemID       uuid.UUID
+	Sku          string
+	Name         string
+	UnitName     string
+	ActorName    string
+}
+
+// Gerakan stok yang ditimbulkan satu nota (jual, pembatalan, retur). Satuan = satuan dasar barang.
+func (q *Queries) SalesStockMovements(ctx context.Context, arg SalesStockMovementsParams) ([]SalesStockMovementsRow, error) {
+	rows, err := q.db.Query(ctx, salesStockMovements, arg.TenantID, arg.SaleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalesStockMovementsRow
+	for rows.Next() {
+		var i SalesStockMovementsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.RefType,
+			&i.Bucket,
+			&i.QtyDelta,
+			&i.BalanceAfter,
+			&i.ItemID,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+			&i.ActorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const salesTiers = `-- name: SalesTiers :many

@@ -22,6 +22,7 @@ const iam: Messages['iam'] = {
     pos_only: 'Cashier Only (locked to the register screen)',
     sales_returns: 'Sales Returns',
     sales_list: 'Sales List',
+    sales_cost: 'View Sales Cost & Profit',
     sell_price_history: 'Selling Price History',
     member_receivables: 'Member Receivables',
     order_list: 'Order List',
