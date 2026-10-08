@@ -15,41 +15,45 @@ Browser ──https──► nginx aaPanel ─┬─ arus.…     → file stati
 - aaPanel App Store: pasang **Nginx**, **Docker** (Docker Manager), **Supervisor**. PostgreSQL/Redis bawaan aaPanel **tidak dipakai**.
 - Firewall (aaPanel + panel penyedia VPS): buka hanya 80, 443, SSH, dan port panel. **Jangan buka 5433/6380.**
 - SMTP: siapkan akun pengirim (SPF/DKIM untuk `erayadigital.co.id`); API menolak start tanpa `SMTP_HOST`.
-- Di server: `apt install -y rsync` bila belum ada, dan pasang goose:
+- Di server (login sebagai user biasa; semua perintah di bawah memakai `sudo`, tinggal salin-tempel): pasang rsync dan goose:
   ```bash
-  curl -fsSL https://github.com/pressly/goose/releases/latest/download/goose_linux_x86_64 -o /usr/local/bin/goose && chmod +x /usr/local/bin/goose
+  sudo apt install -y rsync
+  sudo curl -fsSL https://github.com/pressly/goose/releases/latest/download/goose_linux_x86_64 -o /usr/local/bin/goose
+  sudo chmod +x /usr/local/bin/goose
+  goose --version
   ```
 
 ## 1. Struktur folder
 ```bash
-mkdir -p /www/wwwroot/arus/{api,web,deploy,data/uploads,backups}
-chown -R www:www /www/wwwroot/arus/{api,web,data}
+sudo mkdir -p /www/wwwroot/arus/{api,web,deploy,data/uploads,backups}
+sudo chown -R www:www /www/wwwroot/arus/{api,web,data}
 ```
 Salin folder `source/deploy/` repo ke `/www/wwwroot/arus/deploy/` (compose, initdb, aapanel/).
 
 ## 2. Postgres + Redis (Docker)
 ```bash
 cd /www/wwwroot/arus/deploy
-cp .env.example .env && nano .env      # semua password: openssl rand -hex 24 ; POSTGRES_PORT=5433 REDIS_PORT=6380
-chmod 600 .env
-docker compose --env-file .env up -d
-docker ps                              # aciraba_postgres & aciraba_redis healthy
-ss -tlnp | grep -E '5433|6380'         # harus 127.0.0.1, bukan 0.0.0.0
+sudo cp .env.example .env && sudo nano .env      # semua password: openssl rand -hex 24 ; POSTGRES_PORT=5433 REDIS_PORT=6380
+sudo chmod 600 .env
+sudo docker compose --env-file .env up -d
+sudo docker ps                              # aciraba_postgres & aciraba_redis healthy
+sudo ss -tlnp | grep -E '5433|6380'         # harus 127.0.0.1, bukan 0.0.0.0
 ```
 `POSTGRES_APP_PASSWORD` hanya dipakai saat volume pertama kali dibuat; mengubahnya kemudian butuh `ALTER ROLE aciraba_app PASSWORD '…'`.
 
 ## 3. Konfigurasi API
 ```bash
-cp /www/wwwroot/arus/deploy/aapanel/env.production.example /www/wwwroot/arus/api/.env
-nano /www/wwwroot/arus/api/.env        # isi password (sama dengan deploy/.env), JWT_SECRET, SMTP, PLATFORM_SETUP_TOKEN
-chmod 600 /www/wwwroot/arus/api/.env && chown www:www /www/wwwroot/arus/api/.env
+sudo cp /www/wwwroot/arus/deploy/aapanel/env.production.example /www/wwwroot/arus/api/.env
+sudo nano /www/wwwroot/arus/api/.env        # isi password (sama dengan deploy/.env), JWT_SECRET, SMTP, PLATFORM_SETUP_TOKEN
+sudo chmod 600 /www/wwwroot/arus/api/.env && sudo chown www:www /www/wwwroot/arus/api/.env
 ```
 
 ## 4. Rilis pertama (build di laptop)
 PowerShell, dari `source/deploy/aapanel`: `.\build-release.ps1` → `release.tar.gz`.
 Unggah ke server (SCP/SFTP/File aaPanel), lalu **pertama kali** jalankan update.sh (ia melakukan migrasi, memasang binary & web; restart akan gagal karena Supervisor belum dibuat — wajar, lanjut langkah 5):
 ```bash
-RESTART_CMD=true bash /www/wwwroot/arus/deploy/aapanel/update.sh /root/release.tar.gz
+# release.tar.gz diasumsikan diunggah ke home user (~/release.tar.gz)
+sudo env RESTART_CMD=true bash /www/wwwroot/arus/deploy/aapanel/update.sh ~/release.tar.gz
 ```
 (`pg_dump` pertama tetap jalan di DB kosong; tak masalah.)
 
@@ -76,12 +80,12 @@ Buka `https://arus.erayadigital.co.id/platform/setup`, masukkan `PLATFORM_SETUP_
 Lalu **hapus baris `PLATFORM_SETUP_TOKEN` dari `.env` dan restart API.**
 
 ## 8. Backup (cron aaPanel → Shell Script, harian)
-`bash /www/wwwroot/arus/deploy/aapanel/backup.sh` → `/www/wwwroot/arus/backups` (DB + unggahan, simpan 14 hari).
+`bash /www/wwwroot/arus/deploy/aapanel/backup.sh` (cron aaPanel berjalan sebagai root, tidak perlu `sudo`) → `/www/wwwroot/arus/backups` (DB + unggahan, simpan 14 hari).
 Wajib: kirim folder itu ke penyimpanan **di luar VPS** (aaPanel Cloud Storage/rclone). **Uji restore sekali** sebelum toko pertama go-live:
 `docker exec -i aciraba_postgres pg_restore -U aciraba -d <db_uji> --no-owner < db-YYYY-MM-DD.dump`.
 
 ## 9. Update rilis berikutnya
-`.\build-release.ps1` → unggah → `bash …/update.sh /root/release.tar.gz`.
+`.\build-release.ps1` → unggah ke `~/release.tar.gz` → `sudo bash /www/wwwroot/arus/deploy/aapanel/update.sh ~/release.tar.gz`.
 Urutannya sudah: backup → migrasi → ganti binary → ganti web → restart → cek `/healthz`.
 Mundur: migrasi bersifat maju-saja. Bila rilis bermasalah, kembalikan binary (`aciraba-api.prev`) **hanya** bila migrasi rilis itu kompatibel; kalau tidak, restore dump `pre-update-*.dump`.
 
