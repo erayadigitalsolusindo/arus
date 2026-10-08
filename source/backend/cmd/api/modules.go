@@ -44,9 +44,10 @@ func mountModules(r chi.Router, d appDeps) error {
 	sessions := pauth.NewSessions(d.Redis)
 	perms := authz.NewResolver(d.Pool)
 
+	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
 	authSvc := auth.NewService(auth.Deps{
 		Pool: d.Pool, Tokens: tokens, Sessions: sessions, OneTime: pauth.NewOneTime(d.Redis), Perms: perms,
-		Mailer: d.Mailer, Jobs: d.Jobs, BaseURL: d.Cfg.AppBaseURL,
+		Mailer: d.Mailer, Jobs: d.Jobs, BaseURL: d.Cfg.AppBaseURL, Approvals: approvalSvc,
 	})
 	auth.NewHandler(auth.HandlerDeps{
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
@@ -82,7 +83,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)

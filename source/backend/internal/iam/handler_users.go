@@ -91,3 +91,16 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// VerifyEmail menandai email pengguna lain sebagai terverifikasi (manual, mis. saat email macet atau tanpa internet).
+func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.VerifyEmail(r.Context(), actor(r), id); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

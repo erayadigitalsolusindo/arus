@@ -852,6 +852,24 @@ func (q *Queries) IamLockActiveOwners(ctx context.Context, tenantID uuid.UUID) (
 	return items, nil
 }
 
+const iamMarkEmailVerified = `-- name: IamMarkEmailVerified :execrows
+UPDATE users SET email_verified_at = now() WHERE tenant_id = $1 AND id = $2 AND email_verified_at IS NULL
+`
+
+type IamMarkEmailVerifiedParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Verifikasi manual oleh admin; tidak menimpa waktu verifikasi yang sudah ada.
+func (q *Queries) IamMarkEmailVerified(ctx context.Context, arg IamMarkEmailVerifiedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, iamMarkEmailVerified, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const iamSetPassword = `-- name: IamSetPassword :execrows
 UPDATE users SET password_hash = $3, tokens_valid_after = $4::timestamptz WHERE tenant_id = $1 AND id = $2
 `
@@ -3914,8 +3932,10 @@ SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.
        s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
-       s.points_earned, s.points_redeemed, s.redeem_amount
-FROM sales s LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+       s.points_earned, s.points_redeemed, s.redeem_amount,
+       s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name
+FROM sales s LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
 LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 LEFT JOIN users ap ON ap.tenant_id = s.tenant_id AND ap.id = s.approved_by
 WHERE s.tenant_id = $1 AND s.id = $2
@@ -3927,31 +3947,33 @@ type SalesGetParams struct {
 }
 
 type SalesGetRow struct {
-	ID             uuid.UUID
-	OutletID       uuid.UUID
-	DocNo          string
-	Status         string
-	Note           string
-	Subtotal       decimal.Decimal
-	Discount       decimal.Decimal
-	TaxStorePct    decimal.Decimal
-	TaxGovPct      decimal.Decimal
-	TaxStore       decimal.Decimal
-	TaxGov         decimal.Decimal
-	OtherCost      decimal.Decimal
-	Total          decimal.Decimal
-	Paid           decimal.Decimal
-	Change         decimal.Decimal
-	CreatedAt      pgtype.Timestamptz
-	CashierID      pgtype.UUID
-	CashierName    string
-	ApproverName   string
-	MemberID       pgtype.UUID
-	MemberCode     string
-	MemberName     string
-	PointsEarned   int32
-	PointsRedeemed int32
-	RedeemAmount   decimal.Decimal
+	ID              uuid.UUID
+	OutletID        uuid.UUID
+	DocNo           string
+	Status          string
+	Note            string
+	Subtotal        decimal.Decimal
+	Discount        decimal.Decimal
+	TaxStorePct     decimal.Decimal
+	TaxGovPct       decimal.Decimal
+	TaxStore        decimal.Decimal
+	TaxGov          decimal.Decimal
+	OtherCost       decimal.Decimal
+	Total           decimal.Decimal
+	Paid            decimal.Decimal
+	Change          decimal.Decimal
+	CreatedAt       pgtype.Timestamptz
+	CashierID       pgtype.UUID
+	CashierName     string
+	ApproverName    string
+	MemberID        pgtype.UUID
+	MemberCode      string
+	MemberName      string
+	PointsEarned    int32
+	PointsRedeemed  int32
+	RedeemAmount    decimal.Decimal
+	SalespersonID   pgtype.UUID
+	SalespersonName string
 }
 
 func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow, error) {
@@ -3983,6 +4005,8 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 		&i.PointsEarned,
 		&i.PointsRedeemed,
 		&i.RedeemAmount,
+		&i.SalespersonID,
+		&i.SalespersonName,
 	)
 	return i, err
 }
@@ -3990,10 +4014,10 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 const salesInsert = `-- name: SalesInsert :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
-                   member_id, points_earned, points_redeemed, redeem_amount)
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22)
+        $19, $20, $21, $22, $23)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -4021,6 +4045,7 @@ type SalesInsertParams struct {
 	PointsEarned   int32
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
+	SalespersonID  pgtype.UUID
 }
 
 type SalesInsertRow struct {
@@ -4053,6 +4078,7 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 		arg.PointsEarned,
 		arg.PointsRedeemed,
 		arg.RedeemAmount,
+		arg.SalespersonID,
 	)
 	var i SalesInsertRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
@@ -4353,6 +4379,27 @@ func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([
 	return items, nil
 }
 
+const salesSalespersonState = `-- name: SalesSalespersonState :one
+SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2
+`
+
+type SalesSalespersonStateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalesSalespersonStateRow struct {
+	Active bool
+	Name   string
+}
+
+func (q *Queries) SalesSalespersonState(ctx context.Context, arg SalesSalespersonStateParams) (SalesSalespersonStateRow, error) {
+	row := q.db.QueryRow(ctx, salesSalespersonState, arg.TenantID, arg.ID)
+	var i SalesSalespersonStateRow
+	err := row.Scan(&i.Active, &i.Name)
+	return i, err
+}
+
 const salesTiers = `-- name: SalesTiers :many
 SELECT item_id, outlet_id, min_qty, price FROM item_wholesale_tiers
 WHERE tenant_id = $1 AND item_id = ANY($2::uuid[]) AND (outlet_id IS NULL OR outlet_id = $3)
@@ -4396,6 +4443,249 @@ func (q *Queries) SalesTiers(ctx context.Context, arg SalesTiersParams) ([]Sales
 		return nil, err
 	}
 	return items, nil
+}
+
+const salespersonCreate = `-- name: SalespersonCreate :one
+INSERT INTO salespeople (tenant_id, code, name, phone, note, commission_pct)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, code, name, phone, note, commission_pct, active, created_at
+`
+
+type SalespersonCreateParams struct {
+	TenantID      uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+}
+
+type SalespersonCreateRow struct {
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SalespersonCreate(ctx context.Context, arg SalespersonCreateParams) (SalespersonCreateRow, error) {
+	row := q.db.QueryRow(ctx, salespersonCreate,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.Phone,
+		arg.Note,
+		arg.CommissionPct,
+	)
+	var i SalespersonCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Phone,
+		&i.Note,
+		&i.CommissionPct,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const salespersonGet = `-- name: SalespersonGet :one
+SELECT id, code, name, phone, note, commission_pct, active, created_at
+FROM salespeople WHERE tenant_id = $1 AND id = $2
+`
+
+type SalespersonGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type SalespersonGetRow struct {
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SalespersonGet(ctx context.Context, arg SalespersonGetParams) (SalespersonGetRow, error) {
+	row := q.db.QueryRow(ctx, salespersonGet, arg.TenantID, arg.ID)
+	var i SalespersonGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Phone,
+		&i.Note,
+		&i.CommissionPct,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const salespersonList = `-- name: SalespersonList :many
+SELECT id, code, name, phone, note, commission_pct, active, created_at,
+       count(*) OVER () AS total
+FROM salespeople
+WHERE tenant_id = $1
+  AND ($2::text = '' OR name ILIKE '%' || $2 || '%' OR coalesce(code, '') ILIKE '%' || $2 || '%')
+  AND ($3::boolean IS NULL OR active = $3)
+ORDER BY lower(name), id
+LIMIT $5 OFFSET $4
+`
+
+type SalespersonListParams struct {
+	TenantID   uuid.UUID
+	Q          string
+	Active     pgtype.Bool
+	PageOffset int32
+	PageLimit  int32
+}
+
+type SalespersonListRow struct {
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	Total         int64
+}
+
+func (q *Queries) SalespersonList(ctx context.Context, arg SalespersonListParams) ([]SalespersonListRow, error) {
+	rows, err := q.db.Query(ctx, salespersonList,
+		arg.TenantID,
+		arg.Q,
+		arg.Active,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SalespersonListRow
+	for rows.Next() {
+		var i SalespersonListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Phone,
+			&i.Note,
+			&i.CommissionPct,
+			&i.Active,
+			&i.CreatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const salespersonSetActive = `-- name: SalespersonSetActive :one
+UPDATE salespeople SET active = $3
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, phone, note, commission_pct, active, created_at
+`
+
+type SalespersonSetActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+type SalespersonSetActiveRow struct {
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SalespersonSetActive(ctx context.Context, arg SalespersonSetActiveParams) (SalespersonSetActiveRow, error) {
+	row := q.db.QueryRow(ctx, salespersonSetActive, arg.TenantID, arg.ID, arg.Active)
+	var i SalespersonSetActiveRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Phone,
+		&i.Note,
+		&i.CommissionPct,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const salespersonUpdate = `-- name: SalespersonUpdate :one
+UPDATE salespeople SET code = $3, name = $4, phone = $5, note = $6, commission_pct = $7
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, code, name, phone, note, commission_pct, active, created_at
+`
+
+type SalespersonUpdateParams struct {
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+}
+
+type SalespersonUpdateRow struct {
+	ID            uuid.UUID
+	Code          pgtype.Text
+	Name          string
+	Phone         string
+	Note          string
+	CommissionPct decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SalespersonUpdate(ctx context.Context, arg SalespersonUpdateParams) (SalespersonUpdateRow, error) {
+	row := q.db.QueryRow(ctx, salespersonUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.Code,
+		arg.Name,
+		arg.Phone,
+		arg.Note,
+		arg.CommissionPct,
+	)
+	var i SalespersonUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Phone,
+		&i.Note,
+		&i.CommissionPct,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const stockAddDelta = `-- name: StockAddDelta :one

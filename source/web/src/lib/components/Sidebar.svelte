@@ -13,7 +13,7 @@
   }: { collapsed: boolean; mobileOpen: boolean; ontoggle: () => void; onclose: () => void } = $props();
 
   // Menu disaring menurut izin pengguna (penegakan sebenarnya di server).
-  const groups = $derived(visibleNav((m) => can(m)));
+  const groups = $derived(visibleNav((m) => can(m) || (m === 'price_override' && can('outlet_switch'))));
 
   // Semua submenu tertutup saat halaman dimuat/di-reload.
   let open = $state<Record<string, boolean>>({});

@@ -44,6 +44,20 @@ export default {
     address: 'Alamat',
     note: 'Catatan'
   },
+  salespeople: {
+    docTitle: 'Daftar Salesman | ACIRABA',
+    title: 'Daftar Salesman',
+    subtitle: 'Salesman yang dipilih kasir pada nota, untuk laporan dan komisi. Bukan akun login.',
+    add: 'Tambah Salesman',
+    edit: 'Ubah Salesman',
+    search: 'Cari nama atau kode…',
+    code: 'Kode',
+    codeHint: 'Opsional; huruf, angka, titik, garis, atau garis miring (maks. 30).',
+    phone: 'Telepon',
+    note: 'Catatan',
+    commission: 'Komisi (%)',
+    commissionHint: 'Opsional (0–100). Hanya disimpan; belum dihitung otomatis.'
+  },
   combobox: {
     placeholder: 'Pilih…',
     searching: 'Mencari…',

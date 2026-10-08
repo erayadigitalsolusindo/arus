@@ -2,7 +2,7 @@
   import { z } from 'zod';
   import { goto } from '$app/navigation';
   import { api, ApiError, type AuthResponse } from '#lib/api/client.ts';
-  import { startSession } from '#lib/auth/session.svelte.ts';
+  import { homePath, startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import TransactionFeed from '#lib/components/TransactionFeed.svelte';
@@ -69,7 +69,7 @@
       const res = await api<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
       startSession(res);
       password = '';
-      await goto('/dashboard');
+      await goto(homePath());
     } catch (err) {
       if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
         now = Date.now();

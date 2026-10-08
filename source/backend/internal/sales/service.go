@@ -58,12 +58,13 @@ const (
 	codeTooMany       = "TOO_MANY"
 	codeBaseQtyFormat = "INVALID"
 
-	codeMemberRequired     = "MEMBER_REQUIRED"
-	codeMemberInactive     = "MEMBER_INACTIVE"
-	codePointsInsufficient = "POINTS_INSUFFICIENT"
-	codeRedeemNotAllowed   = "REDEEM_NOT_ALLOWED"
-	codeRedeemTooHigh      = "REDEEM_TOO_HIGH"
-	codeRedeemBelowCost    = "REDEEM_BELOW_COST"
+	codeMemberRequired      = "MEMBER_REQUIRED"
+	codeMemberInactive      = "MEMBER_INACTIVE"
+	codeSalespersonInactive = "SALESPERSON_INACTIVE"
+	codePointsInsufficient  = "POINTS_INSUFFICIENT"
+	codeRedeemNotAllowed    = "REDEEM_NOT_ALLOWED"
+	codeRedeemTooHigh       = "REDEEM_TOO_HIGH"
+	codeRedeemBelowCost     = "REDEEM_BELOW_COST"
 )
 
 const maxRedeem = 10_000_000
@@ -127,6 +128,8 @@ type Request struct {
 	// Member (opsional): nota diperhitungkan poinnya; RedeemPoints = poin yang ditukar jadi potongan nota (level member menentukan nilainya).
 	MemberID     *uuid.UUID `json:"member_id"`
 	RedeemPoints int        `json:"redeem_points"`
+	// Salesman (opsional): label nota untuk laporan/komisi; kosong = Umum.
+	SalespersonID *uuid.UUID `json:"salesperson_id"`
 }
 
 // ---- Hasil ----
@@ -180,13 +183,19 @@ type Sale struct {
 	Paid        string    `json:"paid"`
 	Change      string    `json:"change"`
 	// Member & poin nota (Discount sudah memuat RedeemAmount).
-	Member         *MemberInfo `json:"member,omitempty"`
-	PointsEarned   int         `json:"points_earned"`
-	PointsRedeemed int         `json:"points_redeemed"`
-	RedeemAmount   string      `json:"redeem_amount"`
+	Member         *MemberInfo      `json:"member,omitempty"`
+	Salesperson    *SalespersonInfo `json:"salesperson,omitempty"`
+	PointsEarned   int              `json:"points_earned"`
+	PointsRedeemed int              `json:"points_redeemed"`
+	RedeemAmount   string           `json:"redeem_amount"`
 }
 
 // MemberInfo = identitas member pada nota/quote.
+type SalespersonInfo struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
 type MemberInfo struct {
 	ID     uuid.UUID `json:"id"`
 	Code   string    `json:"code"`
@@ -238,14 +247,15 @@ type normPayment struct {
 }
 
 type norm struct {
-	lines     []normLine
-	discount  dec
-	otherCost dec
-	applyTax  bool
-	payments  []normPayment
-	note      string
-	memberID  *uuid.UUID
-	redeem    int
+	lines       []normLine
+	discount    dec
+	otherCost   dec
+	applyTax    bool
+	payments    []normPayment
+	note        string
+	memberID    *uuid.UUID
+	redeem      int
+	salesperson *uuid.UUID
 }
 
 func normalize(in Request) (norm, FieldErrors) {
@@ -253,6 +263,9 @@ func normalize(in Request) (norm, FieldErrors) {
 	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints}
 	if in.MemberID != nil && *in.MemberID == uuid.Nil {
 		n.memberID = nil
+	}
+	if in.SalespersonID != nil && *in.SalespersonID != uuid.Nil {
+		n.salesperson = in.SalespersonID
 	}
 	if in.RedeemPoints < 0 || in.RedeemPoints > maxRedeem {
 		f["redeem_points"] = sanitize.Invalid
@@ -349,9 +362,13 @@ func (n norm) hash() string {
 		N    string
 		M    string
 		R    int
+		S    string
 	}{D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
 	if n.memberID != nil {
 		v.M = n.memberID.String()
+	}
+	if n.salesperson != nil {
+		v.S = n.salesperson.String()
 	}
 	for _, x := range n.lines {
 		u := ""
@@ -640,6 +657,18 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 		if err != nil {
 			return err
 		}
+		if n.salesperson != nil {
+			sp, err := q.SalesSalespersonState(ctx, gen.SalesSalespersonStateParams{TenantID: a.TenantID, ID: *n.salesperson})
+			if errors.Is(err, pgx.ErrNoRows) {
+				return FieldErrors{"salesperson_id": sanitize.Invalid}
+			}
+			if err != nil {
+				return err
+			}
+			if !sp.Active {
+				return FieldErrors{"salesperson_id": codeSalespersonInactive}
+			}
+		}
 		if len(fe) > 0 {
 			return fe
 		}
@@ -675,6 +704,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 			Subtotal: t.subtotal, Discount: t.discount, TaxStorePct: t.taxStorePct, TaxGovPct: t.taxGovPct,
 			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
+			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tidak terpakai) lalu kembalikan nota itu.
@@ -816,6 +846,10 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		if err != nil {
 			return err
 		}
+		var spi *SalespersonInfo
+		if h.SalespersonID.Valid {
+			spi = &SalespersonInfo{ID: uuid.UUID(h.SalespersonID.Bytes), Name: h.SalespersonName}
+		}
 		var mi *MemberInfo
 		if h.MemberID.Valid {
 			mi = &MemberInfo{ID: uuid.UUID(h.MemberID.Bytes), Code: h.MemberCode, Name: h.MemberName}
@@ -825,7 +859,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			TaxStorePct: h.TaxStorePct.StringFixed(2), TaxGovPct: h.TaxGovPct.StringFixed(2),
 			TaxStore: h.TaxStore.StringFixed(2), TaxGov: h.TaxGov.StringFixed(2), OtherCost: h.OtherCost.StringFixed(2),
 			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2),
-			Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
+			Salesperson: spi, Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
 			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps))}
 		for _, l := range ls {
 			out.Lines = append(out.Lines, Line{ItemID: l.ItemID, SKU: l.Sku, Name: l.Name, UnitID: l.UnitID, Unit: l.UnitName,
@@ -957,6 +991,13 @@ func (m memberCalc) code() string {
 }
 
 // redeemApplied = jumlah poin yang benar-benar ditukar pada nota ini.
+func (n norm) salespersonBytes() [16]byte {
+	if n.salesperson == nil {
+		return [16]byte{}
+	}
+	return *n.salesperson
+}
+
 func (n norm) redeemApplied(m memberCalc) int {
 	if m.sm == nil {
 		return 0
