@@ -59,3 +59,68 @@ WHERE i.tenant_id = @tenant_id AND i.kind = 'goods' AND i.active
   AND (@q::text = '' OR i.name ILIKE '%' || @q || '%' OR i.sku ILIKE '%' || @q || '%' OR coalesce(i.barcode, '') ILIKE '%' || @q || '%')
 ORDER BY lower(i.name), i.id
 LIMIT @page_limit OFFSET @page_offset;
+
+-- ---- Pecah satuan (Fase 4.3) ----
+
+-- name: StockConvOutletInfo :one
+SELECT code, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2;
+
+-- name: StockConvItemLock :one
+-- Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP + satuan dasarnya.
+SELECT i.id, i.sku, i.name, i.kind, i.avg_cost, u.name AS unit_name
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.id = $2 FOR UPDATE OF i;
+
+-- name: StockTotalQty :one
+-- Total stok barang di semua outlet & bucket (dasar keputusan memasang HPP hasil pecah satuan).
+SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND item_id = $2;
+
+-- name: StockSetCost :exec
+UPDATE items SET avg_cost = @cost, last_cost = @cost WHERE tenant_id = @tenant_id AND id = @item_id;
+
+-- name: StockConvByIdemKey :one
+SELECT id, request_hash FROM stock_conversions WHERE tenant_id = $1 AND idempotency_key = $2;
+
+-- name: StockConvNextNo :one
+INSERT INTO stock_conversion_counters (tenant_id, outlet_id, day, last_no) VALUES (@tenant_id, @outlet_id, @day, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_conversion_counters.last_no + 1
+RETURNING last_no;
+
+-- name: StockConvInsert :one
+-- DO NOTHING pada kunci idempotensi: pengiriman ganda bersamaan tidak membuat dokumen ganda.
+INSERT INTO stock_conversions (id, tenant_id, outlet_id, doc_no, idempotency_key, request_hash, from_item_id, from_qty, to_item_id, to_qty,
+                               from_unit_cost, to_unit_cost, cost_applied, note, actor_id)
+VALUES (@id, @tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, @from_item_id, @from_qty, @to_item_id, @to_qty,
+        @from_unit_cost, @to_unit_cost, @cost_applied, @note, sqlc.narg('actor_id'))
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id;
+
+-- name: StockConvGet :one
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = $1 AND c.id = $2;
+
+-- name: StockConvList :many
+SELECT c.id, c.outlet_id, c.doc_no, c.from_qty, c.to_qty, c.from_unit_cost, c.to_unit_cost, c.cost_applied, c.note, c.created_at,
+       fi.id AS from_id, fi.sku AS from_sku, fi.name AS from_name, fu.name AS from_unit,
+       ti.id AS to_id,   ti.sku AS to_sku,   ti.name AS to_name,   tu.name AS to_unit,
+       coalesce(us.name, '') AS actor_name,
+       count(*) OVER () AS total
+FROM stock_conversions c
+JOIN items fi ON fi.tenant_id = c.tenant_id AND fi.id = c.from_item_id
+JOIN units fu ON fu.tenant_id = fi.tenant_id AND fu.id = fi.unit_id
+JOIN items ti ON ti.tenant_id = c.tenant_id AND ti.id = c.to_item_id
+JOIN units tu ON tu.tenant_id = ti.tenant_id AND tu.id = ti.unit_id
+LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
+WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id
+ORDER BY c.created_at DESC, c.id
+LIMIT @page_limit OFFSET @page_offset;

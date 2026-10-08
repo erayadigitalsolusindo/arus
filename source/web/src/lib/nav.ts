@@ -113,6 +113,7 @@ export const nav: NavGroup[] = [
     titleKey: 'nav.group.adjustments',
     items: [
       { id: 'stockOpening', labelKey: 'nav.stockOpening', icon: 'package-plus', module: 'stock_opening', href: '/stock-opening' },
+      { id: 'stockConversion', labelKey: 'nav.stockConversion', icon: 'split', module: 'stock_conversion', href: '/stock-conversion' },
       { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname' },
       { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer' }
     ]
