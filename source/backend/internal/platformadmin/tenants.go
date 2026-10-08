@@ -262,7 +262,7 @@ func (s *Service) Impersonate(ctx context.Context, a Actor, tenantID, outletID u
 		}
 		return audit.Record(ctx, tx, audit.Actor{TenantID: tenantID, OutletID: outlet.ID, Name: "Platform: " + a.Name}, audit.Entry{
 			Action: audit.ActionPlatformImpersonate, Entity: audit.EntityTenant, EntityID: tenantID.String(),
-			Details: map[string]any{"admin_id": a.ID.String(), "outlet": outlet.Name, "read_only": true},
+			Details: map[string]any{"admin_id": a.ID.String(), "outlet": outlet.Name, "read_only": false},
 		})
 	})
 	switch {

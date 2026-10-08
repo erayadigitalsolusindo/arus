@@ -4,10 +4,20 @@ const platform: Messages['platform'] = {
   docTitle: 'Platform Panel | ACIRABA',
   brand: 'Platform Admin',
   banner: {
-    text: 'Platform Admin mode (read-only): {tenant} · {outlet}. Data changes are disabled.',
+    text: 'Platform Admin mode: {tenant} · {outlet}. Your changes are logged under Platform Admin.',
     exit: 'Exit this mode'
   },
-  nav: { security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
+  hero: {
+    online: 'System online',
+    morning: 'Good morning',
+    noon: 'Good day',
+    afternoon: 'Good afternoon',
+    evening: 'Good evening',
+    subtitle: 'ARUS control center: monitor every tenant, manage access, and trace every action through the audit log.'
+  },
+  nav: {
+    groupMain: 'Platform',
+    groupSystem: 'System', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',
@@ -35,7 +45,7 @@ const platform: Messages['platform'] = {
   },
   tenants: {
     title: 'All tenants',
-    subtitle: 'Every registered store/business. Use "Enter as" to view a tenant\'s data read-only.',
+    subtitle: 'Every registered store/business. Use "Enter as" to view a tenant\'s data with full access.',
     search: 'Search name, code, or email…',
     name: 'Tenant',
     owner: 'Owner',
@@ -52,7 +62,9 @@ const platform: Messages['platform'] = {
     total: { one: '{count} tenant', other: '{count} tenants' },
     prev: 'Previous',
     next: 'Next',
-    open: 'Open'
+    open: 'Open',
+    statTotal: 'Total tenants',
+    thisPage: 'on this page'
   },
   tenant: {
     back: 'Back to tenants',
@@ -61,7 +73,7 @@ const platform: Messages['platform'] = {
     outlets: 'Outlets',
     users: 'Users',
     enterAs: 'Enter as',
-    enterAsHelp: 'Opens this store\'s app with full read-only access (30 minutes). Every entry is logged and visible in the tenant\'s audit log.',
+    enterAsHelp: 'Opens this store\'s app with full read/write access (30 minutes). Every entry is logged and visible in the tenant\'s audit log.',
     enterAll: 'Enter (first outlet)',
     enterOutlet: 'Enter {outlet}',
     entering: 'Opening…',
@@ -88,6 +100,8 @@ const platform: Messages['platform'] = {
     editWindowSaved: 'Saved',
     editWindowInvalid: 'Enter a number from 0 to 3650.',
     editWindowSameDay: '0 = a receipt can only be edited/voided on the day it was created.',
+    sameDayShort: 'Same day',
+    daysShort: '{days} days',
     editWindowDaysHint: 'Receipts can be edited/voided up to {days} days after the day they were created (3650 ≈ no limit).'
   },
   security: {
