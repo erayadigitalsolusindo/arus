@@ -17,6 +17,7 @@ const iam: Messages['iam'] = {
     brands: 'Brands',
     principals: 'Principals',
     sales_orders: 'Sales Orders',
+    price_override: 'Approve Price Changes (PIN)',
     sales_returns: 'Sales Returns',
     sales_list: 'Sales List',
     sell_price_history: 'Selling Price History',

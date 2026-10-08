@@ -109,6 +109,7 @@ export type BarcodeMatch = {
   origin: string;
   active: boolean;
   matched: 'item' | 'unit';
+  unit_id: string;
   unit: string;
   factor: string;
   price: string;
