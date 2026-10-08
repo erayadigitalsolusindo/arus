@@ -282,6 +282,24 @@ type Sale struct {
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
 	SalespersonID  pgtype.UUID
+	RootID         pgtype.UUID
+	Revision       int32
+	SupersedesID   pgtype.UUID
+	SupersededBy   pgtype.UUID
+	RevisionReason pgtype.Text
+	RevisedAt      pgtype.Timestamptz
+	RevisedBy      pgtype.UUID
+	VoidReason     pgtype.Text
+	VoidedAt       pgtype.Timestamptz
+	VoidedBy       pgtype.UUID
+}
+
+type SaleCost struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+	Position int32
+	Name     string
+	Amount   decimal.Decimal
 }
 
 type SaleCounter struct {
@@ -320,6 +338,18 @@ type SalePayment struct {
 	Method   string
 	Amount   decimal.Decimal
 	RefNo    string
+}
+
+type SaleVoucher struct {
+	TenantID  uuid.UUID
+	SaleID    uuid.UUID
+	VoucherID uuid.UUID
+	Position  int32
+	Code      string
+	Name      string
+	Kind      string
+	Value     decimal.Decimal
+	Amount    decimal.Decimal
 }
 
 type Salesperson struct {
@@ -408,6 +438,7 @@ type Tenant struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	OnboardingCompletedAt pgtype.Timestamptz
+	SaleEditWindowDays    int32
 }
 
 type Unit struct {
@@ -442,4 +473,22 @@ type UserOutlet struct {
 	TenantID uuid.UUID
 	UserID   uuid.UUID
 	OutletID uuid.UUID
+}
+
+type Voucher struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
 }

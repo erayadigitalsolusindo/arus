@@ -16,12 +16,16 @@
   let audit = $state<TenantAuditItem[]>([]);
   let auditCursor = $state('');
   let auditLoading = $state(false);
+  let windowDays = $state('0');
+  let savingWindow = $state(false);
+  let windowSaved = $state(false);
 
   async function load() {
     loading = true;
     error = '';
     try {
       tenant = await platformApi.tenant(id);
+      windowDays = String(tenant.sale_edit_window_days);
     } catch (err) {
       error = errorMessage(err);
     } finally {
@@ -77,6 +81,24 @@
     }
   }
 
+  const windowValid = $derived(/^[0-9]{1,4}$/.test(windowDays.trim()) && Number(windowDays) <= 3650);
+  const windowDirty = $derived(!!tenant && windowValid && Number(windowDays) !== tenant.sale_edit_window_days);
+  async function saveWindow() {
+    if (!tenant || !windowValid || savingWindow) return;
+    savingWindow = true;
+    error = '';
+    windowSaved = false;
+    try {
+      await platformApi.setSaleEditWindow(id, Number(windowDays));
+      await Promise.all([load(), loadAudit()]);
+      windowSaved = true;
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      savingWindow = false;
+    }
+  }
+
   const actionLabel = (a: string) => tryT(`audit.actions.${a.replace('.', '_')}`) ?? a;
   const activeOutlets = $derived(tenant?.outlets.filter((o) => o.active) ?? []);
 </script>
@@ -102,6 +124,29 @@
       {tenant.active ? t('platform.tenant.disable') : t('platform.tenant.enable')}
     </button>
   </div>
+
+  <section class="surface-card p-4 space-y-3">
+    <div>
+      <h2 class="font-display font-bold text-[14px]">{t('platform.tenant.editWindow')}</h2>
+      <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('platform.tenant.editWindowHelp')}</p>
+    </div>
+    <form
+      class="flex flex-wrap items-end gap-2"
+      onsubmit={(e) => {
+        e.preventDefault();
+        void saveWindow();
+      }}
+    >
+      <label class="block">
+        <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.editWindowDays')}</span>
+        <input class="field-control w-32 text-end tabular-nums" inputmode="numeric" maxlength="4" bind:value={windowDays} oninput={() => (windowSaved = false)} aria-invalid={!windowValid} />
+      </label>
+      <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!windowDirty || savingWindow}>{savingWindow ? t('platform.tenant.editWindowSaving') : t('platform.tenant.editWindowSave')}</button>
+      {#if windowSaved}<span class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.editWindowSaved')}</span>{/if}
+      {#if !windowValid}<span class="text-[12px] text-[var(--color-danger-600)]">{t('platform.tenant.editWindowInvalid')}</span>{/if}
+    </form>
+    <p class="text-[11.5px] text-[var(--text-tertiary)]">{Number(windowDays) === 0 ? t('platform.tenant.editWindowSameDay') : t('platform.tenant.editWindowDaysHint', { days: windowDays })}</p>
+  </section>
 
   <section class="surface-card p-4 space-y-3">
     <div>

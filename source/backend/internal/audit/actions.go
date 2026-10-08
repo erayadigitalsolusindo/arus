@@ -38,6 +38,7 @@ const (
 
 	ActionPlatformImpersonate  = "platform.impersonate"
 	ActionPlatformTenantStatus = "platform.tenant_status"
+	ActionPlatformEditWindow   = "platform.tenant_edit_window" // batas hari edit/batal nota (diatur operator platform)
 )
 
 // Master pendukung katalog (Fase 3.1). Aksi `<entitas>.active` = arsip/aktifkan kembali.
@@ -104,7 +105,10 @@ const (
 const (
 	EntitySale = "sale"
 
-	ActionSaleCreate = "sale.create"
+	ActionSaleCreate     = "sale.create"
+	ActionSaleEdit       = "sale.edit"       // revisi nota (nota baru yang menggantikan)
+	ActionSaleSuperseded = "sale.superseded" // pada nota lama: sudah digantikan revisi
+	ActionSaleVoid       = "sale.void"
 )
 
 // Persetujuan (PIN) — ubah harga di kasir.
@@ -128,4 +132,13 @@ const (
 	ActionMemberLevelCreate = "member_level.create"
 	ActionMemberLevelUpdate = "member_level.update"
 	ActionMemberLevelActive = "member_level.active"
+)
+
+// Kupon belanja global. `voucher.active` = arsip/aktifkan kembali.
+const (
+	EntityVoucher = "voucher"
+
+	ActionVoucherCreate = "voucher.create"
+	ActionVoucherUpdate = "voucher.update"
+	ActionVoucherActive = "voucher.active"
 )

@@ -2,7 +2,10 @@
   import Select from '#lib/components/Select.svelte';
   // Form tambah/ubah item (satu komponen untuk halaman /items/new dan /items/[id]).
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/item).
+  import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { drafts } from '#lib/tabs/drafts.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { items as api, type BarcodeMatch, type Item, type ItemInput, type ItemKind } from '#lib/items/api.ts';
   import { lookup, type LookupKind } from '#lib/catalog/api.ts';
@@ -97,6 +100,31 @@
   const initialSnapshot = snapshot();
   let saved = false;
   $effect(() => guard.register(() => canWrite && !saved && snapshot() !== initialSnapshot));
+
+  // Draf per tab: isian disimpan saat form dilepas (pindah tab) dan dipulihkan saat dibuka lagi. Gambar yang belum
+  // diunggah tidak ikut. `initialSnapshot` tetap keadaan dari server, jadi form yang dipulihkan tetap dianggap berubah.
+  const draftPath = page.url.pathname;
+  const collect = () => ({
+    sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
+    unitId, unitLabel, categoryId, categoryLabel, brandId, brandLabel, principalId, principalLabel, supplierId, supplierLabel,
+    outletPrices, defaultTiers, outletTierSets, unitRows
+  });
+  type Draft = ReturnType<typeof collect>;
+  let restored = $state(false);
+  if (canWrite) {
+    const d = drafts.load<Draft>(draftPath);
+    if (d) {
+      ({ sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description } = d);
+      ({ unitId, unitLabel, categoryId, categoryLabel, brandId, brandLabel, principalId, principalLabel, supplierId, supplierLabel } = d);
+      ({ outletPrices, defaultTiers, outletTierSets, unitRows } = d);
+      restored = true;
+    }
+  }
+  onDestroy(() => {
+    if (!canWrite || drafts.takeDiscard(draftPath)) return;
+    if (saved || snapshot() === initialSnapshot) drafts.clear(draftPath);
+    else drafts.save(draftPath, collect());
+  });
 
   /** "1500.00" → "1500", "12.50" → "12.5" (tampilan input; server menerima kedua bentuk). */
   function trimZeros(s: string): string {
@@ -314,6 +342,11 @@
   {#if error}
     <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
       <i class="icon-circle-alert text-[14px] mt-px shrink-0"></i><span>{error}</span>
+    </div>
+  {/if}
+  {#if restored}
+    <div role="status" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-info">
+      <i class="icon-eye text-[14px] shrink-0"></i><span>{t('shell.unsaved.restored')}</span>
     </div>
   {/if}
   {#if !canWrite}

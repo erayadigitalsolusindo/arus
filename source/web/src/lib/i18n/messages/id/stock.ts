@@ -69,5 +69,38 @@ export default {
       costKept: 'HPP barang tujuan tidak diubah',
       by: 'Oleh'
     }
+  },
+  card: {
+    docTitle: 'Kartu Stok | ACIRABA',
+    title: 'Kartu Stok',
+    subtitle: 'Riwayat keluar-masuk stok satu barang di outlet aktif, lengkap dengan saldo berjalan.',
+    item: 'Barang',
+    pickItem: 'Cari nama, kode, atau barcode…',
+    period: 'Periode',
+    bucketAll: 'Semua bucket',
+    prompt: 'Pilih barang untuk melihat kartu stoknya.',
+    summary: { opening: 'Saldo awal', in: 'Masuk', out: 'Keluar', closing: 'Saldo akhir' },
+    col: { time: 'Waktu', type: 'Jenis', doc: 'Dokumen', bucket: 'Bucket', in: 'Masuk', out: 'Keluar', balance: 'Saldo', by: 'Oleh' },
+    bucket: { display: 'Display', warehouse: 'Gudang', returns: 'Retur' },
+    type: {
+      OPENING: 'Saldo awal',
+      SALE: 'Penjualan',
+      SALE_VOID: 'Batal penjualan',
+      SALE_RETURN: 'Retur penjualan',
+      PURCHASE: 'Pembelian',
+      PURCHASE_RETURN: 'Retur pembelian',
+      OPNAME: 'Stok opname',
+      TRANSFER_OUT: 'Mutasi keluar',
+      TRANSFER_IN: 'Mutasi masuk',
+      UNIT_CONVERSION: 'Pecah satuan',
+      ADJUSTMENT: 'Penyesuaian'
+    },
+    empty: 'Tidak ada mutasi stok pada periode ini.',
+    loadMore: 'Muat lebih banyak',
+    preset: { today: 'Hari ini', days7: '7 hari', days30: '30 hari', month: 'Bulan ini' },
+    count: '{count} mutasi pada periode ini',
+    flowHint: 'Saldo awal + masuk − keluar = saldo akhir',
+    loadFailed: 'Gagal memuat kartu stok.',
+    inUnit: 'Satuan dasar: {unit}'
   }
 };

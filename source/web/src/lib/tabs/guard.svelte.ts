@@ -24,6 +24,11 @@ class Guard {
     else action();
   }
 
+  /** Selalu tampilkan dialog (dipakai saat menutup banyak tab yang sebagian punya draf). */
+  ask(action: () => void) {
+    this.pending = action;
+  }
+
   confirm() {
     const action = this.pending;
     this.pending = null;

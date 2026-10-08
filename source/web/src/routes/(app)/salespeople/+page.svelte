@@ -102,7 +102,7 @@
     const note = optional(ed.note, 500);
     if (note.code) next.note = fieldMessage(note.code);
     const commission = ed.commission.trim().replace(',', '.');
-    if (commission && !/^d{1,3}(.d{1,2})?$/.test(commission)) next.commission_pct = fieldMessage('INVALID');
+    if (commission && !/^\d{1,3}(\.\d{1,2})?$/.test(commission)) next.commission_pct = fieldMessage('INVALID');
     else if (commission && Number(commission) > 100) next.commission_pct = fieldMessage('INVALID');
     ed.errors = next;
     if (Object.keys(next).length) return;

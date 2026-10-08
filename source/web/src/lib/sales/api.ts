@@ -11,6 +11,8 @@ export type SaleInput = {
   lines: SaleLineInput[];
   discount?: string;
   other_cost?: string;
+  /** Rincian biaya lain-lain (nama + jumlah); bila ada, totalnya menjadi other_cost di server. */
+  other_costs?: { name: string; amount: string }[];
   apply_tax: boolean;
   payments: SalePaymentInput[];
   note?: string;
@@ -19,6 +21,8 @@ export type SaleInput = {
   /** Salesman (opsional) untuk laporan/komisi; kosong = Umum. */
   salesperson_id?: string;
   redeem_points?: number;
+  /** Kode kupon belanja (boleh lebih dari satu); potongannya dihitung server sebelum pajak. */
+  voucher_codes?: string[];
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };
 };
@@ -30,7 +34,8 @@ export type Sale = {
   cashier: string;
   created_at: string;
   note: string;
-  lines: { item_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; discount: string; line_total: string }[];
+  outlet_id: string;
+  lines: { item_id: string; unit_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; list_price?: string; price_override?: boolean; discount: string; line_total: string }[];
   payments: { method: PayMethod; amount: string; ref_no: string }[];
   subtotal: string;
   discount: string;
@@ -44,6 +49,19 @@ export type Sale = {
   points_earned: number;
   points_redeemed: number;
   redeem_amount: string;
+  vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
+  /** Rincian biaya lain-lain (kosong bila nota hanya punya satu angka); other_cost tetap totalnya. */
+  other_costs: { name: string; amount: string }[];
+  tax_store_pct: string;
+  tax_gov_pct: string;
+  salesperson?: { id: string; name: string };
+  /** Edit/batal: revision 1 = asli; superseded_by terisi = sudah digantikan revisi; root_id = nota asli rantai. */
+  revision: number;
+  root_id: string;
+  supersedes_id?: string;
+  superseded_by?: string;
+  revision_reason?: string;
+  void_reason?: string;
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
@@ -61,9 +79,122 @@ export type Quote = {
   member?: { id: string; code: string; name: string; points: number };
   redeem_amount: string;
   points_earn: number;
+  /** Kupon yang lolos (amount = potongan rupiah; sudah termasuk di discount). */
+  vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
+  voucher_amount: string;
 };
 
+/** Satu baris daftar penjualan kasir; methods = jumlah per metode (tunai sudah bersih dari kembalian). */
+export type SaleListRow = {
+  id: string;
+  doc_no: string;
+  status: string;
+  created_at: string;
+  cashier: string;
+  member?: string;
+  line_count: number;
+  total: string;
+  methods: Partial<Record<PayMethod, string>>;
+};
+export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; from: string; to: string; truncated: boolean };
+
+/** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
+export type SaleAllRow = {
+  id: string;
+  doc_no: string;
+  status: 'completed' | 'void';
+  created_at: string;
+  outlet: { id: string; code: string; name: string };
+  cashier: string;
+  member?: string;
+  salesperson?: string;
+  line_count: number;
+  revision: number;
+  subtotal: string;
+  line_discount: string;
+  discount: string;
+  manual_discount: string;
+  voucher_amount: string;
+  voucher_codes: string[];
+  redeem_amount: string;
+  points_redeemed: number;
+  points_earned: number;
+  price_overrides: number;
+  tax_store: string;
+  tax_gov: string;
+  other_cost: string;
+  total: string;
+  methods: Partial<Record<PayMethod, string>>;
+  cost?: string;
+  profit?: string;
+};
+export type SaleAllSummary = { count: number; completed_count: number; total: string; discount: string; methods: Partial<Record<PayMethod, string>>; cost?: string; profit?: string };
+export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
+export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
+
+export type SaleDetailLine = {
+  position: number;
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  factor: string;
+  qty: string;
+  base_qty: string;
+  list_price: string;
+  unit_price: string;
+  price_override: boolean;
+  discount: string;
+  line_total: string;
+  note: string;
+  unit_cost?: string;
+  line_cost?: string;
+  profit?: string;
+};
+export type SaleStockMove = { id: number; at: string; type: 'SALE' | 'SALE_VOID' | 'SALE_RETURN'; bucket: 'display' | 'warehouse' | 'returns'; item_id: string; sku: string; name: string; unit: string; delta: string; balance_after: string; actor: string };
+export type SaleEvent = { action: string; actor: string; at: string; details: Record<string, unknown> | null };
+/** Nota lengkap untuk panel detail: harga daftar → jual, potongan per sumber, stok, riwayat. cost/profit hanya dengan izin sales_cost. */
+export type SaleDetail = Omit<Sale, 'lines'> & {
+  lines: SaleDetailLine[];
+  outlet: { id: string; code: string; name: string };
+  approved_by?: string;
+  salesperson?: { id: string; name: string };
+  tax_store_pct: string;
+  tax_gov_pct: string;
+  line_discount: string;
+  manual_discount: string;
+  voucher_amount: string;
+  base_qty_total: string;
+  stock: SaleStockMove[];
+  events: SaleEvent[];
+  /** Seluruh versi nota (asli + revisi), urut revisi. */
+  revisions: { id: string; doc_no: string; revision: number; status: 'completed' | 'void' | 'superseded'; created_at: string; revised_at?: string; total: string; reason?: string }[];
+  cost?: string;
+  profit?: string;
+};
+
+export type Approval = { user_id: string; pin: string };
+
 export const sales = {
+  /** Edit nota = revisi baru (nomor sama + -R2…). Idempotency-Key per percobaan simpan, seperti nota baru. */
+  edit: (id: string, input: SaleInput & { reason: string }, idempotencyKey: string) =>
+    api<Sale>(`/sales/${id}`, { method: 'PUT', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  /** Pratinjau hitung untuk edit: dampak nota lama diperhitungkan, harga baris lama dipertahankan; tidak menyimpan apa pun. */
+  quoteEdit: (id: string, input: Omit<SaleInput, 'payments'>) => api<Quote>(`/sales/${id}/quote`, { method: 'POST', body: JSON.stringify(input) }),
+  /** Batalkan nota (alasan + PIN penyetuju); stok, poin, dan kupon dibalik. */
+  void: (id: string, input: { reason: string; approval: Approval }) => api<Sale>(`/sales/${id}/void`, { method: 'POST', body: JSON.stringify(input) }),
+  detail: (id: string) => api<SaleDetail>(`/sales/${id}/detail`),
+  listAll: (p: SaleAllParams) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v && k !== 'allOutlets') qs.set(k, String(v));
+    if (p.allOutlets) qs.set('scope', 'all');
+    return api<SaleAllList>(`/sales/all?${qs}`);
+  },
+  list: (p: { from?: string; to?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v) qs.set(k, v);
+    return api<SaleList>(`/sales/?${qs}`);
+  },
   quote: (input: Omit<SaleInput, 'payments'>) => api<Quote>('/sales/quote', { method: 'POST', body: JSON.stringify(input) }),
   create: (input: SaleInput, idempotencyKey: string) =>
     api<Sale>('/sales/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),

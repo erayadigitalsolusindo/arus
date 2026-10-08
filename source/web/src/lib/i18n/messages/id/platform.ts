@@ -77,7 +77,16 @@ export default {
     auditTitle: 'Aktivitas terbaru tenant',
     auditEmpty: 'Belum ada catatan.',
     loadMore: 'Muat lebih banyak',
-    noActiveOutlet: 'Tenant ini tidak punya outlet aktif.'
+    noActiveOutlet: 'Tenant ini tidak punya outlet aktif.',
+    editWindow: 'Batas waktu edit/batal nota',
+    editWindowHelp: 'Sampai berapa hari sesudah hari nota dibuat, nota masih boleh diedit atau dibatalkan (zona waktu outlet). Hanya operator platform yang bisa mengubahnya; pemilik toko tidak.',
+    editWindowDays: 'Hari sesudah nota dibuat',
+    editWindowSave: 'Simpan',
+    editWindowSaving: 'Menyimpan…',
+    editWindowSaved: 'Tersimpan',
+    editWindowInvalid: 'Isi angka 0–3650.',
+    editWindowSameDay: '0 = nota hanya bisa diedit/dibatalkan pada hari ia dibuat.',
+    editWindowDaysHint: 'Nota masih bisa diedit/dibatalkan sampai {days} hari sesudah hari ia dibuat (3650 ≈ tanpa batas).'
   },
   security: {
     title: 'Keamanan Akun',
@@ -153,6 +162,7 @@ export default {
       platform_admin_status: 'Mengubah status Platform Admin',
       platform_admin_password: 'Reset password Platform Admin',
       platform_tenant_status: 'Mengubah status tenant',
+      platform_tenant_edit_window: 'Mengubah batas waktu edit nota',
       platform_impersonate: 'Masuk sebagai tenant'
     }
   }
