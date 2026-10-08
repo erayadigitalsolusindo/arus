@@ -361,6 +361,22 @@ func TestOutletPrices(t *testing.T) {
 		t.Errorf("stok cabang 2: %+v", rows[0].Stock)
 	}
 
+	// Mode semua cabang: stok dijumlahkan atas outlet yang boleh diakses, harga menjadi rentang, plus rincian per cabang.
+	if rows, _, _ = e.svc.List(ctx, e.a, ListParams{AllOutlets: true}); len(rows) != 1 ||
+		rows[0].Stock != (StockQty{Display: "106.5", Warehouse: "20", Returns: "0", Total: "126.5"}) ||
+		rows[0].Price != "1500.00" || rows[0].PriceMax != "1800.00" || len(rows[0].Outlets) != 2 {
+		t.Errorf("semua cabang: %+v", rows)
+	}
+	// Pemanggil dengan akses satu cabang hanya melihat cabang itu, walau meminta semua.
+	narrow := e.a
+	narrow.Outlets = map[uuid.UUID]bool{e.outlet2: true}
+	if rows, _, _ = e.svc.List(ctx, narrow, ListParams{AllOutlets: true}); len(rows[0].Outlets) != 1 || rows[0].Stock.Total != "99" || rows[0].PriceMax != "1800.00" {
+		t.Errorf("semua cabang harus dibatasi akses: %+v", rows[0])
+	}
+	if rows, _, _ = e.svc.List(ctx, other, ListParams{}); len(rows[0].Outlets) != 0 || rows[0].PriceMax != "" {
+		t.Errorf("mode biasa tidak membawa rincian: %+v", rows[0])
+	}
+
 	// Mengubah tanpa menyertakan harga cabang tidak menyentuhnya.
 	up, err := e.svc.Update(ctx, e.a, it.ID, Input{Name: "Kopi", SKU: it.SKU, UnitID: unit.String(), SellPrice: "1600"})
 	if err != nil || prices(up)[e.outlet2] != "1800.00" {

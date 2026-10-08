@@ -80,5 +80,6 @@ export default {
   FIELD_MEMBER_REQUIRED: 'Pilih member terlebih dahulu.',
   FIELD_MEMBER_INACTIVE: 'Member nonaktif atau sudah kedaluwarsa.',
   FIELD_REDEEM_NOT_ALLOWED: 'Level member ini tidak bisa menukar poin.',
-  FIELD_REDEEM_TOO_HIGH: 'Nilai tukar poin melebihi nilai belanja.'
+  FIELD_REDEEM_TOO_HIGH: 'Nilai tukar poin melebihi nilai belanja.',
+  FIELD_REDEEM_BELOW_COST: 'Tukar poin sebanyak ini membuat harga jual di bawah HPP. Kurangi jumlah poin.'
 };

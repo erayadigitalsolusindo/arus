@@ -36,10 +36,6 @@ var (
 	ErrNoStorage        = errors.New("penyimpanan gambar tidak dikonfigurasi")
 )
 
-// Pemrosesan gambar memakai CPU/memori besar: dibatasi dua sekaligus agar beberapa unggahan bersamaan tidak
-// menghabiskan memori server.
-var processSlots = make(chan struct{}, 2)
-
 type Image struct {
 	ID         uuid.UUID `json:"id"`
 	IsMain     bool      `json:"is_main"`
@@ -64,7 +60,8 @@ func (s *Service) removeFiles(ctx context.Context, tenant, id uuid.UUID) {
 	_ = s.store.Delete(ctx, thumbKey(tenant, id))
 }
 
-func mapImageErr(err error) error {
+// MapImageErr memetakan galat pemrosesan gambar (imaging) ke galat domain yang dipakai handler; dipakai bersama modul lain.
+func MapImageErr(err error) error {
 	var tooBig *http.MaxBytesError
 	switch {
 	case errors.As(err, &tooBig), errors.Is(err, imaging.ErrTooLarge):
@@ -100,15 +97,9 @@ func (s *Service) AddImage(ctx context.Context, a authz.Actor, itemID uuid.UUID,
 		return nil, mapWriteErr(err)
 	}
 
-	select {
-	case processSlots <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	res, err := imaging.Process(r, MaxUploadBytes)
-	<-processSlots
+	res, err := imaging.ProcessLimited(ctx, r, MaxUploadBytes)
 	if err != nil {
-		return nil, mapImageErr(err)
+		return nil, MapImageErr(err)
 	}
 
 	id := uuid.New()

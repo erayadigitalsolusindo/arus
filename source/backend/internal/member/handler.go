@@ -47,7 +47,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}", h.Get)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}", h.Update)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}/active", h.SetActive)
-		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}/cover", h.CoverFile)
+		// Foto tampil di header kasir, jadi cukup izin yang sama dengan pencarian member di kasir.
+		r.With(authz.RequireAny([2]string{ModuleID, authz.ActView}, [2]string{"sales_orders", authz.ActCreate})).Get("/{id}/cover", h.CoverFile)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Post("/{id}/cover", h.UploadCover)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Delete("/{id}/cover", h.DeleteCover)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}/points", h.Points)
@@ -84,13 +85,9 @@ type request struct {
 }
 
 func (q request) input() Input {
-	active := true
-	if q.Active != nil {
-		active = *q.Active
-	}
 	return Input{Code: q.Code, Name: q.Name, Gender: q.Gender, Phone: q.Phone, Email: q.Email, Address: q.Address, District: q.District,
 		City: q.City, Province: q.Province, PostalCode: q.PostalCode, CreditLimit: q.CreditLimit.String(), DueDays: q.DueDays.String(),
-		ValidUntil: q.ValidUntil, Notes: q.Notes, Active: active}
+		ValidUntil: q.ValidUntil, Notes: q.Notes, Active: q.Active}
 }
 
 func actor(r *http.Request) authz.Actor {

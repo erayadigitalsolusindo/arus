@@ -15,6 +15,7 @@ const items: Messages['items'] = {
   col: { code: 'Code', name: 'Name', unit: 'Unit', category: 'Category', brand: 'Brand', price: 'Selling price', stock: 'Stock', stockTotal: 'Total stock', avgCost: 'Avg. Cost', lastCost: 'Last Purchase Price', status: 'Status' },
   stock: { display: 'Display', warehouse: 'Warehouse', returns: 'Returns', none: 'Service, no stock', negative: 'Negative stock' },
   priceOverride: 'Outlet-specific price',
+  allOutlets: { expand: 'Per-outlet breakdown', collapse: 'Hide breakdown', outlet: 'Outlet', pricesDiffer: 'Prices differ between outlets' },
   priceDefault: 'Default price',
   active: 'Active',
   inactive: 'Inactive',

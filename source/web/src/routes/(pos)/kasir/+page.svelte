@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { session, switchOutlet } from '#lib/auth/session.svelte.ts';
@@ -498,9 +499,8 @@
   });
 
   let outletBusy = $state(false);
-  async function changeOutlet(e: Event & { currentTarget: HTMLSelectElement }) {
-    const el = e.currentTarget;
-    const id = el.value;
+  let outletSel = $state(session.outlet?.id ?? '');
+  async function changeOutlet(id: string) {
     if (!id || id === session.outlet?.id) return;
     outletBusy = true;
     try {
@@ -511,7 +511,7 @@
       await load(true);
       void loadSlots(); // harga efektif mengikuti outlet
     } catch (err) {
-      el.value = session.outlet?.id ?? '';
+      outletSel = session.outlet?.id ?? '';
       flash(errorMessage(err));
     } finally {
       outletBusy = false;
@@ -637,15 +637,13 @@
           <i class="icon-chevrons-left text-[18px]"></i>
         </button>
       </div>
-      <select
-        class="w-full rounded-md px-2.5 py-2 text-[12.5px] border border-[var(--border-default)] bg-[var(--surface-base)] disabled:opacity-60"
-        aria-label={t('pos.switchOutlet')}
+      <Select
+        ariaLabel={t('pos.switchOutlet')}
         disabled={outletBusy || outletOptions.length < 2}
-        value={session.outlet?.id}
+        bind:value={outletSel}
         onchange={changeOutlet}
-      >
-        {#each outletOptions as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
-      </select>
+        options={outletOptions.map((o) => ({ value: o.id, label: o.name }))}
+      />
 
       <section class="rounded-lg border border-[var(--border-subtle)] p-3 space-y-2">
         <div class="text-[15px] font-bold text-[var(--color-primary-600)]">{t('pos.newReceipt')}</div>

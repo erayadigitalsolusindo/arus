@@ -99,7 +99,7 @@ type move struct {
 
 // apply mengubah saldo dan menulis ledger; harus dipanggil dalam transaksi pemanggil. Saldo/lifetime tidak boleh minus.
 func apply(ctx context.Context, q *gen.Queries, m move) (int, error) {
-	if m.delta == 0 {
+	if m.delta == 0 && m.lifetimeDelta == 0 {
 		return 0, errors.New("movement poin nol")
 	}
 	res, err := q.MemberPointsApply(ctx, gen.MemberPointsApplyParams{TenantID: m.tenant, ID: m.member, Delta: m.delta, LifetimeDelta: m.lifetimeDelta})
@@ -163,12 +163,7 @@ func ReverseSale(ctx context.Context, tx pgx.Tx, a authz.Actor, saleID uuid.UUID
 		if delta == 0 && life == 0 {
 			continue
 		}
-		if delta == 0 { // hanya lifetime yang berubah: ledger butuh points ≠ 0, jadi lifetime disesuaikan tanpa baris
-			if _, err := q.MemberPointsApply(ctx, gen.MemberPointsApplyParams{TenantID: a.TenantID, ID: m.MemberID, Delta: 0, LifetimeDelta: life}); err != nil {
-				return err
-			}
-			continue
-		}
+		// delta bisa 0 (saldo sudah habis) selama lifetime berubah: tetap dicatat di ledger agar lifetime/level bisa direkonstruksi.
 		if _, err := apply(ctx, q, move{tenant: a.TenantID, member: m.MemberID, kind: KindReversal, delta: delta, lifetimeDelta: life,
 			refType: RefSale, refID: saleID, note: note, actor: a.UserID}); err != nil {
 			return err
@@ -250,8 +245,10 @@ func (s *Service) Points(ctx context.Context, a authz.Actor, id uuid.UUID, limit
 	total := 0
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
-		if _, err := q.MemberGetForUpdate(ctx, gen.MemberGetForUpdateParams{TenantID: a.TenantID, ID: id}); err != nil {
+		if ok, err := q.MemberExists(ctx, gen.MemberExistsParams{TenantID: a.TenantID, ID: id}); err != nil {
 			return err
+		} else if !ok {
+			return pgx.ErrNoRows
 		}
 		rows, err := q.MemberPointList(ctx, gen.MemberPointListParams{TenantID: a.TenantID, MemberID: id, PageLimit: int32(min(limit, maxLimit)), PageOffset: int32(max(offset, 0))})
 		for _, r := range rows {
@@ -288,8 +285,10 @@ func (s *Service) Sales(ctx context.Context, a authz.Actor, id uuid.UUID, limit,
 	total := 0
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
-		if _, err := q.MemberGetForUpdate(ctx, gen.MemberGetForUpdateParams{TenantID: a.TenantID, ID: id}); err != nil {
+		if ok, err := q.MemberExists(ctx, gen.MemberExistsParams{TenantID: a.TenantID, ID: id}); err != nil {
 			return err
+		} else if !ok {
+			return pgx.ErrNoRows
 		}
 		rows, err := q.MemberSaleList(ctx, gen.MemberSaleListParams{TenantID: a.TenantID, MemberID: pgtype.UUID{Bytes: id, Valid: true}, PageLimit: int32(min(limit, maxLimit)), PageOffset: int32(max(offset, 0))})
 		for _, r := range rows {

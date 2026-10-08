@@ -1470,18 +1470,19 @@ LEFT JOIN LATERAL (
            sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
            sum(qty) FILTER (WHERE bucket = 'returns') AS returns
     FROM stock_balances s
-    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = $1 AND s.item_id = i.id
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = ANY($2::uuid[]) AND s.item_id = i.id
 ) sb ON true
-WHERE i.tenant_id = $2
-  AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
-  AND ($4::boolean IS NULL OR i.active = $4)
-  AND ($5::uuid IS NULL OR i.category_id = $5)
+WHERE i.tenant_id = $3
+  AND ($4::text = '' OR i.name ILIKE '%' || $4 || '%' OR i.sku ILIKE '%' || $4 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $4 || '%')
+  AND ($5::boolean IS NULL OR i.active = $5)
+  AND ($6::uuid IS NULL OR i.category_id = $6)
 ORDER BY lower(i.name), i.id
-LIMIT $7 OFFSET $6
+LIMIT $8 OFFSET $7
 `
 
 type ItemListParams struct {
 	OutletID   uuid.UUID
+	OutletIds  []uuid.UUID
 	TenantID   uuid.UUID
 	Q          string
 	Active     pgtype.Bool
@@ -1513,10 +1514,11 @@ type ItemListRow struct {
 }
 
 // Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
-// Stok outlet aktif per bucket (tanpa baris saldo = 0).
+// Stok per bucket dijumlahkan atas outlet_ids (satu outlet aktif, atau semua outlet yang boleh diakses); tanpa baris saldo = 0.
 func (q *Queries) ItemList(ctx context.Context, arg ItemListParams) ([]ItemListRow, error) {
 	rows, err := q.db.Query(ctx, itemList,
 		arg.OutletID,
+		arg.OutletIds,
 		arg.TenantID,
 		arg.Q,
 		arg.Active,
@@ -1573,6 +1575,69 @@ func (q *Queries) ItemNextNo(ctx context.Context, tenantID uuid.UUID) (int64, er
 	var last_no int64
 	err := row.Scan(&last_no)
 	return last_no, err
+}
+
+const itemOutletBreakdown = `-- name: ItemOutletBreakdown :many
+SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'display'), 0)::numeric AS stock_display,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'warehouse'), 0)::numeric AS stock_warehouse,
+       coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'returns'), 0)::numeric AS stock_returns,
+       coalesce(op.sell_price, i.sell_price)::numeric AS price
+FROM items i
+CROSS JOIN outlets o
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = o.id
+LEFT JOIN stock_balances s ON s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.outlet_id = o.id
+WHERE i.tenant_id = $1 AND o.tenant_id = $1
+  AND i.id = ANY($2::uuid[]) AND o.id = ANY($3::uuid[])
+GROUP BY i.id, o.id, op.sell_price, i.sell_price
+ORDER BY lower(o.name), o.id
+`
+
+type ItemOutletBreakdownParams struct {
+	TenantID  uuid.UUID
+	ItemIds   []uuid.UUID
+	OutletIds []uuid.UUID
+}
+
+type ItemOutletBreakdownRow struct {
+	ItemID         uuid.UUID
+	OutletID       uuid.UUID
+	OutletCode     string
+	OutletName     string
+	StockDisplay   decimal.Decimal
+	StockWarehouse decimal.Decimal
+	StockReturns   decimal.Decimal
+	Price          decimal.Decimal
+}
+
+// Rincian stok + harga jual efektif per outlet untuk sekumpulan item (mode "semua cabang").
+func (q *Queries) ItemOutletBreakdown(ctx context.Context, arg ItemOutletBreakdownParams) ([]ItemOutletBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, itemOutletBreakdown, arg.TenantID, arg.ItemIds, arg.OutletIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemOutletBreakdownRow
+	for rows.Next() {
+		var i ItemOutletBreakdownRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.OutletID,
+			&i.OutletCode,
+			&i.OutletName,
+			&i.StockDisplay,
+			&i.StockWarehouse,
+			&i.StockReturns,
+			&i.Price,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const itemOutletPriceDelete = `-- name: ItemOutletPriceDelete :exec
@@ -2083,6 +2148,22 @@ func (q *Queries) MemberCreate(ctx context.Context, arg MemberCreateParams) (uui
 	return id, err
 }
 
+const memberExists = `-- name: MemberExists :one
+SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND id = $2)
+`
+
+type MemberExistsParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) MemberExists(ctx context.Context, arg MemberExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, memberExists, arg.TenantID, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const memberGet = `-- name: MemberGet :one
 SELECT m.id, m.code, m.name, m.gender, m.phone, m.email, m.address, m.district, m.city, m.province, m.postal_code,
        m.credit_limit, m.due_days, m.valid_until, m.active, m.notes, m.cover_image_id, m.points, m.lifetime_points,
@@ -2329,12 +2410,20 @@ func (q *Queries) MemberLevelGetForUpdate(ctx context.Context, arg MemberLevelGe
 
 const memberLevelList = `-- name: MemberLevelList :many
 
-SELECT id, name, min_points, spend_per_point, point_value, active, created_at,
-       (SELECT count(*) FROM members m WHERE m.tenant_id = l.tenant_id AND m.active
-          AND m.lifetime_points >= l.min_points
-          AND NOT EXISTS (SELECT 1 FROM member_levels h WHERE h.tenant_id = l.tenant_id AND h.active
-                            AND h.min_points > l.min_points AND h.min_points <= m.lifetime_points))::bigint AS member_count
+SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value, l.active, l.created_at,
+       coalesce(c.n, 0)::bigint AS member_count
 FROM member_levels l
+LEFT JOIN (
+    SELECT lv.id, count(*) AS n
+    FROM members m
+    JOIN LATERAL (
+        SELECT h.id FROM member_levels h
+        WHERE h.tenant_id = m.tenant_id AND h.active AND h.min_points <= m.lifetime_points
+        ORDER BY h.min_points DESC LIMIT 1
+    ) lv ON true
+    WHERE m.tenant_id = $1 AND m.active
+    GROUP BY lv.id
+) c ON c.id = l.id
 WHERE l.tenant_id = $1 AND ($2::boolean IS NULL OR l.active = $2)
 ORDER BY l.min_points
 `
@@ -2356,6 +2445,8 @@ type MemberLevelListRow struct {
 }
 
 // ===== Level member =====
+// member_count = member aktif yang saat ini berada di level itu (level tiap member ditetapkan sekali lewat LATERAL,
+// lalu diagregasi; tidak ada subquery berkorelasi per level).
 func (q *Queries) MemberLevelList(ctx context.Context, arg MemberLevelListParams) ([]MemberLevelListRow, error) {
 	rows, err := q.db.Query(ctx, memberLevelList, arg.TenantID, arg.Active)
 	if err != nil {
@@ -2479,15 +2570,17 @@ LEFT JOIN LATERAL (
     ORDER BY l.min_points DESC LIMIT 1
 ) lv ON true
 WHERE m.tenant_id = $1
-  AND ($2::text = '' OR m.name ILIKE '%' || $2 || '%' OR m.code ILIKE '%' || $2 || '%' OR m.phone ILIKE '%' || $2 || '%')
-  AND ($3::boolean IS NULL OR m.active = $3)
+  AND ($2::text = '' OR m.name ILIKE '%' || $2 || '%' OR m.code ILIKE '%' || $2 || '%' OR m.phone ILIKE '%' || $2 || '%'
+       OR ($3::text <> '' AND m.phone ILIKE '%' || $3 || '%'))
+  AND ($4::boolean IS NULL OR m.active = $4)
 ORDER BY lower(m.name), m.id
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type MemberListParams struct {
 	TenantID   uuid.UUID
 	Q          string
+	QPhone     string
 	Active     pgtype.Bool
 	PageOffset int32
 	PageLimit  int32
@@ -2512,6 +2605,7 @@ func (q *Queries) MemberList(ctx context.Context, arg MemberListParams) ([]Membe
 	rows, err := q.db.Query(ctx, memberList,
 		arg.TenantID,
 		arg.Q,
+		arg.QPhone,
 		arg.Active,
 		arg.PageOffset,
 		arg.PageLimit,
@@ -2623,8 +2717,9 @@ LEFT JOIN LATERAL (
     ORDER BY l.min_points DESC LIMIT 1
 ) lv ON true
 WHERE m.tenant_id = $1 AND m.active AND (m.valid_until IS NULL OR m.valid_until >= $2::date)
-  AND ($3::text = '' OR m.name ILIKE '%' || $3 || '%' OR m.code ILIKE '%' || $3 || '%' OR m.phone ILIKE '%' || $3 || '%')
-ORDER BY (lower(m.code) = lower($3::text) OR m.phone = $3::text) DESC, lower(m.name), m.id
+  AND ($3::text = '' OR m.name ILIKE '%' || $3 || '%' OR m.code ILIKE '%' || $3 || '%' OR m.phone ILIKE '%' || $3 || '%'
+       OR ($4::text <> '' AND m.phone ILIKE '%' || $4 || '%'))
+ORDER BY (lower(m.code) = lower($3::text) OR m.phone = $3::text OR ($4::text <> '' AND m.phone = $4::text)) DESC, lower(m.name), m.id
 LIMIT 20
 `
 
@@ -2632,6 +2727,7 @@ type MemberLookupParams struct {
 	TenantID uuid.UUID
 	LocalDay pgtype.Date
 	Q        string
+	QPhone   string
 }
 
 type MemberLookupRow struct {
@@ -2650,7 +2746,12 @@ type MemberLookupRow struct {
 
 // Pencarian cepat untuk kasir: member aktif yang belum kedaluwarsa (local_day = hari menurut zona waktu outlet).
 func (q *Queries) MemberLookup(ctx context.Context, arg MemberLookupParams) ([]MemberLookupRow, error) {
-	rows, err := q.db.Query(ctx, memberLookup, arg.TenantID, arg.LocalDay, arg.Q)
+	rows, err := q.db.Query(ctx, memberLookup,
+		arg.TenantID,
+		arg.LocalDay,
+		arg.Q,
+		arg.QPhone,
+	)
 	if err != nil {
 		return nil, err
 	}

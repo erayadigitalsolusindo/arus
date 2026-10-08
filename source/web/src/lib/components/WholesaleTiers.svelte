@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import Select from '#lib/components/Select.svelte';
   export type TierRow = { min: string; price: string };
   export type OutletTierSet = { outletId: string; name: string; tiers: TierRow[] };
   export const MAX_TIERS = 10;
@@ -117,10 +118,7 @@
 
   {#if !readOnly && free.length}
     <div class="flex flex-wrap items-center gap-2">
-      <select class="field-control" aria-label={t('items.wholesale.addOutlet')} bind:value={pickOutlet} onchange={addOutletSet}>
-        <option value="">{t('items.wholesale.addOutlet')}</option>
-        {#each free as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
-      </select>
+      <Select class="!w-auto min-w-52" ariaLabel={t('items.wholesale.addOutlet')} bind:value={pickOutlet} onchange={addOutletSet} options={[{ value: '', label: t('items.wholesale.addOutlet'), disabled: true }, ...free.map((o) => ({ value: o.id, label: o.name }))]} />
       <span class="text-[11px] text-[var(--text-tertiary)]">{t('items.wholesale.outletHint')}</span>
     </div>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -123,11 +124,7 @@
         <i class="icon-search text-[13px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"></i>
         <input type="search" class="{inputClass} !ps-8" placeholder={t('members.search')} aria-label={t('members.search')} bind:value={q} maxlength="200" />
       </div>
-      <select class="field-control" aria-label={t('members.col.status')} bind:value={filter}>
-        <option value="all">{t('members.filter.all')}</option>
-        <option value="active">{t('members.filter.active')}</option>
-        <option value="inactive">{t('members.filter.inactive')}</option>
-      </select>
+      <Select class="!w-auto min-w-40" ariaLabel={t('members.col.status')} bind:value={filter} options={[{ value: 'all', label: t('members.filter.all') }, { value: 'active', label: t('members.filter.active') }, { value: 'inactive', label: t('members.filter.inactive') }]} />
     </div>
 
     <div class="overflow-x-auto scroll-thin">

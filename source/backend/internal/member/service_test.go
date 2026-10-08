@@ -74,7 +74,7 @@ func setup(t *testing.T) *fx {
 	return f
 }
 
-func in(name string) Input { return Input{Name: name, Active: true} }
+func in(name string) Input { return Input{Name: name} }
 
 func TestPointsFor(t *testing.T) {
 	for _, c := range []struct {
@@ -91,23 +91,23 @@ func TestPointsFor(t *testing.T) {
 
 func TestValidation(t *testing.T) {
 	cases := map[string]Input{
-		"name":         {Name: "  ", Active: true},
-		"phone":        {Name: "A", Phone: "abc", Active: true},
-		"email":        {Name: "A", Email: "bukan-email", Active: true},
-		"gender":       {Name: "A", Gender: "X", Active: true},
-		"credit_limit": {Name: "A", CreditLimit: "-1", Active: true},
-		"due_days":     {Name: "A", DueDays: "99999", Active: true},
-		"valid_until":  {Name: "A", ValidUntil: "31-12-2030", Active: true},
-		"address":      {Name: "A", Address: "<script>", Active: true},
-		"code":         {Name: "A", Code: "ada spasi", Active: true},
-		"postal_code":  {Name: "A", PostalCode: "<<<", Active: true},
+		"name":         {Name: "  ", Active: ptr(true)},
+		"phone":        {Name: "A", Phone: "abc", Active: ptr(true)},
+		"email":        {Name: "A", Email: "bukan-email", Active: ptr(true)},
+		"gender":       {Name: "A", Gender: "X", Active: ptr(true)},
+		"credit_limit": {Name: "A", CreditLimit: "-1", Active: ptr(true)},
+		"due_days":     {Name: "A", DueDays: "99999", Active: ptr(true)},
+		"valid_until":  {Name: "A", ValidUntil: "31-12-2030", Active: ptr(true)},
+		"address":      {Name: "A", Address: "<script>", Active: ptr(true)},
+		"code":         {Name: "A", Code: "ada spasi", Active: ptr(true)},
+		"postal_code":  {Name: "A", PostalCode: "<<<", Active: ptr(true)},
 	}
 	for field, input := range cases {
 		if _, f := validate(input, true); f[field] == "" {
 			t.Errorf("%s: galat tidak terdeteksi (f=%v)", field, f)
 		}
 	}
-	c, f := validate(Input{Name: "Budi", Phone: "0812-3456-7890", Email: "Budi@Contoh.COM", CreditLimit: "1500000", DueDays: "14", ValidUntil: "2030-12-31", Active: true}, true)
+	c, f := validate(Input{Name: "Budi", Phone: "0812-3456-7890", Email: "Budi@Contoh.COM", CreditLimit: "1500000", DueDays: "14", ValidUntil: "2030-12-31", Active: ptr(true)}, true)
 	if f != nil || c.phone != "+6281234567890" || c.email != "budi@contoh.com" || c.dueDays != 14 || !c.validUntil.Valid {
 		t.Errorf("input sah ditolak/dinormalkan salah: %+v %v", c, f)
 	}
@@ -116,7 +116,7 @@ func TestValidation(t *testing.T) {
 func TestMemberLifecycle(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	m, err := f.svc.Create(ctx, f.a1, Input{Name: "Budi Santoso", Phone: "081234567890", Active: true})
+	m, err := f.svc.Create(ctx, f.a1, Input{Name: "Budi Santoso", Phone: "081234567890", Active: ptr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,18 +128,18 @@ func TestMemberLifecycle(t *testing.T) {
 		t.Errorf("kode otomatis kedua = %s", m2.Code)
 	}
 	// Kode manual yang bentrok dengan nomor otomatis berikutnya dilewati.
-	if _, err := f.svc.Create(ctx, f.a1, Input{Name: "Manual", Code: "MBR-000003", Active: true}); err != nil {
+	if _, err := f.svc.Create(ctx, f.a1, Input{Name: "Manual", Code: "MBR-000003", Active: ptr(true)}); err != nil {
 		t.Fatal(err)
 	}
 	m4, _ := f.svc.Create(ctx, f.a1, in("Otomatis"))
 	if m4.Code != "MBR-000004" {
 		t.Errorf("kode otomatis setelah kode manual = %s, want MBR-000004", m4.Code)
 	}
-	if _, err := f.svc.Create(ctx, f.a1, Input{Name: "Dobel", Code: "mbr-000001", Active: true}); !errors.Is(err, ErrCodeTaken) {
+	if _, err := f.svc.Create(ctx, f.a1, Input{Name: "Dobel", Code: "mbr-000001", Active: ptr(true)}); !errors.Is(err, ErrCodeTaken) {
 		t.Errorf("kode ganda (beda huruf besar): err = %v", err)
 	}
 
-	upd := Input{Code: m.Code, Name: "Budi S.", Phone: "081234567890", City: "Bandung", CreditLimit: "500000", DueDays: "7", Active: true}
+	upd := Input{Code: m.Code, Name: "Budi S.", Phone: "081234567890", City: "Bandung", CreditLimit: "500000", DueDays: "7", Active: ptr(true)}
 	got, err := f.svc.Update(ctx, f.a1, m.ID, upd)
 	if err != nil || got.Name != "Budi S." || got.City != "Bandung" || got.CreditLimit != "500000.00" || got.DueDays != 7 {
 		t.Fatalf("update: %+v err=%v", got, err)
@@ -338,3 +338,5 @@ func TestConcurrentRedeem(t *testing.T) {
 }
 
 func dateNow() pgtype.Date { return pgtype.Date{Time: time.Now(), Valid: true} }
+
+func ptr[T any](v T) *T { return &v }

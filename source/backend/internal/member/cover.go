@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,9 +19,9 @@ import (
 	"aciraba/internal/platform/storage"
 )
 
-// Foto cover memakai pipeline gambar yang sama dengan item (validasi isi, resize, JPG, tanpa EXIF). Satu foto per
-// member; mengganti foto membuat id baru (URL tidak pernah berubah isinya sehingga boleh di-cache lama).
-var processSlots = make(chan struct{}, 2)
+// Foto cover memakai pipeline gambar yang sama dengan item (imaging.ProcessLimited: validasi isi, resize, JPG, tanpa EXIF,
+// antrean global). Satu foto per member; mengganti foto membuat id baru (URL tidak pernah berubah isinya sehingga boleh
+// di-cache lama).
 
 func fullKey(tenant, id uuid.UUID) string { return tenant.String() + "/member-" + id.String() + ".jpg" }
 func thumbKey(tenant, id uuid.UUID) string {
@@ -32,21 +31,6 @@ func thumbKey(tenant, id uuid.UUID) string {
 func (s *Service) removeFiles(ctx context.Context, tenant, id uuid.UUID) {
 	_ = s.store.Delete(ctx, fullKey(tenant, id))
 	_ = s.store.Delete(ctx, thumbKey(tenant, id))
-}
-
-func mapImageErr(err error) error {
-	var tooBig *http.MaxBytesError
-	switch {
-	case errors.As(err, &tooBig), errors.Is(err, imaging.ErrTooLarge):
-		return item.ErrImageTooLarge
-	case errors.Is(err, imaging.ErrUnsupported):
-		return item.ErrImageUnsupported
-	case errors.Is(err, imaging.ErrDimensions):
-		return item.ErrImageDimensions
-	case errors.Is(err, imaging.ErrCorrupt):
-		return item.ErrImageCorrupt
-	}
-	return err
 }
 
 // SetCover memproses dan menyimpan foto cover, menggantikan yang lama.
@@ -60,15 +44,9 @@ func (s *Service) SetCover(ctx context.Context, a authz.Actor, id uuid.UUID, r i
 	}); err != nil {
 		return nil, mapWriteErr(err)
 	}
-	select {
-	case processSlots <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	res, err := imaging.Process(r, item.MaxUploadBytes)
-	<-processSlots
+	res, err := imaging.ProcessLimited(ctx, r, item.MaxUploadBytes)
 	if err != nil {
-		return nil, mapImageErr(err)
+		return nil, item.MapImageErr(err)
 	}
 	imgID := uuid.New()
 	if err := s.store.Put(ctx, fullKey(a.TenantID, imgID), res.Full); err != nil {

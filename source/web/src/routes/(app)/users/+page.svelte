@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { iam, type Role, type User } from '#lib/iam/api.ts';
@@ -255,10 +256,7 @@
 
       <div>
         <label for="u-role" class={labelClass}>{t('iam.users.role')}</label>
-        <select id="u-role" class={inputClass} bind:value={ed.roleId} disabled={roleLocked} aria-invalid={!!ed.errors.role_id}>
-          <option value="" disabled>{t('iam.users.selectRole')}</option>
-          {#each roleOptions as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-        </select>
+        <Select id="u-role" bind:value={ed.roleId} disabled={roleLocked} invalid={!!ed.errors.role_id} options={[{ value: '', label: t('iam.users.selectRole'), disabled: true }, ...roleOptions.map((r) => ({ value: r.id, label: r.name }))]} />
         {#if ed.errors.role_id}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.role_id}</p>{/if}
         {#if ed.id && isSelf({ id: ed.id })}<p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('iam.users.selfHint')}</p>{/if}
       </div>

@@ -167,3 +167,35 @@ func TestConcurrentRedeemAcrossSales(t *testing.T) {
 		t.Errorf("jumlah nota = %d, want 10", n)
 	}
 }
+
+// Tukar poin tidak boleh membuat nota di bawah HPP (tukar poin tidak memakai PIN penyetuju).
+func TestRedeemCannotGoBelowCost(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.tenant)
+	it := e.item(t, "goods", "50000", "49500", 10, false) // margin tipis: hanya Rp500
+	m := e.newMember(t, 100, true)
+
+	// 10 poin = Rp1.000 > margin Rp500 → ditolak, tidak ada nota, poin utuh.
+	_, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "49000")}, MemberID: &m, RedeemPoints: 10})
+	var fe FieldErrors
+	if !errors.As(err, &fe) || fe["redeem_points"] != "REDEEM_BELOW_COST" {
+		t.Fatalf("tukar melewati HPP: err = %v", err)
+	}
+	if n := e.count(t, "sales"); n != 0 {
+		t.Errorf("nota tersimpan: %d", n)
+	}
+	if p, _ := e.memberPoints(t, m); p != 100 {
+		t.Errorf("poin berubah: %d", p)
+	}
+	// 5 poin = Rp500 pas di HPP → boleh.
+	if _, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "49500")}, MemberID: &m, RedeemPoints: 5}); err != nil {
+		t.Fatalf("tukar sampai tepat HPP: %v", err)
+	}
+	// Barang yang boleh jual rugi tidak dibatasi.
+	cheap := e.item(t, "goods", "50000", "49500", 10, false)
+	e.exec(t, `UPDATE items SET sell_below_cost = true WHERE id = $1`, cheap)
+	if _, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(cheap, "1")}, Payments: []PaymentIn{pay("cash", "49000")}, MemberID: &m, RedeemPoints: 10}); err != nil {
+		t.Fatalf("barang boleh jual rugi: %v", err)
+	}
+}

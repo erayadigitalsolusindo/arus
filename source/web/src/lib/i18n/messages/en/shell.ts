@@ -29,6 +29,8 @@ const shell: Messages['shell'] = {
   settings: 'Settings',
   signOut: 'Sign out',
   currentOutlet: 'Current Outlet',
+  allOutlets: 'All Outlets',
+  allOutletsShort: 'all',
   switchOutlet: 'Switch outlet?',
   server: {
     checking: 'Checking server…',

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   import { onMount, untrack } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { approvals, type Approver } from '#lib/approval/api.ts';
@@ -101,11 +102,7 @@
       <span class="font-semibold">{t('pos.override.discountLabel')}</span>
       <div class="mt-1 flex gap-2">
         <MoneyInput bind:value={disc} autofocus required class="grow min-w-0 h-10 px-3 text-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
-        <select bind:value={unit} aria-label={t('pos.override.discountUnit')} class="h-10 px-2 rounded border border-[var(--border-default)] bg-[var(--surface-base)]">
-          <option value="rp">{t('pos.override.unitRp')}</option>
-          <option value="total">{t('pos.override.unitTotal')}</option>
-          <option value="pct">%</option>
-        </select>
+        <Select class="!w-auto min-w-24 !min-h-10" ariaLabel={t('pos.override.discountUnit')} bind:value={unit} options={[{ value: 'rp', label: t('pos.override.unitRp') }, { value: 'total', label: t('pos.override.unitTotal') }, { value: 'pct', label: '%' }]} />
       </div>
       {#if discOk}
         <span class="block mt-1 text-[12px] text-[var(--text-secondary)]">{t(unit === 'total' ? 'pos.override.discountPreviewTotal' : 'pos.override.discountPreview', { amount: formatCurrency(centsToNumber(discCents), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}</span>
@@ -115,10 +112,7 @@
 
     <label class="block text-[13px]">
       <span class="font-semibold">{t('pos.override.approver')}</span>
-      <select bind:value={approverId} required class="mt-1 w-full h-10 px-2 rounded border border-[var(--border-default)] bg-[var(--surface-base)]">
-        <option value="" disabled>{t('pos.override.pickApprover')}</option>
-        {#each list ?? [] as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
-      </select>
+      <div class="mt-1"><Select bind:value={approverId} class="!min-h-10" options={[{ value: '', label: t('pos.override.pickApprover'), disabled: true }, ...(list ?? []).map((a) => ({ value: a.id, label: a.name }))]} /></div>
       {#if list && list.length === 0}<span class="text-[12px] text-[var(--color-warning-600)]">{t('pos.override.noApprovers')}</span>{/if}
     </label>
 
