@@ -1,19 +1,13 @@
 <script lang="ts">
-  import { beforeNavigate, goto } from '$app/navigation';
+  import { beforeNavigate } from '$app/navigation';
   import { t } from '#lib/i18n/index.ts';
   import { guard } from '#lib/tabs/guard.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
 
-  // Navigasi di dalam aplikasi (sidebar, tab, link) dicegat dan dikonfirmasi; reload/tutup browser memakai dialog bawaan browser.
+  // Pindah halaman/tab di dalam aplikasi tidak dicegat: form menyimpan drafnya (lib/tabs/drafts.ts) dan memulihkannya.
+  // Yang dicegat hanya reload/tutup browser (dialog bawaan browser); dialog di bawah dipakai saat menutup tab.
   beforeNavigate((nav) => {
-    if (!guard.dirty) return;
-    if (nav.type === 'leave' || !nav.to) {
-      nav.cancel();
-      return;
-    }
-    const to = nav.to.url;
-    nav.cancel();
-    guard.request(() => void goto(to.pathname + to.search + to.hash));
+    if (guard.dirty && (nav.type === 'leave' || !nav.to)) nav.cancel();
   });
 </script>
 
