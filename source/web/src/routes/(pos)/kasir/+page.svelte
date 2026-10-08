@@ -231,15 +231,10 @@
     costs = costs.filter((c) => c.label.trim() !== '' || toCents(c.amount) > 0n);
     costsOpen = false;
   }
-  /** Keterangan nota + rincian biaya lain-lain (server hanya menyimpan satu total, jadi rincian ikut di keterangan). */
-  function saleNote(): string {
-    const base = note.trim();
-    const parts = costs.filter((c) => toCents(c.amount) > 0n).map((c) => `${c.label.trim() || t('pos.costs.unnamed')} ${money(toCents(c.amount))}`);
-    if (!parts.length) return base;
-    const extra = `${t('pos.costs.prefix')}: ${parts.join(', ')}`;
-    const full = (base ? `${base} | ${extra}` : extra).replace(/\s+/g, ' ');
-    return full.length > 500 ? `${full.slice(0, 499)}…` : full;
-  }
+  /** Keterangan nota apa adanya; rincian biaya lain-lain dikirim terstruktur lewat `other_costs` (bukan ditempel ke teks). */
+  const saleNote = () => note.trim();
+  /** Rincian biaya lain-lain yang dikirim ke server; kosong = pakai isian tunggal `other_cost`. */
+  const costRows = $derived(costs.filter((c) => toCents(c.amount) > 0n).map((c) => ({ name: c.label.trim(), amount: centsStr(toCents(c.amount)) })));
   const outletTax = $derived(accessibleOutlets.items.find((o) => o.id === session.outlet?.id));
   let taxOn = $state(restored?.taxOn ?? false);
   const calcTax = () => (taxOn = true);
@@ -287,7 +282,7 @@
   const buildSale = (withNote = true, forPay = false): Omit<SaleInput, 'payments'> => ({
     lines: cart.map((l) => ({ item_id: l.id, ...(l.unitId ? { unit_id: l.unitId } : {}), qty: fmtMilli(toMilli(l.qty)), ...(l.override ? { unit_price: l.override } : {}), ...(l.disc ? { discount: discountOf(l) } : {}) })),
     ...(forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
-    ...(otherCostValue ? { other_cost: otherCostValue } : {}),
+    ...(costRows.length ? { other_costs: costRows } : otherCostValue && !costs.length ? { other_cost: otherCostValue } : {}),
     apply_tax: taxOn,
     ...(salesperson ? { salesperson_id: salesperson.id } : {}),
     ...(vouchers.length ? { voucher_codes: vouchers } : {}),

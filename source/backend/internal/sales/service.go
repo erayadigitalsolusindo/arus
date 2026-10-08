@@ -43,6 +43,8 @@ import (
 const (
 	maxLines    = 500
 	maxPayments = 10
+	maxCosts    = 20
+	maxCostName = 80
 )
 
 var maxMoney = decimal.New(1, 12) // batas atas nilai uang/qty (sama dengan batas kolom yang masuk akal)
@@ -120,6 +122,12 @@ type PaymentIn struct {
 }
 
 // ApprovalIn = penyetuju (Owner/Supervisor) beserta PIN-nya untuk ubah harga.
+// CostIn = satu baris rincian biaya lain-lain (mis. Ongkir).
+type CostIn struct {
+	Name   string      `json:"name"`
+	Amount json.Number `json:"amount"`
+}
+
 type ApprovalIn struct {
 	UserID uuid.UUID `json:"user_id"`
 	PIN    string    `json:"pin"`
@@ -129,10 +137,12 @@ type Request struct {
 	Approval  *ApprovalIn `json:"approval"`
 	Lines     []LineIn    `json:"lines"`
 	Discount  json.Number `json:"discount"`   // potongan global
-	OtherCost json.Number `json:"other_cost"` // biaya lain-lain
-	ApplyTax  bool        `json:"apply_tax"`  // terapkan pajak toko & negara sesuai tarif outlet
-	Payments  []PaymentIn `json:"payments"`
-	Note      string      `json:"note"`
+	OtherCost json.Number `json:"other_cost"` // biaya lain-lain (satu angka tanpa rincian)
+	// OtherCosts = rincian biaya lain-lain (nama + jumlah). Bila ada, totalnya menjadi other_cost; other_cost yang ikut dikirim harus sama.
+	OtherCosts []CostIn    `json:"other_costs"`
+	ApplyTax   bool        `json:"apply_tax"` // terapkan pajak toko & negara sesuai tarif outlet
+	Payments   []PaymentIn `json:"payments"`
+	Note       string      `json:"note"`
 	// Member (opsional): nota diperhitungkan poinnya; RedeemPoints = poin yang ditukar jadi potongan nota (level member menentukan nilainya).
 	MemberID     *uuid.UUID `json:"member_id"`
 	RedeemPoints int        `json:"redeem_points"`
@@ -199,6 +209,14 @@ type Sale struct {
 	PointsRedeemed int              `json:"points_redeemed"`
 	RedeemAmount   string           `json:"redeem_amount"`
 	Vouchers       []VoucherInfo    `json:"vouchers"`
+	// OtherCosts = rincian biaya lain-lain (kosong untuk nota tanpa rincian; OtherCost tetap totalnya).
+	OtherCosts []CostInfo `json:"other_costs"`
+}
+
+// CostInfo = satu baris rincian biaya lain-lain pada nota.
+type CostInfo struct {
+	Name   string `json:"name"`
+	Amount string `json:"amount"`
 }
 
 // VoucherInfo = kupon yang dipakai nota/quote beserta potongannya (sudah termasuk di Discount).
@@ -260,6 +278,11 @@ type normLine struct {
 	override *dec // harga satuan pengganti (nil = tidak diubah)
 }
 
+type normCost struct {
+	name   string
+	amount dec
+}
+
 type normPayment struct {
 	method string
 	amount dec
@@ -270,6 +293,7 @@ type norm struct {
 	lines       []normLine
 	discount    dec
 	otherCost   dec
+	costs       []normCost // rincian biaya lain (bila ada, otherCost = jumlahnya)
 	applyTax    bool
 	payments    []normPayment
 	note        string
@@ -357,6 +381,34 @@ func normalize(in Request) (norm, FieldErrors) {
 	if n.otherCost, c = parseDec(in.OtherCost, 2, false); c != "" {
 		f["other_cost"] = c
 	}
+	if len(in.OtherCosts) > maxCosts {
+		f["other_costs"] = codeTooMany
+	}
+	sum := decimal.Zero
+	for i, oc := range in.OtherCosts {
+		if i >= maxCosts {
+			break
+		}
+		k := fmt.Sprintf("other_costs.%d.", i)
+		name, ok := sanitize.Text(oc.Name)
+		if !ok || utf8.RuneCountInString(name) > maxCostName {
+			f[k+"name"] = sanitize.Invalid
+		}
+		amt, c := parseDec(oc.Amount, 2, true)
+		if c != "" {
+			f[k+"amount"] = c
+		} else if !amt.IsPositive() {
+			f[k+"amount"] = sanitize.Invalid
+		}
+		sum = sum.Add(amt)
+		n.costs = append(n.costs, normCost{name: name, amount: amt})
+	}
+	if len(n.costs) > 0 {
+		if strings.TrimSpace(in.OtherCost.String()) != "" && !n.otherCost.Equal(sum) {
+			f["other_cost"] = sanitize.Invalid
+		}
+		n.otherCost = sum
+	}
 	note, ok := sanitize.Text(in.Note)
 	if !ok || utf8.RuneCountInString(note) > 500 {
 		f["note"] = sanitize.Invalid
@@ -405,12 +457,16 @@ func (n norm) hash() string {
 		R    int
 		S    string
 		V    []string
+		C    []p
 	}{V: n.vouchers, D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
 	if n.memberID != nil {
 		v.M = n.memberID.String()
 	}
 	if n.salesperson != nil {
 		v.S = n.salesperson.String()
+	}
+	for _, c := range n.costs {
+		v.C = append(v.C, p{c.name, c.amount.String(), ""})
 	}
 	for _, x := range n.lines {
 		u := ""
@@ -785,6 +841,11 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 					Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID})
 			}
 		}
+		for i, oc := range n.costs {
+			if err := q.SalesCostInsert(ctx, gen.SalesCostInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1), Name: oc.name, Amount: oc.amount}); err != nil {
+				return err
+			}
+		}
 		for i, p := range n.payments {
 			if err := q.SalesPaymentInsert(ctx, gen.SalesPaymentInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1),
 				Method: p.method, Amount: p.amount, RefNo: p.refNo}); err != nil {
@@ -935,6 +996,14 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		out.Vouchers = make([]VoucherInfo, 0, len(vs))
 		for _, v := range vs {
 			out.Vouchers = append(out.Vouchers, VoucherInfo{Code: v.Code, Name: v.Name, Kind: v.Kind, Value: v.Value.StringFixed(2), Amount: v.Amount.StringFixed(2)})
+		}
+		cs, err := q.SalesCosts(ctx, gen.SalesCostsParams{TenantID: a.TenantID, SaleID: id})
+		if err != nil {
+			return err
+		}
+		out.OtherCosts = make([]CostInfo, 0, len(cs))
+		for _, c := range cs {
+			out.OtherCosts = append(out.OtherCosts, CostInfo{Name: c.Name, Amount: c.Amount.StringFixed(2)})
 		}
 		for _, p := range ps {
 			out.Payments = append(out.Payments, Payment{Method: p.Method, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo})

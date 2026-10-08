@@ -284,6 +284,14 @@ type Sale struct {
 	SalespersonID  pgtype.UUID
 }
 
+type SaleCost struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+	Position int32
+	Name     string
+	Amount   decimal.Decimal
+}
+
 type SaleCounter struct {
 	TenantID uuid.UUID
 	OutletID uuid.UUID

@@ -20,6 +20,7 @@ export default {
     pos_only: 'Hanya Kasir (terkunci di layar kasir)',
     sales_returns: 'Retur Penjualan',
     sales_list: 'Daftar Penjualan',
+    sales_cost: 'Lihat HPP & Laba Penjualan',
     sell_price_history: 'History Harga Jual',
     member_receivables: 'Piutang Anggota',
     order_list: 'Daftar Pesanan',

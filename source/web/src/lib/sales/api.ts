@@ -11,6 +11,8 @@ export type SaleInput = {
   lines: SaleLineInput[];
   discount?: string;
   other_cost?: string;
+  /** Rincian biaya lain-lain (nama + jumlah); bila ada, totalnya menjadi other_cost di server. */
+  other_costs?: { name: string; amount: string }[];
   apply_tax: boolean;
   payments: SalePaymentInput[];
   note?: string;
@@ -47,6 +49,8 @@ export type Sale = {
   points_redeemed: number;
   redeem_amount: string;
   vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
+  /** Rincian biaya lain-lain (kosong bila nota hanya punya satu angka); other_cost tetap totalnya. */
+  other_costs: { name: string; amount: string }[];
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */
@@ -83,7 +87,86 @@ export type SaleListRow = {
 };
 export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; from: string; to: string; truncated: boolean };
 
+/** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
+export type SaleAllRow = {
+  id: string;
+  doc_no: string;
+  status: 'completed' | 'void';
+  created_at: string;
+  outlet: { id: string; code: string; name: string };
+  cashier: string;
+  member?: string;
+  salesperson?: string;
+  line_count: number;
+  subtotal: string;
+  line_discount: string;
+  discount: string;
+  manual_discount: string;
+  voucher_amount: string;
+  voucher_codes: string[];
+  redeem_amount: string;
+  points_redeemed: number;
+  points_earned: number;
+  price_overrides: number;
+  tax_store: string;
+  tax_gov: string;
+  other_cost: string;
+  total: string;
+  methods: Partial<Record<PayMethod, string>>;
+  cost?: string;
+  profit?: string;
+};
+export type SaleAllSummary = { count: number; completed_count: number; total: string; discount: string; methods: Partial<Record<PayMethod, string>>; cost?: string; profit?: string };
+export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
+export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
+
+export type SaleDetailLine = {
+  position: number;
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  factor: string;
+  qty: string;
+  base_qty: string;
+  list_price: string;
+  unit_price: string;
+  price_override: boolean;
+  discount: string;
+  line_total: string;
+  note: string;
+  unit_cost?: string;
+  line_cost?: string;
+  profit?: string;
+};
+export type SaleStockMove = { id: number; at: string; type: 'SALE' | 'SALE_VOID' | 'SALE_RETURN'; bucket: 'display' | 'warehouse' | 'returns'; item_id: string; sku: string; name: string; unit: string; delta: string; balance_after: string; actor: string };
+export type SaleEvent = { action: string; actor: string; at: string; details: Record<string, unknown> | null };
+/** Nota lengkap untuk panel detail: harga daftar → jual, potongan per sumber, stok, riwayat. cost/profit hanya dengan izin sales_cost. */
+export type SaleDetail = Omit<Sale, 'lines'> & {
+  lines: SaleDetailLine[];
+  outlet: { id: string; code: string; name: string };
+  approved_by?: string;
+  salesperson?: { id: string; name: string };
+  tax_store_pct: string;
+  tax_gov_pct: string;
+  line_discount: string;
+  manual_discount: string;
+  voucher_amount: string;
+  base_qty_total: string;
+  stock: SaleStockMove[];
+  events: SaleEvent[];
+  cost?: string;
+  profit?: string;
+};
+
 export const sales = {
+  detail: (id: string) => api<SaleDetail>(`/sales/${id}/detail`),
+  listAll: (p: SaleAllParams) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v && k !== 'allOutlets') qs.set(k, String(v));
+    if (p.allOutlets) qs.set('scope', 'all');
+    return api<SaleAllList>(`/sales/all?${qs}`);
+  },
   list: (p: { from?: string; to?: string; q?: string }) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(p)) if (v) qs.set(k, v);

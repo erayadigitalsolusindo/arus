@@ -50,6 +50,7 @@ var Modules = []Module{
 	{"pos_only", viewing}, // "Hanya Kasir": SPA mengunci akun ke layar kasir (pengunci tampilan; data tetap dibatasi izin role)
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
+	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
 	{"sell_price_history", viewing},
 	{"member_receivables", []string{ActView, ActCreate}},
 	{"order_list", crud},

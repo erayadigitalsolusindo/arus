@@ -17,7 +17,8 @@ import items from './items.ts';
 import stock from './stock.ts';
 import pos from './pos.ts';
 import members from './members.ts';
+import sales from './sales.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales };
 
 export default en;
