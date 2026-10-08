@@ -24,7 +24,7 @@ type Actor struct {
 	Perms    Permissions
 	// Outlets = seluruh outlet aktif yang boleh diakses pengguna ini.
 	Outlets map[uuid.UUID]bool
-	// Impersonator != uuid.Nil: sesi "masuk sebagai" milik Platform Admin (UserID kosong, izin penuh, hanya-baca).
+	// Impersonator != uuid.Nil: sesi "masuk sebagai" milik Platform Admin (izin penuh; UserID = Owner aktif tenant agar FK pelaku valid, Name = "Platform: <admin>").
 	Impersonator uuid.UUID
 }
 
@@ -105,18 +105,13 @@ func (r *Resolver) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// authenticateImpersonation: token "masuk sebagai" Platform Admin. Hanya-baca (metode aman saja), izin penuh di satu
-// tenant, semua outlet aktifnya. Admin harus masih aktif dan token tidak boleh terbit sebelum pencabutan.
+// authenticateImpersonation: token "masuk sebagai" Platform Admin. Baca & tulis (kesepakatan tertulis dengan tenant),
+// izin penuh di satu tenant, semua outlet aktifnya; setiap perubahan tercatat atas nama "Platform: <admin>".
+// Admin harus masih aktif dan token tidak boleh terbit sebelum pencabutan.
 func (r *Resolver) authenticateImpersonation(w http.ResponseWriter, req *http.Request, next http.Handler, imp, sub string, iat *jwt.NumericDate, tid, oid uuid.UUID) {
 	adminID, err := uuid.Parse(imp)
 	if err != nil || imp != sub || r.platform == nil {
 		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Token tidak valid.")
-		return
-	}
-	switch req.Method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions:
-	default:
-		httpx.Error(w, http.StatusForbidden, "PLATFORM_READ_ONLY", "Mode Platform Admin hanya-baca.")
 		return
 	}
 	admin, err := r.platform.Admin(req.Context(), adminID)
@@ -133,7 +128,12 @@ func (r *Resolver) authenticateImpersonation(w http.ResponseWriter, req *http.Re
 		return
 	}
 	outlets := map[uuid.UUID]bool{}
+	var owner uuid.UUID // pelaku tercatat = Owner aktif tenant (FK users); nama tetap "Platform: <admin>"
 	err = db.WithTenant(req.Context(), r.pool, tid, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(req.Context(), `SELECT u.id FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+			WHERE u.tenant_id = $1 AND u.active AND r.is_system ORDER BY u.created_at LIMIT 1`, tid).Scan(&owner); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		ids, err := gen.New(tx).AuthzListAccessibleOutlets(req.Context(), gen.AuthzListAccessibleOutletsParams{TenantID: tid, AllOutlets: true})
 		for _, id := range ids {
 			outlets[id] = true
@@ -148,7 +148,7 @@ func (r *Resolver) authenticateImpersonation(w http.ResponseWriter, req *http.Re
 		httpx.Error(w, http.StatusForbidden, "OUTLET_FORBIDDEN", "Outlet tidak ditemukan atau nonaktif.")
 		return
 	}
-	a := Actor{TenantID: tid, OutletID: oid, Name: "Platform: " + admin.Name, Perms: Permissions{All: true}, Outlets: outlets, Impersonator: adminID}
+	a := Actor{TenantID: tid, UserID: owner, OutletID: oid, Name: "Platform: " + admin.Name, Perms: Permissions{All: true}, Outlets: outlets, Impersonator: adminID}
 	next.ServeHTTP(w, req.WithContext(WithActor(req.Context(), a)))
 }
 

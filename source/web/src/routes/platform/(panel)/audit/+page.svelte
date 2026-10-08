@@ -30,15 +30,18 @@
   onMount(() => load());
 
   const label = (a: string) => tryT(`platform.audit.actions.${a.replace('.', '_')}`) ?? a;
+  const iconFor = (a: string) =>
+    a.includes('impersonate') ? 'log-in' : a.includes('mfa') ? 'shield-check' : a.includes('login') ? 'key-round' : a.includes('admin') ? 'user-cog' : a.includes('tenant') ? 'store' : 'activity';
+  const toneFor = (a: string) => (a.includes('impersonate') ? 'warning' : a.includes('mfa') ? 'success' : a.includes('status') || a.includes('password') ? 'danger' : 'primary');
   const hasDetails = (o: Record<string, unknown>) => Object.keys(o).length > 0;
 </script>
 
 <div>
-  <h1 class="font-display font-bold text-[19px]">{t('platform.audit.title')}</h1>
-  <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('platform.audit.subtitle')}</p>
+  <h1 class="font-display font-bold text-[22px] tracking-tight">{t('platform.audit.title')}</h1>
+  <p class="text-[12.5px] mt-1 text-[var(--text-tertiary)] max-w-2xl">{t('platform.audit.subtitle')}</p>
 </div>
 
-<div class="surface-card p-3 flex items-center gap-3">
+<div class="surface-card p-3 sm:p-4 flex items-center gap-3">
   <Select class="!w-auto min-w-56" ariaLabel={t('platform.audit.action')} bind:value={action} onchange={() => load()} options={[{ value: '', label: t('platform.audit.all') }, ...ACTIONS.map((a) => ({ value: a as string, label: label(a) }))]} />
 </div>
 
@@ -50,7 +53,7 @@
   <div class="overflow-x-auto scroll-thin">
     <table class="w-full text-[12.5px] min-w-[760px]">
       <thead>
-        <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
+        <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
           <th class="p-3 text-start" scope="col">{t('platform.audit.time')}</th>
           <th class="p-3 text-start" scope="col">{t('platform.audit.admin')}</th>
           <th class="p-3 text-start" scope="col">{t('platform.audit.action')}</th>
@@ -64,7 +67,11 @@
           <tr class="border-t border-[var(--border-subtle)] align-top hover:bg-[var(--surface-sunken)]">
             <td class="p-3 whitespace-nowrap">{formatDateTime(it.created_at, { dateStyle: 'medium', timeStyle: 'medium' })}</td>
             <td class="p-3">{it.admin_name || '—'}</td>
-            <td class="p-3 font-semibold">{label(it.action)}</td>
+            <td class="p-3">
+              <span class="inline-flex items-center gap-2 font-semibold">
+                <span class="grid size-7 place-items-center rounded-lg" style="background:var(--color-{toneFor(it.action)}-50);color:var(--color-{toneFor(it.action)}-600)"><i class="icon-{iconFor(it.action)} text-[14px]"></i></span>{label(it.action)}
+              </span>
+            </td>
             <td class="p-3">{#if it.tenant_id}<a class="text-[var(--color-primary-600)]" href="/platform/tenants/{it.tenant_id}">{it.tenant_name || it.tenant_id}</a>{:else}—{/if}</td>
             <td class="p-3 font-mono text-[11.5px]">{it.ip}</td>
             <td class="p-3 text-end">

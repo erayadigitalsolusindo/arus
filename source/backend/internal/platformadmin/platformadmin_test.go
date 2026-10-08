@@ -301,9 +301,9 @@ func TestImpersonateHanyaBaca(t *testing.T) {
 	if rec := e.do("GET", "/tenant-probe", imp, ""); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"all":true`) || !strings.Contains(rec.Body.String(), "Platform: Pemilik") || !strings.Contains(rec.Body.String(), `"outlets":2`) {
 		t.Fatalf("token masuk-sebagai: %d %s", rec.Code, rec.Body)
 	}
-	// Hanya-baca: metode yang mengubah ditolak.
-	if rec := e.do("POST", "/tenant-probe", imp, "{}"); rec.Code != 403 || !strings.Contains(rec.Body.String(), "PLATFORM_READ_ONLY") {
-		t.Errorf("POST di mode masuk-sebagai: %d %s", rec.Code, rec.Body)
+	// Baca & tulis: metode yang mengubah diteruskan ke handler (tidak lagi ditolak PLATFORM_READ_ONLY).
+	if rec := e.do("POST", "/tenant-probe", imp, "{}"); strings.Contains(rec.Body.String(), "PLATFORM_READ_ONLY") {
+		t.Errorf("POST di mode masuk-sebagai masih ditolak hanya-baca: %d %s", rec.Code, rec.Body)
 	}
 	// Outlet dari tenant lain tidak diterima: token palsu dengan oid acak.
 	bad, _ := e.tokens.IssueImpersonation(adminID.String(), f.ID.String(), uuid.NewString(), time.Now())

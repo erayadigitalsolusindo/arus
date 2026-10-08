@@ -48,8 +48,8 @@
     }
   }
 
-  const inputClass = 'mt-1.5 w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered';
-  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide text-tertiary';
+  const inputClass = 'w-full field-control';
+  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]';
 </script>
 
 <svelte:head><title>{t('platform.setup.title')} | ACIRABA</title></svelte:head>

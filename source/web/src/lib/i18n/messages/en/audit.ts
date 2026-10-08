@@ -84,7 +84,7 @@ const audit: Messages['audit'] = {
     member_level_create: 'Added a member level',
     member_level_update: 'Changed a member level',
     member_level_active: 'Changed member level status',
-    platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
+    platform_impersonate: 'Platform Admin entered tenant (full access)',
     platform_tenant_status: 'Platform Admin changed the tenant status',
     platform_tenant_edit_window: 'Platform Admin changed the receipt edit window'
   }

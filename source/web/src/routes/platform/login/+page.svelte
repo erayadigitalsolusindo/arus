@@ -9,6 +9,7 @@
   let email = $state('');
   let password = $state('');
   let remember = $state(false);
+  let showPassword = $state(false);
   let loading = $state(false);
   let error = $state('');
   // Langkah 2 (2FA): token tantangan dari server setelah password benar.
@@ -100,7 +101,7 @@
       <p class="text-[12.5px] text-tertiary">{t('platform.login.mfaPrompt')}</p>
       <div>
         <label for="pcode" class="text-[11.5px] font-semibold uppercase tracking-wide text-tertiary">{t('platform.login.code')}</label>
-        <input id="pcode" bind:value={code} inputmode="numeric" autocomplete="one-time-code" maxlength="16" class="mt-1.5 w-full px-3 py-2.5 rounded-lg text-[15px] tracking-[0.25em] font-mono outline-none bg-sunken-bordered" />
+        <input id="pcode" bind:value={code} inputmode="numeric" autocomplete="one-time-code" maxlength="16" class="w-full field-control text-[15px] tracking-[0.25em] font-mono" />
         <p class="text-[11.5px] mt-1 text-tertiary">{t('platform.login.codeHelp')}</p>
       </div>
       <button type="submit" disabled={loading || lockedSeconds > 0 || !code.trim()} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
@@ -109,12 +110,21 @@
       <button type="button" class="w-full text-[12px] font-semibold text-primary-600" onclick={backToPassword}>{t('platform.login.back')}</button>
     {:else}
     <div>
-      <label for="pemail" class="text-[11.5px] font-semibold uppercase tracking-wide text-tertiary">{t('platform.login.email')}</label>
-      <input id="pemail" type="email" bind:value={email} autocomplete="username" class="mt-1.5 w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered" />
+      <label for="pemail" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">{t('platform.login.email')}</label>
+      <div class="relative mt-1.5">
+        <i class="icon-mail absolute top-1/2 -translate-y-1/2 start-3 text-[14px] text-tertiary"></i>
+        <input id="pemail" type="email" bind:value={email} autocomplete="username" class="w-full ps-9 pe-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered" />
+      </div>
     </div>
     <div>
-      <label for="ppass" class="text-[11.5px] font-semibold uppercase tracking-wide text-tertiary">{t('platform.login.password')}</label>
-      <input id="ppass" type="password" bind:value={password} autocomplete="current-password" class="mt-1.5 w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered" />
+      <label for="ppass" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">{t('platform.login.password')}</label>
+      <div class="relative mt-1.5">
+        <i class="icon-lock absolute top-1/2 -translate-y-1/2 start-3 text-[14px] text-tertiary"></i>
+        <input id="ppass" type={showPassword ? 'text' : 'password'} bind:value={password} placeholder="••••••••" autocomplete="current-password" class="w-full ps-9 pe-9 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered" />
+        <button type="button" class="absolute top-1/2 -translate-y-1/2 end-3 text-tertiary" aria-label={showPassword ? t('auth.login.hidePassword') : t('auth.login.showPassword')} onclick={() => (showPassword = !showPassword)}>
+          <i class={showPassword ? 'icon-eye-off text-[14px]' : 'icon-eye text-[14px]'}></i>
+        </button>
+      </div>
     </div>
     <label class="flex items-center gap-2 text-[12px] font-medium">
       <input type="checkbox" class="size-3.5 rounded" bind:checked={remember} />
