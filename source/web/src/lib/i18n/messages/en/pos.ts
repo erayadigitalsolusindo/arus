@@ -45,6 +45,7 @@ const pos: Messages['pos'] = {
   customerGeneral: 'General Member',
   pickCustomer: 'Select customer',
   clearCart: 'Clear cart',
+  restored: 'Cart restored ({count} lines). Changed prices were reset to normal.',
   emptyCart: 'The cart is empty. Scan a barcode or pick an item on the left.',
   unitPrice: 'Price @{price}',
   subtotal: 'SUBTOTAL',
