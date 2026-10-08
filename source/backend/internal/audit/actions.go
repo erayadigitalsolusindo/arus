@@ -142,3 +142,12 @@ const (
 	ActionVoucherUpdate = "voucher.update"
 	ActionVoucherActive = "voucher.active"
 )
+
+// Metode pembayaran. `payment_method.active` = arsip/aktifkan kembali.
+const (
+	EntityPaymentMethod = "payment_method"
+
+	ActionPaymentMethodCreate = "payment_method.create"
+	ActionPaymentMethodUpdate = "payment_method.update"
+	ActionPaymentMethodActive = "payment_method.active"
+)

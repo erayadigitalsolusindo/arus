@@ -16,6 +16,7 @@ import (
 	"aciraba/internal/item"
 	"aciraba/internal/member"
 	"aciraba/internal/outlet"
+	"aciraba/internal/paymentmethod"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/config"
@@ -88,5 +89,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	paymentmethod.NewHandler(paymentmethod.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

@@ -68,6 +68,8 @@ func newEnv(t *testing.T) *env {
 		{`INSERT INTO roles (id, tenant_id, name) VALUES ($1, $2, 'Kasir')`, []any{role, e.tenant}},
 		{`INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, 'Kasir Uji', 'x')`, []any{e.user, e.tenant, role, "kasir-" + e.user.String() + "@example.test"}},
 		{`INSERT INTO units (id, tenant_id, name) VALUES ($1, $2, 'Pcs')`, []any{e.unit, e.tenant}},
+		{defaultMethodsSQL, []any{e.tenant}},
+		{defaultMethodsSQL, []any{e.other}},
 	} {
 		if _, err := admin.Exec(ctx, s.sql, s.args...); err != nil {
 			t.Fatal(err)
@@ -75,7 +77,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "sale_payments", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
 				"items", "units", "users", "roles", "outlets"} {
 				if tbl == "sales" {
 					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.
@@ -91,6 +93,11 @@ func newEnv(t *testing.T) *env {
 	})
 	return e
 }
+
+// defaultMethodsSQL = metode bawaan seperti yang diisi paymentmethod.SeedDefaults saat register.
+const defaultMethodsSQL = `INSERT INTO payment_methods (tenant_id, name, kind, is_system)
+	VALUES ($1, 'Tunai', 'cash', true), ($1, 'Transfer', 'transfer', false), ($1, 'Debit', 'debit', false),
+	       ($1, 'Kartu Kredit', 'credit_card', false), ($1, 'E-Wallet', 'ewallet', false)`
 
 // item membuat barang berharga `price`, HPP `cost`, dan stok display `qty`.
 func (e *env) item(t *testing.T, kind, price, cost string, qty int, allowNeg bool) uuid.UUID {

@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -69,6 +69,9 @@ const audit: Messages['audit'] = {
     voucher_create: 'Added a shopping coupon',
     voucher_update: 'Edited a shopping coupon',
     voucher_active: 'Changed a coupon status',
+    payment_method_create: 'Added a payment method',
+    payment_method_update: 'Edited a payment method',
+    payment_method_active: 'Changed a payment method status',
     item_create: 'Added an item',
     item_update: 'Edited an item',
     item_price: 'Changed an item selling price',
