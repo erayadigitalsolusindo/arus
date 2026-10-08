@@ -6,6 +6,9 @@
   import { t, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import Avatar from '#lib/platform/Avatar.svelte';
+  import StatusPill from '#lib/platform/StatusPill.svelte';
+  import { relativeTime } from '#lib/platform/relative.ts';
 
   let list = $state<AdminRow[]>([]);
   let loading = $state(true);
@@ -91,14 +94,14 @@
     }
   }
 
-  const inputClass = 'mt-1.5 w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered';
-  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
+  const inputClass = 'w-full field-control';
+  const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]';
 </script>
 
 <div class="flex flex-wrap items-start justify-between gap-3">
   <div>
-    <h1 class="font-display font-bold text-[19px]">{t('platform.admins.title')}</h1>
-    <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('platform.admins.subtitle')}</p>
+    <h1 class="font-display font-bold text-[22px] tracking-tight">{t('platform.admins.title')}</h1>
+    <p class="text-[12.5px] mt-1 text-[var(--text-tertiary)] max-w-2xl">{t('platform.admins.subtitle')}</p>
   </div>
   <button type="button" class="btn btn-primary !text-[12.5px]" onclick={openCreate}><i class="icon-plus text-[13px]"></i>{t('platform.admins.add')}</button>
 </div>
@@ -112,28 +115,33 @@
 
 <div class="surface-card !p-0 overflow-hidden">
   <div class="overflow-x-auto scroll-thin">
-    <table class="w-full text-[12.5px] min-w-[700px]">
+    <table class="w-full text-[12.5px] min-w-[760px]">
       <thead>
-        <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
-          <th class="p-3 text-start" scope="col">{t('platform.admins.name')}</th>
-          <th class="p-3 text-start" scope="col">{t('platform.admins.lastLogin')}</th>
-          <th class="p-3 text-start" scope="col">{t('platform.admins.status')}</th>
-          <th class="p-3 text-start" scope="col">2FA</th>
-          <th class="p-3 text-end" scope="col"><span class="sr-only">…</span></th>
+        <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.name')}</th>
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.lastLogin')}</th>
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.status')}</th>
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">2FA</th>
+          <th class="px-4 py-2.5 text-end" scope="col"><span class="sr-only">…</span></th>
         </tr>
       </thead>
       <tbody>
         {#each list as a (a.id)}
-          <tr class="border-t border-[var(--border-subtle)]">
-            <td class="p-3">
-              <span class="font-semibold">{a.name}</span>
-              {#if a.id === platform.admin?.id}<span class="ms-1.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold badge-info">{t('platform.admins.you')}</span>{/if}
-              <span class="block text-[11px] text-[var(--text-tertiary)]">{a.email}</span>
+          <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <Avatar name={a.name} size={38} />
+                <div class="min-w-0">
+                  <span class="font-semibold">{a.name}</span>
+                  {#if a.id === platform.admin?.id}<span class="ms-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-semibold badge-info">{t('platform.admins.you')}</span>{/if}
+                  <span class="block text-[11px] text-[var(--text-tertiary)]">{a.email}</span>
+                </div>
+              </div>
             </td>
-            <td class="p-3 whitespace-nowrap">{a.last_login_at ? formatDateTime(a.last_login_at, { dateStyle: 'medium', timeStyle: 'short' }) : t('platform.tenants.never')}</td>
-            <td class="p-3"><span class="rounded-md px-2 py-0.5 text-[11px] font-semibold {a.active ? 'badge-success' : 'badge-danger'}">{a.active ? t('platform.tenants.active') : t('platform.tenants.inactive')}</span></td>
-            <td class="p-3"><span class="rounded-md px-2 py-0.5 text-[11px] font-semibold {a.mfa_enabled ? 'badge-success' : 'badge-warning'}">{a.mfa_enabled ? t('platform.security.on') : t('platform.security.off')}</span></td>
-            <td class="p-3 text-end whitespace-nowrap">
+            <td class="px-4 py-3 whitespace-nowrap">{#if a.last_login_at}<span title={formatDateTime(a.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}>{relativeTime(a.last_login_at)}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.tenants.never')}</span>{/if}</td>
+            <td class="px-4 py-3"><StatusPill ok={a.active} label={a.active ? t('platform.tenants.active') : t('platform.tenants.inactive')} /></td>
+            <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold {a.mfa_enabled ? 'badge-success' : 'badge-warning'}"><i class="{a.mfa_enabled ? 'icon-shield-check' : 'icon-shield-alert'} text-[12px]"></i>{a.mfa_enabled ? t('platform.security.on') : t('platform.security.off')}</span></td>
+            <td class="px-4 py-3 text-end whitespace-nowrap space-x-1">
               <button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openPassword(a)}>{t('platform.admins.resetPassword')}</button>
               {#if a.id !== platform.admin?.id}
                 {#if a.mfa_enabled}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetMfa(a)}>{t('platform.admins.resetMfa')}</button>{/if}
@@ -176,9 +184,9 @@
         <input id="ap" type="password" bind:value={form.password} class={inputClass} autocomplete="new-password" />
         {#if form.fields.password}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{fieldMessage(form.fields.password)}</p>{/if}
       </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (form = null)}>{t('platform.admins.cancel')}</button>
-        <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={form.saving}>{t('platform.admins.save')}</button>
+      <div class="flex items-center gap-2 pt-1">
+        <button type="button" class="btn btn-outline !text-[12.5px] flex-1" onclick={() => (form = null)}>{t('platform.admins.cancel')}</button>
+        <button type="submit" class="btn btn-primary !text-[12.5px] flex-1 disabled:opacity-60" disabled={form.saving}>{t('platform.admins.save')}</button>
       </div>
     </form>
   </Modal>

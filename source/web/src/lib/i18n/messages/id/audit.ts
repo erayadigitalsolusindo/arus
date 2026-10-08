@@ -82,7 +82,7 @@ export default {
     member_level_create: 'Menambah level member',
     member_level_update: 'Mengubah level member',
     member_level_active: 'Mengubah status level member',
-    platform_impersonate: 'Platform Admin melihat data tenant (hanya-baca)',
+    platform_impersonate: 'Platform Admin masuk ke tenant (akses penuh)',
     platform_tenant_status: 'Platform Admin mengubah status tenant',
     platform_tenant_edit_window: 'Platform Admin mengubah batas waktu edit nota'
   }

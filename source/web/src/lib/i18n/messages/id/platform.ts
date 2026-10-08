@@ -2,10 +2,18 @@ export default {
   docTitle: 'Panel Platform | ACIRABA',
   brand: 'Platform Admin',
   banner: {
-    text: 'Mode Platform Admin (hanya-baca): {tenant} · {outlet}. Perubahan data dinonaktifkan.',
+    text: 'Mode Platform Admin: {tenant} · {outlet}. Perubahan Anda tercatat atas nama Platform Admin.',
     exit: 'Keluar dari mode ini'
   },
-  nav: { security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
+  hero: {
+    online: 'Sistem online',
+    morning: 'Selamat pagi',
+    noon: 'Selamat siang',
+    afternoon: 'Selamat sore',
+    evening: 'Selamat malam',
+    subtitle: 'Pusat kendali ARUS: pantau semua tenant, kelola akses, dan telusuri setiap tindakan lewat audit.'
+  },
+  nav: { groupMain: 'Platform', groupSystem: 'Sistem', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',
@@ -33,7 +41,7 @@ export default {
   },
   tenants: {
     title: 'Semua Tenant',
-    subtitle: 'Seluruh toko/usaha yang terdaftar. Gunakan "Masuk sebagai" untuk melihat data tenant secara hanya-baca.',
+    subtitle: 'Seluruh toko/usaha yang terdaftar. Gunakan "Masuk sebagai" untuk mengelola data tenant dengan akses penuh.',
     search: 'Cari nama, kode, atau email…',
     name: 'Tenant',
     owner: 'Pemilik',
@@ -50,7 +58,9 @@ export default {
     total: { one: '{count} tenant', other: '{count} tenant' },
     prev: 'Sebelumnya',
     next: 'Berikutnya',
-    open: 'Buka'
+    open: 'Buka',
+    statTotal: 'Total tenant',
+    thisPage: 'pada halaman ini'
   },
   tenant: {
     back: 'Kembali ke daftar tenant',
@@ -59,7 +69,7 @@ export default {
     outlets: 'Outlet',
     users: 'Pengguna',
     enterAs: 'Masuk sebagai',
-    enterAsHelp: 'Membuka aplikasi toko ini dengan akses penuh hanya-baca (30 menit). Setiap masuk dicatat dan terlihat di audit log tenant.',
+    enterAsHelp: 'Membuka aplikasi toko ini dengan akses penuh, baca dan ubah (30 menit). Setiap masuk dicatat dan terlihat di audit log tenant.',
     enterAll: 'Masuk (outlet pertama)',
     enterOutlet: 'Masuk ke {outlet}',
     entering: 'Membuka…',
@@ -86,6 +96,8 @@ export default {
     editWindowSaved: 'Tersimpan',
     editWindowInvalid: 'Isi angka 0–3650.',
     editWindowSameDay: '0 = nota hanya bisa diedit/dibatalkan pada hari ia dibuat.',
+    sameDayShort: 'Hari yang sama',
+    daysShort: '{days} hari',
     editWindowDaysHint: 'Nota masih bisa diedit/dibatalkan sampai {days} hari sesudah hari ia dibuat (3650 ≈ tanpa batas).'
   },
   security: {
