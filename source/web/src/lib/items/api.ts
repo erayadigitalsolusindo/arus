@@ -153,7 +153,30 @@ function body(input: ItemInput): string {
   });
 }
 
+/** Satu perubahan harga. outlet_id null = harga default semua cabang; before/after null = belum ada. */
+export type PriceChange = { outlet_id: string | null; before: string | null; after: string | null };
+export type PriceEvent = {
+  id: number;
+  at: string;
+  actor_name: string;
+  /** price = harga jual, wholesale = set tier grosir (nilai berupa teks tier), initial = harga saat item dibuat. */
+  kind: 'price' | 'wholesale' | 'initial';
+  changes: PriceChange[];
+};
+export type PriceHistory = { items: PriceEvent[]; next_cursor: string };
+
+/** Laporan lintas item: kejadian + barang yang berubah (nama/kode saat kejadian). */
+export type PriceReportEvent = PriceEvent & { item_id: string; sku: string; name: string };
+export type PriceReport = { from: string; to: string; items: PriceReportEvent[]; next_cursor: string };
+export type PriceReportQuery = { from?: string; to?: string; q?: string; outlet?: string; cursor?: string };
+
 export const items = {
+  priceReport: (p: PriceReportQuery = {}) => {
+    const sp = new URLSearchParams({ limit: '50' });
+    for (const [k, v] of Object.entries(p)) if (v) sp.set(k, v);
+    return api<PriceReport>(`/items/price-history?${sp}`);
+  },
+  priceHistory: (id: string, cursor = '') => api<PriceHistory>(`/items/${id}/price-history?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
   list: (p: ListQuery = {}) => api<Page<Row>>(`/items/${qs(p)}`),
   get: (id: string) => api<Item>(`/items/${id}`),
   create: (input: ItemInput) => api<Item>('/items/', { method: 'POST', body: body(input) }),

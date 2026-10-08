@@ -1,5 +1,6 @@
 <script lang="ts">
   import ItemForm from '#lib/components/ItemForm.svelte';
+  import PriceHistory from '#lib/components/PriceHistory.svelte';
   import { can } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
   import { t } from '#lib/i18n/index.ts';
@@ -37,4 +38,7 @@
   {#key data.item.id}
     <ItemForm item={data.item} outlets={[]} />
   {/key}
+  <div class="mt-4">
+    <PriceHistory itemId={data.item.id} outlets={data.item.outlet_prices.map((p) => ({ id: p.outlet_id, name: p.outlet_name }))} />
+  </div>
 </main>
