@@ -7,11 +7,18 @@ const shell: Messages['shell'] = {
   collapseSidebar: 'Collapse sidebar',
   tabs: 'Page tabs',
   closeTab: 'Close tab',
+  tabMenu: {
+    close: 'Close tab',
+    closeOthers: 'Close other tabs',
+    closeRight: 'Close tabs to the right',
+    closeAll: 'Close all tabs'
+  },
   unsaved: {
     title: 'Unsaved changes',
-    body: 'This form has not been saved and its contents will be lost if you leave the page. Discard changes?',
+    body: 'This form has not been saved and its contents will be lost if you close the tab. Discard changes?',
     stay: 'Stay here',
-    discard: 'Discard changes'
+    discard: 'Discard changes',
+    restored: 'Your unsaved draft was restored. It is kept while this tab stays open; images/photos must be picked again.'
   },
   mainNav: 'Main navigation',
   sidebar: 'Sidebar',

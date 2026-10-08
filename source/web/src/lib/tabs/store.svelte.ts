@@ -1,6 +1,7 @@
 // Tab halaman gaya browser. Hanya path yang disimpan (judul dihitung saat render agar ikut bahasa aktif);
 // isi halaman dimuat ulang saat tab dibuka. Disimpan di sessionStorage per pengguna.
 import { nav } from '#lib/nav.ts';
+import { drafts } from '#lib/tabs/drafts.ts';
 import type { MessageKey } from '#lib/i18n/index.ts';
 
 export const HOME = '/dashboard';
@@ -44,6 +45,7 @@ class Tabs {
   }
 
   reset() {
+    drafts.clearAll();
     this.#key = null;
     this.paths = [HOME];
   }
@@ -62,6 +64,15 @@ class Tabs {
     this.paths.splice(i, 1);
     this.#save();
     return path === active ? (this.paths[i] ?? this.paths[i - 1] ?? HOME) : null;
+  }
+
+  /** Menutup banyak tab sekaligus (dashboard tak pernah ditutup); mengembalikan path tujuan bila tab aktif ikut tertutup. */
+  closeMany(list: string[], active: string): string | null {
+    const gone = new Set(list.filter((p) => p !== HOME));
+    if (!gone.size) return null;
+    this.paths = this.paths.filter((p) => !gone.has(p));
+    this.#save();
+    return gone.has(active) ? (this.paths[this.paths.length - 1] ?? HOME) : null;
   }
 
   #save() {
