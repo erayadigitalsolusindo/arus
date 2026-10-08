@@ -27,8 +27,8 @@ install -m 755 -o "$APP_USER" -g "$APP_USER" "$tmp/aciraba-api" "$BASE/api/acira
 mv "$BASE/api/aciraba-api.new" "$BASE/api/aciraba-api"
 
 echo "==> 4/5 ganti web"
-rsync -a --delete "$tmp/web/" "$BASE/web/"
-chown -R "$APP_USER:$APP_USER" "$BASE/web"
+rsync -a --delete --exclude='.user.ini' "$tmp/web/" "$BASE/web/"
+find "$BASE/web" ! -name .user.ini -exec chown "$APP_USER:$APP_USER" {} +
 
 echo "==> 5/5 restart API"
 $RESTART_CMD

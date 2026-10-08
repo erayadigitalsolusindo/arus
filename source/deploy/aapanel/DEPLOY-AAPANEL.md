@@ -172,18 +172,70 @@ Database + unggahan, disimpan 14 hari. **Wajib** disalin ke luar server (rclone/
 `sudo docker exec -i aciraba_postgres pg_restore -U aciraba -d <db_uji> --no-owner < db-YYYY-MM-DD.dump`.
 
 ## 10. Update rilis berikutnya
-Satu perintah, sebagai user biasa:
+
+### Update biasa
+Sebagai user biasa (bukan root), dari folder mana pun:
 ```bash
 ~/update-arus.sh
+~/cek-arus.sh
 ```
-Urutan: `git pull` → build → backup → migrasi → ganti program → ganti web → restart → cek `/healthz`. Berhenti di langkah pertama yang gagal.
-Mundur: migrasi hanya maju. Kembalikan program lama hanya bila migrasi rilis itu kompatibel:
+Lalu buka aplikasi di browser, tekan **Ctrl+Shift+R**, dan uji satu nota di `/kasir`.
+
+`update-arus.sh` mengerjakan berurutan dan berhenti di langkah pertama yang gagal:
+
+| # | Langkah | Catatan |
+|---|---|---|
+| 1 | `git pull --ff-only` di `~/arus-src` | Riwayat dangkal: lihat Pemecahan masalah |
+| 2 | Build (`build-release.sh`) | Go + Node 26 di server, hasil `~/release.tar.gz` |
+| 3 | Backup database | `backups/pre-update-*.dump` |
+| 4 | Migrasi (goose) | Hanya maju, tidak bisa dimundurkan otomatis |
+| 5 | Ganti program | Yang lama disimpan sebagai `aciraba-api.prev` |
+| 6 | Ganti web | `rsync` ke `/www/wwwroot/arus/web` (`.user.ini` dikecualikan) |
+| 7 | Restart `arus-api` + cek `/healthz` | |
+
+### Sebelum update
+- Pastikan ada dump terbaru di luar VPS (`backup.sh` + salin keluar). Dump `pre-update-*` ada di VPS yang sama, jadi tidak melindungi dari kerusakan disk.
+- Lakukan saat toko sepi. Ada jeda beberapa detik saat API restart.
+- Bila skrip di repo berubah (`build-release.sh`, `update-arus.sh`, `cek-arus.sh`), salin ulang ke home dan sinkronkan folder deploy:
+  ```bash
+  cp ~/arus-src/source/deploy/aapanel/{build-release,update-arus,cek-arus}.sh ~/
+  chmod +x ~/build-release.sh ~/update-arus.sh ~/cek-arus.sh
+  cp -r ~/arus-src/source/deploy/. /www/wwwroot/arus/deploy/
+  ```
+  (File `.env` aman, tidak ada di repo.)
+
+### Setelah update
+- Rilis yang menambah modul atau izin baru: role selain Owner **tidak otomatis** mendapat izin itu. Buka *Role & Hak Akses* dan centang untuk role yang perlu.
+- Jalankan `~/cek-arus.sh`: semua `[OK]`. `[MASALAH]` pada baris Backup wajar sampai langkah 9 dijalankan.
+
+### Bila update berhenti di tengah
+Lihat langkah terakhir yang tercetak, lalu:
+
+| Berhenti di | Artinya | Tindakan |
+|---|---|---|
+| `build` atau `git pull` | Belum ada yang berubah di server | Perbaiki penyebabnya, jalankan lagi |
+| `migrasi` | Skema mungkin sebagian berubah | Baca pesan goose; bila perlu restore dump, lalu ulangi |
+| `ganti web` (`rsync`) | **Database sudah baru, program sudah baru, tetapi API belum di-restart** | Selesaikan manual di bawah |
+
+Menyelesaikan manual setelah gagal di `rsync`:
+```bash
+tmp=$(mktemp -d) && tar -xzf ~/release.tar.gz -C "$tmp"
+sudo rsync -a --delete --exclude='.user.ini' "$tmp/web/" /www/wwwroot/arus/web/
+sudo find /www/wwwroot/arus/web ! -name .user.ini -exec chown www:www {} +
+rm -rf "$tmp"
+sudo systemctl restart arus-api
+sleep 2 && curl -fsS http://127.0.0.1:8080/healthz && echo
+```
+`.user.ini` dikunci aaPanel (`chattr +i`); jangan dilepas, cukup dikecualikan.
+
+### Mundur
+Migrasi hanya maju. Kembalikan program lama hanya bila migrasi rilis itu kompatibel:
 ```bash
 cd /www/wwwroot/arus/api
 sudo install -m 755 -o www -g www aciraba-api.prev aciraba-api
 sudo systemctl restart arus-api
 ```
-Bila tidak kompatibel, restore dump `pre-update-*.dump` (semua transaksi sesudah backup itu hilang; hentikan API dulu).
+Bila tidak kompatibel, hentikan API dan restore dump `pre-update-*.dump` (semua transaksi sesudah backup itu hilang).
 
 ## 11. Cek kesehatan
 ```bash
@@ -199,7 +251,7 @@ Memeriksa API, akses dari internet, Docker, versi migrasi, umur backup, disk, da
 | `npm ci` gagal "lock file out of sync" | Memakai npm 10; pakai Node 26 (langkah 4) |
 | `npm ci` gagal `EPERM … lightningcss` (Windows) | Dev server/editor memegang `node_modules`; build di server menghindarinya |
 | Halaman putih, CSS/JS tak termuat | Rewrite memakai `%{REQUEST_FILENAME}` (lihat langkah 7) |
-| `update.sh` gagal di `rsync` | `.user.ini` terkunci di `/www/wwwroot/arus/web`: matikan anti-cross-site di aaPanel, `sudo chattr -i` lalu hapus berkasnya |
+| `update.sh` gagal di `rsync` (`unlink(.user.ini)`) | `.user.ini` dikunci aaPanel. `update.sh` kini memakai `--exclude='.user.ini'`; bila masih memakai versi lama, salin ulang folder deploy (§10) atau selesaikan manual (§10 "Bila update berhenti di tengah"). Jangan menghapus berkasnya |
 | Login berhasil lalu langsung keluar / refresh 401 | `CORS_ORIGINS`/`APP_BASE_URL` tak persis `https://arus.erayadigital.co.id` (tanpa slash akhir), atau Cloudflare mode Flexible |
 | Unggah gambar gagal 413 | Batas ukuran unggahan di situs API (Apache `LimitRequestBody`, Nginx `client_max_body_size 12m`) |
 | Semua pengguna terlihat dari satu IP (rate limit salah sasaran) | `TRUST_PROXY=true` belum diset |
