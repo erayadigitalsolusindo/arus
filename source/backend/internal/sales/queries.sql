@@ -35,10 +35,10 @@ RETURNING last_no;
 -- DO NOTHING pada kunci idempotensi: pengiriman ulang tidak membuat nota ganda (pemanggil lalu membaca nota lama).
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change,
-                   member_id, points_earned, points_redeemed, redeem_amount)
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
         @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change,
-        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount)
+        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'))
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at;
 
@@ -60,8 +60,10 @@ SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.
        s.tax_store, s.tax_gov, s.other_cost, s.total, s.paid, s.change, s.created_at,
        s.cashier_id, coalesce(u.name, '')::text AS cashier_name, coalesce(ap.name, '')::text AS approver_name,
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
-       s.points_earned, s.points_redeemed, s.redeem_amount
-FROM sales s LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
+       s.points_earned, s.points_redeemed, s.redeem_amount,
+       s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name
+FROM sales s LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
+LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
 LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 LEFT JOIN users ap ON ap.tenant_id = s.tenant_id AND ap.id = s.approved_by
 WHERE s.tenant_id = $1 AND s.id = $2;
@@ -72,3 +74,6 @@ FROM sale_lines WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
 
 -- name: SalesPayments :many
 SELECT method, amount, ref_no FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
+
+-- name: SalesSalespersonState :one
+SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2;

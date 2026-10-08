@@ -46,6 +46,8 @@ var Modules = []Module{
 	{"principals", crud},
 	{"sales_orders", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}},
 	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
+	{"outlet_switch", []string{ActView, ActApprove}},  // Owner/Supervisor yang boleh menyetujui pindah outlet di kasir lewat PIN
+	{"pos_only", viewing}, // "Hanya Kasir": SPA mengunci akun ke layar kasir (pengunci tampilan; data tetap dibatasi izin role)
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
 	{"sell_price_history", viewing},
@@ -151,10 +153,28 @@ func ParseStored(raw []byte) Permissions {
 	return Permissions{Grants: grants}
 }
 
+// PosOnlyGrants = paket izin role "Hanya Kasir": layar kasir saja (buat nota + cari barang), tidak ada yang lain.
+func PosOnlyGrants() map[string][]string {
+	return map[string][]string{"pos_only": {ActView}, "sales_orders": {ActView, ActCreate}, "items": {ActView}}
+}
+
 // Normalize memvalidasi izin dari klien secara ketat: modul/aksi tak dikenal ditolak, duplikat dibuang, dan
 // "view" ikut diberikan bila ada aksi lain (tidak ada izin ubah tanpa izin lihat). Wildcard "*" tidak boleh
 // dibuat lewat API. Hasilnya berurutan sesuai registri.
 func Normalize(in map[string][]string) (Permissions, error) {
+	for id, acts := range in {
+		// "Hanya Kasir" adalah paket tetap: izin lain apa pun dibuang agar akun tidak bisa melakukan selain kasir.
+		if id == "pos_only" && len(acts) > 0 {
+			if _, err := normalizeOne(in); err != nil {
+				return Permissions{}, err
+			}
+			return Permissions{Grants: PosOnlyGrants()}, nil
+		}
+	}
+	return normalizeOne(in)
+}
+
+func normalizeOne(in map[string][]string) (Permissions, error) {
 	out := map[string][]string{}
 	for id, acts := range in {
 		mod, ok := moduleByID(id)

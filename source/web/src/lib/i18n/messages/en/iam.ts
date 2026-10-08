@@ -18,6 +18,8 @@ const iam: Messages['iam'] = {
     principals: 'Principals',
     sales_orders: 'Sales Orders',
     price_override: 'Approve Price Changes (PIN)',
+    outlet_switch: 'Approve Outlet Switch (PIN)',
+    pos_only: 'Cashier Only (locked to the register screen)',
     sales_returns: 'Sales Returns',
     sales_list: 'Sales List',
     sell_price_history: 'Selling Price History',
@@ -73,7 +75,10 @@ const iam: Messages['iam'] = {
     outletsHint: 'Choose the outlets this employee may access (at least one).',
     allOutlets: 'All outlets',
     verified: 'Verified',
-    unverified: 'Not verified'
+    unverified: 'Not verified',
+    verifyManual: 'Mark as verified',
+    verifyConfirm: 'Mark {email} as verified? Make sure this address is correct and belongs to this employee; password reset links are sent to it.',
+    verifySaved: 'Email marked as verified.'
   },
   roles: {
     docTitle: 'Roles & Permissions | ACIRABA',
@@ -84,6 +89,7 @@ const iam: Messages['iam'] = {
     view: 'View Role',
     name: 'Role name',
     namePlaceholder: 'e.g. Cashier, Warehouse Admin',
+    posOnlyHint: 'Cashier-only mode: this account can only use the register screen (create receipts and look up items). Other permissions are locked; untick "Cashier Only" to set permissions one by one.',
     matrix: 'Permission matrix',
     module: 'Menu',
     selectAll: 'Select all',

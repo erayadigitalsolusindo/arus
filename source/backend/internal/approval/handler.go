@@ -31,8 +31,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require("sales_orders", authz.ActCreate)).Get("/approvers", h.Approvers)
 		r.With(authz.Require("sales_orders", authz.ActCreate)).Post("/check", h.Check)
 		// PIN milik sendiri (hanya pemegang izin penyetuju).
-		r.With(authz.Require(Module, authz.ActApprove)).Get("/pin", h.PinStatus)
-		r.With(authz.Require(Module, authz.ActApprove)).Put("/pin", h.SetPin)
+		anyApprove := authz.RequireAny([2]string{Module, authz.ActApprove}, [2]string{ModuleOutletSwitch, authz.ActApprove})
+		r.With(anyApprove).Get("/pin", h.PinStatus)
+		r.With(anyApprove).Put("/pin", h.SetPin)
 	})
 }
 
@@ -42,7 +43,25 @@ func actor(r *http.Request) authz.Actor {
 }
 
 func (h *Handler) Approvers(w http.ResponseWriter, r *http.Request) {
-	list, err := h.svc.Approvers(r.Context(), actor(r))
+	a := actor(r)
+	module, outletID := Module, a.OutletID
+	// ?for=outlet_switch&outlet_id=<tujuan>: penyetuju pindah outlet, dicari di outlet tujuan (yang boleh diakses pemanggil).
+	if m := r.URL.Query().Get("for"); m != "" {
+		if !ValidModule(m) {
+			httpx.ValidationError(w, map[string]string{"for": "INVALID"})
+			return
+		}
+		module = m
+	}
+	if s := r.URL.Query().Get("outlet_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil || !a.Outlets[id] {
+			httpx.ValidationError(w, map[string]string{"outlet_id": "INVALID"})
+			return
+		}
+		outletID = id
+	}
+	list, err := h.svc.ApproversFor(r.Context(), a, module, outletID)
 	if err != nil {
 		h.fail(w, r, err)
 		return

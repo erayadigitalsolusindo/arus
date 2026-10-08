@@ -61,8 +61,18 @@
   const grantable = (m: string, a: string) => isOwner || can(m, a);
   const has = (m: string, a: string) => !!editor?.grants[m]?.includes(a);
 
+  // "Hanya Kasir" = paket tetap (sama dengan authz.PosOnlyGrants di server): mengisi paketnya dan mengunci baris lain.
+  const POS_ONLY: Grants = { pos_only: ['view'], sales_orders: ['view', 'create'], items: ['view'] };
+  const posLocked = $derived(!!editor?.grants.pos_only?.includes('view'));
+  const locked = (m: string) => posLocked && m !== 'pos_only';
+
   function toggle(m: string, a: string) {
     if (!editor || readonly || !grantable(m, a)) return;
+    if (m === 'pos_only' && !has(m, a)) {
+      editor.grants = { ...POS_ONLY };
+      return;
+    }
+    if (locked(m)) return;
     const cur = new Set(editor.grants[m] ?? []);
     if (cur.has(a)) {
       cur.delete(a);
@@ -82,7 +92,11 @@
   }
 
   function toggleRow(m: ModuleDef) {
-    if (!editor || readonly) return;
+    if (!editor || readonly || locked(m.id)) return;
+    if (m.id === 'pos_only' && !rowAll(m)) {
+      editor.grants = { ...POS_ONLY };
+      return;
+    }
     const allowed = m.actions.filter((a) => grantable(m.id, a));
     if (!allowed.length) return;
     const next = { ...editor.grants };
@@ -92,7 +106,7 @@
   }
 
   function setAll(on: boolean) {
-    if (!editor || readonly) return;
+    if (!editor || readonly || posLocked) return;
     const next: Grants = {};
     if (on) for (const m of modules) {
       const allowed = m.actions.filter((a) => grantable(m.id, a));
@@ -247,6 +261,9 @@
               </div>
             {/if}
           </div>
+          {#if posLocked}
+            <p class="text-[12px] rounded-md px-3 py-2 badge-info">{t('iam.roles.posOnlyHint')}</p>
+          {/if}
           <div class="overflow-auto scroll-thin max-h-[50vh] rounded-lg border border-[var(--border-subtle)]">
             <table class="w-full text-[12px] min-w-[560px]">
               <thead class="sticky top-0 bg-[var(--surface-sunken)]">
@@ -267,7 +284,7 @@
                             type="checkbox"
                             class="size-4 rounded accent-[var(--color-primary-600)] disabled:opacity-40"
                             checked={has(m.id, a)}
-                            disabled={readonly || !grantable(m.id, a)}
+                            disabled={readonly || !grantable(m.id, a) || locked(m.id)}
                             title={!readonly && !grantable(m.id, a) ? t('iam.roles.notYours') : undefined}
                             aria-label="{moduleLabel(m.id)}: {actionLabel(a)}"
                             onchange={() => toggle(m.id, a)}
@@ -278,7 +295,7 @@
                       </td>
                     {/each}
                     <td class="p-2 text-center">
-                      {#if !readonly}
+                      {#if !readonly && !locked(m.id)}
                         <button type="button" class="text-[11px] font-semibold text-[var(--color-primary-600)]" onclick={() => toggleRow(m)}>{rowAll(m) ? t('iam.roles.clearAll') : t('iam.roles.selectAll')}</button>
                       {/if}
                     </td>

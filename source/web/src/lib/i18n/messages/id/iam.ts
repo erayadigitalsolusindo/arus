@@ -16,6 +16,8 @@ export default {
     principals: 'Data Principal',
     sales_orders: 'Pesanan Penjualan',
     price_override: 'Setujui Ubah Harga (PIN)',
+    outlet_switch: 'Setujui Pindah Outlet (PIN)',
+    pos_only: 'Hanya Kasir (terkunci di layar kasir)',
     sales_returns: 'Retur Penjualan',
     sales_list: 'Daftar Penjualan',
     sell_price_history: 'History Harga Jual',
@@ -71,7 +73,10 @@ export default {
     outletsHint: 'Pilih outlet yang boleh diakses pegawai ini (minimal satu).',
     allOutlets: 'Semua outlet',
     verified: 'Terverifikasi',
-    unverified: 'Belum diverifikasi'
+    unverified: 'Belum diverifikasi',
+    verifyManual: 'Tandai terverifikasi',
+    verifyConfirm: 'Tandai email {email} sebagai terverifikasi? Pastikan alamat ini benar dan milik pegawai tersebut; tautan reset password dikirim ke alamat ini.',
+    verifySaved: 'Email ditandai terverifikasi.'
   },
   roles: {
     docTitle: 'Role & Hak Akses | ACIRABA',
@@ -82,6 +87,7 @@ export default {
     view: 'Lihat Role',
     name: 'Nama role',
     namePlaceholder: 'mis. Kasir, Admin Gudang',
+    posOnlyHint: 'Mode Hanya Kasir: akun ini hanya bisa memakai layar kasir (buat nota dan cari barang). Izin lain dikunci; hapus centang "Hanya Kasir" untuk mengatur izin satu per satu.',
     matrix: 'Matriks izin',
     module: 'Menu',
     selectAll: 'Pilih semua',

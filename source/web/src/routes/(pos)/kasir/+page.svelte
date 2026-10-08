@@ -2,13 +2,14 @@
   import Select from '#lib/components/Select.svelte';
   import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
-  import { session, switchOutlet } from '#lib/auth/session.svelte.ts';
+  import { can, logout, posOnly, session, switchOutlet } from '#lib/auth/session.svelte.ts';
+  import OutletApprovalModal from '#lib/components/OutletApprovalModal.svelte';
   import { t, formatCurrency, formatDateTime, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { toCents, toMilli, centsToNumber, lineTotal } from '#lib/pos/money.ts';
-  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredMember } from '#lib/pos/cart-store.ts';
+  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredMember, type StoredSalesperson } from '#lib/pos/cart-store.ts';
   import MemberPicker from '#lib/components/MemberPicker.svelte';
   import MemberCover from '#lib/components/MemberCover.svelte';
   import type { Lookup } from '#lib/members/api.ts';
@@ -17,6 +18,8 @@
   import { formatNumber } from '#lib/i18n/index.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
+  import Combobox from '#lib/components/Combobox.svelte';
+  import { salespeopleLookup } from '#lib/catalog/api.ts';
   import PayModal from '#lib/components/PayModal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { fitText } from '#lib/fitText.ts';
@@ -81,7 +84,7 @@
   let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
   $effect(() => {
-    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem };
+    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson) };
     if (storeKey) saveCart(storeKey, snapshot);
   });
 
@@ -176,6 +179,21 @@
   // Member terpilih + poin yang ditukar. Saldo poin SELALU dari quote server (quote.member.points), bukan dari penyimpanan lokal.
   let member = $state<StoredMember | null>(restored?.member ?? null);
   let redeem = $state(restored?.redeem ?? '');
+  // Salesman nota (opsional; kosong = Umum). Hanya label untuk laporan/komisi.
+  let salesperson = $state<StoredSalesperson | null>(restored?.salesperson ?? null);
+  let pickingSalesperson = $state(false);
+  let spValue = $state('');
+  let spLabel = $state('');
+  function openSalesperson() {
+    spValue = salesperson?.id ?? '';
+    spLabel = salesperson?.name ?? '';
+    pickingSalesperson = true;
+  }
+  function applySalesperson() {
+    salesperson = spValue ? { id: spValue, name: spLabel } : null;
+    pickingSalesperson = false;
+    searchEl?.focus();
+  }
   let pickingMember = $state(false);
   const redeemPoints = $derived(Math.max(0, Math.min(Number.parseInt(redeem, 10) || 0, 10_000_000)));
   function pickMember(m: Lookup) {
@@ -197,6 +215,7 @@
     ...(forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
     ...(otherCostValue ? { other_cost: otherCostValue } : {}),
     apply_tax: taxOn,
+    ...(salesperson ? { salesperson_id: salesperson.id } : {}),
     ...(member ? { member_id: member.id, ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}) } : {}),
     ...(withNote && saleNote() ? { note: saleNote() } : {})
   });
@@ -317,6 +336,7 @@
     taxOn = false;
     member = null;
     redeem = '';
+    salesperson = null;
     void load(true); // stok berubah
     searchEl?.focus();
   }
@@ -500,11 +520,26 @@
 
   let outletBusy = $state(false);
   let outletSel = $state(session.outlet?.id ?? '');
+  // Pindah outlet dari kasir butuh PIN Owner/Supervisor, kecuali pelakunya sendiri pemegang izin penyetuju.
+  // Server memverifikasi ulang; modal hanya mengumpulkan penyetuju + PIN.
+  let outletAsk = $state<{ id: string; name: string } | null>(null);
   async function changeOutlet(id: string) {
     if (!id || id === session.outlet?.id) return;
+    if (can('outlet_switch', 'approve')) {
+      await doSwitch(id);
+      return;
+    }
+    outletAsk = { id, name: outletOptions.find((o) => o.id === id)?.name ?? '' };
+  }
+  function cancelOutletAsk() {
+    outletAsk = null;
+    outletSel = session.outlet?.id ?? '';
+  }
+  /** Melempar galat agar modal bisa menampilkannya; tanpa modal (penyetuju sendiri) galat jadi toast. */
+  async function doSwitch(id: string, ap?: { user_id: string; pin: string }, rethrow = false) {
     outletBusy = true;
     try {
-      await switchOutlet(id);
+      await switchOutlet(id, { approval: ap });
       cart = []; // harga & stok berbeda per cabang: keranjang tidak dibawa pindah
       approval = null;
       cancelTax();
@@ -512,10 +547,16 @@
       void loadSlots(); // harga efektif mengikuti outlet
     } catch (err) {
       outletSel = session.outlet?.id ?? '';
+      if (rethrow) throw err;
       flash(errorMessage(err));
     } finally {
       outletBusy = false;
     }
+  }
+  async function approveSwitch(approver: Approver, pin: string) {
+    if (!outletAsk) return;
+    await doSwitch(outletAsk.id, { user_id: approver.id, pin }, true);
+    outletAsk = null;
   }
   const outletOptions = $derived(
     accessibleOutlets.items.length ? accessibleOutlets.items : session.outlet ? [{ id: session.outlet.id, name: session.outlet.name }] : []
@@ -604,7 +645,11 @@
 <div class="flex flex-col h-dvh overflow-hidden bg-[var(--surface-sunken)] text-[var(--text-primary)]">
   <!-- Bilah atas -->
   <header class="flex items-center gap-2 h-12 px-3 shrink-0 bg-[var(--surface-card)] border-b border-[var(--border-subtle)]">
-    <a href="/dashboard" class="header-icon-btn" aria-label={t('pos.back')} title={t('pos.back')}><i class="icon-arrow-left text-[18px]"></i></a>
+    {#if posOnly()}
+      <button type="button" class="header-icon-btn" aria-label={t('pos.logout')} title={t('pos.logout')} onclick={logout}><i class="icon-log-out text-[18px]"></i></button>
+    {:else}
+      <a href="/dashboard" class="header-icon-btn" aria-label={t('pos.back')} title={t('pos.back')}><i class="icon-arrow-left text-[18px]"></i></a>
+    {/if}
     <span class="font-display font-extrabold tracking-tight text-[15px] uppercase text-[var(--color-primary-600)] truncate">{session.tenant?.name}</span>
     <span class="grow"></span>
     <LanguageSwitcher />
@@ -650,7 +695,10 @@
         <dl class="text-[12px] space-y-0.5 text-[var(--text-secondary)]">
           <div>{formatDateTime(now, { dateStyle: 'short', timeStyle: 'medium' })}</div>
           <div>{t('pos.cashier')} : {session.user?.name}</div>
-          <div>{t('pos.salesperson')} : {t('pos.salespersonNone')}</div>
+          <div>
+            {t('pos.salesperson')} :
+            <button type="button" class="font-semibold underline decoration-dotted underline-offset-2 hover:text-[var(--color-primary-600)]" title={t('pos.salespersonPick')} onclick={openSalesperson}>{salesperson?.name ?? t('pos.salespersonNone')}</button>
+          </div>
         </dl>
         <div class="flex gap-2 pt-1">
           <button type="button" class="btn btn-primary btn-sm" disabled title={t('pos.soon')}>{t('pos.pendingReceipt')}</button>
@@ -969,6 +1017,22 @@
     onclose={() => (editing = null)}
     onapply={(patch, ap, pin) => applyChange(ei, patch, ap, pin)}
   />
+{/if}
+
+{#if outletAsk}
+  <OutletApprovalModal outletId={outletAsk.id} outletName={outletAsk.name} onclose={cancelOutletAsk} onapprove={approveSwitch} />
+{/if}
+
+{#if pickingSalesperson}
+  <Modal title={t('pos.salespersonPick')} onclose={() => (pickingSalesperson = false)}>
+    <div class="space-y-3">
+      <Combobox bind:value={spValue} bind:label={spLabel} search={salespeopleLookup.search} placeholder={t('pos.salespersonNone')} />
+      <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('pos.salespersonHint')}</p>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary !text-[12.5px]" onclick={applySalesperson}>{t('pos.salespersonDone')}</button>
+      </div>
+    </div>
+  </Modal>
 {/if}
 
 {#if pickingMember}

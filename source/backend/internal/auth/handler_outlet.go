@@ -6,11 +6,15 @@ import (
 
 	"github.com/google/uuid"
 
+	"aciraba/internal/approval"
 	"aciraba/internal/platform/httpx"
 )
 
 type switchRequest struct {
 	OutletID string `json:"outlet_id"`
+	// POS=true: dari layar kasir → wajib persetujuan PIN Owner/Supervisor (kecuali pelaku sendiri penyetuju).
+	POS      bool        `json:"pos"`
+	Approval *ApprovalIn `json:"approval"`
 }
 
 // SwitchOutlet memindahkan sesi ke outlet lain dan mengembalikan token akses baru (cookie refresh tidak berubah).
@@ -29,7 +33,10 @@ func (h *Handler) SwitchOutlet(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnauthorized, "SESSION_INVALID", "Sesi tidak ditemukan.")
 		return
 	}
-	sess, err := h.svc.SwitchOutlet(r.Context(), actor(r), c.Value, outletID)
+	sess, err := h.svc.SwitchOutletWith(r.Context(), actor(r), c.Value, outletID, SwitchOpts{POS: req.POS, Approval: req.Approval})
+	if approval.Fail(w, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, ErrInvalidSession):
 		httpx.Error(w, http.StatusUnauthorized, "SESSION_INVALID", "Sesi tidak valid. Silakan masuk kembali.")

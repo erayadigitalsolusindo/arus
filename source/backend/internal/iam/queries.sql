@@ -67,3 +67,7 @@ DELETE FROM user_outlets WHERE tenant_id = $1 AND user_id = $2;
 
 -- name: IamAssignUserOutlet :exec
 INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;
+
+-- name: IamMarkEmailVerified :execrows
+-- Verifikasi manual oleh admin; tidak menimpa waktu verifikasi yang sudah ada.
+UPDATE users SET email_verified_at = now() WHERE tenant_id = $1 AND id = $2 AND email_verified_at IS NULL;

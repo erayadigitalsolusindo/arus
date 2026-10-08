@@ -65,8 +65,10 @@ export function markEmailVerified() {
 }
 
 /** Pindah outlet: token akses baru dengan outlet baru; cookie refresh tidak berubah. */
-export async function switchOutlet(outletId: string) {
-  const res = await api<AuthResponse>('/auth/switch-outlet', { method: 'POST', headers: CSRF_HEADERS, body: JSON.stringify({ outlet_id: outletId }) });
+/** `pos` = pindah dari layar kasir: server mewajibkan `approval` (PIN Owner/Supervisor) kecuali pelaku sendiri penyetuju. */
+export async function switchOutlet(outletId: string, pos?: { approval?: { user_id: string; pin: string } }) {
+  const body = pos ? { outlet_id: outletId, pos: true, approval: pos.approval } : { outlet_id: outletId };
+  const res = await api<AuthResponse>('/auth/switch-outlet', { method: 'POST', headers: CSRF_HEADERS, body: JSON.stringify(body) });
   setAccessToken(res.access_token);
   apply(res);
 }
@@ -134,16 +136,28 @@ export function bootstrap(): Promise<void> {
   return booting;
 }
 
-/** Penjaga route publik (login/register): pengguna yang sudah masuk diarahkan ke dasbor. */
+/**
+ * Mode "Hanya Kasir": role yang diberi izin eksplisit `pos_only` (Owner `*` tidak pernah terkunci) dan bisa membuat nota
+ * hanya melihat layar kasir. Ini pengunci tampilan; yang membatasi data tetap izin role di server.
+ */
+export function posOnly(): boolean {
+  const p = session.permissions;
+  return p['*'] !== true && Array.isArray(p.pos_only) && p.pos_only.includes('view') && can('sales_orders', 'create');
+}
+
+/** Halaman awal setelah masuk: layar kasir untuk akun "Hanya Kasir", selain itu dasbor. */
+export const homePath = () => (posOnly() ? '/kasir' : '/dashboard');
+
+/** Penjaga route publik (login/register): pengguna yang sudah masuk diarahkan ke halaman awalnya. */
 export async function guestOnly() {
   await bootstrap();
-  if (session.status === 'authed') redirect(307, '/dashboard');
+  if (session.status === 'authed') redirect(307, homePath());
 }
 
 /** Penjaga halaman yang butuh izin lihat suatu modul: tanpa izin diarahkan ke dasbor. */
 export async function requirePermission(module: string, action = 'view') {
   await requireSession();
-  if (!can(module, action)) redirect(307, '/dashboard');
+  if (!can(module, action)) redirect(307, homePath());
 }
 
 /** Penjaga route aplikasi: pengguna yang belum masuk diarahkan ke login. */

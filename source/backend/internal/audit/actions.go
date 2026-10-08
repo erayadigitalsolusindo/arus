@@ -22,6 +22,7 @@ const (
 	ActionUserCreate        = "user.create"
 	ActionUserUpdate        = "user.update"
 	ActionUserPasswordReset = "user.password_reset"
+	ActionUserEmailVerify   = "user.email_verify"
 	ActionRoleCreate        = "role.create"
 	ActionRoleUpdate        = "role.update"
 	ActionRoleDelete        = "role.delete"
@@ -41,11 +42,12 @@ const (
 
 // Master pendukung katalog (Fase 3.1). Aksi `<entitas>.active` = arsip/aktifkan kembali.
 const (
-	EntityUnit      = "unit"
-	EntityCategory  = "category"
-	EntityBrand     = "brand"
-	EntityPrincipal = "principal"
-	EntitySupplier  = "supplier"
+	EntityUnit        = "unit"
+	EntityCategory    = "category"
+	EntityBrand       = "brand"
+	EntityPrincipal   = "principal"
+	EntitySupplier    = "supplier"
+	EntitySalesperson = "salesperson"
 
 	ActionUnitCreate = "unit.create"
 	ActionUnitUpdate = "unit.update"
@@ -66,6 +68,10 @@ const (
 	ActionSupplierCreate = "supplier.create"
 	ActionSupplierUpdate = "supplier.update"
 	ActionSupplierActive = "supplier.active"
+
+	ActionSalespersonCreate = "salesperson.create"
+	ActionSalespersonUpdate = "salesperson.update"
+	ActionSalespersonActive = "salesperson.active"
 )
 
 // Daftar item (Fase 3.2). `item.price` mencatat perubahan harga jual (default/cabang) terpisah dari `item.update`.

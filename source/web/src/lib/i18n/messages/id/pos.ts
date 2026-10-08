@@ -2,6 +2,7 @@
 export default {
   docTitle: 'Kasir | ACIRABA',
   back: 'Kembali ke dasbor',
+  logout: 'Keluar',
   toggleTheme: 'Ganti tema',
   fullscreen: 'Layar penuh',
   info: 'Informasi outlet',
@@ -14,6 +15,9 @@ export default {
   cashier: 'Kasir',
   salesperson: 'Salesman',
   salespersonNone: 'Salesman Umum',
+  salespersonPick: 'Pilih salesman',
+  salespersonHint: 'Kosongkan untuk Salesman Umum.',
+  salespersonDone: 'Selesai',
   pendingReceipt: 'Nota Pending',
   cashDrawer: 'Arus Kas',
   shortcuts: {
@@ -119,10 +123,17 @@ export default {
     unitTotal: 'Rp total baris',
     reset: 'Kembalikan harga normal'
   },
+  outletApproval: {
+    title: 'Pindah outlet',
+    body: 'Pindah outlet dari kasir butuh persetujuan Owner/Supervisor dengan PIN-nya. Keranjang akan dikosongkan.',
+    target: 'Outlet tujuan',
+    noApprovers: 'Belum ada Owner/Supervisor ber-PIN yang boleh menyetujui pindah ke outlet ini. Atur izin & PIN-nya terlebih dahulu.',
+    apply: 'Setujui & Pindah'
+  },
   pinPage: {
     docTitle: 'PIN Penyetuju | ACIRABA',
     title: 'PIN Penyetuju',
-    subtitle: 'PIN 6 digit dipakai untuk menyetujui ubah harga di kasir. Rahasiakan; jangan dibagikan ke kasir.',
+    subtitle: 'PIN 6 digit dipakai untuk menyetujui ubah harga dan pindah outlet di kasir. Rahasiakan; jangan dibagikan ke kasir.',
     status: { set: 'PIN sudah diatur. Anda dapat menggantinya di bawah.', unset: 'PIN belum diatur — Anda belum bisa menyetujui ubah harga.' },
     password: 'Password akun (konfirmasi)',
     pin: 'PIN baru (6 digit)',
