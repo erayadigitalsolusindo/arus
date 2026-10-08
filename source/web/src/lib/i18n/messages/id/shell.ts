@@ -27,6 +27,8 @@ export default {
   settings: 'Pengaturan',
   signOut: 'Keluar',
   currentOutlet: 'Outlet Sekarang',
+  allOutlets: 'Semua Cabang',
+  allOutletsShort: 'semua',
   switchOutlet: 'Mau Pindah Outlet ?',
   server: {
     checking: 'Memeriksa server…',

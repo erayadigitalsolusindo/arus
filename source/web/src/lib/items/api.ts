@@ -66,13 +66,19 @@ export type Row = {
   category: string;
   brand: string;
   price: string;
+  /** Hanya mode semua cabang: price = termurah, price_max = termahal. */
+  price_max?: string;
   price_override: boolean;
+  /** Rincian per cabang (hanya mode semua cabang). */
+  outlets?: { outlet_id: string; code: string; name: string; price: string; stock: StockQty }[];
   /** Harga rata (HPP rata-rata) dan harga beli akhir. */
   avg_cost: string;
   last_cost: string;
   main_image_id: string | null;
-  stock: { display: string; warehouse: string; returns: string; total: string };
+  stock: StockQty;
 };
+
+export type StockQty = { display: string; warehouse: string; returns: string; total: string };
 
 export type ItemInput = {
   sku: string;
@@ -115,13 +121,14 @@ export type BarcodeMatch = {
   price: string;
 };
 
-export type ListQuery = { q?: string; active?: boolean; category_id?: string; limit?: number; offset?: number };
+export type ListQuery = { q?: string; active?: boolean; category_id?: string; allOutlets?: boolean; limit?: number; offset?: number };
 
 function qs(p: ListQuery): string {
   const s = new URLSearchParams();
   if (p.q) s.set('q', p.q);
   if (p.active !== undefined) s.set('active', String(p.active));
   if (p.category_id) s.set('category_id', p.category_id);
+  if (p.allOutlets) s.set('outlet', 'all');
   if (p.limit) s.set('limit', String(p.limit));
   if (p.offset) s.set('offset', String(p.offset));
   const out = s.toString();

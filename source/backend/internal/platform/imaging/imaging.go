@@ -8,6 +8,7 @@ package imaging
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -47,6 +48,21 @@ type Result struct {
 	Full          []byte
 	Thumb         []byte
 	Width, Height int
+}
+
+// slots membatasi pemrosesan gambar (CPU + memori decode besar) menjadi dua sekaligus untuk SELURUH aplikasi,
+// apa pun modul pemanggilnya (item, member, ...).
+var slots = make(chan struct{}, 2)
+
+// ProcessLimited = Process dengan antrean global: menunggu giliran (atau batal bila ctx selesai).
+func ProcessLimited(ctx context.Context, r io.Reader, maxBytes int64) (*Result, error) {
+	select {
+	case slots <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-slots }()
+	return Process(r, maxBytes)
 }
 
 // Process membaca maksimal maxBytes dari r. Mengembalikan ErrTooLarge bila lebih besar.

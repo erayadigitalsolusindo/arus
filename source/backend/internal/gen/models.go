@@ -121,6 +121,63 @@ type ItemWholesaleTier struct {
 	Price    decimal.Decimal
 }
 
+type Member struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	Code           string
+	Name           string
+	Gender         string
+	Phone          string
+	Email          string
+	Address        string
+	District       string
+	City           string
+	Province       string
+	PostalCode     string
+	CreditLimit    decimal.Decimal
+	DueDays        int32
+	ValidUntil     pgtype.Date
+	Active         bool
+	Notes          string
+	CoverImageID   pgtype.UUID
+	Points         int32
+	LifetimePoints int32
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type MemberCounter struct {
+	TenantID uuid.UUID
+	LastNo   int64
+}
+
+type MemberLevel struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Name          string
+	MinPoints     int32
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type MemberPointMovement struct {
+	ID            int64
+	TenantID      uuid.UUID
+	MemberID      uuid.UUID
+	Kind          string
+	Points        int32
+	LifetimeDelta int32
+	BalanceAfter  int32
+	RefType       string
+	RefID         pgtype.UUID
+	Note          string
+	ActorID       pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Outlet struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -171,6 +228,14 @@ type PlatformRecoveryCode struct {
 	UsedAt   pgtype.Timestamptz
 }
 
+type PosShortcut struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	Slot      int16
+	ItemID    uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Principal struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -212,6 +277,10 @@ type Sale struct {
 	Change         decimal.Decimal
 	CreatedAt      pgtype.Timestamptz
 	ApprovedBy     pgtype.UUID
+	MemberID       pgtype.UUID
+	PointsEarned   int32
+	PointsRedeemed int32
+	RedeemAmount   decimal.Decimal
 }
 
 type SaleCounter struct {
@@ -259,6 +328,32 @@ type StockBalance struct {
 	Bucket    string
 	Qty       decimal.Decimal
 	UpdatedAt pgtype.Timestamptz
+}
+
+type StockConversion struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromItemID     uuid.UUID
+	FromQty        decimal.Decimal
+	ToItemID       uuid.UUID
+	ToQty          decimal.Decimal
+	FromUnitCost   decimal.Decimal
+	ToUnitCost     decimal.Decimal
+	CostApplied    bool
+	Note           string
+	ActorID        pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
+type StockConversionCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
 }
 
 type StockMovement struct {

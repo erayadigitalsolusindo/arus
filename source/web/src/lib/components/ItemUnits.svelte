@@ -9,6 +9,7 @@
   import { lookup } from '#lib/catalog/api.ts';
   import { t } from '#lib/i18n/index.ts';
   import Combobox from '#lib/components/Combobox.svelte';
+  import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   let { rows = $bindable([]), baseUnit = '', readOnly = false }: { rows?: UnitRow[]; baseUnit?: string; readOnly?: boolean } = $props();
 
@@ -35,7 +36,7 @@
         </div>
         <div>
           <label for="u-factor-{i}" class={label}>{t('items.units.factor')}</label>
-          <input id="u-factor-{i}" class={cell} bind:value={row.factor} inputmode="decimal" placeholder="12" disabled={readOnly} />
+          <MoneyInput id="u-factor-{i}" class={cell} bind:value={row.factor} decimals={6} pad={false} placeholder="12" disabled={readOnly} />
         </div>
         <div>
           <label for="u-barcode-{i}" class={label}>{t('items.units.barcode')}</label>
@@ -43,7 +44,7 @@
         </div>
         <div>
           <label for="u-price-{i}" class={label}>{t('items.units.price')}</label>
-          <input id="u-price-{i}" class={cell} bind:value={row.price} inputmode="decimal" placeholder={t('items.units.pricePlaceholder')} disabled={readOnly} />
+          <MoneyInput id="u-price-{i}" class={cell} bind:value={row.price} placeholder={t('items.units.pricePlaceholder')} disabled={readOnly} />
         </div>
       </div>
       <div class="flex items-center justify-between gap-2 text-[11.5px] text-[var(--text-tertiary)]">

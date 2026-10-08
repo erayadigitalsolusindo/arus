@@ -21,6 +21,8 @@ export function tabMeta(path: string): TabMeta | null {
   if (hit) return hit;
   if (path === '/items/new') return { titleKey: 'items.newTitle', module: 'items' };
   if (/^\/items\/[^/]+$/.test(path)) return { titleKey: 'items.editTitle', module: 'items' };
+  if (path === '/members/new') return { titleKey: 'members.newTitle', module: 'members' };
+  if (/^\/members\/[^/]+$/.test(path)) return { titleKey: 'members.editTitle', module: 'members' };
   return null;
 }
 

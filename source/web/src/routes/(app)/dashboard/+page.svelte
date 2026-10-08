@@ -74,6 +74,6 @@
 </main>
 
 <footer class="px-4 lg:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] border-t text-[var(--text-tertiary)] bg-[var(--surface-card)] border-[var(--border-subtle)]">
-  <span>© {new Date().getFullYear()} ACIRABA NewGen</span>
+  <span>© {new Date().getFullYear()} ARUS</span>
   <span>{t('dashboard.devVersion')}</span>
 </footer>
