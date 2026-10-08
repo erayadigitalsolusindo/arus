@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   // Form tambah/ubah item (satu komponen untuk halaman /items/new dan /items/[id]).
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/item).
   import { goto } from '$app/navigation';
@@ -500,10 +501,7 @@
         <h3 class="font-display font-bold text-[14px]">{t('items.section.settings')}</h3>
         <div>
           <label for="i-kind" class={labelClass}>{t('items.field.kind')}</label>
-          <select id="i-kind" class={inputClass} bind:value={kind} disabled={!canWrite}>
-            <option value="goods">{t('items.field.kindGoods')}</option>
-            <option value="service">{t('items.field.kindService')}</option>
-          </select>
+          <Select id="i-kind" bind:value={kind} disabled={!canWrite} options={[{ value: 'goods', label: t('items.field.kindGoods') }, { value: 'service', label: t('items.field.kindService') }]} />
         </div>
         <label class="flex items-start gap-2 text-[12.5px]">
           <input type="checkbox" class="mt-0.5" bind:checked={allowNegative} disabled={!canWrite} />

@@ -81,7 +81,8 @@ const errors: Messages['errors'] = {
   FIELD_MEMBER_REQUIRED: 'Choose a member first.',
   FIELD_MEMBER_INACTIVE: 'The member is inactive or expired.',
   FIELD_REDEEM_NOT_ALLOWED: 'This member level cannot redeem points.',
-  FIELD_REDEEM_TOO_HIGH: 'The points value exceeds the purchase amount.'
+  FIELD_REDEEM_TOO_HIGH: 'The points value exceeds the purchase amount.',
+  FIELD_REDEEM_BELOW_COST: 'Redeeming this many points would price the sale below cost. Use fewer points.'
 };
 
 export default errors;

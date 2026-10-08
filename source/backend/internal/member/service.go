@@ -143,7 +143,8 @@ type Input struct {
 	DueDays     string
 	ValidUntil  string
 	Notes       string
-	Active      bool
+	// Active nil: member baru = aktif; ubah = status tidak berubah (tidak mengaktifkan kembali member terarsip).
+	Active *bool
 }
 
 type ListParams struct {
@@ -158,7 +159,7 @@ type clean struct {
 	credit                                                                             decimal.Decimal
 	dueDays                                                                            int32
 	validUntil                                                                         pgtype.Date
-	active                                                                             bool
+	active                                                                             *bool
 }
 
 // ---- validasi ----
@@ -326,6 +327,34 @@ func mapWriteErr(err error) error {
 	return err
 }
 
+// phoneQuery mengubah teks pencarian yang mirip nomor telepon ("0812-345", "62812", "+62 812") menjadi bentuk yang
+// tersimpan (+62…), karena nomor disimpan ternormalisasi oleh sanitize.Phone. "" bila teks bukan nomor.
+func phoneQuery(q string) string {
+	var b strings.Builder
+	for i, r := range q {
+		switch {
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '+' && i == 0:
+			b.WriteRune(r)
+		case r == ' ' || r == '-' || r == '.' || r == '(' || r == ')':
+		default:
+			return ""
+		}
+	}
+	s := b.String()
+	if len(strings.TrimPrefix(s, "+")) < 3 {
+		return ""
+	}
+	switch {
+	case strings.HasPrefix(s, "0"):
+		return "+62" + s[1:]
+	case strings.HasPrefix(s, "62"):
+		return "+" + s
+	}
+	return s
+}
+
 func likeEscape(s string) string {
 	return strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(s)
 }
@@ -341,7 +370,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 	if limit <= 0 {
 		limit = defLimit
 	}
-	arg := gen.MemberListParams{TenantID: a.TenantID, Q: likeEscape(q), PageLimit: int32(min(limit, maxLimit)), PageOffset: int32(max(p.Offset, 0))}
+	arg := gen.MemberListParams{TenantID: a.TenantID, Q: likeEscape(q), QPhone: phoneQuery(q), PageLimit: int32(min(limit, maxLimit)), PageOffset: int32(max(p.Offset, 0))}
 	if p.Active != nil {
 		arg.Active = pgtype.Bool{Bool: *p.Active, Valid: true}
 	}
@@ -408,7 +437,7 @@ func (s *Service) Lookup(ctx context.Context, a authz.Actor, rawQ string) ([]Loo
 		if err != nil {
 			return err
 		}
-		rows, err := qr.MemberLookup(ctx, gen.MemberLookupParams{TenantID: a.TenantID, Q: likeEscape(q), LocalDay: day})
+		rows, err := qr.MemberLookup(ctx, gen.MemberLookupParams{TenantID: a.TenantID, Q: likeEscape(q), QPhone: phoneQuery(q), LocalDay: day})
 		for _, r := range rows {
 			out = append(out, LookupRow{ID: r.ID, Code: r.Code, Name: r.Name, Phone: r.Phone, Points: int(r.Points),
 				LifetimePoints: int(r.LifetimePoints), Level: r.LevelName, CoverImageID: uuidPtr(r.CoverImageID), SpendPerPoint: r.SpendPerPoint.StringFixed(2), PointValue: r.PointValue.StringFixed(2)})
@@ -456,7 +485,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Member,
 		}
 		id, err := q.MemberCreate(ctx, gen.MemberCreateParams{TenantID: a.TenantID, Code: code, Name: c.name, Gender: c.gender, Phone: c.phone,
 			Email: c.email, Address: c.address, District: c.district, City: c.city, Province: c.province, PostalCode: c.postal,
-			CreditLimit: c.credit, DueDays: c.dueDays, ValidUntil: c.validUntil, Notes: c.notes, Active: c.active})
+			CreditLimit: c.credit, DueDays: c.dueDays, ValidUntil: c.validUntil, Notes: c.notes, Active: c.active == nil || *c.active})
 		if err != nil {
 			return err
 		}
@@ -485,9 +514,13 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		if err != nil {
 			return err
 		}
+		active := cur.Active
+		if c.active != nil {
+			active = *c.active
+		}
 		if err := q.MemberUpdate(ctx, gen.MemberUpdateParams{TenantID: a.TenantID, ID: id, Code: c.code, Name: c.name, Gender: c.gender, Phone: c.phone,
 			Email: c.email, Address: c.address, District: c.district, City: c.city, Province: c.province, PostalCode: c.postal,
-			CreditLimit: c.credit, DueDays: c.dueDays, ValidUntil: c.validUntil, Notes: c.notes, Active: c.active}); err != nil {
+			CreditLimit: c.credit, DueDays: c.dueDays, ValidUntil: c.validUntil, Notes: c.notes, Active: active}); err != nil {
 			return err
 		}
 		before, after := map[string]any{}, map[string]any{}
@@ -515,7 +548,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		diff("credit_limit", cur.CreditLimit.StringFixed(2), c.credit.StringFixed(2))
 		diff("due_days", cur.DueDays, c.dueDays)
 		diff("valid_until", ds(cur.ValidUntil), ds(c.validUntil))
-		diff("active", cur.Active, c.active)
+		diff("active", cur.Active, active)
 		diff("notes", cur.Notes, c.notes)
 		if len(before) > 0 {
 			act := audit.ActionMemberUpdate

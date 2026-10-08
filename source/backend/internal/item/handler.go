@@ -152,10 +152,10 @@ func pathID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	return id, true
 }
 
-// List: ?q=&active=true|false&category_id=&limit=&offset= (active kosong = semua).
+// List: ?q=&active=true|false&category_id=&outlet=all&limit=&offset= (active kosong = semua).
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
-	p := ListParams{Q: qs.Get("q"), CategoryID: qs.Get("category_id")}
+	p := ListParams{Q: qs.Get("q"), CategoryID: qs.Get("category_id"), AllOutlets: qs.Get("outlet") == "all"}
 	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
 	p.Offset, _ = strconv.Atoi(qs.Get("offset"))
 	switch qs.Get("active") {

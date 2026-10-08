@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Select from '#lib/components/Select.svelte';
   // Form tambah/ubah member (satu komponen untuk /members/new dan /members/[id]). Tata letak mengikuti halaman member
   // legacy: cover foto di atas, empat kartu ringkasan, lalu kartu "Informasi" bertab (Biodata / Pengaturan / Poin).
   // Validasi di sini hanya untuk umpan balik cepat; server memvalidasi ulang semuanya (backend/internal/member).
@@ -434,11 +435,7 @@
           </div>
           <div>
             <label for="m-gender" class={labelClass}>{t('members.field.gender')}</label>
-            <select id="m-gender" class={inputClass} bind:value={gender} disabled={!canWrite}>
-              <option value="">{t('members.field.genderNone')}</option>
-              <option value="M">{t('members.field.genderM')}</option>
-              <option value="F">{t('members.field.genderF')}</option>
-            </select>
+            <Select id="m-gender" bind:value={gender} disabled={!canWrite} options={[{ value: '', label: t('members.field.genderNone') }, { value: 'M', label: t('members.field.genderM') }, { value: 'F', label: t('members.field.genderF') }]} />
           </div>
           <div>
             <label for="m-phone" class={labelClass}>{t('members.field.phone')}</label>

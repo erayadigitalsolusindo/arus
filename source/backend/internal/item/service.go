@@ -99,23 +99,36 @@ type Item struct {
 
 // Row = baris daftar item. Price = harga efektif untuk outlet aktif sesi (harga cabang bila ada, selain itu default).
 type Row struct {
-	ID            uuid.UUID  `json:"id"`
-	SKU           string     `json:"sku"`
-	Barcode       string     `json:"barcode"`
-	Origin        string     `json:"origin"`
-	Name          string     `json:"name"`
-	Kind          string     `json:"kind"`
-	Active        bool       `json:"active"`
-	Unit          string     `json:"unit"`
-	Category      string     `json:"category"`
-	Brand         string     `json:"brand"`
-	Price         string     `json:"price"`
+	ID       uuid.UUID `json:"id"`
+	SKU      string    `json:"sku"`
+	Barcode  string    `json:"barcode"`
+	Origin   string    `json:"origin"`
+	Name     string    `json:"name"`
+	Kind     string    `json:"kind"`
+	Active   bool      `json:"active"`
+	Unit     string    `json:"unit"`
+	Category string    `json:"category"`
+	Brand    string    `json:"brand"`
+	Price    string    `json:"price"`
+	// PriceMax terisi hanya pada mode semua cabang: Price = termurah, PriceMax = termahal antar cabang (sama bila seragam).
+	PriceMax      string     `json:"price_max,omitempty"`
 	PriceOverride bool       `json:"price_override"`
 	AvgCost       string     `json:"avg_cost"`  // Harga rata (HPP rata-rata)
 	LastCost      string     `json:"last_cost"` // Harga beli akhir
 	MainImageID   *uuid.UUID `json:"main_image_id"`
 	// Stok outlet aktif sesi per bucket, dalam satuan dasar. Item jasa tidak punya stok (klien menampilkan "-").
 	Stock StockQty `json:"stock"`
+	// Outlets = rincian per cabang (hanya mode semua cabang).
+	Outlets []OutletRow `json:"outlets,omitempty"`
+}
+
+// OutletRow = stok dan harga jual efektif satu item di satu cabang.
+type OutletRow struct {
+	OutletID uuid.UUID `json:"outlet_id"`
+	Code     string    `json:"code"`
+	Name     string    `json:"name"`
+	Price    string    `json:"price"`
+	Stock    StockQty  `json:"stock"`
 }
 
 // StockQty = stok satu item per bucket (string desimal).
@@ -164,6 +177,8 @@ type ListParams struct {
 	Q          string
 	Active     *bool
 	CategoryID string
+	// AllOutlets = stok dijumlahkan atas semua outlet yang boleh diakses pemanggil + rincian per cabang (bukan hanya outlet aktif).
+	AllOutlets bool
 	Limit      int
 	Offset     int
 }
@@ -407,8 +422,15 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 	if limit <= 0 {
 		limit = defLimit
 	}
+	outletIDs := []uuid.UUID{a.OutletID}
+	if p.AllOutlets && len(a.Outlets) > 0 {
+		outletIDs = outletIDs[:0]
+		for id := range a.Outlets {
+			outletIDs = append(outletIDs, id)
+		}
+	}
 	arg := gen.ItemListParams{
-		TenantID: a.TenantID, OutletID: a.OutletID, Q: likeEscape(q), CategoryID: nz(cat),
+		TenantID: a.TenantID, OutletID: a.OutletID, OutletIds: outletIDs, Q: likeEscape(q), CategoryID: nz(cat),
 		PageLimit: int32(min(limit, maxLimit)), PageOffset: int32(max(p.Offset, 0)),
 	}
 	if p.Active != nil {
@@ -431,9 +453,49 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Row,
 					Total: r.StockDisplay.Add(r.StockWarehouse).Add(r.StockReturns).String()}})
 			total = int(r.Total)
 		}
-		return err
+		if err != nil || !p.AllOutlets || len(out) == 0 {
+			return err
+		}
+		return fillBreakdown(ctx, gen.New(tx), a.TenantID, outletIDs, out)
 	})
 	return out, total, err
+}
+
+// fillBreakdown mengisi rincian per cabang pada mode semua cabang; harga baris menjadi rentang termurah–termahal.
+func fillBreakdown(ctx context.Context, q *gen.Queries, tenantID uuid.UUID, outletIDs []uuid.UUID, rows []Row) error {
+	ids := make([]uuid.UUID, len(rows))
+	idx := make(map[uuid.UUID]int, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+		idx[r.ID] = i
+	}
+	bd, err := q.ItemOutletBreakdown(ctx, gen.ItemOutletBreakdownParams{TenantID: tenantID, ItemIds: ids, OutletIds: outletIDs})
+	if err != nil {
+		return err
+	}
+	lo := make([]decimal.Decimal, len(rows))
+	hi := make([]decimal.Decimal, len(rows))
+	seen := make([]bool, len(rows))
+	for _, b := range bd {
+		i := idx[b.ItemID]
+		rows[i].Outlets = append(rows[i].Outlets, OutletRow{OutletID: b.OutletID, Code: b.OutletCode, Name: b.OutletName,
+			Price: b.Price.StringFixed(2),
+			Stock: StockQty{Display: b.StockDisplay.String(), Warehouse: b.StockWarehouse.String(), Returns: b.StockReturns.String(),
+				Total: b.StockDisplay.Add(b.StockWarehouse).Add(b.StockReturns).String()}})
+		if !seen[i] || b.Price.LessThan(lo[i]) {
+			lo[i] = b.Price
+		}
+		if !seen[i] || b.Price.GreaterThan(hi[i]) {
+			hi[i] = b.Price
+		}
+		seen[i] = true
+	}
+	for i := range rows {
+		if seen[i] {
+			rows[i].Price, rows[i].PriceMax, rows[i].PriceOverride = lo[i].StringFixed(2), hi[i].StringFixed(2), false
+		}
+	}
+	return nil
 }
 
 // likeEscape membuat input pengguna dicocokkan apa adanya oleh ILIKE (karakter % _ \ tidak jadi wildcard).

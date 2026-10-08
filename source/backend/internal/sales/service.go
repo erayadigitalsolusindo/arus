@@ -63,6 +63,7 @@ const (
 	codePointsInsufficient = "POINTS_INSUFFICIENT"
 	codeRedeemNotAllowed   = "REDEEM_NOT_ALLOWED"
 	codeRedeemTooHigh      = "REDEEM_TOO_HIGH"
+	codeRedeemBelowCost    = "REDEEM_BELOW_COST"
 )
 
 const maxRedeem = 10_000_000
@@ -996,6 +997,17 @@ func resolveMember(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, localD
 		var fe FieldErrors
 		if lines, t, fe = price(n, infos, taxStorePct, taxGovPct); len(fe) > 0 {
 			return mc, nil, t, fe, nil
+		}
+		// Potongan dari poin tidak boleh membuat nota di bawah HPP barang (kecuali barang boleh jual rugi): tukar poin tidak
+		// memakai persetujuan PIN seperti ubah harga, jadi batas HPP harus dijaga di sini.
+		costFloor := decimal.Zero
+		for _, l := range lines {
+			if !l.item.row.SellBelowCost {
+				costFloor = costFloor.Add(l.unitCost.Mul(l.qty).Round(2))
+			}
+		}
+		if t.subtotal.Sub(t.discount).LessThan(costFloor) {
+			return mc, lines, t, FieldErrors{"redeem_points": codeRedeemBelowCost}, nil
 		}
 		mc.redeemAmt = amt
 	}

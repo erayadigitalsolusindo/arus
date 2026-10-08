@@ -1,12 +1,22 @@
 -- ===== Level member =====
 
 -- name: MemberLevelList :many
-SELECT id, name, min_points, spend_per_point, point_value, active, created_at,
-       (SELECT count(*) FROM members m WHERE m.tenant_id = l.tenant_id AND m.active
-          AND m.lifetime_points >= l.min_points
-          AND NOT EXISTS (SELECT 1 FROM member_levels h WHERE h.tenant_id = l.tenant_id AND h.active
-                            AND h.min_points > l.min_points AND h.min_points <= m.lifetime_points))::bigint AS member_count
+-- member_count = member aktif yang saat ini berada di level itu (level tiap member ditetapkan sekali lewat LATERAL,
+-- lalu diagregasi; tidak ada subquery berkorelasi per level).
+SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value, l.active, l.created_at,
+       coalesce(c.n, 0)::bigint AS member_count
 FROM member_levels l
+LEFT JOIN (
+    SELECT lv.id, count(*) AS n
+    FROM members m
+    JOIN LATERAL (
+        SELECT h.id FROM member_levels h
+        WHERE h.tenant_id = m.tenant_id AND h.active AND h.min_points <= m.lifetime_points
+        ORDER BY h.min_points DESC LIMIT 1
+    ) lv ON true
+    WHERE m.tenant_id = @tenant_id AND m.active
+    GROUP BY lv.id
+) c ON c.id = l.id
 WHERE l.tenant_id = @tenant_id AND (sqlc.narg('active')::boolean IS NULL OR l.active = sqlc.narg('active'))
 ORDER BY l.min_points;
 
@@ -49,7 +59,8 @@ LEFT JOIN LATERAL (
     ORDER BY l.min_points DESC LIMIT 1
 ) lv ON true
 WHERE m.tenant_id = @tenant_id
-  AND (@q::text = '' OR m.name ILIKE '%' || @q || '%' OR m.code ILIKE '%' || @q || '%' OR m.phone ILIKE '%' || @q || '%')
+  AND (@q::text = '' OR m.name ILIKE '%' || @q || '%' OR m.code ILIKE '%' || @q || '%' OR m.phone ILIKE '%' || @q || '%'
+       OR (@q_phone::text <> '' AND m.phone ILIKE '%' || @q_phone || '%'))
   AND (sqlc.narg('active')::boolean IS NULL OR m.active = sqlc.narg('active'))
 ORDER BY lower(m.name), m.id
 LIMIT @page_limit OFFSET @page_offset;
@@ -112,8 +123,9 @@ LEFT JOIN LATERAL (
     ORDER BY l.min_points DESC LIMIT 1
 ) lv ON true
 WHERE m.tenant_id = @tenant_id AND m.active AND (m.valid_until IS NULL OR m.valid_until >= @local_day::date)
-  AND (@q::text = '' OR m.name ILIKE '%' || @q || '%' OR m.code ILIKE '%' || @q || '%' OR m.phone ILIKE '%' || @q || '%')
-ORDER BY (lower(m.code) = lower(@q::text) OR m.phone = @q::text) DESC, lower(m.name), m.id
+  AND (@q::text = '' OR m.name ILIKE '%' || @q || '%' OR m.code ILIKE '%' || @q || '%' OR m.phone ILIKE '%' || @q || '%'
+       OR (@q_phone::text <> '' AND m.phone ILIKE '%' || @q_phone || '%'))
+ORDER BY (lower(m.code) = lower(@q::text) OR m.phone = @q::text OR (@q_phone::text <> '' AND m.phone = @q_phone::text)) DESC, lower(m.name), m.id
 LIMIT 20;
 
 -- name: MemberLockForSale :one
@@ -190,3 +202,6 @@ LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
 WHERE s.tenant_id = @tenant_id AND s.member_id = @member_id
 ORDER BY s.created_at DESC, s.id DESC
 LIMIT @page_limit OFFSET @page_offset;
+
+-- name: MemberExists :one
+SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND id = $2);
