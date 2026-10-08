@@ -1,7 +1,7 @@
 # Jalankan di laptop (PowerShell) dari folder source/deploy/aapanel:  .\build-release.ps1
 # Hasil: release.tar.gz (binary Linux + migration + web statis). Unggah ke server lalu jalankan update.sh.
 $ErrorActionPreference = 'Stop'
-$ApiUrl = 'https://api.arus.erayadigital.co.id'
+$ApiUrl = 'https://arus-api.erayadigital.co.id'
 $root = Resolve-Path "$PSScriptRoot\..\.."
 $out  = Join-Path $PSScriptRoot 'release'
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue

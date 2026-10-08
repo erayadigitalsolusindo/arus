@@ -1,17 +1,17 @@
 # Deploy ACIRABA di aaPanel (VPS sendiri)
 
-Domain: **web** `arus.erayadigital.co.id` · **API** `api.arus.erayadigital.co.id`
+Domain: **web** `arus.erayadigital.co.id` · **API** `arus-api.erayadigital.co.id`
 (dua nama di bawah satu domain induk = *same-site*, jadi cookie refresh `SameSite=Lax` berfungsi.)
 
 ```
 Browser ──https──► nginx aaPanel ─┬─ arus.…     → file statis /www/wwwroot/arus/web
-                                  └─ api.arus.… → 127.0.0.1:8080 (binary Go, Supervisor)
+                                  └─ arus-api.… → 127.0.0.1:8080 (binary Go, Supervisor)
                                                    ├─ 127.0.0.1:5433 Postgres 16 (Docker)
                                                    └─ 127.0.0.1:6380 Redis 7 (Docker)
 ```
 
 ## 0. Prasyarat (sekali)
-- DNS: record **A** `arus` dan `api.arus` (di zona `erayadigital.co.id`) → IP VPS. Tunggu propagasi sebelum minta SSL.
+- DNS: record **A** `arus` dan `arus-api` (di zona `erayadigital.co.id`) → IP VPS. Tunggu propagasi sebelum minta SSL.
 - aaPanel App Store: pasang **Nginx**, **Docker** (Docker Manager), **Supervisor**. PostgreSQL/Redis bawaan aaPanel **tidak dipakai**.
 - Firewall (aaPanel + panel penyedia VPS): buka hanya 80, 443, SSH, dan port panel. **Jangan buka 5433/6380.**
 - SMTP: siapkan akun pengirim (SPF/DKIM untuk `erayadigital.co.id`); API menolak start tanpa `SMTP_HOST`.
@@ -67,9 +67,9 @@ Cek log: tidak ada `konfigurasi tidak valid`. Tes: `curl http://127.0.0.1:8080/h
 Bila nama proses/perintah restart di aaPanel-mu berbeda, set `RESTART_CMD` saat menjalankan update.sh (default `supervisorctl restart arus-api`).
 
 ## 6. Situs di aaPanel
-1. **Website → Add site** `api.arus.erayadigital.co.id` (PHP: static/pure) → **SSL → Let's Encrypt** → Force HTTPS. Lalu *Config*: tempel isi `nginx-api.conf` di dalam blok `server { }`.
+1. **Website → Add site** `arus-api.erayadigital.co.id` (PHP: static/pure) → **SSL → Let's Encrypt** → Force HTTPS. Lalu *Config*: tempel isi `nginx-api.conf` di dalam blok `server { }`.
 2. **Add site** `arus.erayadigital.co.id`, root `/www/wwwroot/arus/web` → SSL + Force HTTPS → *Config*: tempel `nginx-web.conf`.
-3. Uji: `https://api.arus.erayadigital.co.id/healthz` dan buka `https://arus.erayadigital.co.id/login`; reload di `/items` (setelah login) tidak boleh 404.
+3. Uji: `https://arus-api.erayadigital.co.id/healthz` dan buka `https://arus.erayadigital.co.id/login`; reload di `/items` (setelah login) tidak boleh 404.
 
 ## 7. Admin platform pertama
 Buka `https://arus.erayadigital.co.id/platform/setup`, masukkan `PLATFORM_SETUP_TOKEN`, buat admin, daftarkan 2FA (wajib).
