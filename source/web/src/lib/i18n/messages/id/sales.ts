@@ -42,6 +42,8 @@ const sales = {
     override: '{count} baris harganya diubah (disetujui PIN)'
   },
   summary: {
+    fee: 'biaya {amount}',
+    surcharge: 'tagihan +{amount}',
     count: 'Jumlah nota',
     voided: '{count} dibatalkan',
     total: 'Total penjualan',
@@ -121,7 +123,7 @@ const sales = {
       earned: 'Poin diperoleh nota ini',
       lineDiscountItems: 'Potongan per baris'
     },
-    payments: { method: 'Metode', amount: 'Jumlah', ref: 'No. referensi', paid: 'Total diterima', change: 'Kembalian', net: 'Pembayaran bersih', empty: 'Tidak ada pembayaran.' },
+    payments: { method: 'Metode', amount: 'Jumlah', ref: 'No. referensi', paid: 'Total diterima', change: 'Kembalian', net: 'Pembayaran bersih', fee: 'Biaya {pct}%', feeFlat: 'Biaya', feeTotal: 'Biaya metode (ditanggung toko)', feeCustomer: 'Biaya ditagihkan ke pelanggan', surchargeTotal: 'Biaya tambahan (pelanggan)', charged: 'Total ditagih', received: 'Diterima toko setelah biaya', empty: 'Tidak ada pembayaran.' },
     stock: {
       intro: 'Dampak nota ini pada stok, dalam satuan dasar barang. Edit atau pembatalan nota akan tampil di sini sebagai gerakan baru.',
       time: 'Waktu',

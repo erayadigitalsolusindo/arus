@@ -134,8 +134,8 @@
     {#if Object.keys(summary.methods).length}
       <div class="flex flex-wrap items-center gap-2 text-[12px]">
         <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('sales.summary.methods')}</span>
-        {#each PAY_METHODS.filter((m) => summary?.methods[m] !== undefined) as m (m)}
-          <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1 font-medium"><i class="{METHOD_ICON[m]} text-[12px] text-[var(--text-tertiary)]"></i>{t(`sales.method.${m}`)}<span class="tabular-nums text-[var(--text-secondary)]">{money(summary.methods[m] ?? '0')}</span></span>
+        {#each summary.by_method as m (m.method_id)}
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1 font-medium"><i class="{METHOD_ICON[m.kind]} text-[12px] text-[var(--text-tertiary)]"></i>{m.name}<span class="tabular-nums text-[var(--text-secondary)]">{money(m.amount)}</span>{#if Number(m.fee) > 0}<span class="tabular-nums text-[var(--color-warning-600)]">· {t('sales.summary.fee', { amount: money(m.fee) })}</span>{/if}{#if Number(m.surcharge) > 0}<span class="tabular-nums text-[var(--color-success-600)]">· {t('sales.summary.surcharge', { amount: money(m.surcharge) })}</span>{/if}</span>
         {/each}
       </div>
     {/if}

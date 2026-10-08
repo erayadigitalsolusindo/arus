@@ -193,6 +193,20 @@ type Outlet struct {
 	OpsStartDate  pgtype.Date
 }
 
+type PaymentMethod struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Kind      string
+	IsSystem  bool
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	FeePct    decimal.Decimal
+	FeeFlat   decimal.Decimal
+	FeeBearer string
+}
+
 type PlatformAdmin struct {
 	ID               uuid.UUID
 	Email            string
@@ -292,6 +306,7 @@ type Sale struct {
 	VoidReason     pgtype.Text
 	VoidedAt       pgtype.Timestamptz
 	VoidedBy       pgtype.UUID
+	Surcharge      decimal.Decimal
 }
 
 type SaleCost struct {
@@ -331,13 +346,19 @@ type SaleLine struct {
 }
 
 type SalePayment struct {
-	ID       uuid.UUID
-	TenantID uuid.UUID
-	SaleID   uuid.UUID
-	Position int32
-	Method   string
-	Amount   decimal.Decimal
-	RefNo    string
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	SaleID     uuid.UUID
+	Position   int32
+	Method     string
+	Amount     decimal.Decimal
+	RefNo      string
+	MethodID   uuid.UUID
+	MethodName string
+	FeePct     decimal.Decimal
+	FeeFlat    decimal.Decimal
+	FeeAmount  decimal.Decimal
+	FeeBearer  string
 }
 
 type SaleVoucher struct {

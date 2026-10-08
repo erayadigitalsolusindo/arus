@@ -44,6 +44,8 @@ const sales: Messages['sales'] = {
     override: '{count} line(s) had the price changed (PIN-approved)'
   },
   summary: {
+    fee: 'fee {amount}',
+    surcharge: 'charged +{amount}',
     count: 'Receipts',
     voided: '{count} voided',
     total: 'Total sales',
@@ -123,7 +125,7 @@ const sales: Messages['sales'] = {
       earned: 'Points earned on this receipt',
       lineDiscountItems: 'Line discounts'
     },
-    payments: { method: 'Method', amount: 'Amount', ref: 'Reference no.', paid: 'Total received', change: 'Change', net: 'Net payment', empty: 'No payments.' },
+    payments: { method: 'Method', amount: 'Amount', ref: 'Reference no.', paid: 'Total received', change: 'Change', net: 'Net payment', fee: 'Fee {pct}%', feeFlat: 'Fee', feeTotal: 'Method fees (borne by store)', feeCustomer: 'Fee charged to customer', surchargeTotal: 'Extra fee (customer)', charged: 'Total charged', received: 'Received by store after fees', empty: 'No payments.' },
     stock: {
       intro: 'How this receipt moved stock, in each item’s base unit. Edits or voids will appear here as new movements.',
       time: 'Time',

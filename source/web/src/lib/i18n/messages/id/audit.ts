@@ -18,7 +18,7 @@ export default {
   loading: 'Memuat…',
   empty: 'Belum ada catatan untuk filter ini.',
   loadFailed: 'Gagal memuat audit log.',
-  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon' },
+  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon', payment_method: 'Metode Pembayaran' },
   actions: {
     auth_register: 'Mendaftarkan usaha',
     auth_login: 'Masuk',
@@ -67,6 +67,9 @@ export default {
     voucher_create: 'Menambah kupon belanja',
     voucher_update: 'Mengubah kupon belanja',
     voucher_active: 'Mengubah status kupon belanja',
+    payment_method_create: 'Menambah metode pembayaran',
+    payment_method_update: 'Mengubah metode pembayaran',
+    payment_method_active: 'Mengubah status metode pembayaran',
     item_create: 'Menambah item',
     item_update: 'Mengubah item',
     item_price: 'Mengubah harga jual item',
