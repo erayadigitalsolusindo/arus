@@ -34,6 +34,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/", h.Create)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/quote", h.Quote)
+		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
 		r.With(authz.Require(Module, authz.ActView)).Get("/{id}", h.Get)
 	})
 }

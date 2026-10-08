@@ -71,6 +71,39 @@ const stock: Messages['stock'] = {
       costKept: 'target item cost unchanged',
       by: 'By'
     }
+  },
+  card: {
+    docTitle: 'Stock Card | ACIRABA',
+    title: 'Stock Card',
+    subtitle: 'Stock in and out history of one item at the active outlet, with running balance.',
+    item: 'Item',
+    pickItem: 'Search name, code, or barcode…',
+    period: 'Period',
+    bucketAll: 'All buckets',
+    prompt: 'Pick an item to see its stock card.',
+    summary: { opening: 'Opening balance', in: 'In', out: 'Out', closing: 'Closing balance' },
+    col: { time: 'Time', type: 'Type', doc: 'Document', bucket: 'Bucket', in: 'In', out: 'Out', balance: 'Balance', by: 'By' },
+    bucket: { display: 'Display', warehouse: 'Warehouse', returns: 'Returns' },
+    type: {
+      OPENING: 'Opening balance',
+      SALE: 'Sale',
+      SALE_VOID: 'Sale void',
+      SALE_RETURN: 'Sales return',
+      PURCHASE: 'Purchase',
+      PURCHASE_RETURN: 'Purchase return',
+      OPNAME: 'Stock count',
+      TRANSFER_OUT: 'Transfer out',
+      TRANSFER_IN: 'Transfer in',
+      UNIT_CONVERSION: 'Unit split',
+      ADJUSTMENT: 'Adjustment'
+    },
+    empty: 'No stock movements in this period.',
+    loadMore: 'Load more',
+    preset: { today: 'Today', days7: '7 days', days30: '30 days', month: 'This month' },
+    count: '{count} movements in this period',
+    flowHint: 'Opening + in − out = closing',
+    loadFailed: 'Failed to load the stock card.',
+    inUnit: 'Base unit: {unit}'
   }
 };
 

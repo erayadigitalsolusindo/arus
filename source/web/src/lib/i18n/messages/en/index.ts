@@ -12,11 +12,12 @@ import audit from './audit.ts';
 import legal from './legal.ts';
 import platform from './platform.ts';
 import catalog from './catalog.ts';
+import vouchers from './vouchers.ts';
 import items from './items.ts';
 import stock from './stock.ts';
 import pos from './pos.ts';
 import members from './members.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers };
 
 export default en;

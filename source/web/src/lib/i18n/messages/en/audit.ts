@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -63,6 +63,9 @@ const audit: Messages['audit'] = {
     salesperson_create: 'Added a salesperson',
     salesperson_update: 'Edited a salesperson',
     salesperson_active: 'Changed a salesperson status',
+    voucher_create: 'Added a shopping coupon',
+    voucher_update: 'Edited a shopping coupon',
+    voucher_active: 'Changed a coupon status',
     item_create: 'Added an item',
     item_update: 'Edited an item',
     item_price: 'Changed an item selling price',

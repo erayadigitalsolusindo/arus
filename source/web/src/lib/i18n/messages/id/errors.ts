@@ -83,5 +83,17 @@ export default {
   FIELD_MEMBER_INACTIVE: 'Member nonaktif atau sudah kedaluwarsa.',
   FIELD_REDEEM_NOT_ALLOWED: 'Level member ini tidak bisa menukar poin.',
   FIELD_REDEEM_TOO_HIGH: 'Nilai tukar poin melebihi nilai belanja.',
-  FIELD_REDEEM_BELOW_COST: 'Tukar poin sebanyak ini membuat harga jual di bawah HPP. Kurangi jumlah poin.'
+  FIELD_REDEEM_BELOW_COST: 'Tukar poin sebanyak ini membuat harga jual di bawah HPP. Kurangi jumlah poin.',
+  FIELD_VOUCHER_UNKNOWN: 'Kode kupon tidak ditemukan.',
+  FIELD_VOUCHER_INACTIVE: 'Kupon ini nonaktif.',
+  FIELD_VOUCHER_NOT_STARTED: 'Kupon ini belum berlaku.',
+  FIELD_VOUCHER_EXPIRED: 'Kupon ini sudah berakhir.',
+  FIELD_VOUCHER_EXHAUSTED: 'Batas pemakaian kupon ini sudah habis.',
+  FIELD_VOUCHER_MIN_SPEND: 'Belanja belum mencapai minimal untuk kupon ini.',
+  FIELD_VOUCHER_EMPTY: 'Kupon ini tidak memberi potongan pada belanja ini.',
+  FIELD_VOUCHER_TOO_HIGH: 'Total potongan kupon melebihi nilai belanja.',
+  FIELD_VOUCHER_BELOW_COST: 'Potongan kupon membuat harga jual di bawah HPP. Lepas salah satu kupon.',
+  FIELD_LOCKED: 'Kode terkunci karena kupon sudah pernah dipakai.',
+  FIELD_BELOW_USED: 'Batas tidak boleh di bawah jumlah yang sudah terpakai.',
+  FIELD_BEFORE_START: 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
 };

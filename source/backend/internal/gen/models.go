@@ -322,6 +322,18 @@ type SalePayment struct {
 	RefNo    string
 }
 
+type SaleVoucher struct {
+	TenantID  uuid.UUID
+	SaleID    uuid.UUID
+	VoucherID uuid.UUID
+	Position  int32
+	Code      string
+	Name      string
+	Kind      string
+	Value     decimal.Decimal
+	Amount    decimal.Decimal
+}
+
 type Salesperson struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -442,4 +454,22 @@ type UserOutlet struct {
 	TenantID uuid.UUID
 	UserID   uuid.UUID
 	OutletID uuid.UUID
+}
+
+type Voucher struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	Code        string
+	Name        string
+	Kind        string
+	Value       decimal.Decimal
+	MaxDiscount pgtype.Numeric
+	MinSpend    decimal.Decimal
+	StartsOn    pgtype.Date
+	EndsOn      pgtype.Date
+	MaxUses     pgtype.Int4
+	UsedCount   int32
+	Active      bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
 }

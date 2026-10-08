@@ -124,3 +124,67 @@ LEFT JOIN users us ON us.tenant_id = c.tenant_id AND us.id = c.actor_id
 WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id
 ORDER BY c.created_at DESC, c.id
 LIMIT @page_limit OFFSET @page_offset;
+
+-- name: StockCardBounds :one
+-- Batas periode kartu stok menurut zona waktu outlet: tanggal kosong → 30 hari terakhir sampai hari ini. end_at eksklusif.
+WITH o AS (
+    SELECT timezone, (now() AT TIME ZONE timezone)::date AS today FROM outlets WHERE tenant_id = @tenant_id AND id = @outlet_id
+), t AS (
+    SELECT o.timezone, coalesce(sqlc.narg('to_day')::date, o.today) AS to_day FROM o
+), d AS (
+    SELECT t.timezone, t.to_day, coalesce(sqlc.narg('from_day')::date, t.to_day - 29) AS from_day FROM t
+)
+SELECT d.from_day::date AS from_day, d.to_day::date AS to_day,
+       (d.from_day::timestamp AT TIME ZONE d.timezone)::timestamptz AS start_at,
+       ((d.to_day + 1)::timestamp AT TIME ZONE d.timezone)::timestamptz AS end_at
+FROM d;
+
+-- name: StockCardItem :one
+SELECT i.id, i.sku, i.name, i.kind, u.name AS unit_name
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = $1 AND i.id = $2;
+
+-- name: StockCardItemSearch :many
+-- Pemilih barang kartu stok: barang berstok (goods) termasuk yang diarsipkan, karena riwayatnya tetap perlu dibaca.
+SELECT i.id, i.sku, i.name, u.name AS unit_name, i.active
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE i.tenant_id = @tenant_id AND i.kind = 'goods'
+  AND (@q::text = '' OR i.name ILIKE '%' || @q || '%' OR i.sku ILIKE '%' || @q || '%' OR coalesce(i.barcode, '') ILIKE '%' || @q || '%')
+ORDER BY i.active DESC, lower(i.name), i.id
+LIMIT 20;
+
+-- name: StockCardOpening :one
+-- Saldo sebelum periode = saldo-setelah movement terakhir tiap bucket (urutan id = urutan saldo).
+SELECT coalesce(sum(b.balance_after), 0)::numeric AS opening FROM (
+    SELECT DISTINCT ON (m.bucket) m.balance_after
+    FROM stock_movements m
+    WHERE m.tenant_id = @tenant_id AND m.outlet_id = @outlet_id AND m.item_id = @item_id
+      AND (@bucket::text = '' OR m.bucket = @bucket) AND m.created_at < @start_at::timestamptz
+    ORDER BY m.bucket, m.id DESC
+) b;
+
+-- name: StockCardTotals :one
+SELECT coalesce(sum(qty_delta) FILTER (WHERE qty_delta > 0), 0)::numeric AS qty_in,
+       coalesce(-sum(qty_delta) FILTER (WHERE qty_delta < 0), 0)::numeric AS qty_out
+FROM stock_movements
+WHERE tenant_id = @tenant_id AND outlet_id = @outlet_id AND item_id = @item_id
+  AND (@bucket::text = '' OR bucket = @bucket)
+  AND created_at >= @start_at::timestamptz AND created_at < @end_at::timestamptz;
+
+-- name: StockCardBefore :one
+-- Jumlah mutasi pada periode sampai (dan termasuk) id kursor: dasar saldo berjalan halaman berikutnya.
+SELECT coalesce(sum(qty_delta), 0)::numeric AS delta
+FROM stock_movements
+WHERE tenant_id = @tenant_id AND outlet_id = @outlet_id AND item_id = @item_id
+  AND (@bucket::text = '' OR bucket = @bucket)
+  AND created_at >= @start_at::timestamptz AND created_at < @end_at::timestamptz AND id <= @after_id;
+
+-- name: StockCardRows :many
+SELECT m.id, m.created_at, m.bucket, m.qty_delta, m.ref_type, m.ref_id, m.note, coalesce(u.name, '')::text AS actor_name
+FROM stock_movements m
+LEFT JOIN users u ON u.tenant_id = m.tenant_id AND u.id = m.actor_id
+WHERE m.tenant_id = @tenant_id AND m.outlet_id = @outlet_id AND m.item_id = @item_id
+  AND (@bucket::text = '' OR m.bucket = @bucket)
+  AND m.created_at >= @start_at::timestamptz AND m.created_at < @end_at::timestamptz AND m.id > @after_id
+ORDER BY m.id
+LIMIT @page_limit;

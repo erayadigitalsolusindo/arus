@@ -37,6 +37,7 @@ import (
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/stock"
+	"aciraba/internal/voucher"
 )
 
 const (
@@ -65,9 +66,16 @@ const (
 	codeRedeemNotAllowed    = "REDEEM_NOT_ALLOWED"
 	codeRedeemTooHigh       = "REDEEM_TOO_HIGH"
 	codeRedeemBelowCost     = "REDEEM_BELOW_COST"
+
+	codeVoucherTooHigh   = "VOUCHER_TOO_HIGH"
+	codeVoucherBelowCost = "VOUCHER_BELOW_COST"
+	codeVoucherDuplicate = "DUPLICATE"
 )
 
-const maxRedeem = 10_000_000
+const (
+	maxRedeem   = 10_000_000
+	maxVouchers = 5
+)
 
 var (
 	ErrOutletInactive = errors.New("outlet tidak aktif")
@@ -130,6 +138,8 @@ type Request struct {
 	RedeemPoints int        `json:"redeem_points"`
 	// Salesman (opsional): label nota untuk laporan/komisi; kosong = Umum.
 	SalespersonID *uuid.UUID `json:"salesperson_id"`
+	// Kupon belanja global (kode dibuat pemilik): potongan dihitung server sebelum pajak; boleh lebih dari satu.
+	VoucherCodes []string `json:"voucher_codes"`
 }
 
 // ---- Hasil ----
@@ -188,6 +198,16 @@ type Sale struct {
 	PointsEarned   int              `json:"points_earned"`
 	PointsRedeemed int              `json:"points_redeemed"`
 	RedeemAmount   string           `json:"redeem_amount"`
+	Vouchers       []VoucherInfo    `json:"vouchers"`
+}
+
+// VoucherInfo = kupon yang dipakai nota/quote beserta potongannya (sudah termasuk di Discount).
+type VoucherInfo struct {
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	Kind   string `json:"kind"`
+	Value  string `json:"value"`
+	Amount string `json:"amount"`
 }
 
 // MemberInfo = identitas member pada nota/quote.
@@ -256,6 +276,7 @@ type norm struct {
 	memberID    *uuid.UUID
 	redeem      int
 	salesperson *uuid.UUID
+	vouchers    []string // kode kupon (HURUF BESAR, tanpa duplikat)
 }
 
 func normalize(in Request) (norm, FieldErrors) {
@@ -271,6 +292,26 @@ func normalize(in Request) (norm, FieldErrors) {
 		f["redeem_points"] = sanitize.Invalid
 	} else if in.RedeemPoints > 0 && n.memberID == nil {
 		f["redeem_points"] = codeMemberRequired
+	}
+	if len(in.VoucherCodes) > maxVouchers {
+		f["voucher_codes"] = codeTooMany
+	}
+	seenV := map[string]bool{}
+	for i, raw := range in.VoucherCodes {
+		if i >= maxVouchers {
+			break
+		}
+		k := fmt.Sprintf("voucher_codes.%d", i)
+		c := voucher.NormalizeCode(raw)
+		switch {
+		case !voucher.CodeRe.MatchString(c):
+			f[k] = voucher.CodeUnknown
+		case seenV[c]:
+			f[k] = codeVoucherDuplicate
+		default:
+			seenV[c] = true
+			n.vouchers = append(n.vouchers, c)
+		}
 	}
 	if len(in.Lines) == 0 {
 		f["lines"] = sanitize.Required
@@ -363,7 +404,8 @@ func (n norm) hash() string {
 		M    string
 		R    int
 		S    string
-	}{D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
+		V    []string
+	}{V: n.vouchers, D: n.discount.String(), O: n.otherCost.String(), T: n.applyTax, N: n.note, R: n.redeem}
 	if n.memberID != nil {
 		v.M = n.memberID.String()
 	}
@@ -653,7 +695,14 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 		if len(fe) > 0 {
 			return fe
 		}
-		mc, lines, t, fe, err := resolveMember(ctx, tx, a, n, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
+		vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
+		if err != nil {
+			return err
+		}
+		if len(fe) > 0 {
+			return fe
+		}
+		mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, out.LocalDay, true, infos, out.TaxStorePct, out.TaxGovPct, lines, t)
 		if err != nil {
 			return err
 		}
@@ -747,6 +796,15 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 				return err
 			}
 		}
+		for i, v := range vc.applied {
+			if err := q.SalesVoucherInsert(ctx, gen.SalesVoucherInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, VoucherID: v.ID, Position: int32(i + 1),
+				Code: v.Code, Name: v.Name, Kind: v.Kind, Value: v.Value, Amount: v.Amount}); err != nil {
+				return err
+			}
+			if err := voucher.Consume(ctx, tx, a.TenantID, v.ID); err != nil {
+				return err
+			}
+		}
 		moves = mergeMoves(moves)
 		if _, err := stock.ApplyAll(ctx, tx, moves); err != nil {
 			var ins *stock.InsufficientError
@@ -785,7 +843,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 			Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
 			Details: map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "lines": len(lines),
 				"total": t.total.String(), "paid": t.paid.String(), "discount": t.discount.String(),
-				"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc)},
+				"member": mc.code(), "points_earned": mc.earn, "points_redeemed": n.redeemApplied(mc), "vouchers": vc.codes()},
 		})
 	})
 	var rp replay
@@ -838,6 +896,10 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		if err != nil {
 			return err
 		}
+		// Nota kasir lain hanya boleh dibuka pemegang izin daftar penjualan (atau Platform Admin hanya-baca).
+		if (!h.CashierID.Valid || uuid.UUID(h.CashierID.Bytes) != a.UserID) && a.Impersonator == uuid.Nil && !a.Perms.Has("sales_list", authz.ActView) {
+			return ErrNotFound
+		}
 		ls, err := q.SalesLines(ctx, gen.SalesLinesParams{TenantID: a.TenantID, SaleID: id})
 		if err != nil {
 			return err
@@ -866,6 +928,14 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 				Factor: l.Factor.String(), Qty: l.Qty.String(), UnitPrice: l.UnitPrice.StringFixed(2), Discount: l.Discount.StringFixed(2),
 				LineTotal: l.LineTotal.StringFixed(2), Note: l.Note, ListPrice: l.ListPrice.StringFixed(2), PriceOverride: l.PriceOverride})
 		}
+		vs, err := q.SalesVouchers(ctx, gen.SalesVouchersParams{TenantID: a.TenantID, SaleID: id})
+		if err != nil {
+			return err
+		}
+		out.Vouchers = make([]VoucherInfo, 0, len(vs))
+		for _, v := range vs {
+			out.Vouchers = append(out.Vouchers, VoucherInfo{Code: v.Code, Name: v.Name, Kind: v.Kind, Value: v.Value.StringFixed(2), Amount: v.Amount.StringFixed(2)})
+		}
 		for _, p := range ps {
 			out.Payments = append(out.Payments, Payment{Method: p.Method, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo})
 		}
@@ -890,6 +960,9 @@ type Quote struct {
 	Member       *MemberInfo `json:"member,omitempty"`
 	RedeemAmount string      `json:"redeem_amount"`
 	PointsEarn   int         `json:"points_earn"`
+	// Kupon yang lolos dan total potongannya (sudah termasuk di Discount).
+	Vouchers      []VoucherInfo `json:"vouchers"`
+	VoucherAmount string        `json:"voucher_amount"`
 }
 
 func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, error) {
@@ -924,7 +997,14 @@ func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, 
 		if len(fe) > 0 {
 			return fe
 		}
-		mc, lines, t, fe, err := resolveMember(ctx, tx, a, n, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
+		vc, nv, lines, t, fe, err := resolveVouchers(ctx, tx, a, n, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
+		if err != nil {
+			return err
+		}
+		if len(fe) > 0 {
+			return fe
+		}
+		mc, lines, t, fe, err := resolveMember(ctx, tx, a, nv, o.LocalDay, false, infos, o.TaxStorePct, o.TaxGovPct, lines, t)
 		if err != nil {
 			return err
 		}
@@ -934,6 +1014,7 @@ func (s *Service) Quote(ctx context.Context, a authz.Actor, in Request) (Quote, 
 		out = Quote{RedeemAmount: mc.redeemAmt.StringFixed(2), PointsEarn: mc.earn, Subtotal: t.subtotal.StringFixed(2), Discount: t.discount.StringFixed(2), TaxStorePct: t.taxStorePct.StringFixed(2),
 			TaxGovPct: t.taxGovPct.StringFixed(2), TaxStore: t.taxStore.StringFixed(2), TaxGov: t.taxGov.StringFixed(2),
 			OtherCost: t.other.StringFixed(2), Total: t.total.StringFixed(2), Lines: make([]Line, 0, len(lines))}
+		out.Vouchers, out.VoucherAmount = vc.infos(), vc.total().StringFixed(2)
 		if mc.sm != nil {
 			out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
 		}
@@ -1041,13 +1122,7 @@ func resolveMember(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, localD
 		}
 		// Potongan dari poin tidak boleh membuat nota di bawah HPP barang (kecuali barang boleh jual rugi): tukar poin tidak
 		// memakai persetujuan PIN seperti ubah harga, jadi batas HPP harus dijaga di sini.
-		costFloor := decimal.Zero
-		for _, l := range lines {
-			if !l.item.row.SellBelowCost {
-				costFloor = costFloor.Add(l.unitCost.Mul(l.qty).Round(2))
-			}
-		}
-		if t.subtotal.Sub(t.discount).LessThan(costFloor) {
+		if t.subtotal.Sub(t.discount).LessThan(costFloor(lines)) {
 			return mc, lines, t, FieldErrors{"redeem_points": codeRedeemBelowCost}, nil
 		}
 		mc.redeemAmt = amt

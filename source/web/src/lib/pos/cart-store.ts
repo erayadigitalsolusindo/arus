@@ -24,7 +24,7 @@ export type StoredMember = { id: string; code: string; name: string; level: stri
 /** Salesman terpilih (hanya penanda; server memvalidasi aktif/tidaknya saat nota disimpan). */
 export type StoredSalesperson = { id: string; name: string };
 
-export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string; salesperson?: StoredSalesperson | null };
+export type StoredCart = { lines: StoredLine[]; otherCost: string; costs?: CostEntry[]; taxOn: boolean; note: string; member?: StoredMember | null; redeem?: string; salesperson?: StoredSalesperson | null; vouchers?: string[] };
 
 const validSalesperson = (s: unknown): s is StoredSalesperson => !!s && typeof s === 'object' && str((s as StoredSalesperson).id) && str((s as StoredSalesperson).name);
 
@@ -59,7 +59,8 @@ export function parseCart(d: Record<string, unknown>): StoredCart | null {
     note: str(d.note) ? d.note : '',
     member: validMember(d.member) ? d.member : null,
     redeem: str(d.redeem) ? d.redeem : '',
-    salesperson: validSalesperson(d.salesperson) ? d.salesperson : null
+    salesperson: validSalesperson(d.salesperson) ? d.salesperson : null,
+    vouchers: Array.isArray(d.vouchers) ? d.vouchers.filter(str).slice(0, 5) : []
   };
 }
 

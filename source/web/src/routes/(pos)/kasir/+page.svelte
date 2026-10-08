@@ -19,9 +19,11 @@
   import { formatNumber } from '#lib/i18n/index.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
+  import TodaySalesModal from '#lib/components/TodaySalesModal.svelte';
   import Combobox from '#lib/components/Combobox.svelte';
   import { salespeopleLookup } from '#lib/catalog/api.ts';
   import PayModal from '#lib/components/PayModal.svelte';
+  import VoucherModal from '#lib/components/VoucherModal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { fitText } from '#lib/fitText.ts';
   import { focusOnMount } from '#lib/focus.ts';
@@ -84,7 +86,7 @@
   const restored = session.tenant && session.outlet && session.user ? loadCart(cartStorageKey(session.tenant.id, session.outlet.id, session.user.id)) : null;
   let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
-  const cartSnapshot = (): StoredCart => ({ lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson) });
+  const cartSnapshot = (): StoredCart => ({ lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem, salesperson: $state.snapshot(salesperson), vouchers: $state.snapshot(vouchers) });
 
   $effect(() => {
     const snapshot = cartSnapshot();
@@ -96,6 +98,7 @@
   const pendingKey = $derived(session.tenant && session.outlet && session.user ? pendingStorageKey(session.tenant.id, session.outlet.id, session.user.id) : '');
   let pending = $state<PendingNote[]>([]); // diisi efek di bawah
   let pendingOpen = $state(false);
+  let todayOpen = $state(false);
   $effect(() => {
     const k = pendingKey; // pindah outlet/kasir = daftar lain
     untrack(() => (pending = k ? loadPending(k) : []));
@@ -141,6 +144,7 @@
     member = n.member ?? null;
     redeem = n.redeem ?? '';
     salesperson = n.salesperson ?? null;
+    vouchers = n.vouchers ?? [];
     approval = null;
     pendingOpen = false;
     flash(parked ? t('pos.pendingOpenedSwapped', { no: n.no, saved: parked.no }) : t('pos.pendingOpened', { no: n.no }));
@@ -248,6 +252,9 @@
   let redeem = $state(restored?.redeem ?? '');
   // Salesman nota (opsional; kosong = Umum). Hanya label untuk laporan/komisi.
   let salesperson = $state<StoredSalesperson | null>(restored?.salesperson ?? null);
+  // Kupon belanja (kode); potongan dihitung server pada quote. Dipakai sebelum pajak.
+  let vouchers = $state<string[]>(restored?.vouchers ?? []);
+  let voucherOpen = $state(false);
   let pickingSalesperson = $state(false);
   let spValue = $state('');
   let spLabel = $state('');
@@ -283,6 +290,7 @@
     ...(otherCostValue ? { other_cost: otherCostValue } : {}),
     apply_tax: taxOn,
     ...(salesperson ? { salesperson_id: salesperson.id } : {}),
+    ...(vouchers.length ? { voucher_codes: vouchers } : {}),
     ...(member ? { member_id: member.id, ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}) } : {}),
     ...(withNote && saleNote() ? { note: saleNote() } : {})
   });
@@ -343,6 +351,16 @@
     if (l.issue === 'BELOW_COST') return t('pos.issue.belowCost');
     return toMilli(l.available ?? '0') <= 0n ? t('pos.issue.stockNone') : t('pos.issue.stock', { available: l.available ?? '0' });
   };
+  /** Pesan galat validasi quote: kupon yang tak lagi sah disebut dengan kodenya agar kasir tahu mana yang harus dilepas. */
+  function validationText(e: ApiError): string {
+    for (const [k, c] of Object.entries(e.fields)) {
+      if (!k.startsWith('voucher_codes')) continue;
+      const code = vouchers[Number(k.split('.')[1])];
+      const msg = fieldMessage(c) ?? errorMessage(e);
+      return code ? t('vouchers.pos.stale', { code, reason: msg }) : msg;
+    }
+    return fieldMessage(e.fields.redeem_points ?? e.fields.member_id) ?? errorMessage(e);
+  }
   const hasIssue = $derived(fresh && !!quote?.lines.some((l) => l.issue));
   const lineTotalOf = (i: number) => (fresh && quote?.lines[i] ? toCents(quote.lines[i].line_total) : null);
 
@@ -380,7 +398,7 @@
       } catch (e) {
         if (mine !== qseq) return;
         quote = null;
-        quoteError = e instanceof ApiError && e.code === 'VALIDATION' ? (fieldMessage(e.fields.redeem_points ?? e.fields.member_id) ?? errorMessage(e)) : errorMessage(e);
+        quoteError = e instanceof ApiError && e.code === 'VALIDATION' ? validationText(e) : errorMessage(e);
       } finally {
         if (mine === qseq) {
           quoteFor = key;
@@ -403,6 +421,7 @@
     member = null;
     redeem = '';
     salesperson = null;
+    vouchers = [];
     searchEl?.focus();
   }
   function saleDone() {
@@ -688,13 +707,6 @@
     else void document.documentElement.requestFullscreen?.();
   }
 
-  const shortcuts = [
-    { abbr: 'DG', title: 'pos.shortcuts.wallet', desc: 'pos.shortcuts.walletDesc' },
-    { abbr: 'DA', title: 'pos.shortcuts.members', desc: 'pos.shortcuts.membersDesc' },
-    { abbr: 'DS', title: 'pos.shortcuts.salespeople', desc: 'pos.shortcuts.salespeopleDesc' },
-    { abbr: 'PH', title: 'pos.shortcuts.today', desc: 'pos.shortcuts.todayDesc' }
-  ] as const;
-
   function onkeydown(e: KeyboardEvent) {
     if (e.key === 'F2') {
       e.preventDefault();
@@ -778,17 +790,13 @@
         </div>
       </section>
 
-      <ul class="rounded-lg border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)] overflow-hidden">
-        {#each shortcuts as s (s.abbr)}
-          <li class="flex items-start gap-3 p-2.5 opacity-70" title={t('pos.soon')}>
-            <span class="grid place-items-center size-8 shrink-0 rounded-full text-[11px] font-bold bg-[color-mix(in_oklab,var(--color-success-500)_18%,transparent)] text-[var(--color-success-700)]">{s.abbr}</span>
-            <span class="min-w-0">
-              <span class="block text-[12px] font-semibold">{t(s.title)}</span>
-              <span class="block text-[10.5px] leading-snug text-[var(--text-tertiary)]">{t(s.desc)}</span>
-            </span>
-          </li>
-        {/each}
-      </ul>
+      <button type="button" class="flex items-start gap-3 p-2.5 rounded-lg border border-[var(--border-subtle)] text-start hover:bg-[var(--surface-sunken)]" onclick={() => (todayOpen = true)}>
+        <span class="grid place-items-center size-8 shrink-0 rounded-full text-[11px] font-bold bg-[color-mix(in_oklab,var(--color-success-500)_18%,transparent)] text-[var(--color-success-700)]">PH</span>
+        <span class="min-w-0">
+          <span class="block text-[12px] font-semibold">{t('pos.shortcuts.today')}</span>
+          <span class="block text-[10.5px] leading-snug text-[var(--text-tertiary)]">{t('pos.shortcuts.todayDesc')}</span>
+        </span>
+      </button>
 
       <span class="grow"></span>
       <button type="button" class="btn btn-sm w-full" disabled title={t('pos.soon')}>{t('pos.orderStatus')}</button>
@@ -932,7 +940,13 @@
           </button>
         {/if}
         {#if cart.length}
-          <button type="button" class="{member ? '' : 'ms-auto '}header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null), (redeem = ''))}>
+          <button type="button" class="relative {member ? '' : 'ms-auto '}header-icon-btn" aria-label={t('vouchers.pos.button')} title={t('vouchers.pos.button')} onclick={() => (voucherOpen = true)}>
+            <i class="icon-ticket-percent text-[15px]"></i>
+            {#if vouchers.length}<span class="absolute -top-1 -end-1 min-w-4 h-4 px-1 grid place-items-center rounded-full bg-[var(--color-success-600)] text-[9.5px] font-bold leading-4 text-white">{vouchers.length}</span>{/if}
+          </button>
+        {/if}
+        {#if cart.length}
+          <button type="button" class="header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null), (redeem = ''), (vouchers = []))}>
             <i class="icon-trash-2 text-[15px]"></i>
           </button>
         {/if}
@@ -1033,6 +1047,12 @@
             {/each}
           </ul>
         {/if}
+        {#if fresh && quote && quote.vouchers.length}
+          <div class="flex items-center gap-2">
+            <span class="w-28 shrink-0">{t('vouchers.pos.row')}</span>
+            <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--color-success-600)] font-semibold" title={quote.vouchers.map((v) => v.code).join(', ')}>−{money(toCents(quote.voucher_amount))}</output>
+          </div>
+        {/if}
         <label class="flex items-center gap-2">
           <span class="w-28 shrink-0">{t('pos.storeTax')}</span>
           <output class="grow h-8 px-2 flex items-center justify-end tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-sunken)]" title={t('pos.taxPreview')}>{money(taxStore)}</output>
@@ -1112,6 +1132,21 @@
 
 {#if pickingMember}
   <MemberPicker onpick={pickMember} onclose={() => (pickingMember = false)} current={member?.name ?? ''} onclear={member ? () => { clearMember(); pickingMember = false; } : undefined} />
+{/if}
+
+{#if voucherOpen}
+  <VoucherModal
+    codes={vouchers}
+    applied={fresh && quote ? quote.vouchers : []}
+    money={(a) => money(toCents(a))}
+    check={(codes) => sales.quote({ ...JSON.parse(cartKey), voucher_codes: codes })}
+    onadd={(c) => (vouchers = [...vouchers, c])}
+    onremove={(c) => (vouchers = vouchers.filter((x) => x !== c))}
+    onclose={() => {
+      voucherOpen = false;
+      searchEl?.focus();
+    }}
+  />
 {/if}
 
 {#if redeemOpen && member}
@@ -1331,6 +1366,10 @@
       </div>
     </form>
   </Modal>
+{/if}
+
+{#if todayOpen}
+  <TodaySalesModal onclose={() => (todayOpen = false)} />
 {/if}
 
 {#if pendingOpen}
