@@ -24,9 +24,14 @@ export type SaleInput = {
   redeem_points?: number;
   /** Kode kupon belanja (boleh lebih dari satu); potongannya dihitung server sebelum pajak. */
   voucher_codes?: string[];
+  /** Nota kredit (hanya member): sisa yang belum dibayar menjadi piutang. Melewati limit member butuh approval berizin credit_limit. */
+  credit?: boolean;
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };
 };
+
+/** Piutang yang melekat pada nota kredit (keadaan sekarang). */
+export type SaleCredit = { id: string; amount: string; paid: string; balance: string; due_date?: string; status: 'open' | 'overdue' | 'paid' };
 
 export type Sale = {
   id: string;
@@ -40,6 +45,9 @@ export type Sale = {
   payments: { method: PayMethod; method_id: string; method_name: string; amount: string; ref_no: string; fee_pct: string; fee: string; fee_bearer: 'store' | 'customer' }[];
   /** Biaya metode yang ditagihkan ke pelanggan (di luar total). Ditagih = total + surcharge. */
   surcharge: string;
+  /** Sisa yang belum dibayar saat nota dibuat (nota kredit); credit = keadaan piutangnya sekarang. */
+  receivable: string;
+  credit?: SaleCredit;
   subtotal: string;
   discount: string;
   tax_store: string;
@@ -85,6 +93,8 @@ export type Quote = {
   /** Kupon yang lolos (amount = potongan rupiah; sudah termasuk di discount). */
   vouchers: { code: string; name: string; kind: string; value: string; amount: string }[];
   voucher_amount: string;
+  /** Bila member dipilih: syarat kredit (limit "0.00" = tanpa batas) dan piutangnya sekarang. */
+  credit?: { limit: string; outstanding: string; due_days: number };
 };
 
 /** Satu baris daftar penjualan kasir; methods = jumlah per metode (tunai sudah bersih dari kembalian). */
@@ -97,10 +107,14 @@ export type SaleListRow = {
   member?: string;
   line_count: number;
   total: string;
+  /** Biaya metode yang ditagihkan ke pelanggan; ditagih = total + surcharge. */
+  surcharge: string;
+  /** Bagian nota yang dikreditkan (piutang member). */
+  receivable: string;
   methods: Partial<Record<PayMethod, string>>;
   pays: { method_id: string; name: string; kind: PayMethod; amount: string }[];
 };
-export type SaleList = { data: SaleListRow[]; total: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
+export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
 
 /** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
 export type SaleAllRow = {
@@ -128,11 +142,13 @@ export type SaleAllRow = {
   tax_gov: string;
   other_cost: string;
   total: string;
+  /** Bagian yang dikreditkan (piutang member). */
+  receivable: string;
   methods: Partial<Record<PayMethod, string>>;
   cost?: string;
   profit?: string;
 };
-export type SaleAllSummary = { count: number; completed_count: number; total: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string };
+export type SaleAllSummary = { count: number; completed_count: number; total: string; receivable: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string };
 export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
 export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
 

@@ -6,7 +6,7 @@
   import VoidSaleModal from '#lib/components/VoidSaleModal.svelte';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { sales as api, PAY_METHODS, type SaleDetail } from '#lib/sales/api.ts';
-  import { t, tryT, formatCurrency, formatNumber, formatDateTime } from '#lib/i18n/index.ts';
+  import { t, tryT, formatCurrency, formatNumber, formatDate, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
   let { saleId, onclose, onswitch, onchanged }: { saleId: string; onclose: () => void; onswitch?: (id: string) => void; onchanged?: () => void } = $props();
@@ -324,6 +324,20 @@
             </section>
           </div>
         {:else if tab === 'payments'}
+          {#if num(d.receivable) > 0 && d.credit}
+            <div class="surface-card !p-4 mb-3 text-[12.5px]">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="text-[13px] font-semibold"><i class="icon-hourglass me-1.5"></i>{t('sales.detail.credit.title')}</span>
+                <span class="badge-soft {d.credit.status === 'paid' ? 'badge-success' : d.credit.status === 'overdue' ? 'badge-danger' : 'badge-info'}">{t(`receivables.status.${d.credit.status}`)}</span>
+              </div>
+              <dl class="space-y-1.5 tabular-nums">
+                <div class="flex justify-between"><dt>{t('sales.detail.credit.amount')}</dt><dd>{money(d.credit.amount)}</dd></div>
+                <div class="flex justify-between"><dt>{t('sales.detail.credit.paid')}</dt><dd>{money(d.credit.paid)}</dd></div>
+                <div class="flex justify-between border-t border-[var(--border-subtle)] pt-1.5 text-[14px] font-bold"><dt>{t('sales.detail.credit.balance')}</dt><dd class={num(d.credit.balance) > 0 ? 'text-[var(--color-danger-600)]' : ''}>{money(d.credit.balance)}</dd></div>
+                <div class="flex justify-between"><dt>{t('sales.detail.credit.due')}</dt><dd>{d.credit.due_date ? formatDate(d.credit.due_date) : t('receivables.noDue')}</dd></div>
+              </dl>
+            </div>
+          {/if}
           {#if d.payments.length === 0}
             <p class="rounded-lg border border-dashed border-[var(--border-subtle)] p-6 text-center text-[12.5px] text-[var(--text-tertiary)]">{t('sales.detail.payments.empty')}</p>
           {:else}

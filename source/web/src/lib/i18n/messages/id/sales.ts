@@ -41,6 +41,7 @@ const sales = {
     points: 'Tukar {points} poin',
     override: '{count} baris harganya diubah (disetujui PIN)'
   },
+  credit: 'Kredit',
   summary: {
     fee: 'biaya {amount}',
     surcharge: 'tagihan +{amount}',
@@ -58,6 +59,7 @@ const sales = {
   showing: 'Menampilkan {shown} dari {total} nota',
   statusSuperseded: 'Digantikan revisi',
   detail: {
+    credit: { title: 'Piutang nota ini', amount: 'Piutang awal', paid: 'Sudah dibayar', balance: 'Sisa piutang', due: 'Jatuh tempo' },
     open: 'Lihat detail nota',
     title: 'Detail Nota',
     actions: { edit: 'Edit nota', void: 'Batalkan nota' },

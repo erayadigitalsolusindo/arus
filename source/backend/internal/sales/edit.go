@@ -107,6 +107,12 @@ func lockForEdit(ctx context.Context, q *gen.Queries, a authz.Actor, id uuid.UUI
 	if row.Status != "completed" {
 		return row, ErrNotEditable
 	}
+	// Nota kredit yang piutangnya sudah dibayar tidak boleh diubah/dibatalkan: uang yang diterima tidak boleh hilang diam-diam.
+	if paid, err := q.ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: a.TenantID, SaleID: row.ID}); err != nil {
+		return row, err
+	} else if paid > 0 {
+		return row, ErrReceivablePaid
+	}
 	if days := int(row.Today.Time.Sub(row.LocalDay.Time).Hours() / 24); days > int(row.SaleEditWindowDays) {
 		return row, ErrEditWindow
 	}

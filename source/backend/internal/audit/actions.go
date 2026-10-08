@@ -111,6 +111,9 @@ const (
 	ActionSaleVoid       = "sale.void"
 )
 
+// Piutang member (penjualan kredit).
+const ActionReceivablePay = "receivable.pay"
+
 // Persetujuan (PIN) — ubah harga di kasir.
 const (
 	ActionSalePriceOverride = "sale.price_override"
@@ -120,6 +123,7 @@ const (
 
 // Member & level member (Fase 3.3). `member.points_adjust` = penyesuaian poin manual.
 const (
+	EntityReceivable  = "receivable"
 	EntityMember      = "member"
 	EntityMemberLevel = "member_level"
 
