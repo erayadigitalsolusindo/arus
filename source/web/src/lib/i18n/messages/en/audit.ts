@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', item: 'Item' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', item: 'Item', member: 'Member', member_level: 'Member Level' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -66,6 +66,14 @@ const audit: Messages['audit'] = {
     item_image_add: 'Added an item image',
     item_image_main: 'Changed an item main image',
     item_image_delete: 'Deleted an item image',
+    member_create: 'Added a member',
+    member_update: 'Changed a member',
+    member_active: 'Changed member status',
+    member_cover: 'Changed member cover photo',
+    member_points_adjust: 'Adjusted member points',
+    member_level_create: 'Added a member level',
+    member_level_update: 'Changed a member level',
+    member_level_active: 'Changed member level status',
     platform_impersonate: 'Platform Admin viewed tenant data (read-only)',
     platform_tenant_status: 'Platform Admin changed the tenant status'
   }

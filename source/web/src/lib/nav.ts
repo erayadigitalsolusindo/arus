@@ -44,7 +44,7 @@ export const nav: NavGroup[] = [
         icon: 'contact-round',
         children: [
           { labelKey: 'nav.suppliers', module: 'suppliers', href: '/suppliers' },
-          { labelKey: 'nav.members', module: 'members' },
+          { labelKey: 'nav.members', module: 'members', href: '/members' },
           { labelKey: 'nav.salespeople', module: 'salespeople' }
         ]
       },
@@ -55,7 +55,7 @@ export const nav: NavGroup[] = [
         children: [
           { labelKey: 'nav.units', module: 'units', href: '/units' },
           { labelKey: 'nav.categories', module: 'categories', href: '/categories' },
-          { labelKey: 'nav.memberCategories', module: 'member_categories' },
+          { labelKey: 'nav.memberCategories', module: 'member_categories', href: '/member-levels' },
           { labelKey: 'nav.paymentMethods', module: 'payment_methods' },
           { labelKey: 'nav.brands', module: 'brands', href: '/brands' },
           { labelKey: 'nav.principals', module: 'principals', href: '/principals' }

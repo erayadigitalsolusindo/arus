@@ -36,7 +36,7 @@ var Modules = []Module{
 	{"stock_card", viewing},
 	{"coupons", crud},
 	{"suppliers", crud},
-	{"members", crud},
+	{"members", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}}, // approve = penyesuaian poin manual
 	{"salespeople", crud},
 	{"units", crud},
 	{"categories", crud},

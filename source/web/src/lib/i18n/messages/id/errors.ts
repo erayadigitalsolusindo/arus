@@ -74,5 +74,11 @@ export default {
   FIELD_PASSWORD_WRONG: 'Password salah.',
   FIELD_DUPLICATE: 'Ada isian ganda (jumlah, satuan, atau barcode yang sama).',
   FIELD_NOT_DECREASING: 'Harga tidak boleh lebih tinggi pada jumlah yang lebih banyak.',
-  FIELD_SAME_ITEM: 'Barang tujuan harus berbeda dari barang asal.'
+  FIELD_SAME_ITEM: 'Barang tujuan harus berbeda dari barang asal.',
+  FIELD_BASE_LEVEL: 'Level dasar tidak dapat diubah seperti ini.',
+  FIELD_POINTS_INSUFFICIENT: 'Poin tidak mencukupi.',
+  FIELD_MEMBER_REQUIRED: 'Pilih member terlebih dahulu.',
+  FIELD_MEMBER_INACTIVE: 'Member nonaktif atau sudah kedaluwarsa.',
+  FIELD_REDEEM_NOT_ALLOWED: 'Level member ini tidak bisa menukar poin.',
+  FIELD_REDEEM_TOO_HIGH: 'Nilai tukar poin melebihi nilai belanja.'
 };

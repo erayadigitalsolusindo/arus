@@ -15,6 +15,7 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/member"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
@@ -127,6 +128,9 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 			Phone: pgtype.Text{String: in.Phone, Valid: true}, PasswordHash: hash, TermsVersion: pgtype.Text{String: TermsVersion, Valid: true},
 		})
 		if err != nil {
+			return err
+		}
+		if err := member.SeedDefaultLevels(ctx, tx, tenant.ID); err != nil { // level member bawaan
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Actor{TenantID: tenant.ID, UserID: user.ID, OutletID: outlet.ID, Name: user.Name}, audit.Entry{

@@ -168,6 +168,13 @@
         <div class="flex justify-between"><dt>{t('pos.payPaid')}</dt><dd class="tabular-nums">{money(toCents(done.paid))}</dd></div>
         <div class="flex justify-between text-[16px] font-extrabold text-[var(--color-success-600)]"><dt>{t('pos.paidChange')}</dt><dd class="tabular-nums">{money(toCents(done.change))}</dd></div>
       </dl>
+      {#if done.member}
+        <p class="text-[12.5px] text-[var(--text-secondary)]">
+          <i class="icon-user-round me-1"></i>{done.member.name}
+          {#if done.points_earned > 0}<span class="ms-1.5 font-semibold text-[var(--color-success-600)]">{t('members.pos.earned', { points: done.points_earned })}</span>{/if}
+          {#if done.points_redeemed > 0}<span class="ms-1.5 font-semibold text-[var(--color-warning-600)]">{t('members.pos.redeemed', { points: done.points_redeemed })}</span>{/if}
+        </p>
+      {/if}
       <button type="button" class="btn btn-primary w-full" onclick={ondone}>{t('pos.newSale')}</button>
     </div>
   {:else}

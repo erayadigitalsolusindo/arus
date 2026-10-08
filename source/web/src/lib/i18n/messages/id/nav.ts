@@ -16,7 +16,7 @@ export default {
   support: 'Data Pendukung',
   units: 'Data Satuan',
   categories: 'Data Kategori',
-  memberCategories: 'Data Kategori Anggota',
+  memberCategories: 'Level Member',
   paymentMethods: 'Data Metode Pembayaran',
   brands: 'Data Brand',
   principals: 'Data Principal',

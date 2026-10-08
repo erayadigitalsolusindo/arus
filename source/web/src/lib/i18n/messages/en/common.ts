@@ -8,6 +8,7 @@ const common: Messages['common'] = {
   paid: 'Paid',
   live: 'Live',
   close: 'Close',
+  datePicker: { choose: 'Choose date', clear: 'Clear', today: 'Today', prev: 'Previous month', next: 'Next month' },
   markdown: {
     write: 'Write',
     preview: 'Preview',

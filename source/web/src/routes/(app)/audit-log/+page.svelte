@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DatePicker from '#lib/components/DatePicker.svelte';
   import { onMount } from 'svelte';
   import { audit as api, type AuditItem } from '#lib/audit/api.ts';
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
@@ -95,11 +96,11 @@
     </div>
     <div>
       <label for="f-from" class={labelClass}>{t('audit.from')}</label>
-      <input id="f-from" type="date" class="w-full {fieldClass}" bind:value={from} max={to || undefined} />
+      <DatePicker id="f-from" bind:value={from} max={to || undefined} />
     </div>
     <div>
       <label for="f-to" class={labelClass}>{t('audit.to')}</label>
-      <input id="f-to" type="date" class="w-full {fieldClass}" bind:value={to} min={from || undefined} />
+      <DatePicker id="f-to" bind:value={to} min={from || undefined} />
     </div>
     <div class="flex gap-2">
       <button type="submit" class="btn btn-primary !text-[12.5px] flex-1" disabled={loading}>{t('audit.apply')}</button>

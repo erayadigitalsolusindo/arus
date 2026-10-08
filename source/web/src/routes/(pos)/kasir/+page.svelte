@@ -7,7 +7,13 @@
   import { items, type Row, type BarcodeMatch } from '#lib/items/api.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { toCents, toMilli, centsToNumber, lineTotal } from '#lib/pos/money.ts';
-  import { cartStorageKey, loadCart, saveCart, type CostEntry } from '#lib/pos/cart-store.ts';
+  import { cartStorageKey, loadCart, saveCart, type CostEntry, type StoredMember } from '#lib/pos/cart-store.ts';
+  import MemberPicker from '#lib/components/MemberPicker.svelte';
+  import MemberCover from '#lib/components/MemberCover.svelte';
+  import type { Lookup } from '#lib/members/api.ts';
+  import { ApiError } from '#lib/api/client.ts';
+  import { fieldMessage } from '#lib/i18n/errors.ts';
+  import { formatNumber } from '#lib/i18n/index.ts';
   import AuthImage from '#lib/components/AuthImage.svelte';
   import Modal from '#lib/components/Modal.svelte';
   import PayModal from '#lib/components/PayModal.svelte';
@@ -74,7 +80,7 @@
   let cart = $state<Line[]>(restored ? restored.lines.map((l) => ({ ...l, override: null, disc: null, discTotal: false })) : []);
 
   $effect(() => {
-    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note };
+    const snapshot = { lines: cart.map(({ override: _o, disc: _d, discTotal: _t, ...l }) => l), otherCost, costs: $state.snapshot(costs), taxOn, note, member: $state.snapshot(member), redeem };
     if (storeKey) saveCart(storeKey, snapshot);
   });
 
@@ -165,6 +171,23 @@
   const cancelTax = () => (taxOn = false);
 
   let note = $state(restored?.note ?? '');
+
+  // Member terpilih + poin yang ditukar. Saldo poin SELALU dari quote server (quote.member.points), bukan dari penyimpanan lokal.
+  let member = $state<StoredMember | null>(restored?.member ?? null);
+  let redeem = $state(restored?.redeem ?? '');
+  let pickingMember = $state(false);
+  const redeemPoints = $derived(Math.max(0, Math.min(Number.parseInt(redeem, 10) || 0, 10_000_000)));
+  function pickMember(m: Lookup) {
+    member = { id: m.id, code: m.code, name: m.name, level: m.level, spend_per_point: m.spend_per_point, point_value: m.point_value, cover_image_id: m.cover_image_id };
+    redeem = '';
+    pickingMember = false;
+    searchEl?.focus();
+  }
+  let redeemOpen = $state(false);
+  function clearMember() {
+    member = null;
+    redeem = '';
+  }
   const cartQty = $derived(cart.length);
 
   // forPay: sertakan persetujuan (PIN) untuk dikirim saat simpan nota; quote TIDAK pernah membawa PIN.
@@ -173,6 +196,7 @@
     ...(forPay && approval && needsApproval() ? { approval: { user_id: approval.id, pin: approval.pin } } : {}),
     ...(otherCostValue ? { other_cost: otherCostValue } : {}),
     apply_tax: taxOn,
+    ...(member ? { member_id: member.id, ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}) } : {}),
     ...(withNote && saleNote() ? { note: saleNote() } : {})
   });
 
@@ -206,6 +230,14 @@
   let quoteFor = $state(''); // isi keranjang yang dihitung quote; beda dengan keranjang sekarang = quote basi
   let quoteError = $state('');
   let quoting = $state(false);
+  const liveMember = $derived(quote?.member ?? null);
+  const pointValue = $derived(Number(member?.point_value ?? 0));
+  // Maksimum yang boleh ditukar: saldo poin, dan tidak melebihi nilai belanja (selain potongan lain).
+  const redeemCap = $derived.by(() => {
+    if (!quote || !liveMember || pointValue <= 0) return 0;
+    const base = toCents(quote.subtotal) - (toCents(quote.discount) - toCents(quote.redeem_amount));
+    return Math.max(0, Math.min(liveMember.points, Math.floor(Number(base) / 100 / pointValue)));
+  });
   let qseq = 0;
   const cartKey = $derived(JSON.stringify(buildSale(false)));
   const fresh = $derived(quote !== null && quoteFor === cartKey && !quoteError);
@@ -261,7 +293,7 @@
       } catch (e) {
         if (mine !== qseq) return;
         quote = null;
-        quoteError = errorMessage(e);
+        quoteError = e instanceof ApiError && e.code === 'VALIDATION' ? (fieldMessage(e.fields.redeem_points ?? e.fields.member_id) ?? errorMessage(e)) : errorMessage(e);
       } finally {
         if (mine === qseq) {
           quoteFor = key;
@@ -282,6 +314,8 @@
     otherCost = '';
     costs = [];
     taxOn = false;
+    member = null;
+    redeem = '';
     void load(true); // stok berubah
     searchEl?.focus();
   }
@@ -746,14 +780,38 @@
     <!-- Kolom kanan: pelanggan, keranjang, total, bayar -->
     <section class="{mobileTab === 'cart' ? 'flex' : 'max-lg:hidden'} lg:flex max-lg:flex-1 flex-col min-h-0 overflow-y-auto lg:overflow-visible bg-[var(--surface-card)] lg:border-s border-[var(--border-subtle)]">
       <div class="flex items-center gap-2 p-3 shrink-0 border-b border-[var(--border-subtle)]">
-        <button type="button" class="header-icon-btn" disabled aria-label={t('pos.pickCustomer')} title={t('pos.soon')}><i class="icon-user text-[16px]"></i></button>
-        <button type="button" class="header-icon-btn" disabled aria-label={t('pos.pendingReceipt')} title={t('pos.soon')}><i class="icon-list text-[16px]"></i></button>
+        <button type="button" class="header-icon-btn" aria-label={t('pos.pickCustomer')} title={t('members.pos.choose')} onclick={() => (pickingMember = true)}><i class="icon-user text-[16px]"></i></button>
+        {#if member}
+          <!-- Foto member menggantikan tombol daftar nota pending selama member terpilih; klik = ganti/lepas member. -->
+          <button type="button" class="shrink-0 rounded-full" aria-label={t('members.pos.change')} title={t('members.pos.change')} onclick={() => (pickingMember = true)}>
+            <MemberCover memberId={member.id} coverId={member.cover_image_id ?? null} name={member.name} class="size-9 rounded-full object-cover text-[12px] ring-2 ring-[var(--color-primary-600)]" />
+          </button>
+        {:else}
+          <button type="button" class="header-icon-btn" disabled aria-label={t('pos.pendingReceipt')} title={t('pos.soon')}><i class="icon-list text-[16px]"></i></button>
+        {/if}
         <div class="min-w-0 ps-1 leading-tight">
           <div class="text-[11.5px] font-semibold">{t('pos.customer')}</div>
-          <div class="text-[11px] text-[var(--text-tertiary)] truncate">{t('pos.customerGeneral')} [1001]</div>
+          <div class="text-[11px] truncate {member ? 'font-bold uppercase text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}">{member ? `${member.name} [${member.code}]` : t('pos.customerGeneral')}</div>
+          {#if member}
+            <div class="text-[10.5px] truncate text-[var(--text-tertiary)]">
+              {member.level}{liveMember ? ` · ${t('members.pos.points', { points: formatNumber(liveMember.points) })}` : ''}{#if fresh && quote && quote.points_earn > 0}<span class="font-semibold text-[var(--color-success-600)]"> · {t('members.pos.earned', { points: formatNumber(quote.points_earn) })}</span>{/if}
+            </div>
+          {/if}
         </div>
+        {#if member && cart.length}
+          <button
+            type="button"
+            class="relative ms-auto header-icon-btn"
+            aria-label={t('members.pos.redeem')}
+            title={t('members.pos.redeem')}
+            onclick={() => (redeemOpen = true)}
+          >
+            <i class="icon-gift text-[15px]"></i>
+            {#if redeemPoints > 0}<span class="absolute -top-1 -end-1 rounded-full bg-[var(--color-success-600)] px-1 text-[9.5px] font-bold leading-4 text-white">−{formatNumber(redeemPoints)}</span>{/if}
+          </button>
+        {/if}
         {#if cart.length}
-          <button type="button" class="ms-auto header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null))}>
+          <button type="button" class="{member ? '' : 'ms-auto '}header-icon-btn" aria-label={t('pos.clearCart')} title={t('pos.clearCart')} onclick={() => ((cart = []), (approval = null), (redeem = ''))}>
             <i class="icon-trash-2 text-[15px]"></i>
           </button>
         {/if}
@@ -913,6 +971,44 @@
     onclose={() => (editing = null)}
     onapply={(patch, ap, pin) => applyChange(ei, patch, ap, pin)}
   />
+{/if}
+
+{#if pickingMember}
+  <MemberPicker onpick={pickMember} onclose={() => (pickingMember = false)} current={member?.name ?? ''} onclear={member ? () => { clearMember(); pickingMember = false; } : undefined} />
+{/if}
+
+{#if redeemOpen && member}
+  <Modal title={t('members.pos.redeem')} onclose={() => (redeemOpen = false)}>
+    <div class="space-y-3">
+      <p class="text-[12.5px] text-[var(--text-secondary)]">
+        {member.name} [{member.code}]{liveMember ? ` · ${t('members.pos.points', { points: formatNumber(liveMember.points) })}` : ''}
+      </p>
+      {#if pointValue > 0}
+        <p class="text-[12px] text-[var(--text-tertiary)]">{t('members.pos.redeemAvailable', { points: formatNumber(redeemCap), value: money(toCents(member.point_value)) })}</p>
+        <div class="flex items-center gap-2">
+          <input
+            inputmode="numeric"
+            maxlength="8"
+            placeholder={t('members.pos.redeemPlaceholder')}
+            aria-label={t('members.pos.redeem')}
+            class="h-10 w-32 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-end tabular-nums outline-none focus:border-[var(--color-primary-500)]"
+            value={redeem}
+            oninput={(e) => (redeem = e.currentTarget.value.replace(/\D/g, ''))}
+            use:focusOnMount
+          />
+          <button type="button" class="h-10 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 font-semibold disabled:opacity-50" disabled={redeemCap <= 0} onclick={() => (redeem = String(redeemCap))}>{t('members.pos.redeemAll')}</button>
+          {#if redeemPoints > 0 && fresh && quote}<span class="ms-auto font-semibold text-[var(--color-success-600)]">{t('members.pos.redeemValue', { amount: money(toCents(quote.redeem_amount)) })}</span>{/if}
+        </div>
+        {#if quoteError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{quoteError}</p>{/if}
+      {:else}
+        <p class="text-[12.5px] text-[var(--text-tertiary)]">{t('members.pos.redeemNone')}</p>
+      {/if}
+      <div class="flex justify-end gap-2 pt-1">
+        {#if redeemPoints > 0}<button type="button" class="btn !text-[12.5px]" onclick={() => (redeem = '')}>{t('members.pos.redeemReset')}</button>{/if}
+        <button type="button" class="btn btn-primary !text-[12.5px]" onclick={() => (redeemOpen = false)}>{t('members.pos.redeemDone')}</button>
+      </div>
+    </div>
+  </Modal>
 {/if}
 
 {#if paying}
