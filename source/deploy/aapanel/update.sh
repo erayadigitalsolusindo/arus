@@ -5,7 +5,7 @@ set -euo pipefail
 
 BASE=/www/wwwroot/arus
 RELEASE=${1:?pakai: update.sh /path/release.tar.gz}
-RESTART_CMD=${RESTART_CMD:-supervisorctl restart arus-api}   # sesuaikan dengan nama proses di Supervisor aaPanel
+RESTART_CMD=${RESTART_CMD:-systemctl restart arus-api}   # service systemd arus-api (lihat DEPLOY-AAPANEL.md langkah 6)
 APP_USER=${APP_USER:-www}
 
 # Jangan `source` .env: nilai seperti SMTP_FROM=ACIRABA <x@y> memuat karakter khusus shell.
@@ -33,4 +33,4 @@ chown -R "$APP_USER:$APP_USER" "$BASE/web"
 echo "==> 5/5 restart API"
 $RESTART_CMD
 sleep 2
-curl -fsS http://127.0.0.1:8080/healthz && echo && echo "OK" || { echo "PERINGATAN: /healthz tidak menjawab — cek log Supervisor (normal pada pemasangan pertama sebelum proses dibuat)"; exit 1; }
+curl -fsS http://127.0.0.1:8080/healthz && echo && echo "OK" || { echo "PERINGATAN: /healthz tidak menjawab — cek log: journalctl -u arus-api (normal pada pemasangan pertama sebelum proses dibuat)"; exit 1; }
