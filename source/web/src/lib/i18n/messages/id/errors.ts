@@ -60,6 +60,7 @@ export default {
   SALE_NOT_EDITABLE: 'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).',
   EDIT_WINDOW_CLOSED: 'Batas waktu edit nota sudah lewat.',
   PURCHASE_NOT_EDITABLE: 'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).',
+  PAYABLE_PAID: 'Nota ini sudah dibayar (sebagian atau seluruhnya) sehingga tidak dapat diubah atau dibatalkan.',
   OUTLET_MISMATCH: 'Nota ini milik outlet lain; pindah ke outlet nota itu dulu.',
   FIELD_REQUIRED: 'Wajib diisi.',
   FIELD_INVALID: 'Isian tidak valid atau mengandung karakter yang tidak diizinkan.',
@@ -113,6 +114,6 @@ export default {
   CREDIT_LIMIT_EXCEEDED: 'Piutang member melewati limit kredit. Butuh persetujuan Owner/Supervisor (PIN).',
   RECEIVABLE_PAID: 'Piutang nota ini sudah dibayar sebagian atau seluruhnya, sehingga nota tidak dapat diubah atau dibatalkan.',
   FIELD_CREDIT_NOT_NEEDED: 'Pembayaran sudah menutup total. Pakai mode Tunai/Non-tunai, bukan Kredit.',
-  FIELD_OVERPAID: 'Jumlah melebihi sisa piutang.',
-  FIELD_SETTLED: 'Piutang ini sudah lunas.',
+  FIELD_OVERPAID: 'Jumlah melebihi sisa tagihan (piutang/hutang).',
+  FIELD_SETTLED: 'Tagihan ini sudah lunas.',
 };

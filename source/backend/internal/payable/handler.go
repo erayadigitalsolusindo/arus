@@ -1,4 +1,4 @@
-package receivable
+package payable
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssue
 }
 
 func (h *Handler) Routes(r chi.Router) {
-	r.Route("/receivables", func(r chi.Router) {
+	r.Route("/payables", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/settlements/quote", h.SettleQuote)
@@ -42,17 +42,17 @@ func actor(r *http.Request) authz.Actor {
 	return a
 }
 
-// List: GET /receivables?member_id=&status=open|overdue|paid|all&q=&limit=&offset=
+// List: GET /payables?supplier_id=&status=open|overdue|paid|all&q=&limit=&offset=
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	p := ListParams{Status: qs.Get("status"), Q: qs.Get("q")}
-	if s := qs.Get("member_id"); s != "" {
+	if s := qs.Get("supplier_id"); s != "" {
 		id, err := uuid.Parse(s)
 		if err != nil {
-			httpx.ValidationError(w, map[string]string{"member_id": "INVALID"})
+			httpx.ValidationError(w, map[string]string{"supplier_id": "INVALID"})
 			return
 		}
-		p.MemberID = &id
+		p.SupplierID = &id
 	}
 	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
 	p.Offset, _ = strconv.Atoi(qs.Get("offset"))
@@ -78,7 +78,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, d)
 }
 
-// Pay: POST /receivables/{id}/payments (header Idempotency-Key wajib). 201 = pembayaran baru; 200 + Idempotent-Replay = kunci sama.
+// Pay: POST /payables/{id}/payments (header Idempotency-Key wajib). 201 = pembayaran baru; 200 + Idempotent-Replay = kunci sama.
 func (h *Handler) Pay(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -102,7 +102,7 @@ func (h *Handler) Pay(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, status, d)
 }
 
-// SettleQuote: POST /receivables/settlements/quote — pratinjau pembagian uang.
+// SettleQuote: POST /payables/settlements/quote — pratinjau pembagian uang.
 func (h *Handler) SettleQuote(w http.ResponseWriter, r *http.Request) {
 	var req SettleInput
 	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
@@ -163,7 +163,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	default:
-		h.log.ErrorContext(r.Context(), "receivable", "err", err, "path", r.URL.Path)
+		h.log.ErrorContext(r.Context(), "payable", "err", err, "path", r.URL.Path)
 		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
 	}
 }

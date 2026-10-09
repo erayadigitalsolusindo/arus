@@ -180,7 +180,7 @@
         <tbody>
           {#each rows as r (r.id)}
             {@const voided = r.status === 'void'}
-            <tr class="group cursor-pointer border-b border-[var(--border-subtle)] align-top transition-colors last:border-0 hover:bg-[var(--color-primary)]/5 {voided ? 'opacity-60' : ''}" onclick={(e) => !(e.target as HTMLElement).closest('button') && (detailId = r.id)}>
+            <tr class="group border-b border-[var(--border-subtle)] align-top transition-colors last:border-0 hover:bg-[var(--color-primary)]/5 {voided ? 'opacity-60' : ''}">
               <td class="px-4 py-3.5 whitespace-nowrap">
                 <div class="font-medium">{formatDate(r.created_at)}</div>
                 <div class="text-[11.5px] tabular-nums text-[var(--text-tertiary)]">{timeOf(r.created_at)}</div>

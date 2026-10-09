@@ -118,7 +118,17 @@ const (
 )
 
 // Piutang member (penjualan kredit).
-const ActionReceivablePay = "receivable.pay"
+const (
+	ActionReceivablePay    = "receivable.pay"
+	ActionReceivableSettle = "receivable.settle" // pelunasan kolektif per member
+)
+
+// Hutang pemasok (pembelian kredit).
+const (
+	EntityPayable       = "payable"
+	ActionPayablePay    = "payable.pay"
+	ActionPayableSettle = "payable.settle" // pelunasan kolektif per pemasok
+)
 
 // Persetujuan (PIN) — ubah harga di kasir.
 const (

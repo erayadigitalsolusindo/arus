@@ -106,8 +106,8 @@ export const nav: NavGroup[] = [
         icon: 'truck',
         children: [
           { labelKey: 'nav.purchaseList', module: 'purchase_list', href: '/purchases' },
-          { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history' },
-          { labelKey: 'nav.supplierPayables', module: 'supplier_payables' }
+          { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history', href: '/buy-price-history' },
+          { labelKey: 'nav.supplierPayables', module: 'supplier_payables', href: '/supplier-payables' }
         ]
       }
     ]

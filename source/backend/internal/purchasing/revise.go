@@ -17,6 +17,7 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/payable"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/stock"
 )
@@ -101,6 +102,12 @@ func reverseAvg(onHand, avg, qty, value dec) (dec, bool) {
 // reverse membalikkan dampak satu nota: stok (movement PURCHASE_VOID, negatif), HPP rata-rata (dihitung mundur) dan
 // HPP terakhir (kembali ke pembelian aktif sebelumnya). Barang dikunci terurut id, sama seperti pembelian.
 func (s *Service) reverse(ctx context.Context, tx pgx.Tx, a authz.Actor, nota gen.PurchaseLockForChangeRow) error {
+	// Hutang yang sudah dibayar (sebagian/seluruh) tidak boleh dibalik: uang sudah keluar ke pemasok.
+	if paid, err := payable.HasPayments(ctx, tx, a.TenantID, nota.ID); err != nil {
+		return err
+	} else if paid {
+		return ErrPayablePaid
+	}
 	q := gen.New(tx)
 	lines, err := q.PurchaseLines(ctx, gen.PurchaseLinesParams{TenantID: a.TenantID, PurchaseID: nota.ID})
 	if err != nil {
