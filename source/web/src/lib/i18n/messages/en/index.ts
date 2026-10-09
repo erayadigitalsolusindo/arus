@@ -20,9 +20,10 @@ import members from './members.ts';
 import sales from './sales.ts';
 import receivables from './receivables.ts';
 import payables from './payables.ts';
+import purchaseReturns from './purchaseReturns.ts';
 import settle from './settle.ts';
 import purchases from './purchases.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns };
 
 export default en;

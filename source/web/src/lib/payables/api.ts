@@ -15,6 +15,8 @@ export type Payable = {
   purchase_date: string;
   amount: string;
   paid: string;
+  /** Dipotong retur pembelian aktif. */
+  returned: string;
   balance: string;
   /** YYYY-MM-DD; kosong = tanpa jatuh tempo. */
   due_date?: string;

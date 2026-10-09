@@ -20,7 +20,7 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', purchase: 'Purchase' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', purchase: 'Purchase', purchase_return: 'Purchase Return' },
   actions: {
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
@@ -45,6 +45,8 @@ const audit: Messages['audit'] = {
     purchase_superseded: 'Purchase replaced by a revision',
     purchase_void: 'Voided a purchase',
     purchase_create: 'Created a purchase',
+    purchase_return_create: 'Created a purchase return',
+    purchase_return_void: 'Voided a purchase return',
     stock_count_create: 'Created a stock count',
     stock_count_items: 'Added items to a stock count',
     stock_count_complete: 'Completed a stock count',
