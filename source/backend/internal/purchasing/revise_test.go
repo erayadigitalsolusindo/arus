@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -351,5 +352,59 @@ func (e *env) sell(t *testing.T, item uuid.UUID, qty string) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Regresi celah HPP: penjualan yang belum commit memegang kunci baris saldo saat batal dijalankan. HPP harus dihitung dari
+// stok SESUDAH penjualan itu (bukan stok yang sempat terbaca sebelum kunci didapat).
+func TestVoidCostUsesStockAfterConcurrentSale(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.outlet)
+	it := e.item(t, "goods", "1000", 10)
+	p, _, err := e.svc.Create(ctx, a, key(), e.req(line(it, "10", "0", "1200"))) // stok 20 @ 1.100
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	held, release := make(chan struct{}), make(chan struct{})
+	saleDone := make(chan error, 1)
+	go func() {
+		saleDone <- db.WithTenant(ctx, e.app, e.tenant, func(tx pgx.Tx) error {
+			if _, err := stock.Apply(ctx, tx, stock.Movement{TenantID: e.tenant, OutletID: e.outlet, ItemID: it, Bucket: stock.BucketDisplay,
+				Delta: decimal.NewFromInt(-2), RefType: stock.RefSale, RefID: uuid.New(), ActorID: e.user}); err != nil {
+				return err
+			}
+			close(held) // kunci baris saldo dipegang sampai release
+			<-release
+			return nil
+		})
+	}()
+	select {
+	case <-held:
+	case err := <-saleDone:
+		t.Fatalf("penjualan gagal sebelum menahan kunci: %v", err)
+	}
+
+	voidDone := make(chan error, 1)
+	go func() {
+		_, err := e.svc.Void(ctx, a, p.ID, "Batal saat ada penjualan")
+		voidDone <- err
+	}()
+	time.Sleep(300 * time.Millisecond) // beri waktu batal mencapai antrean kunci saldo
+	close(release)
+	if err := <-saleDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-voidDone; err != nil {
+		t.Fatalf("batal: %v", err)
+	}
+
+	if got := e.bal(t, it, stock.BucketDisplay); got != "8" {
+		t.Errorf("stok = %s, mau 8 (20 − 2 terjual − 10 dibalik)", got)
+	}
+	// (18 × 1.100 − 12.000) ÷ 8 = 975; dengan stok basi (20) hasilnya salah: 1.000.
+	if avg, _ := e.cost(t, e.outlet, it); avg != "975.00" {
+		t.Errorf("HPP = %s, mau 975.00", avg)
 	}
 }
