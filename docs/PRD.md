@@ -286,7 +286,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 |---|---|---|
 | FR-PUR-01 | Purchase order (opsional) → penerimaan barang (stok masuk ke Gudang/Display). | M |
 | FR-PUR-02 | Pembelian tunai/kredit; kredit membuat hutang dengan jatuh tempo. | M |
-| FR-PUR-03 | Pembaruan HPP (metode **[KONFIRMASI]**: harga beli terakhir vs. rata-rata tertimbang). | M |
+| FR-PUR-03 | Pembaruan HPP **per cabang** dengan **rata-rata tertimbang** (diputuskan 2026-10-09). | M |
 | FR-PUR-04 | Retur pembelian berdasarkan nota + supplier. | M |
 | FR-PUR-05 | Pembayaran hutang sebagian/penuh; aging hutang. | M |
 
@@ -496,7 +496,7 @@ Rancangan kolom: `AGENTS.md` §4.
 | Q2 | Apakah kasir wajib bisa berjalan offline? | Arsitektur frontend R1 |
 | Q3 | Hosting: VPS/cloud terpusat, on-premise per toko, atau keduanya? | Deployment, lisensi |
 | Q4 | Format nomor nota default untuk NewGen? Usulan: `{OUTLET}-{YYMMDD}-{NNNN}` | FR-POS-10 |
-| Q5 | Metode HPP: harga beli terakhir atau rata-rata tertimbang? | FR-PUR-03, laporan laba |
+| Q5 | ~~Metode HPP~~ **Dijawab 2026-10-09:** rata-rata tertimbang, per cabang. | FR-PUR-03, laporan laba |
 | Q6 | Urutan perhitungan nota (§7.4) dan aturan pembulatan sudah sesuai? Berapa lama legacy tetap bisa diakses baca-saja untuk histori? | FR-POS, §12 |
 | Q7 | Jumlah tenant, outlet, dan kasir aktif saat ini? | Target performa, biaya server |
 | Q8 | Apakah harga dapat berbeda per outlet? | FR-MD-02 |

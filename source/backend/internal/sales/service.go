@@ -83,13 +83,14 @@ const (
 )
 
 var (
-	ErrOutletInactive = errors.New("outlet tidak aktif")
-	ErrKeyRequired    = errors.New("Idempotency-Key wajib diisi")
-	ErrKeyMismatch    = errors.New("Idempotency-Key sudah dipakai untuk permintaan yang berbeda")
-	ErrNotFound       = errors.New("nota tidak ditemukan")
-	ErrReceivablePaid = errors.New("piutang nota ini sudah dibayar sebagian/seluruhnya")
-	validMethods      = map[string]bool{"cash": true, "debit": true, "credit_card": true, "ewallet": true, "transfer": true}
-	idemKeyPattern    = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
+	ErrOutletInactive  = errors.New("outlet tidak aktif")
+	ErrKeyRequired     = errors.New("Idempotency-Key wajib diisi")
+	ErrKeyMismatch     = errors.New("Idempotency-Key sudah dipakai untuk permintaan yang berbeda")
+	ErrNotFound        = errors.New("nota tidak ditemukan")
+	ErrOutletForbidden = errors.New("tidak punya akses ke outlet nota ini")
+	ErrReceivablePaid  = errors.New("piutang nota ini sudah dibayar sebagian/seluruhnya")
+	validMethods       = map[string]bool{"cash": true, "debit": true, "credit_card": true, "ewallet": true, "transfer": true}
+	idemKeyPattern     = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
 )
 
 // FieldErrors = kode galat per field, mis. {"lines.0.qty": "INVALID"}.
@@ -1193,6 +1194,10 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		}
 		if err != nil {
 			return err
+		}
+		// Nota di cabang yang tidak boleh diakses pemanggil ditolak (RLS hanya memisahkan tenant, bukan cabang).
+		if h.OutletID != a.OutletID && !a.Outlets[h.OutletID] {
+			return ErrOutletForbidden
 		}
 		// Nota kasir lain hanya boleh dibuka pemegang izin daftar penjualan (atau Platform Admin hanya-baca).
 		if (!h.CashierID.Valid || uuid.UUID(h.CashierID.Bytes) != a.UserID) && a.Impersonator == uuid.Nil && !a.Perms.Has("sales_list", authz.ActView) {

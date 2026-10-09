@@ -25,8 +25,9 @@ import (
 // append-only dan kartu stok memperlihatkan riwayat koreksinya.
 
 var (
-	ErrAlreadyLocked = errors.New("tanggal mulai operasional sudah dikunci")
-	ErrNotFound      = errors.New("data tidak ditemukan")
+	ErrAlreadyLocked   = errors.New("tanggal mulai operasional sudah dikunci")
+	ErrNotFound        = errors.New("data tidak ditemukan")
+	ErrOutletForbidden = errors.New("tidak punya akses ke outlet dokumen ini")
 )
 
 // FieldErrors = kode galat per field (REQUIRED/INVALID), diterjemahkan klien.

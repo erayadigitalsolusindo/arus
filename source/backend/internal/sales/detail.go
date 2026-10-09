@@ -98,7 +98,7 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 		return Detail{}, err
 	}
 	if sale.OutletID != a.OutletID && !a.Outlets[sale.OutletID] {
-		return Detail{}, ErrNotFound
+		return Detail{}, ErrOutletForbidden
 	}
 	canCost := a.Perms.Has(ModuleCost, authz.ActView)
 	out := Detail{Sale: sale, Lines: []DetailLine{}, Stock: []StockMove{}, Events: []Event{}, Revisions: []RevisionInfo{}}
