@@ -96,6 +96,12 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 
 **Fase 8 — Modul opsional (sesuai scope 1.1)**: Resto/KDS (`table-floor-map.html`, `kds-queue.html`, Redis Pub/Sub), SIAK akuntansi (`ledger-explorer.html`, `accounting-dashboard.html`), Acipay, payment gateway
 
+**Fase 10 — Kasir Mobile Android [USULAN — belum disetujui pengguna; PRD §7.11, §6.2, §15.4]**
+- [ ] 10.0 Validasi (M0): klien peminta, perangkat & printer nyata (PRD Q11–Q17); jangan mulai 10.1 sebelum go-live pilot web kecuali pengguna menyetujui
+- [ ] 10.1 (M1) Capacitor membungkus SPA; sesi native tanpa cookie + tabel perangkat + cabut per perangkat; kanal/perangkat di nota; scan kamera; cetak Bluetooth ESC/POS dari model struk server (prasyarat 5.4); tahan sinyal buruk
+- [ ] 10.2 (M2) printer bawaan perangkat POS, tablet lanskap, scanner HID
+- [ ] 10.3 (M3) offline — hanya bila PRD Q13 = ya dan aturan konflik disetujui
+
 **Fase 9 — Onboarding & go-live (tanpa migrasi data, PRD §12)**
 - [ ] 9.1 Wizard setup tenant: profil → outlet (pajak, zona waktu, format nota) → user & role → import barang → saldo awal (FR-ONB-06)
 - [ ] 9.2 Checklist & panduan go-live toko pilot (opname malam H-1, ekspor laporan legacy untuk histori, pelatihan, rencana mundur)
@@ -264,6 +270,8 @@ Root legacy: `../aciraba_siak_os/`. Stack: CI4 (`aciraba_website`) → curl → 
 - Berapa lama legacy tetap bisa diakses baca-saja untuk histori toko yang sudah pindah — PRD Q6.
 
 ## 11. Log Sesi  ← TAMBAHKAN DI ATAS, terbaru dulu
+
+- **2026-10-09 (PRD v0.3 + usulan Kasir Mobile)** — Dokumen saja, tanpa kode. `docs/PRD.md` diselaraskan dengan keputusan 8–9 Okt yang sebelumnya hanya ada di log ini (urutan hitung nota tanpa pembulatan, nomor nota, harga per cabang, barcode kembar, satuan tambahan, grosir, kredit hanya member + limit + PIN, edit = revisi, MDR + penanggung biaya, kupon, level member, HPP per cabang, opname, mutasi dua tahap, pelunasan kolektif); **FR-POS-13 diubah** (nota berpiutang terbayar tidak dapat diedit, sesuai implementasi); kolom Status di setiap tabel FR; Q4/Q5/Q8 terjawab, Q3/Q6 sebagian. Ditambah **§7.11 Kasir Mobile (FR-MOB-01..20)**, NFR mobile, metrik M10–M13, tahapan M0–M4 (§6.2), jalur kritis go-live pilot (§6.3), risiko, Q11–Q17, analisis opsi platform (§15.4: rekomendasi Capacitor membungkus SPA; PWA saja tidak bisa mencetak ke printer Bluetooth Classic). Seluruh bagian mobile bertanda **[USULAN]** dan belum boleh dikerjakan sebelum pengguna menyetujui. Catatan teknis untuk nanti: sesi web memakai cookie refresh `SameSite=Lax` + `CSRFGuard` (cek Origin), sehingga aplikasi native butuh alur refresh tanpa cookie yang terikat perangkat. Fase 10 di §2b ditambahkan sebagai usulan.
 
 - **2026-10-09 (draf form Mutasi Stok di browser)** — Seperti draf faktur pembelian: form kirim mutasi disimpan otomatis ke localStorage (`lib/stock/transfer-draft.ts`, kunci `transfer.draft.v1:<tenant>:<cabang>:<pengguna>`, jeda 500 ms, hanya bila isi berubah, kedaluwarsa 24 jam, entri rusak dibuang; isi: tujuan, bucket asal/tujuan, catatan, baris barang + qty). Saat halaman dibuka draf dipulihkan dengan banner + tombol "Buang draf"; stok pada baris pulihan disegarkan dari server (`refreshRestoredStock`), tujuan yang sudah tidak ada/aktif dikosongkan. Draf dihapus setelah kirim sukses. Pindah cabang mengosongkan baris (stok beda per cabang) sehingga draf cabang itu ikut kosong. Server tetap otoritatif (draf hanya isian mentah). `npm run check` 0 error; diuji di browser: ketik catatan → tersimpan → muat ulang → banner + isian pulih → buang draf → storage kosong (tanpa mengirim mutasi). **Belum diuji:** pemulihan baris barang (butuh memilih barang di tenant Anda; logika sama dengan draf pembelian), draf lintas tab terbuka bersamaan (tab terakhir menang).
 
