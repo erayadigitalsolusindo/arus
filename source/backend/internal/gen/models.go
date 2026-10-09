@@ -214,6 +214,51 @@ type Payable struct {
 	VoidedAt   pgtype.Timestamptz
 }
 
+type PayablePayment struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	PayableID      uuid.UUID
+	OutletID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	Method         string
+	MethodID       uuid.UUID
+	MethodName     string
+	Amount         decimal.Decimal
+	RefNo          string
+	Note           string
+	PaidBy         pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	SettlementID   pgtype.UUID
+}
+
+type PayablePaymentCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type PayableSettlement struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	SupplierID     uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	Mode           string
+	Method         string
+	MethodID       uuid.UUID
+	MethodName     string
+	Total          decimal.Decimal
+	RefNo          string
+	Note           string
+	PaidBy         pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
 type PaymentMethod struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -383,6 +428,7 @@ type ReceivablePayment struct {
 	Note           string
 	ReceivedBy     pgtype.UUID
 	CreatedAt      pgtype.Timestamptz
+	SettlementID   pgtype.UUID
 }
 
 type ReceivablePaymentCounter struct {
@@ -390,6 +436,26 @@ type ReceivablePaymentCounter struct {
 	OutletID uuid.UUID
 	Day      pgtype.Date
 	LastNo   int64
+}
+
+type ReceivableSettlement struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	MemberID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	Mode           string
+	Method         string
+	MethodID       uuid.UUID
+	MethodName     string
+	Total          decimal.Decimal
+	FeeAmount      decimal.Decimal
+	RefNo          string
+	Note           string
+	ReceivedBy     pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
 }
 
 type Role struct {
@@ -605,6 +671,43 @@ type StockMovement struct {
 	Note         string
 	ActorID      pgtype.UUID
 	CreatedAt    pgtype.Timestamptz
+}
+
+type StockTransfer struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromOutletID   uuid.UUID
+	FromBucket     string
+	ToOutletID     uuid.UUID
+	ToBucket       string
+	Status         string
+	Note           string
+	SentBy         pgtype.UUID
+	SentAt         pgtype.Timestamptz
+	ReceivedBy     pgtype.UUID
+	ReceivedAt     pgtype.Timestamptz
+	CancelledBy    pgtype.UUID
+	CancelledAt    pgtype.Timestamptz
+	CancelReason   string
+}
+
+type StockTransferCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type StockTransferLine struct {
+	TenantID    uuid.UUID
+	TransferID  uuid.UUID
+	ItemID      uuid.UUID
+	QtySent     decimal.Decimal
+	QtyReceived pgtype.Numeric
+	UnitCost    decimal.Decimal
 }
 
 type Supplier struct {
