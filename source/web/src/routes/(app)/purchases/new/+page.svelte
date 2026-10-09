@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { purchases, type ItemChoice, type PaymentType, type PurchaseInput, type Quote } from '#lib/purchases/api.ts';
+  import { purchases, type ItemChoice, type PaymentType, type Purchase, type PurchaseInput, type Quote } from '#lib/purchases/api.ts';
   import { lookup, suppliers, type Supplier } from '#lib/catalog/api.ts';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { clearDraft, draftKey, loadDraft, saveDraft, type DraftRow, type PurchaseDraft } from '#lib/purchases/draft.ts';
   import { t, formatCurrency, formatNumber, formatDate } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import Combobox, { type Option } from '#lib/components/Combobox.svelte';
   import DatePicker from '#lib/components/DatePicker.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
@@ -38,7 +40,9 @@
   };
 
   // Draf per pengguna+outlet di browser: dipulihkan saat halaman dibuka (lihat lib/purchases/draft.ts).
-  const dkey = session.tenant && session.outlet && session.user ? draftKey(session.tenant.id, session.outlet.id, session.user.id) : '';
+  // Mode revisi (?edit=<id>): isian dimuat dari nota yang ada; draf faktur baru tidak dipakai.
+  const editId = page.url.searchParams.get('edit') ?? '';
+  const dkey = !editId && session.tenant && session.outlet && session.user ? draftKey(session.tenant.id, session.outlet.id, session.user.id) : '';
   const restored = dkey ? loadDraft(dkey) : null;
   let draftNotice = $state(restored !== null);
 
@@ -69,12 +73,15 @@
   let doneId = $state('');
   let doneNo = $state('');
   let viewId = $state<string | null>(null);
+  let editDoc = $state('');
+  let reason = $state('');
+  let loadingEdit = $state(false);
 
-  const canCreate = $derived(can('purchase_invoices', 'create'));
+  const canCreate = $derived(can('purchase_invoices', editId ? 'update' : 'create'));
   const lineOk = (r: Row) => num(r.qd) + num(r.qw) > 0 && r.price !== '';
   const complete = $derived(rows.filter(lineOk));
   const allComplete = $derived(rows.length > 0 && complete.length === rows.length);
-  const canSave = $derived(canCreate && !busy && supplierId !== '' && date !== '' && allComplete);
+  const canSave = $derived(canCreate && !busy && !loadingEdit && supplierId !== '' && date !== '' && allComplete && (!editId || reason.trim().length >= 3));
   const qLine = $derived(new Map(quote ? complete.map((r, i) => [r.key, quote!.lines[i]] as const) : []));
 
   async function searchSuppliers(q: string): Promise<Option[]> {
@@ -300,6 +307,12 @@
       }))
     };
     try {
+      if (editId) {
+        const why = reason.trim();
+        await purchases.edit(editId, input, why, keyFor(JSON.stringify({ ...input, reason: why })));
+        await goto('/purchases');
+        return;
+      }
       const p = await purchases.create(input, keyFor(JSON.stringify(input)));
       doneId = p.id;
       doneNo = p.doc_no;
@@ -317,8 +330,39 @@
     }
   }
 
+  // Memuat nota lama ke isian (mode revisi). Harga & HPP tetap dihitung ulang server lewat pratinjau.
+  async function loadForEdit(id: string) {
+    loadingEdit = true;
+    try {
+      const p: Purchase = await purchases.get(id);
+      editDoc = p.doc_no;
+      supplierId = p.supplier_id;
+      supplierLabel = p.supplier_name;
+      invoice = p.supplier_invoice_no;
+      date = p.purchase_date;
+      payment = p.payment_type;
+      due = p.due_date ?? '';
+      taxPct = Number(p.tax_pct) > 0 ? trim(p.tax_pct) : '';
+      note = p.note;
+      costs = p.costs.map((c) => ({ key: crypto.randomUUID(), name: c.name, amount: Number(c.amount) > 0 ? trim(c.amount) : '' }));
+      rows = p.lines.map((l) => {
+        const item: ItemChoice = { id: l.item_id, sku: l.sku, barcode: '', name: l.name, unit: l.unit, avg_cost: l.avg_before, last_cost: l.unit_price, stock_total: '0' };
+        const disc: [string, string, string, string] = ['', '', '', ''];
+        l.discounts.slice(0, 4).forEach((d, i) => (disc[i] = d));
+        const r: Row = { key: crypto.randomUUID(), item, qd: num(l.qty_display) > 0 ? l.qty_display : '', qw: num(l.qty_warehouse) > 0 ? l.qty_warehouse : '', price: l.unit_price, sub: '', disc };
+        r.sub = calcSub(r);
+        return r;
+      });
+    } catch (e) {
+      formError = errorMessage(e);
+    } finally {
+      loadingEdit = false;
+    }
+  }
+
   onMount(() => {
-    document.title = t('purchases.form.docTitle');
+    document.title = editId ? t('purchases.form.editTitle', { doc: '' }) : t('purchases.form.docTitle');
+    if (editId) void loadForEdit(editId);
   });
 
   const th = 'px-2 py-2 text-end whitespace-nowrap';
@@ -333,7 +377,7 @@
     <div class="flex items-center gap-3 min-w-0">
       <span class="grid place-items-center size-10 rounded-xl shrink-0 bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] text-[var(--color-primary)]"><i class="icon-receipt text-[20px]"></i></span>
       <div class="min-w-0">
-        <h1 class="font-display font-bold text-[18px] leading-tight">{t('purchases.form.title')}</h1>
+        <h1 class="font-display font-bold text-[18px] leading-tight">{editId ? t('purchases.form.editTitle', { doc: editDoc }) : t('purchases.form.title')}</h1>
         <p class="text-[12px] text-[var(--text-tertiary)] truncate">{t('purchases.form.subtitle')}</p>
       </div>
     </div>
@@ -351,6 +395,14 @@
   {#if formError}
     <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] badge-danger">
       <i class="icon-circle-alert text-[14px] shrink-0"></i><span>{formError}</span>
+    </div>
+  {/if}
+  {#if editId}
+    <div class="space-y-2 rounded-lg border border-[var(--color-primary-500)]/40 bg-[var(--color-primary)]/5 p-3">
+      <p class="text-[12.5px]"><i class="icon-pencil text-[13px] me-1"></i>{t('purchases.form.editHint')}</p>
+      <label class="block text-[12px] font-semibold" for="edit-reason">{t('purchases.form.reasonLabel')}</label>
+      <input id="edit-reason" bind:value={reason} maxlength="200" autocomplete="off" class="h-9 w-full max-w-xl rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]" />
+      {#if fieldErrors.reason}<p class={errClass}>{fieldMessage(fieldErrors.reason) ?? ''}</p>{/if}
     </div>
   {/if}
   {#if draftNotice}
@@ -639,7 +691,7 @@
         {/if}
         <div class="flex items-baseline justify-between gap-6 border-t border-[var(--border-subtle)] pt-1 font-display font-bold text-[18px] leading-tight"><dt class="text-[12px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">{t('purchases.totals.total')}</dt><dd>{quote ? money(quote.total) : quoting ? t('purchases.form.totalsPending') : '—'}</dd></div>
       </dl>
-      <button type="submit" class="btn btn-primary !h-10 px-6" disabled={!canSave}><i class="icon-save text-[15px]"></i>{busy ? t('purchases.form.saving') : t('purchases.form.save')}</button>
+      <button type="submit" class="btn btn-primary !h-10 px-6" disabled={!canSave}><i class="icon-save text-[15px]"></i>{busy ? t('purchases.form.saving') : editId ? t('purchases.form.saveRevision') : t('purchases.form.save')}</button>
     </div>
   </form>
 </main>

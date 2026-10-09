@@ -78,7 +78,18 @@ export type Purchase = {
   lines: PurchaseLine[];
   costs: { name: string; amount: string }[];
   payable: { id: string; amount: string; due_date: string | null } | null;
+  events: PurchaseEvent[];
+  revision: number;
+  revision_reason: string;
+  revised_at: string | null;
+  superseded_by: string | null;
+  supersedes_id: string | null;
+  void_reason: string;
+  voided_at: string | null;
 };
+
+/** Catatan audit satu nota: siapa, kapan, dan rincian aksinya. */
+export type PurchaseEvent = { action: string; actor: string; at: string; details: unknown };
 
 export type PurchaseRow = {
   id: string;
@@ -96,16 +107,18 @@ export type PurchaseRow = {
   created_by: string;
 };
 
+/** Paginasi keyset: kirim next_cursor sebagai cursor untuk halaman berikutnya (has_more = masih ada). */
 export type PurchaseList = {
   data: PurchaseRow[];
-  total: number;
+  has_more: boolean;
+  next_cursor: string;
   summary: { count: number; total: string; credit_total: string };
 };
 
 export type ItemChoice = { id: string; sku: string; barcode: string; name: string; unit: string; avg_cost: string; last_cost: string; stock_total: string };
 
 export const purchases = {
-  list: (p: { from?: string; to?: string; supplier_id?: string; payment_type?: PaymentType | ''; q?: string; limit?: number; offset?: number }) => {
+  list: (p: { from?: string; to?: string; supplier_id?: string; payment_type?: PaymentType | ''; q?: string; limit?: number; cursor?: string }) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '' && v !== 0) qs.set(k, String(v));
     return api<PurchaseList>(`/purchases/?${qs}`);
@@ -114,5 +127,10 @@ export const purchases = {
   items: (q: string) => api<{ data: ItemChoice[] }>(`/purchases/items?q=${encodeURIComponent(q)}`).then((r) => r.data),
   quote: (input: Partial<PurchaseInput>, signal?: AbortSignal) => api<Quote>('/purchases/quote', { method: 'POST', body: JSON.stringify(input), signal }),
   create: (input: PurchaseInput, idempotencyKey: string) =>
-    api<Purchase>('/purchases/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) })
+    api<Purchase>('/purchases/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  /** Revisi nota (nota lama dibalik lalu diganti nota baru). Alasan wajib 3–200 karakter. */
+  edit: (id: string, input: PurchaseInput, reason: string, idempotencyKey: string) =>
+    api<Purchase>(`/purchases/${id}`, { method: 'PUT', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ ...input, reason }) }),
+  /** Batalkan nota: stok & HPP dibalik, nota tetap tercatat berstatus dibatalkan. */
+  void: (id: string, reason: string) => api<Purchase>(`/purchases/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) })
 };

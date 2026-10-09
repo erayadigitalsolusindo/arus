@@ -211,6 +211,7 @@ type Payable struct {
 	Amount     decimal.Decimal
 	DueDate    pgtype.Date
 	CreatedAt  pgtype.Timestamptz
+	VoidedAt   pgtype.Timestamptz
 }
 
 type PaymentMethod struct {
@@ -300,6 +301,16 @@ type Purchase struct {
 	Total             decimal.Decimal
 	CreatedBy         pgtype.UUID
 	CreatedAt         pgtype.Timestamptz
+	RootID            pgtype.UUID
+	Revision          int32
+	SupersedesID      pgtype.UUID
+	SupersededBy      pgtype.UUID
+	RevisionReason    string
+	RevisedAt         pgtype.Timestamptz
+	RevisedBy         pgtype.UUID
+	VoidReason        string
+	VoidedAt          pgtype.Timestamptz
+	VoidedBy          pgtype.UUID
 }
 
 type PurchaseCost struct {
