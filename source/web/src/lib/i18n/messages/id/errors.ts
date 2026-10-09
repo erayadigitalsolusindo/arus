@@ -59,6 +59,7 @@ export default {
   OUTLET_NOT_FOUND: 'Outlet aktif tidak ditemukan.',
   SALE_NOT_EDITABLE: 'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).',
   EDIT_WINDOW_CLOSED: 'Batas waktu edit nota sudah lewat.',
+  PURCHASE_NOT_EDITABLE: 'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).',
   OUTLET_MISMATCH: 'Nota ini milik outlet lain; pindah ke outlet nota itu dulu.',
   FIELD_REQUIRED: 'Wajib diisi.',
   FIELD_INVALID: 'Isian tidak valid atau mengandung karakter yang tidak diizinkan.',

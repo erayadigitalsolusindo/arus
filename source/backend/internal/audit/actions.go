@@ -166,5 +166,8 @@ const (
 const (
 	EntityPurchase = "purchase"
 
-	ActionPurchaseCreate = "purchase.create"
+	ActionPurchaseCreate     = "purchase.create"
+	ActionPurchaseEdit       = "purchase.edit"
+	ActionPurchaseSuperseded = "purchase.superseded"
+	ActionPurchaseVoid       = "purchase.void"
 )

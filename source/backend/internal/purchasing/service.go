@@ -54,12 +54,15 @@ const (
 )
 
 var (
-	ErrOutletInactive  = errors.New("outlet tidak aktif")
-	ErrKeyRequired     = errors.New("Idempotency-Key wajib diisi")
-	ErrKeyMismatch     = errors.New("Idempotency-Key sudah dipakai untuk permintaan yang berbeda")
-	ErrNotFound        = errors.New("pembelian tidak ditemukan")
-	ErrOutletForbidden = errors.New("tidak punya akses ke outlet nota ini")
-	idemKeyPattern     = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
+	ErrOutletInactive   = errors.New("outlet tidak aktif")
+	ErrKeyRequired      = errors.New("Idempotency-Key wajib diisi")
+	ErrKeyMismatch      = errors.New("Idempotency-Key sudah dipakai untuk permintaan yang berbeda")
+	ErrNotFound         = errors.New("pembelian tidak ditemukan")
+	ErrOutletForbidden  = errors.New("tidak punya akses ke outlet nota ini")
+	ErrNotEditable      = errors.New("nota tidak dapat diubah (sudah dibatalkan atau digantikan revisi)")
+	ErrEditWindowClosed = errors.New("batas waktu edit nota sudah lewat")
+	ErrOutletMismatch   = errors.New("nota milik outlet lain")
+	idemKeyPattern      = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
 )
 
 // FieldErrors = kode galat per field, mis. {"lines.0.unit_price": "INVALID"}.

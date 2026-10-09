@@ -60,6 +60,7 @@ const errors: Messages['errors'] = {
   OUTLET_NOT_FOUND: 'No active outlet found.',
   SALE_NOT_EDITABLE: 'This receipt can no longer be changed (it was voided or replaced by a revision).',
   EDIT_WINDOW_CLOSED: 'The time window for editing this receipt has passed.',
+  PURCHASE_NOT_EDITABLE: 'This invoice can no longer be changed (already voided or replaced by a revision).',
   OUTLET_MISMATCH: 'This receipt belongs to another outlet; switch to that outlet first.',
   FIELD_REQUIRED: 'This field is required.',
   FIELD_INVALID: 'Invalid value or contains disallowed characters.',

@@ -3,8 +3,9 @@
   import { onMount } from 'svelte';
   import Modal from '#lib/components/Modal.svelte';
   import { purchases, type Purchase } from '#lib/purchases/api.ts';
-  import { t, formatCurrency, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
+  import { t, tryT, formatCurrency, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import { can } from '#lib/auth/session.svelte.ts';
 
   let { id, onclose }: { id: string; onclose: () => void } = $props();
 
@@ -21,7 +22,32 @@
     }
   });
 
+  const canUpdate = $derived(can('purchase_invoices', 'update'));
+  const canDelete = $derived(can('purchase_invoices', 'delete'));
+  let voiding = $state(false);
+  let voidReason = $state('');
+  let voidBusy = $state(false);
+  let voidError = $state('');
+
+  // Pembatalan: nota tetap tercatat (status void); tampilan langsung diganti dengan respons server.
+  async function doVoid(e: SubmitEvent) {
+    e.preventDefault();
+    if (voidReason.trim().length < 3) return;
+    voidBusy = true;
+    voidError = '';
+    try {
+      p = await purchases.void(id, voidReason.trim());
+      voiding = false;
+      voidReason = '';
+    } catch (err) {
+      voidError = errorMessage(err);
+    } finally {
+      voidBusy = false;
+    }
+  }
+
   const label = 'text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
+  const actionLabel = (a: string) => tryT(`audit.actions.${a.replace('.', '_')}`) ?? a;
 </script>
 
 <Modal title={p ? t('purchases.modal.title', { doc: p.doc_no }) : t('purchases.detail')} {onclose} wide>
@@ -30,6 +56,23 @@
   {:else if !p}
     <p class="py-10 text-center text-[var(--text-tertiary)]">…</p>
   {:else}
+    {#if p.status === 'void'}
+      <div role="status" class="mb-3 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] badge-danger">
+        <i class="icon-ban text-[14px] shrink-0 mt-0.5"></i>
+        <span>{t('purchases.modal.voidedBanner', { at: formatDateTime(p.voided_at ?? p.created_at), reason: p.void_reason })}</span>
+      </div>
+    {:else if p.status === 'superseded'}
+      <div role="status" class="mb-3 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] badge-warning">
+        <i class="icon-history text-[14px] shrink-0 mt-0.5"></i>
+        <span>{t('purchases.modal.supersededBanner')}</span>
+      </div>
+    {/if}
+    {#if p.revision > 1}
+      <div class="mb-3 flex items-start gap-2 rounded-lg bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px]">
+        <i class="icon-git-branch text-[14px] shrink-0 mt-0.5 text-[var(--text-tertiary)]"></i>
+        <span>{t('purchases.modal.revisionBanner', { n: p.revision, reason: p.revision_reason })}</span>
+      </div>
+    {/if}
     <div class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 text-[13px]">
       <div><div class={label}>{t('purchases.modal.supplier')}</div><div class="font-medium">{p.supplier_name}</div></div>
       <div><div class={label}>{t('purchases.modal.invoice')}</div><div class="font-mono">{p.supplier_invoice_no || '—'}</div></div>
@@ -112,7 +155,48 @@
       </dl>
     </div>
 
-    <div class="mt-5 flex justify-end">
+    <section class="mt-5">
+      <h3 class={label}>{t('purchases.modal.history')}</h3>
+      <p class="mt-1 text-[12px] text-[var(--text-tertiary)]">{t('purchases.modal.historyIntro')}</p>
+      {#if p.events.length === 0}
+        <p class="mt-3 rounded-lg border border-dashed border-[var(--border-subtle)] p-4 text-center text-[12.5px] text-[var(--text-tertiary)]">{t('purchases.modal.historyEmpty')}</p>
+      {:else}
+        <ol class="mt-3 space-y-3 border-s border-[var(--border-subtle)] ps-5">
+          {#each p.events as ev, i (i)}
+            <li class="relative">
+              <span class="absolute -start-[25px] top-1 inline-flex size-[10px] rounded-full bg-[var(--color-primary-600)]"></span>
+              <div class="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+                <span class="font-semibold">{actionLabel(ev.action)}</span>
+                <span class="text-[11.5px] text-[var(--text-tertiary)]">{formatDateTime(ev.at)}{#if ev.actor} · {t('purchases.modal.historyBy', { actor: ev.actor })}{/if}</span>
+              </div>
+            </li>
+          {/each}
+        </ol>
+      {/if}
+    </section>
+
+    {#if voiding}
+      <form onsubmit={doVoid} class="mt-5 space-y-2 rounded-lg border border-[var(--color-danger-600)]/40 p-3" novalidate>
+        <label class="block text-[12px] font-semibold" for="void-reason">{t('purchases.modal.voidReason')}</label>
+        <input id="void-reason" bind:value={voidReason} maxlength="200" autocomplete="off"
+          class="h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]" />
+        <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('purchases.modal.reasonHint')}</p>
+        {#if voidError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{voidError}</p>{/if}
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn btn-sm" disabled={voidBusy} onclick={() => (voiding = false)}>{t('purchases.modal.voidBack')}</button>
+          <button type="submit" class="btn btn-sm btn-danger" disabled={voidBusy || voidReason.trim().length < 3}>
+            <i class="icon-ban text-[13px]"></i>{t('purchases.modal.voidConfirm')}
+          </button>
+        </div>
+      </form>
+    {/if}
+    <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+      {#if p.status === 'completed' && canUpdate}
+        <a href="/purchases/new?edit={p.id}" class="btn btn-sm"><i class="icon-pencil text-[13px]"></i>{t('purchases.modal.revise')}</a>
+      {/if}
+      {#if p.status === 'completed' && canDelete && !voiding}
+        <button type="button" class="btn btn-sm" onclick={() => (voiding = true)}><i class="icon-ban text-[13px]"></i>{t('purchases.modal.voidAction')}</button>
+      {/if}
       <button type="button" class="btn" onclick={onclose}>{t('purchases.modal.close')}</button>
     </div>
   {/if}
