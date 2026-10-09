@@ -335,3 +335,106 @@ FROM stock_counts c
 JOIN stock_count_lines l ON l.tenant_id = c.tenant_id AND l.count_id = c.id
 WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id AND c.status = 'completed'
   AND c.completed_at >= now() - interval '30 days';
+
+-- ---- Mutasi stok (Fase 4.3 / 6.5) ----
+
+-- name: StockTrOutlet :one
+SELECT id, code, name, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2;
+
+-- name: StockTrDestinations :many
+SELECT id, code, name FROM outlets WHERE tenant_id = $1 AND active ORDER BY lower(name), code;
+
+-- name: StockTrItemLock :one
+-- Kunci baris barang (terurut id) + data & HPP efektif di outlet yang diminta. FOR NO KEY UPDATE (bukan FOR UPDATE)
+-- agar tidak bentrok dengan FOR KEY SHARE dari FK saat penjualan menulis movement (deadlock).
+SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric  AS avg_cost,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
+WHERE i.tenant_id = @tenant_id AND i.id = @id FOR NO KEY UPDATE OF i;
+
+-- name: StockTrByIdemKey :one
+SELECT id, request_hash FROM stock_transfers WHERE tenant_id = $1 AND idempotency_key = $2;
+
+-- name: StockTrNextNo :one
+INSERT INTO stock_transfer_counters (tenant_id, outlet_id, day, last_no) VALUES (@tenant_id, @outlet_id, @day, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_transfer_counters.last_no + 1
+RETURNING last_no;
+
+-- name: StockTrInsert :one
+INSERT INTO stock_transfers (id, tenant_id, doc_no, idempotency_key, request_hash, from_outlet_id, from_bucket, to_outlet_id, to_bucket,
+                             status, note, sent_by, received_by, received_at)
+VALUES (@id, @tenant_id, @doc_no, @idempotency_key, @request_hash, @from_outlet_id, @from_bucket, @to_outlet_id, @to_bucket,
+        @status, @note, sqlc.narg('sent_by'), sqlc.narg('received_by'), sqlc.narg('received_at'))
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id;
+
+-- name: StockTrLineInsert :exec
+INSERT INTO stock_transfer_lines (tenant_id, transfer_id, item_id, qty_sent, qty_received, unit_cost)
+VALUES (@tenant_id, @transfer_id, @item_id, @qty_sent, sqlc.narg('qty_received'), @unit_cost);
+
+-- name: StockTrLock :one
+SELECT id, doc_no, from_outlet_id, from_bucket, to_outlet_id, to_bucket, status
+FROM stock_transfers WHERE tenant_id = $1 AND id = $2 FOR UPDATE;
+
+-- name: StockTrLinesForMove :many
+SELECT item_id, qty_sent, unit_cost FROM stock_transfer_lines WHERE tenant_id = $1 AND transfer_id = $2 ORDER BY item_id;
+
+-- name: StockTrLineSetReceived :exec
+UPDATE stock_transfer_lines SET qty_received = @qty_received
+WHERE tenant_id = @tenant_id AND transfer_id = @transfer_id AND item_id = @item_id;
+
+-- name: StockTrSetReceived :exec
+UPDATE stock_transfers SET status = 'received', received_by = sqlc.narg('actor_id'), received_at = now()
+WHERE tenant_id = @tenant_id AND id = @id;
+
+-- name: StockTrSetCancelled :exec
+UPDATE stock_transfers SET status = 'cancelled', cancelled_by = sqlc.narg('actor_id'), cancelled_at = now(), cancel_reason = @reason
+WHERE tenant_id = @tenant_id AND id = @id;
+
+-- name: StockTrGet :one
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at, t.cancel_reason,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name, coalesce(ur.name, '') AS received_by_name, coalesce(uc.name, '') AS cancelled_by_name
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+LEFT JOIN users ur ON ur.tenant_id = t.tenant_id AND ur.id = t.received_by
+LEFT JOIN users uc ON uc.tenant_id = t.tenant_id AND uc.id = t.cancelled_by
+WHERE t.tenant_id = $1 AND t.id = $2;
+
+-- name: StockTrLines :many
+SELECT l.item_id, l.qty_sent, l.qty_received, l.unit_cost, i.sku, i.name, u.name AS unit_name
+FROM stock_transfer_lines l
+JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE l.tenant_id = $1 AND l.transfer_id = $2 ORDER BY lower(i.name), i.id;
+
+-- name: StockTrList :many
+-- direction: 'out' = keluar dari outlet ini, 'in' = masuk ke outlet ini (termasuk antar-bucket di outlet yang sama untuk keduanya).
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name,
+       (SELECT count(*) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id) AS line_count,
+       (SELECT coalesce(sum(l.qty_sent), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_sent,
+       (SELECT coalesce(sum(l.qty_sent - coalesce(l.qty_received, l.qty_sent)), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_short
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+WHERE t.tenant_id = @tenant_id
+  AND ((@direction::text = 'out' AND t.from_outlet_id = @outlet_id) OR (@direction::text = 'in' AND t.to_outlet_id = @outlet_id))
+  AND (@status::text = '' OR t.status = @status::text)
+  AND (@q::text = '' OR t.doc_no ILIKE '%' || @q::text || '%')
+  AND (sqlc.narg('cursor_at')::timestamptz IS NULL OR (t.sent_at, t.id) < (sqlc.narg('cursor_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+ORDER BY t.sent_at DESC, t.id DESC
+LIMIT @page_limit;
+
+-- name: StockTrSummary :one
+SELECT
+  count(*) FILTER (WHERE status = 'sent' AND to_outlet_id = @outlet_id AND from_outlet_id <> @outlet_id) AS to_receive,
+  count(*) FILTER (WHERE status = 'sent' AND from_outlet_id = @outlet_id AND to_outlet_id <> @outlet_id) AS in_transit
+FROM stock_transfers WHERE tenant_id = @tenant_id AND (from_outlet_id = @outlet_id OR to_outlet_id = @outlet_id);

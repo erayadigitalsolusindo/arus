@@ -1,0 +1,51 @@
+const payables = {
+  docTitle: 'Hutang Suplier | ACIRABA',
+  title: 'Daftar Hutang Suplier',
+  subtitle: 'Hutang dari pembelian kredit ke pemasok di cabang yang boleh Anda akses. Pembayaran boleh dicicil.',
+  search: 'Cari no. nota, no. faktur, atau pemasok…',
+  loadFailed: 'Gagal memuat daftar hutang.',
+  empty: 'Belum ada hutang.',
+  emptySearch: 'Tidak ada hutang yang cocok dengan filter.',
+  loadMore: 'Muat lebih banyak',
+  status: { open: 'Belum lunas', overdue: 'Lewat jatuh tempo', paid: 'Lunas', all: 'Semua' },
+  stat: { outstanding: 'Total hutang', overdue: 'Lewat jatuh tempo', open: 'Nota belum lunas' },
+  aging: { title: 'Umur hutang', current: 'Belum jatuh tempo', d1_30: 'Lewat 1–30 hari', d31_60: 'Lewat 31–60 hari', d60_plus: 'Lewat > 60 hari' },
+  col: { docNo: 'No. Pembelian', invoice: 'No. Faktur', supplier: 'Pemasok', date: 'Tanggal', due: 'Jatuh tempo', amount: 'Hutang', paid: 'Dibayar', balance: 'Sisa', status: 'Status', action: 'Aksi' },
+  noDue: '—',
+  pay: 'Bayar',
+  detail: 'Rincian',
+  modal: {
+    title: 'Hutang {doc}',
+    history: 'Riwayat pembayaran',
+    noPayments: 'Belum ada pembayaran.',
+    payTitle: 'Bayar hutang',
+    method: 'Metode',
+    amount: 'Jumlah dibayar',
+    ref: 'No. referensi',
+    note: 'Catatan',
+    full: 'Lunasi seluruhnya',
+    save: 'Simpan pembayaran',
+    saving: 'Menyimpan…',
+    saved: 'Pembayaran {doc} tersimpan.',
+    settled: 'Hutang ini sudah lunas.',
+    paidBy: 'Dibayar oleh',
+    afterPay: 'Sisa setelah pembayaran ini: {balance}',
+    close: 'Tutup'
+  },
+  history: {
+    docTitle: 'History Harga Beli | ACIRABA',
+    title: 'History Harga Beli',
+    subtitle: 'Harga beli barang dari setiap pembelian (nota yang masih berlaku) di cabang yang boleh Anda akses, terbaru dulu.',
+    search: 'Cari barang, kode, no. pembelian, atau pemasok…',
+    period: 'Periode',
+    loadFailed: 'Gagal memuat riwayat harga beli.',
+    empty: 'Tidak ada pembelian pada periode ini.',
+    loadMore: 'Muat lebih banyak',
+    count: '{count} baris dimuat',
+    col: { date: 'Tanggal', item: 'Barang', supplier: 'Pemasok', qty: 'Qty', price: 'Harga beli', change: 'Perubahan', discount: 'Diskon', cost: 'HPP baris', doc: 'No. Pembelian' },
+    first: 'Pertama',
+    preset: { today: 'Hari ini', days7: '7 hari', days30: '30 hari', month: 'Bulan ini' }
+  }
+};
+
+export default payables;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Select from '#lib/components/Select.svelte';
+  import SettleModal from '#lib/components/SettleModal.svelte';
   import ReceivableModal from '#lib/components/ReceivableModal.svelte';
   import { receivables as api, type Receivable, type ReceivableFilter, type ReceivableSummary } from '#lib/receivables/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -20,6 +21,7 @@
   let q = $state('');
   let status = $state<ReceivableFilter>('open');
   let openId = $state<string | null>(null);
+  let settling = $state(false);
 
   const statusOptions = $derived((['open', 'overdue', 'paid', 'all'] as const).map((s) => ({ value: s, label: t(`receivables.status.${s}`) })));
   const canPay = $derived(can('member_receivables', 'create'));
@@ -65,9 +67,14 @@
 {/snippet}
 
 <main class="p-4 lg:p-6 space-y-4 max-w-full mx-auto w-full">
-  <div>
-    <h1 class="font-display font-bold text-[19px]">{t('receivables.title')}</h1>
-    <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('receivables.subtitle')}</p>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="font-display font-bold text-[19px]">{t('receivables.title')}</h1>
+      <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('receivables.subtitle')}</p>
+    </div>
+    {#if canPay}
+      <button type="button" class="btn btn-primary" onclick={() => (settling = true)}><i class="icon-banknote me-1"></i>{t('settle.receivable.button')}</button>
+    {/if}
   </div>
 
   {#if error}
@@ -141,6 +148,10 @@
     {/if}
   </div>
 </main>
+
+{#if settling}
+  <SettleModal kind="receivable" onclose={() => (settling = false)} onchanged={() => load()} />
+{/if}
 
 {#if openId}
   <ReceivableModal id={openId} onclose={() => (openId = null)} onchanged={() => load()} />

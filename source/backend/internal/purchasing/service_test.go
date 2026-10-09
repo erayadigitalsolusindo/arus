@@ -73,7 +73,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "payables", "purchase_costs", "purchase_lines", "purchases", "purchase_counters", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "payable_payments", "payable_settlements", "payable_payment_counters", "payables", "payment_methods", "purchase_costs", "purchase_lines", "purchases", "purchase_counters", "stock_movements", "stock_balances",
 				"item_outlet_costs", "items", "suppliers", "units", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
@@ -525,28 +525,28 @@ func TestListFiltersAndSummary(t *testing.T) {
 	mk(sup2, "credit", "B-1", "4000")
 
 	res, err := e.svc.List(ctx, a, ListParams{})
-	if err != nil || res.Total != 3 || len(res.Data) != 3 || res.Summary.Count != 3 || res.Summary.Total != "7000.00" || res.Summary.CreditTotal != "6000.00" {
+	if err != nil || len(res.Data) != 3 || res.Summary.Count != 3 || res.Summary.Total != "7000.00" || res.Summary.CreditTotal != "6000.00" {
 		t.Fatalf("semua: %v %+v", err, res)
 	}
-	if res, _ = e.svc.List(ctx, a, ListParams{PaymentType: "credit"}); res.Total != 2 || res.Summary.Total != "6000.00" {
+	if res, _ = e.svc.List(ctx, a, ListParams{PaymentType: "credit"}); res.Summary.Count != 2 || res.Summary.Total != "6000.00" {
 		t.Errorf("kredit: %+v", res.Summary)
 	}
-	if res, _ = e.svc.List(ctx, a, ListParams{SupplierID: &sup2}); res.Total != 1 || res.Data[0].SupplierName != "CV Maju_Jaya" {
+	if res, _ = e.svc.List(ctx, a, ListParams{SupplierID: &sup2}); res.Summary.Count != 1 || res.Data[0].SupplierName != "CV Maju_Jaya" {
 		t.Errorf("pemasok: %+v", res)
 	}
-	if res, _ = e.svc.List(ctx, a, ListParams{Q: "a-2"}); res.Total != 1 || res.Data[0].SupplierInvoiceNo != "A-2" {
+	if res, _ = e.svc.List(ctx, a, ListParams{Q: "a-2"}); res.Summary.Count != 1 || res.Data[0].SupplierInvoiceNo != "A-2" {
 		t.Errorf("cari faktur: %+v", res)
 	}
 	// Underscore bukan wildcard: "u_J" harus cocok literal "Maju_Jaya" saja, bukan "SumbeR Rejeki".
-	if res, _ = e.svc.List(ctx, a, ListParams{Q: "u_J"}); res.Total != 1 {
-		t.Errorf("escape LIKE: %+v", res.Total)
+	if res, _ = e.svc.List(ctx, a, ListParams{Q: "u_J"}); res.Summary.Count != 1 {
+		t.Errorf("escape LIKE: %+v", res.Summary.Count)
 	}
-	if res, _ = e.svc.List(ctx, a, ListParams{Q: "%"}); res.Total != 0 {
-		t.Errorf("persen literal: %d", res.Total)
+	if res, _ = e.svc.List(ctx, a, ListParams{Q: "%"}); res.Summary.Count != 0 {
+		t.Errorf("persen literal: %d", res.Summary.Count)
 	}
 	// Cabang lain tidak melihat nota cabang utama.
-	if res, _ = e.svc.List(ctx, e.actor(e.outlet2), ListParams{}); res.Total != 0 {
-		t.Errorf("cabang 2: %d", res.Total)
+	if res, _ = e.svc.List(ctx, e.actor(e.outlet2), ListParams{}); res.Summary.Count != 0 {
+		t.Errorf("cabang 2: %d", res.Summary.Count)
 	}
 	var fe FieldErrors
 	if _, err := e.svc.List(ctx, a, ListParams{From: "2020-01-01", To: "2026-12-31"}); !errors.As(err, &fe) {

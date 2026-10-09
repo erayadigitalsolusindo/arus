@@ -100,6 +100,10 @@ const (
 	ActionStockOpeningLock = "stock.opening_lock"
 	ActionStockConvert     = "stock.convert"
 
+	ActionStockTransferSend    = "stock.transfer_send"
+	ActionStockTransferReceive = "stock.transfer_receive"
+	ActionStockTransferCancel  = "stock.transfer_cancel"
+
 	ActionStockCountCreate   = "stock.count_create"
 	ActionStockCountItems    = "stock.count_items"
 	ActionStockCountComplete = "stock.count_complete"
@@ -118,7 +122,17 @@ const (
 )
 
 // Piutang member (penjualan kredit).
-const ActionReceivablePay = "receivable.pay"
+const (
+	ActionReceivablePay    = "receivable.pay"
+	ActionReceivableSettle = "receivable.settle" // pelunasan kolektif per member
+)
+
+// Hutang pemasok (pembelian kredit).
+const (
+	EntityPayable       = "payable"
+	ActionPayablePay    = "payable.pay"
+	ActionPayableSettle = "payable.settle" // pelunasan kolektif per pemasok
+)
 
 // Persetujuan (PIN) — ubah harga di kasir.
 const (
@@ -166,5 +180,8 @@ const (
 const (
 	EntityPurchase = "purchase"
 
-	ActionPurchaseCreate = "purchase.create"
+	ActionPurchaseCreate     = "purchase.create"
+	ActionPurchaseEdit       = "purchase.edit"
+	ActionPurchaseSuperseded = "purchase.superseded"
+	ActionPurchaseVoid       = "purchase.void"
 )

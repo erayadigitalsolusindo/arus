@@ -106,8 +106,8 @@ export const nav: NavGroup[] = [
         icon: 'truck',
         children: [
           { labelKey: 'nav.purchaseList', module: 'purchase_list', href: '/purchases' },
-          { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history' },
-          { labelKey: 'nav.supplierPayables', module: 'supplier_payables' }
+          { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history', href: '/buy-price-history' },
+          { labelKey: 'nav.supplierPayables', module: 'supplier_payables', href: '/supplier-payables' }
         ]
       }
     ]
@@ -118,7 +118,7 @@ export const nav: NavGroup[] = [
       { id: 'stockOpening', labelKey: 'nav.stockOpening', icon: 'package-plus', module: 'stock_opening', href: '/stock-opening' },
       { id: 'stockConversion', labelKey: 'nav.stockConversion', icon: 'split', module: 'stock_conversion', href: '/stock-conversion' },
       { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname', href: '/stock-opname' },
-      { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer' }
+      { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer', href: '/stock-transfer' }
     ]
   },
   {

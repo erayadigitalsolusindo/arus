@@ -2,6 +2,8 @@ package purchasing
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -37,11 +39,21 @@ type Cost struct {
 	Amount string `json:"amount"`
 }
 
-// PayableInfo = hutang yang lahir dari nota kredit (saldo/pembayaran menyusul Fase 6.3).
+// PayableInfo = hutang yang lahir dari nota kredit (saldo = amount − pembayaran, Fase 6.3).
 type PayableInfo struct {
 	ID      uuid.UUID `json:"id"`
 	Amount  string    `json:"amount"`
 	DueDate *string   `json:"due_date"`
+	Paid    string    `json:"paid"`
+	Balance string    `json:"balance"`
+}
+
+// Event = satu catatan audit nota (siapa, kapan, dan rinciannya).
+type Event struct {
+	Action  string          `json:"action"`
+	Actor   string          `json:"actor"`
+	At      time.Time       `json:"at"`
+	Details json.RawMessage `json:"details"`
 }
 
 type Purchase struct {
@@ -68,6 +80,30 @@ type Purchase struct {
 	Lines             []Line       `json:"lines"`
 	Costs             []Cost       `json:"costs"`
 	Payable           *PayableInfo `json:"payable"`
+	Events            []Event      `json:"events"`
+	Revision          int          `json:"revision"`
+	RevisionReason    string       `json:"revision_reason"`
+	RevisedAt         *time.Time   `json:"revised_at"`
+	SupersededBy      *uuid.UUID   `json:"superseded_by"`
+	SupersedesID      *uuid.UUID   `json:"supersedes_id"`
+	VoidReason        string       `json:"void_reason"`
+	VoidedAt          *time.Time   `json:"voided_at"`
+}
+
+func timePtr(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time
+	return &v
+}
+
+func uuidPtr(u pgtype.UUID) *uuid.UUID {
+	if !u.Valid {
+		return nil
+	}
+	v := uuid.UUID(u.Bytes)
+	return &v
 }
 
 func dateStr(d pgtype.Date) *string {
@@ -102,7 +138,9 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Purchas
 			PurchaseDate: r.PurchaseDate.Time.Format("2006-01-02"), PaymentType: r.PaymentType, DueDate: dateStr(r.DueDate),
 			Status: r.Status, Note: r.Note, Subtotal: r.Subtotal.StringFixed(2), TaxPct: r.TaxPct.StringFixed(2),
 			TaxAmount: r.TaxAmount.StringFixed(2), OtherCost: r.OtherCost.StringFixed(2), Total: r.Total.StringFixed(2),
-			CreatedAt: r.CreatedAt.Time, CreatedBy: r.CreatedName, Lines: []Line{}, Costs: []Cost{}}
+			CreatedAt: r.CreatedAt.Time, CreatedBy: r.CreatedName, Lines: []Line{}, Costs: []Cost{}, Events: []Event{},
+			Revision: int(r.Revision), RevisionReason: r.RevisionReason, RevisedAt: timePtr(r.RevisedAt), SupersededBy: uuidPtr(r.SupersededBy),
+			SupersedesID: uuidPtr(r.SupersedesID), VoidReason: r.VoidReason, VoidedAt: timePtr(r.VoidedAt)}
 		lines, err := q.PurchaseLines(ctx, gen.PurchaseLinesParams{TenantID: a.TenantID, PurchaseID: id})
 		if err != nil {
 			return err
@@ -129,9 +167,20 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Purchas
 		}
 		pay, err := q.PurchasePayable(ctx, gen.PurchasePayableParams{TenantID: a.TenantID, PurchaseID: id})
 		if err == nil {
-			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate)}
+			var paid dec
+			if err := tx.QueryRow(ctx, `SELECT coalesce(sum(amount), 0) FROM payable_payments WHERE tenant_id = $1 AND payable_id = $2`, a.TenantID, pay.ID).Scan(&paid); err != nil {
+				return err
+			}
+			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate), Paid: paid.StringFixed(2), Balance: pay.Amount.Sub(paid).StringFixed(2)}
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		evs, err := q.PurchaseAuditEvents(ctx, gen.PurchaseAuditEventsParams{TenantID: a.TenantID, PurchaseID: id})
+		if err != nil {
+			return err
+		}
+		for _, e := range evs {
+			p.Events = append(p.Events, Event{Action: e.Action, Actor: e.ActorName, At: e.CreatedAt.Time, Details: json.RawMessage(e.Details)})
 		}
 		return nil
 	})
@@ -146,7 +195,7 @@ type ListParams struct {
 	PaymentType string
 	Q           string
 	Limit       int
-	Offset      int
+	Cursor      string // dari next_cursor halaman sebelumnya; kosong = halaman pertama
 }
 
 type Row struct {
@@ -172,9 +221,37 @@ type Summary struct {
 }
 
 type ListResult struct {
-	Data    []Row   `json:"data"`
-	Total   int     `json:"total"`
-	Summary Summary `json:"summary"`
+	Data       []Row   `json:"data"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor string  `json:"next_cursor"`
+	Summary    Summary `json:"summary"`
+}
+
+// cursor = base64url("YYYY-MM-DD|RFC3339Nano|uuid") dari baris terakhir halaman. Format tak valid = ditolak (INVALID).
+func encodeCursor(date string, at time.Time, id uuid.UUID) string {
+	raw := date + "|" + at.UTC().Format(time.RFC3339Nano) + "|" + id.String()
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+}
+
+func decodeCursor(c string) (date time.Time, at time.Time, id uuid.UUID, ok bool) {
+	b, err := base64.RawURLEncoding.DecodeString(c)
+	if err != nil {
+		return time.Time{}, time.Time{}, uuid.Nil, false
+	}
+	parts := strings.Split(string(b), "|")
+	if len(parts) != 3 {
+		return time.Time{}, time.Time{}, uuid.Nil, false
+	}
+	if date, err = time.Parse("2006-01-02", parts[0]); err != nil {
+		return time.Time{}, time.Time{}, uuid.Nil, false
+	}
+	if at, err = time.Parse(time.RFC3339Nano, parts[1]); err != nil {
+		return time.Time{}, time.Time{}, uuid.Nil, false
+	}
+	if id, err = uuid.Parse(parts[2]); err != nil {
+		return time.Time{}, time.Time{}, uuid.Nil, false
+	}
+	return date, at, id, true
 }
 
 const maxRangeDays = 366
@@ -214,6 +291,19 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 	if p.PaymentType != "" && p.PaymentType != "cash" && p.PaymentType != "credit" {
 		f["payment_type"] = "INVALID"
 	}
+	var cur struct {
+		on   bool
+		date time.Time
+		at   time.Time
+		id   uuid.UUID
+	}
+	if p.Cursor != "" {
+		d, at, id, ok := decodeCursor(p.Cursor)
+		if !ok {
+			f["cursor"] = "INVALID"
+		}
+		cur.on, cur.date, cur.at, cur.id = true, d, at, id
+	}
 	if len(f) > 0 {
 		return ListResult{}, f
 	}
@@ -229,17 +319,30 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 			sup = pgtype.UUID{Bytes: *p.SupplierID, Valid: true}
 		}
 		qs := escapeLike(p.Q)
-		rows, err := q.PurchaseList(ctx, gen.PurchaseListParams{TenantID: a.TenantID, OutletID: a.OutletID, FromDate: pgDate(from), ToDate: pgDate(to),
-			SupplierID: sup, PaymentType: p.PaymentType, Q: qs, PageLimit: int32(limit), PageOffset: int32(max(p.Offset, 0))})
+		params := gen.PurchaseListParams{TenantID: a.TenantID, OutletID: a.OutletID, FromDate: pgDate(from), ToDate: pgDate(to),
+			SupplierID: sup, PaymentType: p.PaymentType, Q: qs, PageLimit: int32(limit + 1)}
+		if cur.on {
+			params.HasCursor, params.CurDate, params.CurAt, params.CurID = true, pgDate(cur.date),
+				pgtype.Timestamptz{Time: cur.at, Valid: true}, cur.id
+		}
+		rows, err := q.PurchaseList(ctx, params)
 		if err != nil {
 			return err
+		}
+		// Satu baris ekstra menandakan masih ada halaman berikut; baris itu tidak ditampilkan.
+		if len(rows) > limit {
+			rows = rows[:limit]
+			res.HasMore = true
 		}
 		for _, r := range rows {
 			res.Data = append(res.Data, Row{ID: r.ID, DocNo: r.DocNo, SupplierID: r.SupplierID, SupplierName: r.SupplierName,
 				SupplierInvoiceNo: r.SupplierInvoiceNo, PurchaseDate: r.PurchaseDate.Time.Format("2006-01-02"), PaymentType: r.PaymentType,
 				DueDate: dateStr(r.DueDate), Status: r.Status, Total: r.Total.StringFixed(2), Lines: int(r.LineCount),
 				CreatedAt: r.CreatedAt.Time, CreatedBy: r.CreatedName})
-			res.Total = int(r.TotalRows)
+		}
+		if res.HasMore {
+			last := rows[len(rows)-1]
+			res.NextCursor = encodeCursor(last.PurchaseDate.Time.Format("2006-01-02"), last.CreatedAt.Time, last.ID)
 		}
 		sm, err := q.PurchaseListSummary(ctx, gen.PurchaseListSummaryParams{TenantID: a.TenantID, OutletID: a.OutletID, FromDate: pgDate(from), ToDate: pgDate(to),
 			SupplierID: sup, PaymentType: p.PaymentType, Q: qs})

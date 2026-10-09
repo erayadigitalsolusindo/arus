@@ -30,7 +30,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Route("/payment-methods", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		// Kasir hanya butuh daftar aktif (id, nama, jenis); tak perlu izin halaman master.
-		r.With(authz.RequireAny([2]string{ModuleID, authz.ActView}, [2]string{"sales_orders", authz.ActCreate}, [2]string{"member_receivables", authz.ActCreate})).Get("/lookup", h.lookup)
+		r.With(authz.RequireAny([2]string{ModuleID, authz.ActView}, [2]string{"sales_orders", authz.ActCreate}, [2]string{"member_receivables", authz.ActCreate}, [2]string{"supplier_payables", authz.ActCreate})).Get("/lookup", h.lookup)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/", h.list)
 		r.With(authz.Require(ModuleID, authz.ActCreate)).Post("/", h.create)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}", h.update)

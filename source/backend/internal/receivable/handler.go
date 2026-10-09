@@ -29,6 +29,9 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Route("/receivables", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
+		r.With(authz.Require(Module, authz.ActCreate)).Post("/settlements/quote", h.SettleQuote)
+		r.With(authz.Require(Module, authz.ActCreate)).Post("/settlements", h.Settle)
+		r.With(authz.Require(Module, authz.ActView)).Get("/settlements/{id}", h.GetSettlement)
 		r.With(authz.Require(Module, authz.ActView)).Get("/{id}", h.Get)
 		r.With(authz.Require(Module, authz.ActCreate)).Post("/{id}/payments", h.Pay)
 	})
@@ -97,6 +100,53 @@ func (h *Handler) Pay(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 	httpx.JSON(w, status, d)
+}
+
+// SettleQuote: POST /receivables/settlements/quote — pratinjau pembagian uang.
+func (h *Handler) SettleQuote(w http.ResponseWriter, r *http.Request) {
+	var req SettleInput
+	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
+		return
+	}
+	p, err := h.svc.SettleQuote(r.Context(), actor(r), req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, p)
+}
+
+// Settle: POST /payables/settlements (header Idempotency-Key wajib). 201 = baru; 200 + Idempotent-Replay = kunci sama.
+func (h *Handler) Settle(w http.ResponseWriter, r *http.Request) {
+	var req SettleInput
+	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
+		return
+	}
+	d, replayed, err := h.svc.Settle(r.Context(), actor(r), r.Header.Get("Idempotency-Key"), req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	status := http.StatusCreated
+	if replayed {
+		w.Header().Set("Idempotent-Replay", "true")
+		status = http.StatusOK
+	}
+	httpx.JSON(w, status, d)
+}
+
+func (h *Handler) GetSettlement(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return
+	}
+	d, err := h.svc.GetSettlement(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, d)
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {

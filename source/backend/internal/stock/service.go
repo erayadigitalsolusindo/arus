@@ -32,6 +32,7 @@ const (
 	RefSaleReturn     = "SALE_RETURN"
 	RefPurchase       = "PURCHASE"
 	RefPurchaseReturn = "PURCHASE_RETURN"
+	RefPurchaseVoid   = "PURCHASE_VOID"
 	RefOpname         = "OPNAME"
 	RefTransferOut    = "TRANSFER_OUT"
 	RefTransferIn     = "TRANSFER_IN"
@@ -50,7 +51,7 @@ var (
 var (
 	validBuckets = map[string]bool{BucketDisplay: true, BucketWarehouse: true, BucketReturns: true}
 	validRefs    = map[string]bool{RefOpening: true, RefSale: true, RefSaleVoid: true, RefSaleReturn: true, RefPurchase: true,
-		RefPurchaseReturn: true, RefOpname: true, RefTransferOut: true, RefTransferIn: true, RefUnitConversion: true, RefAdjustment: true}
+		RefPurchaseReturn: true, RefPurchaseVoid: true, RefOpname: true, RefTransferOut: true, RefTransferIn: true, RefUnitConversion: true, RefAdjustment: true}
 	maxQty = decimal.New(1, 12)
 )
 

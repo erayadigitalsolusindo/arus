@@ -5,7 +5,7 @@
   import PurchaseModal from '#lib/components/PurchaseModal.svelte';
   import { purchases as api, type PaymentType, type PurchaseRow, type PurchaseList } from '#lib/purchases/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
-  import { t, formatCurrency, formatDate, formatNumber } from '#lib/i18n/index.ts';
+  import { t, formatCurrency, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
   const PAGE = 50;
@@ -18,7 +18,8 @@
 
   let rows = $state<PurchaseRow[]>([]);
   let summary = $state<PurchaseList['summary'] | null>(null);
-  let total = $state(0);
+  let hasMore = $state(false);
+  let nextCursor = $state('');
   let loading = $state(true);
   let error = $state('');
   let q = $state('');
@@ -41,10 +42,11 @@
     loading = true;
     error = '';
     try {
-      const res = await api.list({ from, to, q: q.trim(), payment_type: type, limit: PAGE, offset: more ? rows.length : 0 });
+      const res = await api.list({ from, to, q: q.trim(), payment_type: type, limit: PAGE, cursor: more ? nextCursor : '' });
       if (mine !== seq) return;
       rows = more ? [...rows, ...res.data] : res.data;
-      total = res.total;
+      hasMore = res.has_more;
+      nextCursor = res.next_cursor;
       summary = res.summary;
     } catch (e) {
       if (mine === seq) error = errorMessage(e);
@@ -129,8 +131,11 @@
         <tbody>
           {#each rows as r (r.id)}
             <tr class="border-b border-[var(--border-subtle)] align-middle last:border-0 hover:bg-[var(--color-primary)]/5">
-              <td class="px-4 py-3 font-mono text-[12px] font-bold whitespace-nowrap">{r.doc_no}</td>
-              <td class="px-3 py-3 whitespace-nowrap">{formatDate(r.purchase_date)}</td>
+              <td class="px-4 py-3 font-mono text-[12px] font-bold whitespace-nowrap">{r.doc_no}{#if r.status === 'void'}<span class="badge-soft badge-danger ms-2 font-sans">{t('purchases.status.void')}</span>{/if}</td>
+              <td class="px-3 py-3 whitespace-nowrap">
+                {formatDate(r.purchase_date)}
+                <div class="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{t('purchases.entered', { at: formatDateTime(r.created_at), by: r.created_by || '—' })}</div>
+              </td>
               <td class="px-3 py-3 font-medium">{r.supplier_name}</td>
               <td class="px-3 py-3 font-mono text-[12px]">{r.supplier_invoice_no || '—'}</td>
               <td class="px-3 py-3 whitespace-nowrap">
@@ -154,7 +159,7 @@
       </table>
     </div>
 
-    {#if rows.length < total}
+    {#if hasMore}
       <div class="flex justify-center p-3 border-t border-[var(--border-subtle)]">
         <button type="button" class="btn btn-sm" disabled={loading} onclick={() => load(true)}>{t('purchases.loadMore')}</button>
       </div>
