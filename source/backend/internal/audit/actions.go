@@ -99,6 +99,12 @@ const (
 	ActionStockOpening     = "stock.opening"
 	ActionStockOpeningLock = "stock.opening_lock"
 	ActionStockConvert     = "stock.convert"
+
+	ActionStockCountCreate   = "stock.count_create"
+	ActionStockCountItems    = "stock.count_items"
+	ActionStockCountComplete = "stock.count_complete"
+	ActionStockCountCancel   = "stock.count_cancel"
+	ActionStockCountQuick    = "stock.count_quick"
 )
 
 // Penjualan (Fase 5.1).
@@ -154,4 +160,11 @@ const (
 	ActionPaymentMethodCreate = "payment_method.create"
 	ActionPaymentMethodUpdate = "payment_method.update"
 	ActionPaymentMethodActive = "payment_method.active"
+)
+
+// Pembelian (Fase 6.2).
+const (
+	EntityPurchase = "purchase"
+
+	ActionPurchaseCreate = "purchase.create"
 )

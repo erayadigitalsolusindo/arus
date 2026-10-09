@@ -127,6 +127,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusForbidden, "EDIT_WINDOW_CLOSED", "Batas waktu edit nota sudah lewat.")
 	case errors.Is(err, ErrOutletMismatch):
 		httpx.Error(w, http.StatusConflict, "OUTLET_MISMATCH", "Nota ini milik outlet lain; pindah ke outlet nota itu dulu.")
+	case errors.Is(err, ErrOutletForbidden):
+		httpx.Error(w, http.StatusForbidden, "OUTLET_FORBIDDEN", "Anda tidak memiliki akses ke outlet nota ini.")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	default:

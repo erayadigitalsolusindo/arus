@@ -18,6 +18,7 @@ import pos from './pos.ts';
 import members from './members.ts';
 import sales from './sales.ts';
 import receivables from './receivables.ts';
+import purchases from './purchases.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, purchases };

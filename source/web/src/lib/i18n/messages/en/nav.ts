@@ -30,6 +30,7 @@ const nav: Messages['nav'] = {
   memberReceivables: 'Member Receivables',
   orderList: 'Order List',
   purchaseInvoicesReturns: 'Invoices and Returns',
+  purchaseInvoices: 'Purchase Invoice',
   purchaseReturns: 'Purchase Returns',
   purchaseData: 'Purchase Data',
   purchaseList: 'Purchase List',
