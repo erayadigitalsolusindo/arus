@@ -5,12 +5,13 @@ FROM outlets WHERE tenant_id = $1 AND id = $2;
 
 -- name: SalesItemsForPricing :many
 -- Data harga/stok semua barang dalam satu nota (satu kueri). outlet_price NULL = pakai harga default.
-SELECT i.id, i.sku, i.name, i.kind, i.active, i.sell_below_cost, i.allow_negative_stock, i.avg_cost, i.sell_price,
+SELECT i.id, i.sku, i.name, i.kind, i.active, i.sell_below_cost, i.allow_negative_stock, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price,
        i.unit_id, u.name AS unit_name, op.sell_price AS outlet_price,
        coalesce(sb.qty, 0)::numeric AS stock_display
 FROM items i
 JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
 LEFT JOIN stock_balances sb ON sb.tenant_id = i.tenant_id AND sb.outlet_id = @outlet_id AND sb.item_id = i.id AND sb.bucket = 'display'
 WHERE i.tenant_id = @tenant_id AND i.id = ANY(@ids::uuid[]);
 

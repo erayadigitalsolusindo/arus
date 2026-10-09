@@ -37,10 +37,12 @@ func (e *env) setCost(t *testing.T, item uuid.UUID, cost string) {
 	}
 }
 
+// cost = HPP efektif di outlet e.outlet: HPP cabang bila ada, selain itu HPP awal barang.
 func (e *env) cost(t *testing.T, item uuid.UUID) string {
 	t.Helper()
 	var c string
-	if err := e.admin.QueryRow(context.Background(), `SELECT avg_cost::text FROM items WHERE id = $1`, item).Scan(&c); err != nil {
+	if err := e.admin.QueryRow(context.Background(), `SELECT coalesce(oc.avg_cost, i.avg_cost)::text FROM items i
+		LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $2 WHERE i.id = $1`, item, e.outlet).Scan(&c); err != nil {
 		t.Fatal(err)
 	}
 	return c
@@ -103,10 +105,15 @@ func TestConvert(t *testing.T) {
 		t.Errorf("isi dokumen: %+v", c)
 	}
 
-	// Pecah kedua: tujuan sudah punya stok & HPP → HPP tidak ditimpa; nomor berurutan.
-	e.setCost(t, pcs, "5000")
+	// HPP awal barang (items.avg_cost) tidak berubah: yang terpasang adalah HPP cabang.
+	var base string
+	if err := e.admin.QueryRow(ctx, `SELECT avg_cost::text FROM items WHERE id = $1`, pcs).Scan(&base); err != nil || base != "0.00" {
+		t.Errorf("HPP awal barang berubah: %s %v", base, err)
+	}
+
+	// Pecah kedua: tujuan sudah punya stok & HPP cabang → HPP tidak ditimpa; nomor berurutan.
 	c2, _, err := svc.Convert(ctx, a, key(), cin(karung, "2", pcs, "24"))
-	if err != nil || !strings.HasSuffix(c2.DocNo, "-0002") || c2.CostApplied || e.cost(t, pcs) != "5000.00" {
+	if err != nil || !strings.HasSuffix(c2.DocNo, "-0002") || c2.CostApplied || e.cost(t, pcs) != "5166.67" {
 		t.Fatalf("pecah kedua: %+v %v cost=%s", c2, err, e.cost(t, pcs))
 	}
 	if e.balance(t, karung, BucketDisplay) != "2" || e.balance(t, pcs, BucketDisplay) != "36" {
@@ -327,5 +334,31 @@ func TestConvertImmutableAndRLS(t *testing.T) {
 	}
 	if _, total, err := svc.ListConversions(ctx, other, 10, 0); err != nil || total != 0 {
 		t.Errorf("daftar tenant lain: %d %v", total, err)
+	}
+}
+
+// Dokumen pecah satuan cabang lain dalam tenant yang sama tidak boleh dibuka lewat id (RLS hanya memisahkan tenant).
+func TestGetConversionIsScopedToAccessibleOutlets(t *testing.T) {
+	e := newEnv(t)
+	svc := NewService(e.app)
+	ctx := context.Background()
+	a := e.convActor(t, e.outlet)
+	x, y := e.item(t, e.tenant, "goods", false), e.item(t, e.tenant, "goods", false)
+	e.seed(t, a, svc, x, "5")
+	c, _, err := svc.Convert(ctx, a, key(), cin(x, "1", y, "2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := e.convActor(t, e.outlet2)
+	b.Outlets = map[uuid.UUID]bool{e.outlet2: true}
+	if _, err := svc.GetConversion(ctx, b, c.ID); !errors.Is(err, ErrOutletForbidden) {
+		t.Fatalf("lintas cabang harus ditolak: %v", err)
+	}
+	b.Outlets = map[uuid.UUID]bool{e.outlet: true, e.outlet2: true}
+	if got, err := svc.GetConversion(ctx, b, c.ID); err != nil || got.ID != c.ID {
+		t.Fatalf("akses dua cabang: %v", err)
+	}
+	if got, err := svc.GetConversion(ctx, a, c.ID); err != nil || got.ID != c.ID {
+		t.Fatalf("cabang sendiri: %v", err)
 	}
 }

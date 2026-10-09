@@ -159,7 +159,7 @@ func (s *Service) Convert(ctx context.Context, a authz.Actor, key string, in Con
 		}
 		items := map[uuid.UUID]gen.StockConvItemLockRow{}
 		for _, id := range ids {
-			it, err := q.StockConvItemLock(ctx, gen.StockConvItemLockParams{TenantID: a.TenantID, ID: id})
+			it, err := q.StockConvItemLock(ctx, gen.StockConvItemLockParams{TenantID: a.TenantID, OutletID: a.OutletID, ID: id})
 			if errors.Is(err, pgx.ErrNoRows) {
 				if id == n.from {
 					return FieldErrors{"from_item_id": sanitize.Invalid}
@@ -176,10 +176,10 @@ func (s *Service) Convert(ctx context.Context, a authz.Actor, key string, in Con
 		}
 		from, to := items[n.from], items[n.to]
 
-		// HPP hasil = HPP asal × qty asal ÷ qty tujuan. Dipasang ke barang tujuan hanya bila HPP-nya kosong atau
-		// stok totalnya ≤ 0 (belum ada nilai yang harus dirata-ratakan; rata-rata tertimbang penuh menyusul Fase 6).
+		// HPP hasil = HPP asal × qty asal ÷ qty tujuan (HPP cabang ini). Dipasang ke barang tujuan di cabang ini hanya bila
+		// HPP-nya kosong atau stok cabangnya ≤ 0 (belum ada nilai yang harus dirata-ratakan).
 		toCost := from.AvgCost.Mul(n.fromQ).Div(n.toQ).Round(2)
-		toStock, err := q.StockTotalQty(ctx, gen.StockTotalQtyParams{TenantID: a.TenantID, ItemID: n.to})
+		toStock, err := q.StockOutletQty(ctx, gen.StockOutletQtyParams{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: n.to})
 		if err != nil {
 			return err
 		}
@@ -218,7 +218,7 @@ func (s *Service) Convert(ctx context.Context, a authz.Actor, key string, in Con
 			return err
 		}
 		if apply {
-			if err := q.StockSetCost(ctx, gen.StockSetCostParams{Cost: toCost, TenantID: a.TenantID, ItemID: n.to}); err != nil {
+			if err := q.StockSetCost(ctx, gen.StockSetCostParams{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: n.to, AvgCost: toCost, LastCost: toCost}); err != nil {
 				return err
 			}
 		}
@@ -259,6 +259,9 @@ func (s *Service) GetConversion(ctx context.Context, a authz.Actor, id uuid.UUID
 		}
 		if err != nil {
 			return err
+		}
+		if r.OutletID != a.OutletID && !a.Outlets[r.OutletID] {
+			return ErrOutletForbidden
 		}
 		out = Conversion{ID: r.ID, DocNo: r.DocNo, FromUnitCost: r.FromUnitCost.StringFixed(2), ToUnitCost: r.ToUnitCost.StringFixed(2),
 			CostApplied: r.CostApplied, Note: r.Note, Actor: r.ActorName, CreatedAt: r.CreatedAt.Time,

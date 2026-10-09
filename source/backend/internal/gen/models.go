@@ -93,6 +93,15 @@ type ItemImage struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type ItemOutletCost struct {
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	ItemID    uuid.UUID
+	AvgCost   decimal.Decimal
+	LastCost  decimal.Decimal
+	UpdatedAt pgtype.Timestamptz
+}
+
 type ItemOutletPrice struct {
 	TenantID  uuid.UUID
 	ItemID    uuid.UUID
@@ -193,6 +202,17 @@ type Outlet struct {
 	OpsStartDate  pgtype.Date
 }
 
+type Payable struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	SupplierID uuid.UUID
+	PurchaseID uuid.UUID
+	Amount     decimal.Decimal
+	DueDate    pgtype.Date
+	CreatedAt  pgtype.Timestamptz
+}
+
 type PaymentMethod struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -257,6 +277,68 @@ type Principal struct {
 	Active    bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type Purchase struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	OutletID          uuid.UUID
+	DocNo             string
+	IdempotencyKey    string
+	RequestHash       string
+	SupplierID        uuid.UUID
+	SupplierInvoiceNo string
+	PurchaseDate      pgtype.Date
+	PaymentType       string
+	DueDate           pgtype.Date
+	Status            string
+	Note              string
+	Subtotal          decimal.Decimal
+	TaxPct            decimal.Decimal
+	TaxAmount         decimal.Decimal
+	OtherCost         decimal.Decimal
+	Total             decimal.Decimal
+	CreatedBy         pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+}
+
+type PurchaseCost struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+	Position   int32
+	Name       string
+	Amount     decimal.Decimal
+}
+
+type PurchaseCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type PurchaseLine struct {
+	TenantID     uuid.UUID
+	PurchaseID   uuid.UUID
+	Position     int32
+	ItemID       uuid.UUID
+	ItemSku      string
+	ItemName     string
+	UnitName     string
+	QtyDisplay   decimal.Decimal
+	QtyWarehouse decimal.Decimal
+	Qty          decimal.Decimal
+	UnitPrice    decimal.Decimal
+	Disc1        decimal.Decimal
+	Disc2        decimal.Decimal
+	Disc3        decimal.Decimal
+	Disc4        decimal.Decimal
+	LineTotal    decimal.Decimal
+	CostAlloc    decimal.Decimal
+	UnitCost     decimal.Decimal
+	StockBefore  decimal.Decimal
+	AvgBefore    decimal.Decimal
+	AvgAfter     decimal.Decimal
 }
 
 type Receivable struct {
@@ -460,6 +542,43 @@ type StockConversionCounter struct {
 	OutletID uuid.UUID
 	Day      pgtype.Date
 	LastNo   int64
+}
+
+type StockCount struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	DocNo       string
+	Bucket      string
+	Status      string
+	Note        string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CompletedBy pgtype.UUID
+	CompletedAt pgtype.Timestamptz
+	CancelledBy pgtype.UUID
+	CancelledAt pgtype.Timestamptz
+	Kind        string
+	AdjustMode  pgtype.Text
+}
+
+type StockCountCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type StockCountLine struct {
+	TenantID    uuid.UUID
+	CountID     uuid.UUID
+	ItemID      uuid.UUID
+	SnapshotQty decimal.Decimal
+	CountedQty  pgtype.Numeric
+	Diff        pgtype.Numeric
+	UnitCost    pgtype.Numeric
+	CountedBy   pgtype.UUID
+	CountedAt   pgtype.Timestamptz
 }
 
 type StockMovement struct {

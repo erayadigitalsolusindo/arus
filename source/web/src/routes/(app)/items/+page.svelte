@@ -39,6 +39,16 @@
   const colCount = $derived(allMode ? 15 : 14);
 
   // Kolom stok per bucket (huruf pertama: D = display, G = gudang, R = retur) lalu Σ = total.
+  // HPP per cabang: mode semua cabang menampilkan rentang termurah–termahal; selain itu HPP outlet aktif.
+  function costRange(r: Row, field: 'avg_cost' | 'last_cost'): string {
+    const fmt = (v: number) => formatCurrency(v, 'IDR', { maximumFractionDigits: 2 });
+    const vals = (r.outlets ?? []).map((o) => Number(o[field]));
+    if (!allMode || vals.length === 0) return fmt(Number(r[field]));
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    return lo === hi ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`;
+  }
+
   const STOCK_COLS = [
     { bucket: 'display', label: 'D', key: 'items.stock.display' },
     { bucket: 'warehouse', label: 'G', key: 'items.stock.warehouse' },
@@ -241,8 +251,8 @@
                 {formatCurrency(Number(r.price))}{#if r.price_max && Number(r.price_max) !== Number(r.price)} – {formatCurrency(Number(r.price_max))}<span class="badge-soft badge-info ms-1.5 align-middle" title={t('items.allOutlets.pricesDiffer')}>≠</span>{/if}
                 {#if r.price_override}<i class="icon-store text-[11px] ms-1 text-[var(--color-primary-600)]" title={t('items.priceOverride')} aria-label={t('items.priceOverride')}></i>{/if}
               </td>
-              <td class="p-3 text-end whitespace-nowrap">{formatCurrency(Number(r.avg_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
-              <td class="p-3 text-end whitespace-nowrap">{formatCurrency(Number(r.last_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
+              <td class="p-3 text-end whitespace-nowrap">{costRange(r, 'avg_cost')}</td>
+              <td class="p-3 text-end whitespace-nowrap">{costRange(r, 'last_cost')}</td>
               <td class="p-3">{r.unit}</td>
               <td class="p-3">{r.category}</td>
               <td class="p-3">{r.brand}</td>
@@ -274,6 +284,7 @@
                         <th class="py-1.5 text-start" scope="col">{t('items.allOutlets.outlet')}</th>
                         {#each STOCK_COLS as c (c.bucket)}<th class="py-1.5 text-end w-16" scope="col" title={t(c.key)}>{c.label}</th>{/each}
                         <th class="py-1.5 text-end w-16" scope="col" title={t('items.col.stockTotal')}>Σ</th>
+                        <th class="py-1.5 text-end" scope="col">{t('items.col.avgCost')}</th>
                         <th class="py-1.5 text-end" scope="col">{t('items.col.price')}</th>
                       </tr>
                     </thead>
@@ -283,6 +294,7 @@
                           <td class="py-1.5">{o.name} <span class="font-mono text-[11px] text-[var(--text-tertiary)]">{o.code}</span></td>
                           {#each STOCK_COLS as c (c.bucket)}<td class="py-1.5 text-end tabular-nums {stockClass(r, o.stock[c.bucket])}">{stockText(r, o.stock[c.bucket])}</td>{/each}
                           <td class="py-1.5 text-end font-semibold tabular-nums {stockClass(r, o.stock.total)}">{stockText(r, o.stock.total)}</td>
+                          <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.avg_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
                           <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.price))}</td>
                         </tr>
                       {/each}

@@ -28,6 +28,7 @@ export default {
   memberReceivables: 'Daftar Piutang Anggota',
   orderList: 'Daftar Pesanan',
   purchaseInvoicesReturns: 'Faktur Pesan dan Retur',
+  purchaseInvoices: 'Faktur Pembelian',
   purchaseReturns: 'Retur Pembelian',
   purchaseData: 'Data Pembelian',
   purchaseList: 'Daftar Pembelian',

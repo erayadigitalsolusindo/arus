@@ -1108,7 +1108,8 @@ func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UU
 }
 
 const itemGet = `-- name: ItemGet :one
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
        i.category_id, c.name AS category_name,
@@ -1121,10 +1122,12 @@ LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN principals p ON p.tenant_id = i.tenant_id AND p.id = i.principal_id
 LEFT JOIN suppliers s ON s.tenant_id = i.tenant_id AND s.id = i.supplier_id
-WHERE i.tenant_id = $1 AND i.id = $2
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3
 `
 
 type ItemGetParams struct {
+	OutletID uuid.UUID
 	TenantID uuid.UUID
 	ID       uuid.UUID
 }
@@ -1158,8 +1161,9 @@ type ItemGetRow struct {
 	SupplierName       pgtype.Text
 }
 
+// HPP = HPP cabang (outlet_id) bila ada, selain itu HPP awal barang.
 func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, error) {
-	row := q.db.QueryRow(ctx, itemGet, arg.TenantID, arg.ID)
+	row := q.db.QueryRow(ctx, itemGet, arg.OutletID, arg.TenantID, arg.ID)
 	var i ItemGetRow
 	err := row.Scan(
 		&i.ID,
@@ -1471,7 +1475,8 @@ func (q *Queries) ItemImageSetMain(ctx context.Context, arg ItemImageSetMainPara
 
 const itemList = `-- name: ItemList :many
 SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
-       i.sell_price AS default_price, op.sell_price AS outlet_price, i.avg_cost, i.last_cost,
+       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
        coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
@@ -1483,6 +1488,7 @@ JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
 LEFT JOIN LATERAL (
     SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
            sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
@@ -1600,14 +1606,16 @@ SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outl
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'display'), 0)::numeric AS stock_display,
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'warehouse'), 0)::numeric AS stock_warehouse,
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'returns'), 0)::numeric AS stock_returns,
-       coalesce(op.sell_price, i.sell_price)::numeric AS price
+       coalesce(op.sell_price, i.sell_price)::numeric AS price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
 FROM items i
 CROSS JOIN outlets o
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = o.id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = o.id
 LEFT JOIN stock_balances s ON s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.outlet_id = o.id
 WHERE i.tenant_id = $1 AND o.tenant_id = $1
   AND i.id = ANY($2::uuid[]) AND o.id = ANY($3::uuid[])
-GROUP BY i.id, o.id, op.sell_price, i.sell_price
+GROUP BY i.id, o.id, op.sell_price, i.sell_price, oc.avg_cost, i.avg_cost, oc.last_cost, i.last_cost
 ORDER BY lower(o.name), o.id
 `
 
@@ -1626,6 +1634,8 @@ type ItemOutletBreakdownRow struct {
 	StockWarehouse decimal.Decimal
 	StockReturns   decimal.Decimal
 	Price          decimal.Decimal
+	AvgCost        decimal.Decimal
+	LastCost       decimal.Decimal
 }
 
 // Rincian stok + harga jual efektif per outlet untuk sekumpulan item (mode "semua cabang").
@@ -1647,6 +1657,8 @@ func (q *Queries) ItemOutletBreakdown(ctx context.Context, arg ItemOutletBreakdo
 			&i.StockWarehouse,
 			&i.StockReturns,
 			&i.Price,
+			&i.AvgCost,
+			&i.LastCost,
 		); err != nil {
 			return nil, err
 		}
@@ -3428,6 +3440,32 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 	return i, err
 }
 
+const payableInsert = `-- name: PayableInsert :exec
+INSERT INTO payables (tenant_id, outlet_id, supplier_id, purchase_id, amount, due_date)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type PayableInsertParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	SupplierID uuid.UUID
+	PurchaseID uuid.UUID
+	Amount     decimal.Decimal
+	DueDate    pgtype.Date
+}
+
+func (q *Queries) PayableInsert(ctx context.Context, arg PayableInsertParams) error {
+	_, err := q.db.Exec(ctx, payableInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.SupplierID,
+		arg.PurchaseID,
+		arg.Amount,
+		arg.DueDate,
+	)
+	return err
+}
+
 const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
 SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
 FROM payment_methods
@@ -4188,6 +4226,712 @@ func (q *Queries) PosShortcutSet(ctx context.Context, arg PosShortcutSetParams) 
 		arg.ItemID,
 	)
 	return err
+}
+
+const purchaseByIdemKey = `-- name: PurchaseByIdemKey :one
+SELECT id, request_hash FROM purchases WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type PurchaseByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type PurchaseByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) PurchaseByIdemKey(ctx context.Context, arg PurchaseByIdemKeyParams) (PurchaseByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, purchaseByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i PurchaseByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const purchaseCostInsert = `-- name: PurchaseCostInsert :exec
+INSERT INTO purchase_costs (tenant_id, purchase_id, position, name, amount)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type PurchaseCostInsertParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+	Position   int32
+	Name       string
+	Amount     decimal.Decimal
+}
+
+func (q *Queries) PurchaseCostInsert(ctx context.Context, arg PurchaseCostInsertParams) error {
+	_, err := q.db.Exec(ctx, purchaseCostInsert,
+		arg.TenantID,
+		arg.PurchaseID,
+		arg.Position,
+		arg.Name,
+		arg.Amount,
+	)
+	return err
+}
+
+const purchaseCosts = `-- name: PurchaseCosts :many
+SELECT name, amount FROM purchase_costs WHERE tenant_id = $1 AND purchase_id = $2 ORDER BY position
+`
+
+type PurchaseCostsParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+}
+
+type PurchaseCostsRow struct {
+	Name   string
+	Amount decimal.Decimal
+}
+
+func (q *Queries) PurchaseCosts(ctx context.Context, arg PurchaseCostsParams) ([]PurchaseCostsRow, error) {
+	rows, err := q.db.Query(ctx, purchaseCosts, arg.TenantID, arg.PurchaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurchaseCostsRow
+	for rows.Next() {
+		var i PurchaseCostsRow
+		if err := rows.Scan(&i.Name, &i.Amount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purchaseGet = `-- name: PurchaseGet :one
+SELECT p.id, p.outlet_id, o.code AS outlet_code, o.name AS outlet_name, p.doc_no, p.supplier_id, s.name AS supplier_name,
+       p.supplier_invoice_no, p.purchase_date, p.payment_type, p.due_date, p.status, p.note,
+       p.subtotal, p.tax_pct, p.tax_amount, p.other_cost, p.total, p.created_at,
+       coalesce(u.name, '') AS created_name
+FROM purchases p
+JOIN outlets o ON o.tenant_id = p.tenant_id AND o.id = p.outlet_id
+JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
+LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.created_by
+WHERE p.tenant_id = $1 AND p.id = $2
+`
+
+type PurchaseGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseGetRow struct {
+	ID                uuid.UUID
+	OutletID          uuid.UUID
+	OutletCode        string
+	OutletName        string
+	DocNo             string
+	SupplierID        uuid.UUID
+	SupplierName      string
+	SupplierInvoiceNo string
+	PurchaseDate      pgtype.Date
+	PaymentType       string
+	DueDate           pgtype.Date
+	Status            string
+	Note              string
+	Subtotal          decimal.Decimal
+	TaxPct            decimal.Decimal
+	TaxAmount         decimal.Decimal
+	OtherCost         decimal.Decimal
+	Total             decimal.Decimal
+	CreatedAt         pgtype.Timestamptz
+	CreatedName       string
+}
+
+func (q *Queries) PurchaseGet(ctx context.Context, arg PurchaseGetParams) (PurchaseGetRow, error) {
+	row := q.db.QueryRow(ctx, purchaseGet, arg.TenantID, arg.ID)
+	var i PurchaseGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.OutletCode,
+		&i.OutletName,
+		&i.DocNo,
+		&i.SupplierID,
+		&i.SupplierName,
+		&i.SupplierInvoiceNo,
+		&i.PurchaseDate,
+		&i.PaymentType,
+		&i.DueDate,
+		&i.Status,
+		&i.Note,
+		&i.Subtotal,
+		&i.TaxPct,
+		&i.TaxAmount,
+		&i.OtherCost,
+		&i.Total,
+		&i.CreatedAt,
+		&i.CreatedName,
+	)
+	return i, err
+}
+
+const purchaseInsert = `-- name: PurchaseInsert :one
+INSERT INTO purchases (id, tenant_id, outlet_id, doc_no, idempotency_key, request_hash, supplier_id, supplier_invoice_no, purchase_date,
+                       payment_type, due_date, note, subtotal, tax_pct, tax_amount, other_cost, total, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14, $15, $16, $17, $18)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type PurchaseInsertParams struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	OutletID          uuid.UUID
+	DocNo             string
+	IdempotencyKey    string
+	RequestHash       string
+	SupplierID        uuid.UUID
+	SupplierInvoiceNo string
+	PurchaseDate      pgtype.Date
+	PaymentType       string
+	DueDate           pgtype.Date
+	Note              string
+	Subtotal          decimal.Decimal
+	TaxPct            decimal.Decimal
+	TaxAmount         decimal.Decimal
+	OtherCost         decimal.Decimal
+	Total             decimal.Decimal
+	CreatedBy         pgtype.UUID
+}
+
+// Pengiriman ganda bersamaan (kunci idempotensi sama): yang kalah tidak menghasilkan baris → pemanggil membatalkan transaksi.
+func (q *Queries) PurchaseInsert(ctx context.Context, arg PurchaseInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, purchaseInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.SupplierID,
+		arg.SupplierInvoiceNo,
+		arg.PurchaseDate,
+		arg.PaymentType,
+		arg.DueDate,
+		arg.Note,
+		arg.Subtotal,
+		arg.TaxPct,
+		arg.TaxAmount,
+		arg.OtherCost,
+		arg.Total,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const purchaseItemLock = `-- name: PurchaseItemLock :one
+SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3 FOR UPDATE OF i
+`
+
+type PurchaseItemLockParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseItemLockRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	Active   bool
+	UnitName string
+	AvgCost  decimal.Decimal
+}
+
+// Mengunci baris barang (dipanggil terurut menurut id) dan membaca data + HPP cabang. HPP = HPP cabang bila ada,
+// selain itu HPP awal barang. Penguncian ini membuat dua pembelian barang yang sama antre (HPP rata-rata tak saling menimpa).
+func (q *Queries) PurchaseItemLock(ctx context.Context, arg PurchaseItemLockParams) (PurchaseItemLockRow, error) {
+	row := q.db.QueryRow(ctx, purchaseItemLock, arg.OutletID, arg.TenantID, arg.ID)
+	var i PurchaseItemLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.UnitName,
+		&i.AvgCost,
+	)
+	return i, err
+}
+
+const purchaseItemSearch = `-- name: PurchaseItemSearch :many
+SELECT i.id, i.sku, coalesce(i.barcode, '') AS barcode, i.name, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
+       coalesce((SELECT sum(sb.qty) FROM stock_balances sb WHERE sb.tenant_id = i.tenant_id AND sb.item_id = i.id AND sb.outlet_id = $1), 0)::numeric AS stock_total
+FROM items i
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.kind = 'goods' AND i.active
+  AND ($3::text = '' OR i.name ILIKE '%' || $3 || '%' OR i.sku ILIKE '%' || $3 || '%' OR coalesce(i.barcode, '') ILIKE '%' || $3 || '%')
+ORDER BY lower(i.name), i.id
+LIMIT $4
+`
+
+type PurchaseItemSearchParams struct {
+	OutletID  uuid.UUID
+	TenantID  uuid.UUID
+	Q         string
+	PageLimit int32
+}
+
+type PurchaseItemSearchRow struct {
+	ID         uuid.UUID
+	Sku        string
+	Barcode    string
+	Name       string
+	UnitName   string
+	AvgCost    decimal.Decimal
+	LastCost   decimal.Decimal
+	StockTotal decimal.Decimal
+}
+
+// Pemilih barang di form pembelian: barang berstok aktif + stok total outlet aktif + HPP cabang.
+func (q *Queries) PurchaseItemSearch(ctx context.Context, arg PurchaseItemSearchParams) ([]PurchaseItemSearchRow, error) {
+	rows, err := q.db.Query(ctx, purchaseItemSearch,
+		arg.OutletID,
+		arg.TenantID,
+		arg.Q,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurchaseItemSearchRow
+	for rows.Next() {
+		var i PurchaseItemSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Barcode,
+			&i.Name,
+			&i.UnitName,
+			&i.AvgCost,
+			&i.LastCost,
+			&i.StockTotal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purchaseItemState = `-- name: PurchaseItemState :one
+SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3
+`
+
+type PurchaseItemStateParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseItemStateRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	Active   bool
+	UnitName string
+	AvgCost  decimal.Decimal
+}
+
+// Seperti PurchaseItemLock tanpa penguncian (pratinjau/quote).
+func (q *Queries) PurchaseItemState(ctx context.Context, arg PurchaseItemStateParams) (PurchaseItemStateRow, error) {
+	row := q.db.QueryRow(ctx, purchaseItemState, arg.OutletID, arg.TenantID, arg.ID)
+	var i PurchaseItemStateRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.UnitName,
+		&i.AvgCost,
+	)
+	return i, err
+}
+
+const purchaseLineInsert = `-- name: PurchaseLineInsert :exec
+INSERT INTO purchase_lines (tenant_id, purchase_id, position, item_id, item_sku, item_name, unit_name, qty_display, qty_warehouse, qty,
+                            unit_price, disc1, disc2, disc3, disc4, line_total, cost_alloc, unit_cost, stock_before, avg_before, avg_after)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+`
+
+type PurchaseLineInsertParams struct {
+	TenantID     uuid.UUID
+	PurchaseID   uuid.UUID
+	Position     int32
+	ItemID       uuid.UUID
+	ItemSku      string
+	ItemName     string
+	UnitName     string
+	QtyDisplay   decimal.Decimal
+	QtyWarehouse decimal.Decimal
+	Qty          decimal.Decimal
+	UnitPrice    decimal.Decimal
+	Disc1        decimal.Decimal
+	Disc2        decimal.Decimal
+	Disc3        decimal.Decimal
+	Disc4        decimal.Decimal
+	LineTotal    decimal.Decimal
+	CostAlloc    decimal.Decimal
+	UnitCost     decimal.Decimal
+	StockBefore  decimal.Decimal
+	AvgBefore    decimal.Decimal
+	AvgAfter     decimal.Decimal
+}
+
+func (q *Queries) PurchaseLineInsert(ctx context.Context, arg PurchaseLineInsertParams) error {
+	_, err := q.db.Exec(ctx, purchaseLineInsert,
+		arg.TenantID,
+		arg.PurchaseID,
+		arg.Position,
+		arg.ItemID,
+		arg.ItemSku,
+		arg.ItemName,
+		arg.UnitName,
+		arg.QtyDisplay,
+		arg.QtyWarehouse,
+		arg.Qty,
+		arg.UnitPrice,
+		arg.Disc1,
+		arg.Disc2,
+		arg.Disc3,
+		arg.Disc4,
+		arg.LineTotal,
+		arg.CostAlloc,
+		arg.UnitCost,
+		arg.StockBefore,
+		arg.AvgBefore,
+		arg.AvgAfter,
+	)
+	return err
+}
+
+const purchaseLines = `-- name: PurchaseLines :many
+SELECT item_id, item_sku, item_name, unit_name, qty_display, qty_warehouse, qty, unit_price, disc1, disc2, disc3, disc4,
+       line_total, cost_alloc, unit_cost, stock_before, avg_before, avg_after
+FROM purchase_lines WHERE tenant_id = $1 AND purchase_id = $2 ORDER BY position
+`
+
+type PurchaseLinesParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+}
+
+type PurchaseLinesRow struct {
+	ItemID       uuid.UUID
+	ItemSku      string
+	ItemName     string
+	UnitName     string
+	QtyDisplay   decimal.Decimal
+	QtyWarehouse decimal.Decimal
+	Qty          decimal.Decimal
+	UnitPrice    decimal.Decimal
+	Disc1        decimal.Decimal
+	Disc2        decimal.Decimal
+	Disc3        decimal.Decimal
+	Disc4        decimal.Decimal
+	LineTotal    decimal.Decimal
+	CostAlloc    decimal.Decimal
+	UnitCost     decimal.Decimal
+	StockBefore  decimal.Decimal
+	AvgBefore    decimal.Decimal
+	AvgAfter     decimal.Decimal
+}
+
+func (q *Queries) PurchaseLines(ctx context.Context, arg PurchaseLinesParams) ([]PurchaseLinesRow, error) {
+	rows, err := q.db.Query(ctx, purchaseLines, arg.TenantID, arg.PurchaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurchaseLinesRow
+	for rows.Next() {
+		var i PurchaseLinesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.ItemSku,
+			&i.ItemName,
+			&i.UnitName,
+			&i.QtyDisplay,
+			&i.QtyWarehouse,
+			&i.Qty,
+			&i.UnitPrice,
+			&i.Disc1,
+			&i.Disc2,
+			&i.Disc3,
+			&i.Disc4,
+			&i.LineTotal,
+			&i.CostAlloc,
+			&i.UnitCost,
+			&i.StockBefore,
+			&i.AvgBefore,
+			&i.AvgAfter,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purchaseList = `-- name: PurchaseList :many
+SELECT p.id, p.doc_no, p.supplier_id, s.name AS supplier_name, p.supplier_invoice_no, p.purchase_date, p.payment_type,
+       p.due_date, p.status, p.total, p.created_at, coalesce(u.name, '') AS created_name,
+       (SELECT count(*) FROM purchase_lines l WHERE l.tenant_id = p.tenant_id AND l.purchase_id = p.id)::bigint AS line_count,
+       count(*) OVER () AS total_rows
+FROM purchases p
+JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
+LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.created_by
+WHERE p.tenant_id = $1 AND p.outlet_id = $2
+  AND p.purchase_date >= $3 AND p.purchase_date <= $4
+  AND ($5::uuid IS NULL OR p.supplier_id = $5)
+  AND ($6::text = '' OR p.payment_type = $6)
+  AND ($7::text = '' OR p.doc_no ILIKE '%' || $7 || '%' OR p.supplier_invoice_no ILIKE '%' || $7 || '%' OR s.name ILIKE '%' || $7 || '%')
+ORDER BY p.purchase_date DESC, p.created_at DESC, p.id
+LIMIT $9 OFFSET $8
+`
+
+type PurchaseListParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	FromDate    pgtype.Date
+	ToDate      pgtype.Date
+	SupplierID  pgtype.UUID
+	PaymentType string
+	Q           string
+	PageOffset  int32
+	PageLimit   int32
+}
+
+type PurchaseListRow struct {
+	ID                uuid.UUID
+	DocNo             string
+	SupplierID        uuid.UUID
+	SupplierName      string
+	SupplierInvoiceNo string
+	PurchaseDate      pgtype.Date
+	PaymentType       string
+	DueDate           pgtype.Date
+	Status            string
+	Total             decimal.Decimal
+	CreatedAt         pgtype.Timestamptz
+	CreatedName       string
+	LineCount         int64
+	TotalRows         int64
+}
+
+func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]PurchaseListRow, error) {
+	rows, err := q.db.Query(ctx, purchaseList,
+		arg.TenantID,
+		arg.OutletID,
+		arg.FromDate,
+		arg.ToDate,
+		arg.SupplierID,
+		arg.PaymentType,
+		arg.Q,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurchaseListRow
+	for rows.Next() {
+		var i PurchaseListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.SupplierID,
+			&i.SupplierName,
+			&i.SupplierInvoiceNo,
+			&i.PurchaseDate,
+			&i.PaymentType,
+			&i.DueDate,
+			&i.Status,
+			&i.Total,
+			&i.CreatedAt,
+			&i.CreatedName,
+			&i.LineCount,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purchaseListSummary = `-- name: PurchaseListSummary :one
+SELECT count(*)::bigint AS cnt, coalesce(sum(p.total), 0)::numeric AS total,
+       coalesce(sum(p.total) FILTER (WHERE p.payment_type = 'credit'), 0)::numeric AS credit_total
+FROM purchases p
+JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
+WHERE p.tenant_id = $1 AND p.outlet_id = $2
+  AND p.purchase_date >= $3 AND p.purchase_date <= $4
+  AND ($5::uuid IS NULL OR p.supplier_id = $5)
+  AND ($6::text = '' OR p.payment_type = $6)
+  AND ($7::text = '' OR p.doc_no ILIKE '%' || $7 || '%' OR p.supplier_invoice_no ILIKE '%' || $7 || '%' OR s.name ILIKE '%' || $7 || '%')
+`
+
+type PurchaseListSummaryParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	FromDate    pgtype.Date
+	ToDate      pgtype.Date
+	SupplierID  pgtype.UUID
+	PaymentType string
+	Q           string
+}
+
+type PurchaseListSummaryRow struct {
+	Cnt         int64
+	Total       decimal.Decimal
+	CreditTotal decimal.Decimal
+}
+
+func (q *Queries) PurchaseListSummary(ctx context.Context, arg PurchaseListSummaryParams) (PurchaseListSummaryRow, error) {
+	row := q.db.QueryRow(ctx, purchaseListSummary,
+		arg.TenantID,
+		arg.OutletID,
+		arg.FromDate,
+		arg.ToDate,
+		arg.SupplierID,
+		arg.PaymentType,
+		arg.Q,
+	)
+	var i PurchaseListSummaryRow
+	err := row.Scan(&i.Cnt, &i.Total, &i.CreditTotal)
+	return i, err
+}
+
+const purchaseNextNo = `-- name: PurchaseNextNo :one
+INSERT INTO purchase_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = purchase_counters.last_no + 1
+RETURNING last_no
+`
+
+type PurchaseNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) PurchaseNextNo(ctx context.Context, arg PurchaseNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, purchaseNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const purchaseOutletInfo = `-- name: PurchaseOutletInfo :one
+SELECT code, name, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type PurchaseOutletInfoParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseOutletInfoRow struct {
+	Code     string
+	Name     string
+	Active   bool
+	LocalDay pgtype.Date
+}
+
+func (q *Queries) PurchaseOutletInfo(ctx context.Context, arg PurchaseOutletInfoParams) (PurchaseOutletInfoRow, error) {
+	row := q.db.QueryRow(ctx, purchaseOutletInfo, arg.TenantID, arg.ID)
+	var i PurchaseOutletInfoRow
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.LocalDay,
+	)
+	return i, err
+}
+
+const purchasePayable = `-- name: PurchasePayable :one
+SELECT id, amount, due_date FROM payables WHERE tenant_id = $1 AND purchase_id = $2
+`
+
+type PurchasePayableParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+}
+
+type PurchasePayableRow struct {
+	ID      uuid.UUID
+	Amount  decimal.Decimal
+	DueDate pgtype.Date
+}
+
+func (q *Queries) PurchasePayable(ctx context.Context, arg PurchasePayableParams) (PurchasePayableRow, error) {
+	row := q.db.QueryRow(ctx, purchasePayable, arg.TenantID, arg.PurchaseID)
+	var i PurchasePayableRow
+	err := row.Scan(&i.ID, &i.Amount, &i.DueDate)
+	return i, err
+}
+
+const purchaseSupplierState = `-- name: PurchaseSupplierState :one
+SELECT id, name, active FROM suppliers WHERE tenant_id = $1 AND id = $2
+`
+
+type PurchaseSupplierStateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseSupplierStateRow struct {
+	ID     uuid.UUID
+	Name   string
+	Active bool
+}
+
+func (q *Queries) PurchaseSupplierState(ctx context.Context, arg PurchaseSupplierStateParams) (PurchaseSupplierStateRow, error) {
+	row := q.db.QueryRow(ctx, purchaseSupplierState, arg.TenantID, arg.ID)
+	var i PurchaseSupplierStateRow
+	err := row.Scan(&i.ID, &i.Name, &i.Active)
+	return i, err
 }
 
 const receivableForSale = `-- name: ReceivableForSale :one
@@ -5229,12 +5973,13 @@ func (q *Queries) SalesInsertRevision(ctx context.Context, arg SalesInsertRevisi
 }
 
 const salesItemsForPricing = `-- name: SalesItemsForPricing :many
-SELECT i.id, i.sku, i.name, i.kind, i.active, i.sell_below_cost, i.allow_negative_stock, i.avg_cost, i.sell_price,
+SELECT i.id, i.sku, i.name, i.kind, i.active, i.sell_below_cost, i.allow_negative_stock, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price,
        i.unit_id, u.name AS unit_name, op.sell_price AS outlet_price,
        coalesce(sb.qty, 0)::numeric AS stock_display
 FROM items i
 JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
 LEFT JOIN stock_balances sb ON sb.tenant_id = i.tenant_id AND sb.outlet_id = $1 AND sb.item_id = i.id AND sb.bucket = 'display'
 WHERE i.tenant_id = $2 AND i.id = ANY($3::uuid[])
 `
@@ -6787,6 +7532,29 @@ func (q *Queries) StockAddDelta(ctx context.Context, arg StockAddDeltaParams) (d
 	return qty, err
 }
 
+const stockBalanceEnsure = `-- name: StockBalanceEnsure :exec
+INSERT INTO stock_balances (tenant_id, outlet_id, item_id, bucket, qty)
+VALUES ($1, $2, $3, $4, 0)
+ON CONFLICT (tenant_id, outlet_id, item_id, bucket) DO NOTHING
+`
+
+type StockBalanceEnsureParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+}
+
+func (q *Queries) StockBalanceEnsure(ctx context.Context, arg StockBalanceEnsureParams) error {
+	_, err := q.db.Exec(ctx, stockBalanceEnsure,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+	)
+	return err
+}
+
 const stockBalanceGet = `-- name: StockBalanceGet :one
 SELECT qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3 AND bucket = $4
 `
@@ -6800,6 +7568,29 @@ type StockBalanceGetParams struct {
 
 func (q *Queries) StockBalanceGet(ctx context.Context, arg StockBalanceGetParams) (decimal.Decimal, error) {
 	row := q.db.QueryRow(ctx, stockBalanceGet,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.Bucket,
+	)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockBalanceLock = `-- name: StockBalanceLock :one
+SELECT qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3 AND bucket = $4 FOR UPDATE
+`
+
+type StockBalanceLockParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	Bucket   string
+}
+
+func (q *Queries) StockBalanceLock(ctx context.Context, arg StockBalanceLockParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockBalanceLock,
 		arg.TenantID,
 		arg.OutletID,
 		arg.ItemID,
@@ -7287,12 +8078,14 @@ func (q *Queries) StockConvInsert(ctx context.Context, arg StockConvInsertParams
 }
 
 const stockConvItemLock = `-- name: StockConvItemLock :one
-SELECT i.id, i.sku, i.name, i.kind, i.avg_cost, u.name AS unit_name
+SELECT i.id, i.sku, i.name, i.kind, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, u.name AS unit_name
 FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
-WHERE i.tenant_id = $1 AND i.id = $2 FOR UPDATE OF i
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3 FOR UPDATE OF i
 `
 
 type StockConvItemLockParams struct {
+	OutletID uuid.UUID
 	TenantID uuid.UUID
 	ID       uuid.UUID
 }
@@ -7306,9 +8099,10 @@ type StockConvItemLockRow struct {
 	UnitName string
 }
 
-// Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP + satuan dasarnya.
+// Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP outlet + satuan dasarnya.
+// HPP = HPP cabang bila ada, selain itu HPP awal barang (items.avg_cost).
 func (q *Queries) StockConvItemLock(ctx context.Context, arg StockConvItemLockParams) (StockConvItemLockRow, error) {
-	row := q.db.QueryRow(ctx, stockConvItemLock, arg.TenantID, arg.ID)
+	row := q.db.QueryRow(ctx, stockConvItemLock, arg.OutletID, arg.TenantID, arg.ID)
 	var i StockConvItemLockRow
 	err := row.Scan(
 		&i.ID,
@@ -7455,6 +8249,641 @@ func (q *Queries) StockConvOutletInfo(ctx context.Context, arg StockConvOutletIn
 	row := q.db.QueryRow(ctx, stockConvOutletInfo, arg.TenantID, arg.ID)
 	var i StockConvOutletInfoRow
 	err := row.Scan(&i.Code, &i.Active, &i.LocalDay)
+	return i, err
+}
+
+const stockCountAddItems = `-- name: StockCountAddItems :execrows
+INSERT INTO stock_count_lines (tenant_id, count_id, item_id, snapshot_qty)
+SELECT i.tenant_id, $1, i.id, coalesce(sb.qty, 0)
+FROM items i
+LEFT JOIN stock_balances sb ON sb.tenant_id = i.tenant_id AND sb.outlet_id = $2 AND sb.item_id = i.id AND sb.bucket = $3
+WHERE i.tenant_id = $4 AND i.kind = 'goods' AND i.active
+  AND ($5::bool OR i.id = ANY($6::uuid[])
+       OR i.category_id = $7 OR i.brand_id = $8)
+ON CONFLICT (count_id, item_id) DO NOTHING
+`
+
+type StockCountAddItemsParams struct {
+	CountID    uuid.UUID
+	OutletID   uuid.UUID
+	Bucket     string
+	TenantID   uuid.UUID
+	AllItems   bool
+	ItemIds    []uuid.UUID
+	CategoryID pgtype.UUID
+	BrandID    pgtype.UUID
+}
+
+// Menambah barang goods aktif ke sesi dengan snapshot stok bucket sesi. Gabungan penyaring: semua, id eksplisit, kategori, brand.
+func (q *Queries) StockCountAddItems(ctx context.Context, arg StockCountAddItemsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stockCountAddItems,
+		arg.CountID,
+		arg.OutletID,
+		arg.Bucket,
+		arg.TenantID,
+		arg.AllItems,
+		arg.ItemIds,
+		arg.CategoryID,
+		arg.BrandID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const stockCountCancel = `-- name: StockCountCancel :exec
+UPDATE stock_counts SET status = 'cancelled', cancelled_at = now(), cancelled_by = $1
+WHERE tenant_id = $2 AND id = $3
+`
+
+type StockCountCancelParams struct {
+	ActorID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockCountCancel(ctx context.Context, arg StockCountCancelParams) error {
+	_, err := q.db.Exec(ctx, stockCountCancel, arg.ActorID, arg.TenantID, arg.ID)
+	return err
+}
+
+const stockCountComplete = `-- name: StockCountComplete :exec
+UPDATE stock_counts SET status = 'completed', completed_at = now(), completed_by = $1
+WHERE tenant_id = $2 AND id = $3
+`
+
+type StockCountCompleteParams struct {
+	ActorID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockCountComplete(ctx context.Context, arg StockCountCompleteParams) error {
+	_, err := q.db.Exec(ctx, stockCountComplete, arg.ActorID, arg.TenantID, arg.ID)
+	return err
+}
+
+const stockCountCountedLines = `-- name: StockCountCountedLines :one
+SELECT count(*) FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2 AND counted_qty IS NOT NULL
+`
+
+type StockCountCountedLinesParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+}
+
+func (q *Queries) StockCountCountedLines(ctx context.Context, arg StockCountCountedLinesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockCountCountedLines, arg.TenantID, arg.CountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const stockCountDiffLines = `-- name: StockCountDiffLines :many
+SELECT item_id, (counted_qty - snapshot_qty)::numeric AS delta
+FROM stock_count_lines
+WHERE tenant_id = $1 AND count_id = $2 AND counted_qty IS NOT NULL AND counted_qty <> snapshot_qty
+`
+
+type StockCountDiffLinesParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+}
+
+type StockCountDiffLinesRow struct {
+	ItemID uuid.UUID
+	Delta  decimal.Decimal
+}
+
+// Baris yang sudah dihitung dengan selisih ≠ 0 terhadap snapshot.
+func (q *Queries) StockCountDiffLines(ctx context.Context, arg StockCountDiffLinesParams) ([]StockCountDiffLinesRow, error) {
+	rows, err := q.db.Query(ctx, stockCountDiffLines, arg.TenantID, arg.CountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockCountDiffLinesRow
+	for rows.Next() {
+		var i StockCountDiffLinesRow
+		if err := rows.Scan(&i.ItemID, &i.Delta); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockCountFinalizeLines = `-- name: StockCountFinalizeLines :exec
+UPDATE stock_count_lines l SET diff = l.counted_qty - l.snapshot_qty, unit_cost = coalesce(oc.avg_cost, i.avg_cost, 0)
+FROM items i
+JOIN stock_counts c ON c.tenant_id = i.tenant_id AND c.id = $2
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = c.outlet_id
+WHERE l.tenant_id = $1 AND l.count_id = $2 AND l.counted_qty IS NOT NULL
+  AND i.tenant_id = l.tenant_id AND i.id = l.item_id
+`
+
+type StockCountFinalizeLinesParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+}
+
+func (q *Queries) StockCountFinalizeLines(ctx context.Context, arg StockCountFinalizeLinesParams) error {
+	_, err := q.db.Exec(ctx, stockCountFinalizeLines, arg.TenantID, arg.CountID)
+	return err
+}
+
+const stockCountHeader = `-- name: StockCountHeader :one
+SELECT c.id, c.outlet_id, c.doc_no, c.bucket, c.status, c.note, c.created_at, c.completed_at, c.cancelled_at, c.kind, c.adjust_mode,
+       coalesce(cu.name, '') AS created_name, coalesce(fu.name, '') AS completed_name, coalesce(xu.name, '') AS cancelled_name
+FROM stock_counts c
+LEFT JOIN users cu ON cu.tenant_id = c.tenant_id AND cu.id = c.created_by
+LEFT JOIN users fu ON fu.tenant_id = c.tenant_id AND fu.id = c.completed_by
+LEFT JOIN users xu ON xu.tenant_id = c.tenant_id AND xu.id = c.cancelled_by
+WHERE c.tenant_id = $1 AND c.id = $2
+`
+
+type StockCountHeaderParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockCountHeaderRow struct {
+	ID            uuid.UUID
+	OutletID      uuid.UUID
+	DocNo         string
+	Bucket        string
+	Status        string
+	Note          string
+	CreatedAt     pgtype.Timestamptz
+	CompletedAt   pgtype.Timestamptz
+	CancelledAt   pgtype.Timestamptz
+	Kind          string
+	AdjustMode    pgtype.Text
+	CreatedName   string
+	CompletedName string
+	CancelledName string
+}
+
+func (q *Queries) StockCountHeader(ctx context.Context, arg StockCountHeaderParams) (StockCountHeaderRow, error) {
+	row := q.db.QueryRow(ctx, stockCountHeader, arg.TenantID, arg.ID)
+	var i StockCountHeaderRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.Bucket,
+		&i.Status,
+		&i.Note,
+		&i.CreatedAt,
+		&i.CompletedAt,
+		&i.CancelledAt,
+		&i.Kind,
+		&i.AdjustMode,
+		&i.CreatedName,
+		&i.CompletedName,
+		&i.CancelledName,
+	)
+	return i, err
+}
+
+const stockCountInsert = `-- name: StockCountInsert :exec
+INSERT INTO stock_counts (id, tenant_id, outlet_id, doc_no, bucket, note, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type StockCountInsertParams struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	DocNo     string
+	Bucket    string
+	Note      string
+	CreatedBy pgtype.UUID
+}
+
+func (q *Queries) StockCountInsert(ctx context.Context, arg StockCountInsertParams) error {
+	_, err := q.db.Exec(ctx, stockCountInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.Bucket,
+		arg.Note,
+		arg.CreatedBy,
+	)
+	return err
+}
+
+const stockCountInsertQuick = `-- name: StockCountInsertQuick :exec
+
+INSERT INTO stock_counts (id, tenant_id, outlet_id, doc_no, bucket, note, kind, adjust_mode, status,
+                          created_by, completed_by, completed_at)
+VALUES ($1, $2, $3, $4, $5, $6, 'quick', $7, 'completed',
+        $8, $8, now())
+`
+
+type StockCountInsertQuickParams struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	DocNo      string
+	Bucket     string
+	Note       string
+	AdjustMode pgtype.Text
+	ActorID    pgtype.UUID
+}
+
+// ---- Opname langsung ----
+func (q *Queries) StockCountInsertQuick(ctx context.Context, arg StockCountInsertQuickParams) error {
+	_, err := q.db.Exec(ctx, stockCountInsertQuick,
+		arg.ID,
+		arg.TenantID,
+		arg.OutletID,
+		arg.DocNo,
+		arg.Bucket,
+		arg.Note,
+		arg.AdjustMode,
+		arg.ActorID,
+	)
+	return err
+}
+
+const stockCountLineCount = `-- name: StockCountLineCount :one
+SELECT count(*) FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2
+`
+
+type StockCountLineCountParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+}
+
+func (q *Queries) StockCountLineCount(ctx context.Context, arg StockCountLineCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockCountLineCount, arg.TenantID, arg.CountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const stockCountLineInsertDone = `-- name: StockCountLineInsertDone :exec
+INSERT INTO stock_count_lines (tenant_id, count_id, item_id, snapshot_qty, counted_qty, diff, unit_cost, counted_by, counted_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+`
+
+type StockCountLineInsertDoneParams struct {
+	TenantID    uuid.UUID
+	CountID     uuid.UUID
+	ItemID      uuid.UUID
+	SnapshotQty decimal.Decimal
+	CountedQty  pgtype.Numeric
+	Diff        pgtype.Numeric
+	UnitCost    pgtype.Numeric
+	ActorID     pgtype.UUID
+}
+
+func (q *Queries) StockCountLineInsertDone(ctx context.Context, arg StockCountLineInsertDoneParams) error {
+	_, err := q.db.Exec(ctx, stockCountLineInsertDone,
+		arg.TenantID,
+		arg.CountID,
+		arg.ItemID,
+		arg.SnapshotQty,
+		arg.CountedQty,
+		arg.Diff,
+		arg.UnitCost,
+		arg.ActorID,
+	)
+	return err
+}
+
+const stockCountLines = `-- name: StockCountLines :many
+SELECT l.item_id, i.sku, i.name, u.name AS unit_name, l.snapshot_qty, l.counted_qty, l.diff, l.unit_cost, l.counted_at,
+       coalesce(sb.qty, 0)::numeric AS current_qty, coalesce(oc.avg_cost, i.avg_cost, 0)::numeric AS item_cost
+FROM stock_count_lines l
+JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+JOIN stock_counts c ON c.tenant_id = l.tenant_id AND c.id = l.count_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = l.tenant_id AND oc.item_id = l.item_id AND oc.outlet_id = c.outlet_id
+LEFT JOIN stock_balances sb ON sb.tenant_id = l.tenant_id AND sb.outlet_id = c.outlet_id AND sb.item_id = l.item_id AND sb.bucket = c.bucket
+WHERE l.tenant_id = $1 AND l.count_id = $2
+ORDER BY lower(i.name), i.id
+`
+
+type StockCountLinesParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+}
+
+type StockCountLinesRow struct {
+	ItemID      uuid.UUID
+	Sku         string
+	Name        string
+	UnitName    string
+	SnapshotQty decimal.Decimal
+	CountedQty  pgtype.Numeric
+	Diff        pgtype.Numeric
+	UnitCost    pgtype.Numeric
+	CountedAt   pgtype.Timestamptz
+	CurrentQty  decimal.Decimal
+	ItemCost    decimal.Decimal
+}
+
+// Baris sesi beserta stok sistem TERKINI di bucket sesi (pratinjau hasil akhir).
+func (q *Queries) StockCountLines(ctx context.Context, arg StockCountLinesParams) ([]StockCountLinesRow, error) {
+	rows, err := q.db.Query(ctx, stockCountLines, arg.TenantID, arg.CountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockCountLinesRow
+	for rows.Next() {
+		var i StockCountLinesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+			&i.SnapshotQty,
+			&i.CountedQty,
+			&i.Diff,
+			&i.UnitCost,
+			&i.CountedAt,
+			&i.CurrentQty,
+			&i.ItemCost,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockCountList = `-- name: StockCountList :many
+SELECT c.id, c.outlet_id, c.doc_no, c.bucket, c.status, c.note, c.created_at, c.completed_at, c.cancelled_at, c.kind, c.adjust_mode,
+       coalesce(cu.name, '') AS created_name,
+       (SELECT coalesce(sum(CASE WHEN c.status = 'completed' THEN l.diff * l.unit_cost
+                                 ELSE (l.counted_qty - l.snapshot_qty) * coalesce(oc.avg_cost, i.avg_cost, 0) END), 0)
+          FROM stock_count_lines l JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+          LEFT JOIN item_outlet_costs oc ON oc.tenant_id = l.tenant_id AND oc.item_id = l.item_id AND oc.outlet_id = c.outlet_id
+         WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id AND l.counted_qty IS NOT NULL)::numeric AS diff_value,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id)::bigint AS line_count,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id AND l.counted_qty IS NOT NULL)::bigint AS counted_count,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id
+                AND l.counted_qty IS NOT NULL AND l.counted_qty <> l.snapshot_qty)::bigint AS diff_count,
+       count(*) OVER () AS total
+FROM stock_counts c
+LEFT JOIN users cu ON cu.tenant_id = c.tenant_id AND cu.id = c.created_by
+WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND ($3::text = '' OR c.status = $3)
+  AND ($4::text = '' OR c.kind = $4) AND ($5::text = '' OR c.doc_no ILIKE '%' || $5 || '%')
+ORDER BY c.created_at DESC, c.id
+LIMIT $7 OFFSET $6
+`
+
+type StockCountListParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	Status     string
+	Kind       string
+	Q          string
+	PageOffset int32
+	PageLimit  int32
+}
+
+type StockCountListRow struct {
+	ID           uuid.UUID
+	OutletID     uuid.UUID
+	DocNo        string
+	Bucket       string
+	Status       string
+	Note         string
+	CreatedAt    pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
+	CancelledAt  pgtype.Timestamptz
+	Kind         string
+	AdjustMode   pgtype.Text
+	CreatedName  string
+	DiffValue    decimal.Decimal
+	LineCount    int64
+	CountedCount int64
+	DiffCount    int64
+	Total        int64
+}
+
+func (q *Queries) StockCountList(ctx context.Context, arg StockCountListParams) ([]StockCountListRow, error) {
+	rows, err := q.db.Query(ctx, stockCountList,
+		arg.TenantID,
+		arg.OutletID,
+		arg.Status,
+		arg.Kind,
+		arg.Q,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockCountListRow
+	for rows.Next() {
+		var i StockCountListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OutletID,
+			&i.DocNo,
+			&i.Bucket,
+			&i.Status,
+			&i.Note,
+			&i.CreatedAt,
+			&i.CompletedAt,
+			&i.CancelledAt,
+			&i.Kind,
+			&i.AdjustMode,
+			&i.CreatedName,
+			&i.DiffValue,
+			&i.LineCount,
+			&i.CountedCount,
+			&i.DiffCount,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockCountLockShare = `-- name: StockCountLockShare :one
+SELECT outlet_id, doc_no, bucket, status FROM stock_counts WHERE tenant_id = $1 AND id = $2 FOR SHARE
+`
+
+type StockCountLockShareParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockCountLockShareRow struct {
+	OutletID uuid.UUID
+	DocNo    string
+	Bucket   string
+	Status   string
+}
+
+// Perubahan baris draf: berbagi kunci, sehingga penyelesaian bersamaan menunggu/menolak.
+func (q *Queries) StockCountLockShare(ctx context.Context, arg StockCountLockShareParams) (StockCountLockShareRow, error) {
+	row := q.db.QueryRow(ctx, stockCountLockShare, arg.TenantID, arg.ID)
+	var i StockCountLockShareRow
+	err := row.Scan(
+		&i.OutletID,
+		&i.DocNo,
+		&i.Bucket,
+		&i.Status,
+	)
+	return i, err
+}
+
+const stockCountLockUpdate = `-- name: StockCountLockUpdate :one
+SELECT outlet_id, doc_no, bucket, status FROM stock_counts WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type StockCountLockUpdateParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockCountLockUpdateRow struct {
+	OutletID uuid.UUID
+	DocNo    string
+	Bucket   string
+	Status   string
+}
+
+// Penyelesaian/pembatalan: kunci eksklusif; hasil menentukan boleh tidaknya diproses.
+func (q *Queries) StockCountLockUpdate(ctx context.Context, arg StockCountLockUpdateParams) (StockCountLockUpdateRow, error) {
+	row := q.db.QueryRow(ctx, stockCountLockUpdate, arg.TenantID, arg.ID)
+	var i StockCountLockUpdateRow
+	err := row.Scan(
+		&i.OutletID,
+		&i.DocNo,
+		&i.Bucket,
+		&i.Status,
+	)
+	return i, err
+}
+
+const stockCountNextNo = `-- name: StockCountNextNo :one
+
+INSERT INTO stock_count_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_count_counters.last_no + 1
+RETURNING last_no
+`
+
+type StockCountNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+// ---- Stok opname (Fase 4.3) ----
+func (q *Queries) StockCountNextNo(ctx context.Context, arg StockCountNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockCountNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const stockCountRemoveItem = `-- name: StockCountRemoveItem :execrows
+DELETE FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2 AND item_id = $3
+`
+
+type StockCountRemoveItemParams struct {
+	TenantID uuid.UUID
+	CountID  uuid.UUID
+	ItemID   uuid.UUID
+}
+
+func (q *Queries) StockCountRemoveItem(ctx context.Context, arg StockCountRemoveItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stockCountRemoveItem, arg.TenantID, arg.CountID, arg.ItemID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const stockCountSetQty = `-- name: StockCountSetQty :execrows
+UPDATE stock_count_lines SET counted_qty = $1,
+       counted_by = CASE WHEN $1::numeric IS NULL THEN NULL ELSE $2::uuid END,
+       counted_at = CASE WHEN $1::numeric IS NULL THEN NULL ELSE now() END
+WHERE tenant_id = $3 AND count_id = $4 AND item_id = $5
+`
+
+type StockCountSetQtyParams struct {
+	CountedQty pgtype.Numeric
+	ActorID    pgtype.UUID
+	TenantID   uuid.UUID
+	CountID    uuid.UUID
+	ItemID     uuid.UUID
+}
+
+func (q *Queries) StockCountSetQty(ctx context.Context, arg StockCountSetQtyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stockCountSetQty,
+		arg.CountedQty,
+		arg.ActorID,
+		arg.TenantID,
+		arg.CountID,
+		arg.ItemID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const stockCountSummary = `-- name: StockCountSummary :one
+SELECT
+  (SELECT count(*) FROM stock_counts c WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.status = 'draft')::bigint AS open_count,
+  (SELECT count(*) FROM stock_counts c WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.status = 'completed'
+        AND c.completed_at >= now() - interval '30 days')::bigint AS done_count,
+  coalesce(sum(CASE WHEN l.diff > 0 THEN l.diff * l.unit_cost END), 0)::numeric AS plus_value,
+  coalesce(sum(CASE WHEN l.diff < 0 THEN l.diff * l.unit_cost END), 0)::numeric AS minus_value,
+  (count(*) FILTER (WHERE l.diff <> 0))::bigint AS diff_lines
+FROM stock_counts c
+JOIN stock_count_lines l ON l.tenant_id = c.tenant_id AND l.count_id = c.id
+WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.status = 'completed'
+  AND c.completed_at >= now() - interval '30 days'
+`
+
+type StockCountSummaryParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+}
+
+type StockCountSummaryRow struct {
+	OpenCount  int64
+	DoneCount  int64
+	PlusValue  decimal.Decimal
+	MinusValue decimal.Decimal
+	DiffLines  int64
+}
+
+// Ringkasan 30 hari terakhir di outlet: sesi berjalan, dokumen selesai, dan nilai selisih (lebih / kurang).
+func (q *Queries) StockCountSummary(ctx context.Context, arg StockCountSummaryParams) (StockCountSummaryRow, error) {
+	row := q.db.QueryRow(ctx, stockCountSummary, arg.TenantID, arg.OutletID)
+	var i StockCountSummaryRow
+	err := row.Scan(
+		&i.OpenCount,
+		&i.DoneCount,
+		&i.PlusValue,
+		&i.MinusValue,
+		&i.DiffLines,
+	)
 	return i, err
 }
 
@@ -7660,18 +9089,46 @@ func (q *Queries) StockOutletLockState(ctx context.Context, arg StockOutletLockS
 	return i, err
 }
 
-const stockSetCost = `-- name: StockSetCost :exec
-UPDATE items SET avg_cost = $1, last_cost = $1 WHERE tenant_id = $2 AND id = $3
+const stockOutletQty = `-- name: StockOutletQty :one
+SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3
 `
 
-type StockSetCostParams struct {
-	Cost     decimal.Decimal
+type StockOutletQtyParams struct {
 	TenantID uuid.UUID
+	OutletID uuid.UUID
 	ItemID   uuid.UUID
 }
 
+// Total stok barang di satu outlet (semua bucket): dasar keputusan memasang HPP hasil pecah satuan dan rata-rata tertimbang.
+func (q *Queries) StockOutletQty(ctx context.Context, arg StockOutletQtyParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, stockOutletQty, arg.TenantID, arg.OutletID, arg.ItemID)
+	var qty decimal.Decimal
+	err := row.Scan(&qty)
+	return qty, err
+}
+
+const stockSetCost = `-- name: StockSetCost :exec
+INSERT INTO item_outlet_costs (tenant_id, outlet_id, item_id, avg_cost, last_cost)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, outlet_id, item_id) DO UPDATE SET avg_cost = EXCLUDED.avg_cost, last_cost = EXCLUDED.last_cost
+`
+
+type StockSetCostParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	ItemID   uuid.UUID
+	AvgCost  decimal.Decimal
+	LastCost decimal.Decimal
+}
+
 func (q *Queries) StockSetCost(ctx context.Context, arg StockSetCostParams) error {
-	_, err := q.db.Exec(ctx, stockSetCost, arg.Cost, arg.TenantID, arg.ItemID)
+	_, err := q.db.Exec(ctx, stockSetCost,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.AvgCost,
+		arg.LastCost,
+	)
 	return err
 }
 
@@ -7699,23 +9156,6 @@ func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGua
 		arg.ItemID,
 		arg.Bucket,
 	)
-	var qty decimal.Decimal
-	err := row.Scan(&qty)
-	return qty, err
-}
-
-const stockTotalQty = `-- name: StockTotalQty :one
-SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND item_id = $2
-`
-
-type StockTotalQtyParams struct {
-	TenantID uuid.UUID
-	ItemID   uuid.UUID
-}
-
-// Total stok barang di semua outlet & bucket (dasar keputusan memasang HPP hasil pecah satuan).
-func (q *Queries) StockTotalQty(ctx context.Context, arg StockTotalQtyParams) (decimal.Decimal, error) {
-	row := q.db.QueryRow(ctx, stockTotalQty, arg.TenantID, arg.ItemID)
 	var qty decimal.Decimal
 	err := row.Scan(&qty)
 	return qty, err

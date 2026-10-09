@@ -128,6 +128,8 @@ type OutletRow struct {
 	Code     string    `json:"code"`
 	Name     string    `json:"name"`
 	Price    string    `json:"price"`
+	AvgCost  string    `json:"avg_cost"`  // HPP rata-rata cabang
+	LastCost string    `json:"last_cost"` // harga beli akhir cabang
 	Stock    StockQty  `json:"stock"`
 }
 
@@ -479,7 +481,7 @@ func fillBreakdown(ctx context.Context, q *gen.Queries, tenantID uuid.UUID, outl
 	for _, b := range bd {
 		i := idx[b.ItemID]
 		rows[i].Outlets = append(rows[i].Outlets, OutletRow{OutletID: b.OutletID, Code: b.OutletCode, Name: b.OutletName,
-			Price: b.Price.StringFixed(2),
+			Price: b.Price.StringFixed(2), AvgCost: b.AvgCost.StringFixed(2), LastCost: b.LastCost.StringFixed(2),
 			Stock: StockQty{Display: b.StockDisplay.String(), Warehouse: b.StockWarehouse.String(), Returns: b.StockReturns.String(),
 				Total: b.StockDisplay.Add(b.StockWarehouse).Add(b.StockReturns).String()}})
 		if !seen[i] || b.Price.LessThan(lo[i]) {
@@ -519,7 +521,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (*Item, 
 // load membaca item + harga cabang yang boleh dilihat pemanggil (di dalam transaksi pemanggil).
 func (s *Service) load(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UUID) (Item, error) {
 	q := gen.New(tx)
-	r, err := q.ItemGet(ctx, gen.ItemGetParams{TenantID: a.TenantID, ID: id})
+	r, err := q.ItemGet(ctx, gen.ItemGetParams{TenantID: a.TenantID, OutletID: a.OutletID, ID: id})
 	if err != nil {
 		return Item{}, err
 	}

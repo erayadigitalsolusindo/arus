@@ -82,11 +82,10 @@ export const nav: NavGroup[] = [
         icon: 'file-text',
         children: [
           { labelKey: 'nav.salesList', module: 'sales_list', href: '/sales' },
-          { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history' },
+          { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history', href: '/sell-price-history' },
           { labelKey: 'nav.memberReceivables', module: 'member_receivables', href: '/receivables' }
         ]
-      },
-      { id: 'orderList', labelKey: 'nav.orderList', icon: 'clipboard-list', module: 'order_list' }
+      }
     ]
   },
   {
@@ -96,15 +95,17 @@ export const nav: NavGroup[] = [
         id: 'purchaseInvoices',
         labelKey: 'nav.purchaseInvoicesReturns',
         icon: 'receipt',
-        module: 'purchase_invoices',
-        children: [{ labelKey: 'nav.purchaseReturns', module: 'purchase_returns' }]
+        children: [
+          { labelKey: 'nav.purchaseInvoices', module: 'purchase_invoices', href: '/purchases/new' },
+          { labelKey: 'nav.purchaseReturns', module: 'purchase_returns' }
+        ]
       },
       {
         id: 'purchaseData',
         labelKey: 'nav.purchaseData',
         icon: 'truck',
         children: [
-          { labelKey: 'nav.purchaseList', module: 'purchase_list' },
+          { labelKey: 'nav.purchaseList', module: 'purchase_list', href: '/purchases' },
           { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history' },
           { labelKey: 'nav.supplierPayables', module: 'supplier_payables' }
         ]
@@ -116,7 +117,7 @@ export const nav: NavGroup[] = [
     items: [
       { id: 'stockOpening', labelKey: 'nav.stockOpening', icon: 'package-plus', module: 'stock_opening', href: '/stock-opening' },
       { id: 'stockConversion', labelKey: 'nav.stockConversion', icon: 'split', module: 'stock_conversion', href: '/stock-conversion' },
-      { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname' },
+      { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname', href: '/stock-opname' },
       { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer' }
     ]
   },

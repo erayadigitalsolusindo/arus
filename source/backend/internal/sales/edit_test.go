@@ -289,7 +289,7 @@ func TestEditGuards(t *testing.T) {
 	blind := a
 	blind.OutletID = otherOutlet
 	blind.Outlets = map[uuid.UUID]bool{otherOutlet: true}
-	if err := do(blind, editReq(it, "1", "10000", ap)); !errors.Is(err, ErrNotFound) {
+	if err := do(blind, editReq(it, "1", "10000", ap)); !errors.Is(err, ErrOutletForbidden) {
 		t.Fatalf("tanpa akses outlet: %v", err)
 	}
 	if err := do(e.actor(e.other), editReq(it, "1", "10000", ap)); !errors.Is(err, ErrNotFound) {
