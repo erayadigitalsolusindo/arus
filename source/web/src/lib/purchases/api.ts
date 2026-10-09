@@ -134,3 +134,32 @@ export const purchases = {
   /** Batalkan nota: stok & HPP dibalik, nota tetap tercatat berstatus dibatalkan. */
   void: (id: string, reason: string) => api<Purchase>(`/purchases/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) })
 };
+
+export type BuyPriceRow = {
+  purchase_id: string;
+  position: number;
+  doc_no: string;
+  purchase_date: string;
+  created_at: string;
+  outlet_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  qty: string;
+  unit_price: string;
+  discounts: string[];
+  unit_cost: string;
+  /** Harga beli pembelian sebelumnya untuk barang yang sama (pemasok mana pun). */
+  prev_price?: string;
+};
+
+export const buyPriceHistory = {
+  list: (p: { from?: string; to?: string; q?: string; supplier_id?: string; item_id?: string; cursor?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '' && v !== 0) qs.set(k, String(v));
+    return api<{ data: BuyPriceRow[]; next_cursor: string }>(`/purchases/price-history?${qs}`);
+  }
+};

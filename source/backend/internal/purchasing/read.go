@@ -39,11 +39,13 @@ type Cost struct {
 	Amount string `json:"amount"`
 }
 
-// PayableInfo = hutang yang lahir dari nota kredit (saldo/pembayaran menyusul Fase 6.3).
+// PayableInfo = hutang yang lahir dari nota kredit (saldo = amount − pembayaran, Fase 6.3).
 type PayableInfo struct {
 	ID      uuid.UUID `json:"id"`
 	Amount  string    `json:"amount"`
 	DueDate *string   `json:"due_date"`
+	Paid    string    `json:"paid"`
+	Balance string    `json:"balance"`
 }
 
 // Event = satu catatan audit nota (siapa, kapan, dan rinciannya).
@@ -165,7 +167,11 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Purchas
 		}
 		pay, err := q.PurchasePayable(ctx, gen.PurchasePayableParams{TenantID: a.TenantID, PurchaseID: id})
 		if err == nil {
-			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate)}
+			var paid dec
+			if err := tx.QueryRow(ctx, `SELECT coalesce(sum(amount), 0) FROM payable_payments WHERE tenant_id = $1 AND payable_id = $2`, a.TenantID, pay.ID).Scan(&paid); err != nil {
+				return err
+			}
+			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate), Paid: paid.StringFixed(2), Balance: pay.Amount.Sub(paid).StringFixed(2)}
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}

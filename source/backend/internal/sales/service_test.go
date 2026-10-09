@@ -77,7 +77,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "receivable_payments", "receivable_payment_counters", "receivables", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances", "item_outlet_costs",
+			for _, tbl := range []string{"audit_log", "receivable_payments", "receivable_settlements", "receivable_payment_counters", "receivables", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances", "item_outlet_costs",
 				"items", "units", "users", "roles", "outlets"} {
 				if tbl == "sales" {
 					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.

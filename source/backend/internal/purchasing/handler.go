@@ -32,6 +32,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		view := authz.RequireAny([2]string{ModuleList, authz.ActView}, [2]string{ModuleInvoices, authz.ActView})
 		create := authz.Require(ModuleInvoices, authz.ActCreate)
+		r.With(authz.Require(PriceHistoryModule, authz.ActView)).Get("/price-history", h.PriceHistory)
 		r.With(view).Get("/", h.List)
 		r.With(create).Post("/", h.Create)
 		r.With(create).Post("/quote", h.Quote)
@@ -196,6 +197,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "PURCHASE_NOT_EDITABLE", "Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).")
 	case errors.Is(err, ErrEditWindowClosed):
 		httpx.Error(w, http.StatusForbidden, "EDIT_WINDOW_CLOSED", "Batas waktu edit nota sudah lewat.")
+	case errors.Is(err, ErrPayablePaid):
+		httpx.Error(w, http.StatusConflict, "PAYABLE_PAID", "Hutang nota ini sudah dibayar; nota tidak dapat diubah atau dibatalkan.")
 	case errors.Is(err, ErrOutletMismatch):
 		httpx.Error(w, http.StatusConflict, "OUTLET_MISMATCH", "Nota ini milik outlet lain; pindah ke outlet nota itu dulu.")
 	case errors.Is(err, stock.ErrInsufficient):
