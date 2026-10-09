@@ -97,6 +97,8 @@ const purchases: Messages['purchases'] = {
     viewIt: 'View',
     newAnother: 'Another invoice',
     totalsPending: 'Calculating…',
+    draftRestored: 'Your unsaved invoice draft was restored. Entries are saved automatically in this browser.',
+    draftDiscard: 'Discard draft',
     needLines: 'Fill in quantity and unit price for every item.',
     incomplete: 'Complete the supplier, date, and item rows.'
   }

@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { purchases, type ItemChoice, type PaymentType, type PurchaseInput, type Quote } from '#lib/purchases/api.ts';
   import { lookup, suppliers, type Supplier } from '#lib/catalog/api.ts';
-  import { can } from '#lib/auth/session.svelte.ts';
+  import { can, session } from '#lib/auth/session.svelte.ts';
+  import { clearDraft, draftKey, loadDraft, saveDraft, type DraftRow, type PurchaseDraft } from '#lib/purchases/draft.ts';
   import { t, formatCurrency, formatNumber, formatDate } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
@@ -11,7 +12,7 @@
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import PurchaseModal from '#lib/components/PurchaseModal.svelte';
 
-  type Row = { key: string; item: ItemChoice; qd: string; qw: string; price: string; sub: string; disc: [string, string, string, string] };
+  type Row = DraftRow;
 
   const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { maximumFractionDigits: 2 });
   const num = (s: string) => (s === '' ? 0 : Number(s));
@@ -36,16 +37,21 @@
     return ymd(new Date(y, m - 1, d + n));
   };
 
-  let supplierId = $state('');
-  let supplierLabel = $state('');
-  let invoice = $state('');
-  let date = $state(todayStr);
-  let payment = $state<PaymentType>('cash');
-  let due = $state('');
-  let taxPct = $state('');
-  let costs = $state<{ key: string; name: string; amount: string }[]>([]);
-  let note = $state('');
-  let rows = $state<Row[]>([]);
+  // Draf per pengguna+outlet di browser: dipulihkan saat halaman dibuka (lihat lib/purchases/draft.ts).
+  const dkey = session.tenant && session.outlet && session.user ? draftKey(session.tenant.id, session.outlet.id, session.user.id) : '';
+  const restored = dkey ? loadDraft(dkey) : null;
+  let draftNotice = $state(restored !== null);
+
+  let supplierId = $state(restored?.supplierId ?? '');
+  let supplierLabel = $state(restored?.supplierLabel ?? '');
+  let invoice = $state(restored?.invoice ?? '');
+  let date = $state(restored?.date || todayStr);
+  let payment = $state<PaymentType>(restored?.payment ?? 'cash');
+  let due = $state(restored?.due ?? '');
+  let taxPct = $state(restored?.taxPct ?? '');
+  let costs = $state<{ key: string; name: string; amount: string }[]>(restored?.costs ?? []);
+  let note = $state(restored?.note ?? '');
+  let rows = $state<Row[]>(restored?.rows ?? []);
 
   let scanQty = $state('1');
   let scanText = $state('');
@@ -240,7 +246,35 @@
     due = '';
     quote = null;
     attempt = null;
+    if (dkey) clearDraft(dkey);
   }
+
+  // Buang draf: kosongkan seluruh isian (termasuk pemasok & tanggal), bukan hanya baris seperti setelah simpan.
+  function discardDraft() {
+    reset();
+    supplierId = '';
+    supplierLabel = '';
+    date = todayStr;
+    payment = 'cash';
+    rowFilter = '';
+    draftNotice = false;
+  }
+
+  // Simpan otomatis dengan jeda 500 ms dan hanya bila isi berubah (hemat tulis). Timer tidak dibatalkan saat
+  // komponen dilepas, supaya perubahan terakhir tetap tersimpan.
+  let savedSig = '';
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    if (!dkey) return;
+    const d: PurchaseDraft = { supplierId, supplierLabel, invoice, date, payment, due, taxPct, costs: $state.snapshot(costs), note, rows: $state.snapshot(rows) };
+    const sig = JSON.stringify(d);
+    if (sig === savedSig) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      savedSig = sig;
+      saveDraft(dkey, d);
+    }, 500);
+  });
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
@@ -269,6 +303,7 @@
       const p = await purchases.create(input, keyFor(JSON.stringify(input)));
       doneId = p.id;
       doneNo = p.doc_no;
+      draftNotice = false;
       reset();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'VALIDATION') {
@@ -316,6 +351,13 @@
   {#if formError}
     <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] badge-danger">
       <i class="icon-circle-alert text-[14px] shrink-0"></i><span>{formError}</span>
+    </div>
+  {/if}
+  {#if draftNotice}
+    <div role="status" class="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 text-[13px] badge-warning">
+      <i class="icon-save text-[15px] shrink-0"></i>
+      <span class="grow">{t('purchases.form.draftRestored')}</span>
+      <button type="button" class="btn btn-sm" onclick={discardDraft}><i class="icon-trash-2 text-[13px]"></i>{t('purchases.form.draftDiscard')}</button>
     </div>
   {/if}
 
