@@ -1,5 +1,5 @@
 // Package payable: hutang pemasok dari pembelian kredit (Fase 6.3). Hutang lahir dari nota kredit (purchasing) dan dilunasi
-// lewat payable_payments. Saldo = amount − Σ pembayaran (dihitung, tidak disimpan; AGENTS.md §8). Pola meniru `receivable`.
+// lewat payable_payments dan dikurangi retur pembelian. Saldo = amount − Σ pembayaran − Σ potongan retur aktif (dihitung, tidak disimpan; AGENTS.md §8). Pola meniru `receivable`.
 // SQL ditulis tangan (pgx) karena daftar/ringkasan memakai CTE bersama.
 package payable
 
@@ -59,6 +59,45 @@ func HasPayments(ctx context.Context, tx pgx.Tx, tenant, purchase uuid.UUID) (bo
 	return n > 0, err
 }
 
+// returnedSQL = Σ potongan hutang dari retur pembelian aktif atas hutang beralias `pb`.
+const returnedSQL = `(SELECT coalesce(sum(r.payable_cut), 0) FROM purchase_returns r
+	WHERE r.tenant_id = pb.tenant_id AND r.purchase_id = pb.purchase_id AND r.status = 'completed')`
+
+// State = hutang aktif sebuah nota pembelian: jumlah awal, terbayar, dan dipotong retur aktif.
+type State struct {
+	ID       uuid.UUID
+	Amount   dec
+	Paid     dec
+	Returned dec
+}
+
+func (st State) Balance() dec { return st.Amount.Sub(st.Paid).Sub(st.Returned) }
+
+// StateOf membaca hutang aktif nota pembelian; ok=false bila nota tidak berhutang (tunai) atau hutangnya dibatalkan.
+// Pemanggil yang mengubah saldo harus sudah mengunci baris nota pembelian (FOR UPDATE), sama dengan Pay.
+func StateOf(ctx context.Context, tx pgx.Tx, tenant, purchase uuid.UUID) (State, bool, error) {
+	var st State
+	err := tx.QueryRow(ctx, `
+		SELECT pb.id, pb.amount,
+		       (SELECT coalesce(sum(x.amount), 0) FROM payable_payments x WHERE x.tenant_id = pb.tenant_id AND x.payable_id = pb.id),
+		       `+returnedSQL+`
+		FROM payables pb WHERE pb.tenant_id = $1 AND pb.purchase_id = $2 AND pb.voided_at IS NULL`, tenant, purchase).
+		Scan(&st.ID, &st.Amount, &st.Paid, &st.Returned)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return st, false, nil
+	}
+	return st, err == nil, err
+}
+
+// HasPaymentsSince = ada pembayaran hutang nota ini yang dicatat pada/sesudah waktu t (membatalkan retur ditolak bila ada).
+func HasPaymentsSince(ctx context.Context, tx pgx.Tx, tenant, purchase uuid.UUID, t time.Time) (bool, error) {
+	var n int
+	err := tx.QueryRow(ctx, `
+		SELECT count(*) FROM payable_payments pp JOIN payables p ON p.tenant_id = pp.tenant_id AND p.id = pp.payable_id
+		WHERE p.tenant_id = $1 AND p.purchase_id = $2 AND pp.created_at >= $3`, tenant, purchase, t).Scan(&n)
+	return n > 0, err
+}
+
 type Service struct{ pool *pgxpool.Pool }
 
 func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
@@ -74,6 +113,7 @@ type Row struct {
 	PurchaseDate      string    `json:"purchase_date"`
 	Amount            string    `json:"amount"`
 	Paid              string    `json:"paid"`
+	Returned          string    `json:"returned"` // dipotong retur pembelian aktif
 	Balance           string    `json:"balance"`
 	DueDate           *string   `json:"due_date,omitempty"`
 	Status            string    `json:"status"` // open | overdue | paid
@@ -163,7 +203,8 @@ func outletIDs(a authz.Actor) []uuid.UUID {
 const baseCTE = `
 WITH base AS (
   SELECT pb.id, pb.purchase_id, pb.supplier_id, pb.outlet_id, pb.amount, pb.due_date,
-         coalesce(pp.paid, 0) AS paid, pu.doc_no, pu.supplier_invoice_no, pu.purchase_date, pu.total AS purchase_total,
+         coalesce(pp.paid, 0) AS paid, ` + returnedSQL + ` AS returned,
+         coalesce(pp.paid, 0) + ` + returnedSQL + ` AS settled, pu.doc_no, pu.supplier_invoice_no, pu.purchase_date, pu.total AS purchase_total,
          s.name AS supplier_name, coalesce(s.code, '') AS supplier_code,
          (now() AT TIME ZONE o.timezone)::date AS today
   FROM payables pb
@@ -174,11 +215,12 @@ WITH base AS (
   WHERE pb.tenant_id = $1 AND pb.voided_at IS NULL AND pb.outlet_id = ANY($2::uuid[]) AND ($3::uuid IS NULL OR pb.supplier_id = $3)
 )`
 
-const rowCols = `id, purchase_id, supplier_id, supplier_code, supplier_name, doc_no, supplier_invoice_no, purchase_date, amount, paid, due_date, today, purchase_total`
+const rowCols = `id, purchase_id, supplier_id, supplier_code, supplier_name, doc_no, supplier_invoice_no, purchase_date, amount, paid, returned, due_date, today, purchase_total`
 
 type scanned struct {
 	Row
 	amount, paid  dec
+	returned      dec
 	due, today    pgtype.Date
 	purchaseTotal dec
 	pdate         pgtype.Date
@@ -187,13 +229,13 @@ type scanned struct {
 func scanRow(rows pgx.Row) (scanned, error) {
 	var r scanned
 	err := rows.Scan(&r.ID, &r.PurchaseID, &r.SupplierID, &r.SupplierCode, &r.SupplierName, &r.DocNo, &r.SupplierInvoiceNo, &r.pdate,
-		&r.amount, &r.paid, &r.due, &r.today, &r.purchaseTotal)
+		&r.amount, &r.paid, &r.returned, &r.due, &r.today, &r.purchaseTotal)
 	if err != nil {
 		return r, err
 	}
-	bal := r.amount.Sub(r.paid)
+	bal := r.amount.Sub(r.paid).Sub(r.returned)
 	r.PurchaseDate = r.pdate.Time.Format("2006-01-02")
-	r.Amount, r.Paid, r.Balance = r.amount.StringFixed(2), r.paid.StringFixed(2), bal.StringFixed(2)
+	r.Amount, r.Paid, r.Returned, r.Balance = r.amount.StringFixed(2), r.paid.StringFixed(2), r.returned.StringFixed(2), bal.StringFixed(2)
 	r.DueDate = dateStr(r.due)
 	r.Status = statusOf(bal, r.due, r.today)
 	return r, nil
@@ -231,10 +273,10 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		rows, err := tx.Query(ctx, baseCTE+` SELECT `+rowCols+` FROM base
 			WHERE ($4::text = '' OR doc_no ILIKE $4 OR supplier_invoice_no ILIKE $4 OR supplier_name ILIKE $4 OR supplier_code ILIKE $4)
 			  AND CASE $5::text WHEN 'all' THEN true
-			        WHEN 'paid' THEN paid >= amount
-			        WHEN 'overdue' THEN paid < amount AND due_date IS NOT NULL AND due_date < today
-			        ELSE paid < amount END
-			ORDER BY (paid >= amount), coalesce(due_date, DATE '9999-12-31'), purchase_date DESC, id
+			        WHEN 'paid' THEN settled >= amount
+			        WHEN 'overdue' THEN settled < amount AND due_date IS NOT NULL AND due_date < today
+			        ELSE settled < amount END
+			ORDER BY (settled >= amount), coalesce(due_date, DATE '9999-12-31'), purchase_date DESC, id
 			LIMIT $6 OFFSET $7`, a.TenantID, ids, supplier, pattern, p.Status, p.Limit+1, p.Offset)
 		if err != nil {
 			return err
@@ -257,13 +299,13 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		}
 		var out, over, cur, d1, d2, d3 dec
 		err = tx.QueryRow(ctx, baseCTE+` SELECT
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount), 0),
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount AND due_date < today), 0),
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount AND (due_date IS NULL OR due_date >= today)), 0),
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount AND today - due_date BETWEEN 1 AND 30), 0),
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount AND today - due_date BETWEEN 31 AND 60), 0),
-			coalesce(sum(amount - paid) FILTER (WHERE paid < amount AND today - due_date > 60), 0),
-			count(*) FILTER (WHERE paid < amount), count(*)
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount), 0),
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount AND due_date < today), 0),
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount AND (due_date IS NULL OR due_date >= today)), 0),
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount AND today - due_date BETWEEN 1 AND 30), 0),
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount AND today - due_date BETWEEN 31 AND 60), 0),
+			coalesce(sum(amount - settled) FILTER (WHERE settled < amount AND today - due_date > 60), 0),
+			count(*) FILTER (WHERE settled < amount), count(*)
 			FROM base`, a.TenantID, ids, supplier).Scan(&out, &over, &cur, &d1, &d2, &d3, &res.Summary.OpenCount, &res.Summary.TotalCount)
 		if err != nil {
 			return err
@@ -430,7 +472,11 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 		if e := tx.QueryRow(ctx, `SELECT coalesce(sum(amount), 0) FROM payable_payments WHERE tenant_id = $1 AND payable_id = $2`, a.TenantID, id).Scan(&paid); e != nil {
 			return e
 		}
-		balance := amount.Sub(paid)
+		var returned dec
+		if e := tx.QueryRow(ctx, `SELECT `+returnedSQL+` FROM payables pb WHERE pb.tenant_id = $1 AND pb.id = $2`, a.TenantID, id).Scan(&returned); e != nil {
+			return e
+		}
+		balance := amount.Sub(paid).Sub(returned)
 		switch {
 		case !balance.IsPositive():
 			return FieldErrors{"amount": "SETTLED"}

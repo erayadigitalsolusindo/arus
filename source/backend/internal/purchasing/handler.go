@@ -199,6 +199,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusForbidden, "EDIT_WINDOW_CLOSED", "Batas waktu edit nota sudah lewat.")
 	case errors.Is(err, ErrPayablePaid):
 		httpx.Error(w, http.StatusConflict, "PAYABLE_PAID", "Hutang nota ini sudah dibayar; nota tidak dapat diubah atau dibatalkan.")
+	case errors.Is(err, ErrHasReturns):
+		httpx.Error(w, http.StatusConflict, "PURCHASE_HAS_RETURNS", "Nota ini sudah diretur; batalkan returnya dulu sebelum mengubah atau membatalkan nota.")
 	case errors.Is(err, ErrOutletMismatch):
 		httpx.Error(w, http.StatusConflict, "OUTLET_MISMATCH", "Nota ini milik outlet lain; pindah ke outlet nota itu dulu.")
 	case errors.Is(err, stock.ErrInsufficient):

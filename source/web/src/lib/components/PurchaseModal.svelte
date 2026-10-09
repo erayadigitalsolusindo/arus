@@ -140,6 +140,23 @@
             <div class={label}>{t('purchases.modal.payable')}</div>
             <div class="font-display text-[16px] font-bold tabular-nums">{money(p.payable.amount)}</div>
             <p class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('purchases.modal.payableHint')}</p>
+            {#if Number(p.payable.returned) > 0}
+              <p class="mt-1 text-[11.5px] text-[var(--text-secondary)]">{t('purchases.modal.payableReturned', { amount: money(p.payable.returned), balance: money(p.payable.balance) })}</p>
+            {/if}
+          </div>
+        {/if}
+        {#if p.returns.length}
+          <div>
+            <div class={label}>{t('purchases.modal.returns')}</div>
+            <ul class="mt-1 space-y-1 text-[12.5px]">
+              {#each p.returns as r (r.id)}
+                <li class="flex items-center gap-2">
+                  <a href="/purchase-returns?open={r.id}" class="font-mono font-semibold hover:underline {r.status === 'void' ? 'line-through opacity-60' : ''}">{r.doc_no}</a>
+                  <span class="text-[var(--text-tertiary)]">{formatDateTime(r.created_at)}</span>
+                  <span class="ms-auto tabular-nums {r.status === 'void' ? 'line-through opacity-60' : ''}">{money(r.total)}</span>
+                </li>
+              {/each}
+            </ul>
           </div>
         {/if}
       </div>
@@ -191,6 +208,9 @@
       </form>
     {/if}
     <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+      {#if p.status === 'completed' && can('purchase_returns', 'create')}
+        <a href="/purchase-returns/new?purchase={p.id}" class="btn btn-sm"><i class="icon-undo-2 text-[13px]"></i>{t('purchases.modal.returnAction')}</a>
+      {/if}
       {#if p.status === 'completed' && canUpdate}
         <a href="/purchases/new?edit={p.id}" class="btn btn-sm"><i class="icon-pencil text-[13px]"></i>{t('purchases.modal.revise')}</a>
       {/if}

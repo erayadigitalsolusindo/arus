@@ -185,3 +185,11 @@ const (
 	ActionPurchaseSuperseded = "purchase.superseded"
 	ActionPurchaseVoid       = "purchase.void"
 )
+
+// Retur pembelian (Fase 6.6).
+const (
+	EntityPurchaseReturn = "purchase_return"
+
+	ActionPurchaseReturnCreate = "purchase_return.create"
+	ActionPurchaseReturnVoid   = "purchase_return.void"
+)

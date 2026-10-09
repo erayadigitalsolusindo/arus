@@ -92,7 +92,7 @@
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.date')}</dt><dd>{formatDate(d.purchase_date)}</dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.due')}</dt><dd>{d.due_date ? formatDate(d.due_date) : t('payables.noDue')}</dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.amount')}</dt><dd class="tabular-nums">{money(d.amount)}</dd></div>
-        <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.paid')}</dt><dd class="tabular-nums">{money(d.paid)}</dd></div>
+        <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.paid')}</dt><dd class="tabular-nums">{money(d.paid)}{#if Number(d.returned) > 0}<div class="text-[11px] text-[var(--text-tertiary)]">{t('payables.col.returned')} {money(d.returned)}</div>{/if}</dd></div>
         <div>
           <dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('payables.col.balance')}</dt>
           <dd class="flex items-center gap-2"><span class="text-[16px] font-extrabold tabular-nums {balance > 0n ? 'text-[var(--color-danger-600)]' : 'text-[var(--color-success-600)]'}">{money(d.balance)}</span><span class="badge-soft {statusClass[d.status]}">{t(`payables.status.${d.status}`)}</span></dd>

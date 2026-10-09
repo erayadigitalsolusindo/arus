@@ -8,6 +8,12 @@
       "port": 4321
     },
     {
+      "name": "api",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["-C", "source/backend", "run", "./cmd/api"],
+      "port": 8080
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "source/web", "run", "dev"],

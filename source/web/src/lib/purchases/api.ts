@@ -77,7 +77,9 @@ export type Purchase = {
   created_by: string;
   lines: PurchaseLine[];
   costs: { name: string; amount: string }[];
-  payable: { id: string; amount: string; due_date: string | null } | null;
+  payable: { id: string; amount: string; due_date: string | null; paid: string; returned: string; balance: string } | null;
+  /** Dokumen retur pembelian atas nota ini (aktif maupun batal). */
+  returns: { id: string; doc_no: string; status: 'completed' | 'void'; total: string; created_at: string }[];
   events: PurchaseEvent[];
   revision: number;
   revision_reason: string;
