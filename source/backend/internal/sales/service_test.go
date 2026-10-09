@@ -77,7 +77,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "receivable_payments", "receivable_payment_counters", "receivables", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "receivable_payments", "receivable_payment_counters", "receivables", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances", "item_outlet_costs",
 				"items", "units", "users", "roles", "outlets"} {
 				if tbl == "sales" {
 					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.
@@ -850,5 +850,27 @@ func TestTwelveCashiersGetDistinctGaplessNumbers(t *testing.T) {
 	_ = e.admin.QueryRow(context.Background(), `SELECT count(DISTINCT doc_no), max(right(doc_no, 4)::int) FROM sales WHERE tenant_id=$1`, e.tenant).Scan(&distinct, &maxNo)
 	if distinct != 12 || maxNo != 12 {
 		t.Fatalf("nomor unik=%d terbesar=%d, harus 12 dan 12", distinct, maxNo)
+	}
+}
+
+// HPP per cabang: snapshot HPP nota dan batas jual di bawah HPP memakai HPP cabang nota (bila ada), bukan HPP awal barang.
+func TestSaleUsesOutletCost(t *testing.T) {
+	e := newEnv(t)
+	a := e.item(t, "goods", "5000", "3000", 10, false) // HPP awal 3.000
+	e.exec(t, `INSERT INTO item_outlet_costs (tenant_id, outlet_id, item_id, avg_cost, last_cost) VALUES ($1,$2,$3,4000,4000)`, e.tenant, e.outlet, a)
+	s, _, err := e.svc.Create(context.Background(), e.actor(e.tenant), key(), Request{Lines: []LineIn{line(a, "1")}, Payments: []PaymentIn{pay("cash", "5000")}})
+	var snap string
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.admin.QueryRow(context.Background(), `SELECT unit_cost::text FROM sale_lines WHERE sale_id = $1`, s.ID).Scan(&snap); err != nil || snap != "4000.00" {
+		t.Fatalf("snapshot HPP cabang: %q %v", snap, err)
+	}
+	// Potongan 1.500 → 3.500: di atas HPP awal (3.000) tetapi di bawah HPP cabang (4.000) → ditolak.
+	l := line(a, "1")
+	l.Discount = "1500"
+	_, _, err = e.svc.Create(context.Background(), e.actor(e.tenant), key(), Request{Lines: []LineIn{l}, Payments: []PaymentIn{pay("cash", "3500")}})
+	if err == nil {
+		t.Fatal("jual di bawah HPP cabang harus ditolak")
 	}
 }

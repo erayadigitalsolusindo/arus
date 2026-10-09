@@ -56,7 +56,7 @@ type PriceHistory struct {
 // Perubahan pada cabang di luar akses pemanggil tidak ditampilkan (kejadian yang hanya berisi itu dibuang).
 func (s *Service) PriceHistory(ctx context.Context, a authz.Actor, id uuid.UUID, cursor string, limit int) (*PriceHistory, error) {
 	if err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		_, err := gen.New(tx).ItemGet(ctx, gen.ItemGetParams{TenantID: a.TenantID, ID: id})
+		_, err := gen.New(tx).ItemGet(ctx, gen.ItemGetParams{TenantID: a.TenantID, OutletID: a.OutletID, ID: id})
 		return err
 	}); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

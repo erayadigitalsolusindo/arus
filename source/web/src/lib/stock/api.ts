@@ -86,3 +86,71 @@ export const card = {
     return api<CardResult>(`/stock/card/?${s}`);
   }
 };
+
+// ---- Stok opname ----
+export type CountKind = 'session' | 'quick';
+/** replace = stok diganti sebesar yang dimasukkan; adjust = jumlah yang dimasukkan ditambah/dikurangkan (+/−). */
+export type QuickMode = 'replace' | 'adjust';
+export type CountsOverview = { open: number; done: number; diff_lines: number; plus: string; minus: string };
+export type QuickInput = { bucket: Bucket; mode: QuickMode; note: string; items: { item_id: string; qty: string }[] };
+export type CountStatus = 'draft' | 'completed' | 'cancelled';
+export type CountSummary = {
+  id: string;
+  doc_no: string;
+  bucket: Bucket;
+  status: CountStatus;
+  note: string;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  completed_by?: string;
+  cancelled_by?: string;
+  lines: number;
+  counted: number;
+  differences: number;
+  kind: CountKind;
+  mode?: QuickMode;
+  /** Nilai bersih selisih (Σ selisih × HPP) baris yang sudah dihitung. */
+  diff_amount: string;
+};
+export type CountLine = {
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  snapshot: string;
+  current: string;
+  counted: string | null;
+  diff: string | null;
+  unit_cost: string;
+  value: string | null;
+};
+export type CountDetail = CountSummary & { items: CountLine[]; diff_value: string; diff_plus: string; diff_minus: string };
+export type CountScope = { all?: boolean; item_ids?: string[]; category_id?: string; brand_id?: string };
+
+export const counts = {
+  list: (p: { status?: CountStatus | ''; kind?: CountKind | ''; q?: string; limit?: number; offset?: number } = {}) => {
+    const s = new URLSearchParams();
+    if (p.status) s.set('status', p.status);
+    if (p.kind) s.set('kind', p.kind);
+    if (p.q) s.set('q', p.q);
+    if (p.limit) s.set('limit', String(p.limit));
+    if (p.offset) s.set('offset', String(p.offset));
+    const qs = s.toString();
+    return api<Page<CountSummary> & { summary: CountsOverview }>(`/stock/counts/${qs ? `?${qs}` : ''}`);
+  },
+  /** Opname langsung: tanpa draf, stok langsung berubah. Butuh izin Setujui pada modul Stok Opname. */
+  quick: (input: QuickInput) => api<CountDetail>('/stock/counts/quick', { method: 'POST', body: JSON.stringify(input) }),
+  get: (id: string) => api<CountDetail>(`/stock/counts/${id}`),
+  create: (bucket: Bucket, note: string) => api<CountDetail>('/stock/counts/', { method: 'POST', body: JSON.stringify({ bucket, note }) }),
+  /** Pemilih barang (izin Stok Opname). */
+  items: (q: string, limit = 20) => api<Page<OpeningRow>>(`/stock/counts/items?${new URLSearchParams({ q, limit: String(limit) })}`),
+  addItems: (id: string, scope: CountScope) => api<{ added: number }>(`/stock/counts/${id}/items`, { method: 'POST', body: JSON.stringify(scope) }),
+  /** Mengisi hasil hitung; null mengosongkan (kembali belum dihitung). */
+  setCounted: (id: string, itemId: string, qty: string | null) =>
+    api<void>(`/stock/counts/${id}/items/${itemId}`, { method: 'PUT', body: JSON.stringify({ counted_qty: qty }) }),
+  removeItem: (id: string, itemId: string) => api<void>(`/stock/counts/${id}/items/${itemId}`, { method: 'DELETE' }),
+  complete: (id: string) => api<CountDetail>(`/stock/counts/${id}/complete`, { method: 'POST' }),
+  cancel: (id: string) => api<void>(`/stock/counts/${id}/cancel`, { method: 'POST' })
+};

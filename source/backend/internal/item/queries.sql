@@ -1,7 +1,8 @@
 -- name: ItemList :many
 -- Harga efektif untuk outlet aktif: harga cabang bila ada, selain itu harga default tenant.
 SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
-       i.sell_price AS default_price, op.sell_price AS outlet_price, i.avg_cost, i.last_cost,
+       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
        mi.id AS main_image_id,
        coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
@@ -13,6 +14,7 @@ JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
 -- Stok per bucket dijumlahkan atas outlet_ids (satu outlet aktif, atau semua outlet yang boleh diakses); tanpa baris saldo = 0.
 LEFT JOIN LATERAL (
     SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
@@ -34,18 +36,22 @@ SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outl
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'display'), 0)::numeric AS stock_display,
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'warehouse'), 0)::numeric AS stock_warehouse,
        coalesce(sum(s.qty) FILTER (WHERE s.bucket = 'returns'), 0)::numeric AS stock_returns,
-       coalesce(op.sell_price, i.sell_price)::numeric AS price
+       coalesce(op.sell_price, i.sell_price)::numeric AS price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
 FROM items i
 CROSS JOIN outlets o
 LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = o.id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = o.id
 LEFT JOIN stock_balances s ON s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.outlet_id = o.id
 WHERE i.tenant_id = @tenant_id AND o.tenant_id = @tenant_id
   AND i.id = ANY(@item_ids::uuid[]) AND o.id = ANY(@outlet_ids::uuid[])
-GROUP BY i.id, o.id, op.sell_price, i.sell_price
+GROUP BY i.id, o.id, op.sell_price, i.sell_price, oc.avg_cost, i.avg_cost, oc.last_cost, i.last_cost
 ORDER BY lower(o.name), o.id;
 
 -- name: ItemGet :one
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.last_cost, i.avg_cost, i.sell_price, i.kind,
+-- HPP = HPP cabang (outlet_id) bila ada, selain itu HPP awal barang.
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
        i.category_id, c.name AS category_name,
@@ -58,7 +64,8 @@ LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
 LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
 LEFT JOIN principals p ON p.tenant_id = i.tenant_id AND p.id = i.principal_id
 LEFT JOIN suppliers s ON s.tenant_id = i.tenant_id AND s.id = i.supplier_id
-WHERE i.tenant_id = $1 AND i.id = $2;
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
+WHERE i.tenant_id = @tenant_id AND i.id = @id;
 
 -- name: ItemGetForUpdate :one
 -- Kunci baris item selama transaksi (ubah bersamaan tidak saling menimpa; audit "sebelum" selalu benar).

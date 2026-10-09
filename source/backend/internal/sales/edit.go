@@ -98,7 +98,7 @@ func lockForEdit(ctx context.Context, q *gen.Queries, a authz.Actor, id uuid.UUI
 	}
 	if row.OutletID != a.OutletID {
 		if !a.Outlets[row.OutletID] {
-			return row, ErrNotFound
+			return row, ErrOutletForbidden
 		}
 		if sameOutlet {
 			return row, ErrOutletMismatch

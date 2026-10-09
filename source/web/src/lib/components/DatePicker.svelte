@@ -49,15 +49,17 @@
       {disabled}
       type="button"
       aria-invalid={invalid}
-      class="field-control w-full flex items-center justify-between gap-2 text-start disabled:opacity-60 {invalid ? '!border-[var(--color-danger-600)]' : ''}"
+      class="field-control relative w-full flex items-center text-start disabled:opacity-60 {invalid ? '!border-[var(--color-danger-600)]' : ''}"
+      style="padding-inline-end:{clearable && value && !disabled ? '3.75rem' : '2.25rem'}"
     >
-      <span class={label ? '' : 'text-[var(--text-tertiary)]'}>{label || placeholder || t('common.datePicker.choose')}</span>
-      <i class="icon-calendar-days text-[14px] text-[var(--text-tertiary)]"></i>
+      <span class="min-w-0 truncate {label ? '' : 'text-[var(--text-tertiary)]'}">{label || placeholder || t('common.datePicker.choose')}</span>
+      <i class="icon-calendar-days absolute top-1/2 -translate-y-1/2 text-[14px] text-[var(--text-tertiary)]" style="inset-inline-end:0.75rem"></i>
     </Popover.Trigger>
     {#if clearable && value && !disabled}
       <button
         type="button"
-        class="absolute end-9 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded text-[var(--text-tertiary)] hover:text-[inherit]"
+        class="absolute top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded text-[var(--text-tertiary)] hover:text-[inherit]"
+        style="inset-inline-end:2.25rem"
         aria-label={t('common.datePicker.clear')}
         title={t('common.datePicker.clear')}
         onclick={() => (value = '')}

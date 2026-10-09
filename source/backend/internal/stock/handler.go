@@ -21,6 +21,9 @@ const OpeningModule = "stock_opening"
 // ConversionModule = modul izin Pecah Satuan: view = lihat riwayat, create = membuat dokumen.
 const ConversionModule = "stock_conversion"
 
+// CountModule = modul izin Stok Opname: view = lihat, create = buat/isi/batal draf, approve = selesaikan (menerapkan selisih).
+const CountModule = "stock_opname"
+
 type Handler struct {
 	svc      *Service
 	resolver *authz.Resolver
@@ -51,6 +54,19 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ConversionModule, authz.ActView)).Get("/items", h.List)
 		r.With(authz.Require(ConversionModule, authz.ActCreate)).Post("/", h.Convert)
 		r.With(authz.Require(ConversionModule, authz.ActView)).Get("/{id}", h.GetConversion)
+	})
+	r.Route("/stock/counts", func(r chi.Router) {
+		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
+		r.With(authz.Require(CountModule, authz.ActView)).Get("/", h.ListCounts)
+		r.With(authz.Require(CountModule, authz.ActCreate)).Post("/", h.CreateCount)
+		r.With(authz.RequireAny([2]string{CountModule, authz.ActCreate}, [2]string{CountModule, authz.ActApprove})).Get("/items", h.List)
+		r.With(authz.Require(CountModule, authz.ActApprove)).Post("/quick", h.QuickCount)
+		r.With(authz.Require(CountModule, authz.ActView)).Get("/{id}", h.GetCount)
+		r.With(authz.Require(CountModule, authz.ActCreate)).Post("/{id}/items", h.AddCountItems)
+		r.With(authz.Require(CountModule, authz.ActCreate)).Put("/{id}/items/{itemId}", h.SetCounted)
+		r.With(authz.Require(CountModule, authz.ActCreate)).Delete("/{id}/items/{itemId}", h.RemoveCountItem)
+		r.With(authz.Require(CountModule, authz.ActApprove)).Post("/{id}/complete", h.CompleteCount)
+		r.With(authz.Require(CountModule, authz.ActCreate)).Post("/{id}/cancel", h.CancelCount)
 	})
 }
 
@@ -123,12 +139,14 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.As(err, &fields):
 		httpx.ValidationError(w, fields)
+	case errors.Is(err, ErrOutletForbidden):
+		httpx.Error(w, http.StatusForbidden, "OUTLET_FORBIDDEN", "Anda tidak memiliki akses ke outlet dokumen ini.")
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrItemNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	case errors.Is(err, ErrNotStocked):
 		httpx.Error(w, http.StatusUnprocessableEntity, "NOT_STOCKED", "Barang ini tidak memiliki stok.")
 	case errors.Is(err, ErrInsufficient):
-		httpx.Error(w, http.StatusConflict, "STOCK_INSUFFICIENT", "Stok barang asal tidak mencukupi.")
+		httpx.Error(w, http.StatusConflict, "STOCK_INSUFFICIENT", "Stok barang tidak mencukupi.")
 	case errors.Is(err, ErrKeyRequired):
 		httpx.Error(w, http.StatusBadRequest, "IDEMPOTENCY_KEY_REQUIRED", "Header Idempotency-Key wajib (8–100 karakter).")
 	case errors.Is(err, ErrKeyMismatch):
@@ -189,4 +207,168 @@ func (h *Handler) GetConversion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, conv)
+}
+
+func idParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(chi.URLParam(r, name))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+// ListCounts: ?status=draft|completed|cancelled&limit=&offset=
+func (h *Handler) ListCounts(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	offset, _ := strconv.Atoi(qs.Get("offset"))
+	rows, total, err := h.svc.ListCounts(r.Context(), actor(r), qs.Get("status"), qs.Get("kind"), qs.Get("q"), limit, offset)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	sum, err := h.svc.CountsSummary(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": rows, "total": total, "summary": sum})
+}
+
+func (h *Handler) CreateCount(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Bucket string `json:"bucket"`
+		Note   string `json:"note"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	id, err := h.svc.CreateCount(r.Context(), actor(r), req.Bucket, req.Note)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	d, err := h.svc.GetCount(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, d)
+}
+
+// QuickCount: POST /stock/counts/quick — opname langsung (tanpa draf), langsung menyesuaikan stok. Butuh izin approve.
+func (h *Handler) QuickCount(w http.ResponseWriter, r *http.Request) {
+	var req QuickInput
+	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
+		return
+	}
+	id, err := h.svc.QuickCount(r.Context(), actor(r), req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	d, err := h.svc.GetCount(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, d)
+}
+
+func (h *Handler) GetCount(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	d, err := h.svc.GetCount(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, d)
+}
+
+func (h *Handler) AddCountItems(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	var req AddItemsInput
+	if !httpx.DecodeJSONLimit(w, r, &req, 256<<10) {
+		return
+	}
+	n, err := h.svc.AddCountItems(r.Context(), actor(r), id, req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"added": n})
+}
+
+func (h *Handler) SetCounted(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	itemID, ok := idParam(w, r, "itemId")
+	if !ok {
+		return
+	}
+	var req struct {
+		CountedQty json.Number `json:"counted_qty"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if err := h.svc.SetCounted(r.Context(), actor(r), id, itemID, req.CountedQty.String()); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) RemoveCountItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	itemID, ok := idParam(w, r, "itemId")
+	if !ok {
+		return
+	}
+	if err := h.svc.RemoveCountItem(r.Context(), actor(r), id, itemID); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) CompleteCount(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := h.svc.CompleteCount(r.Context(), actor(r), id); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	d, err := h.svc.GetCount(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, d)
+}
+
+func (h *Handler) CancelCount(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := h.svc.CancelCount(r.Context(), actor(r), id); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

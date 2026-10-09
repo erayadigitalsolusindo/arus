@@ -180,11 +180,11 @@ func TestDetailLinesStockEventsAndScope(t *testing.T) {
 		t.Fatalf("hpp: %+v %v", dc, err)
 	}
 
-	// Cabang di luar akses & tenant lain = tidak ditemukan.
+	// Cabang di luar akses = ditolak (403); tenant lain = tidak ditemukan.
 	other := a
 	other.OutletID = uuid.New()
 	other.Outlets = map[uuid.UUID]bool{other.OutletID: true}
-	if _, err := e.svc.Detail(ctx, other, s.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := e.svc.Detail(ctx, other, s.ID); !errors.Is(err, ErrOutletForbidden) {
 		t.Fatalf("cabang lain: %v", err)
 	}
 	if _, err := e.svc.Detail(ctx, e.actor(e.other), s.ID); !errors.Is(err, ErrNotFound) {

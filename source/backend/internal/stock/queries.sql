@@ -67,17 +67,21 @@ SELECT code, active, (now() AT TIME ZONE timezone)::date AS local_day
 FROM outlets WHERE tenant_id = $1 AND id = $2;
 
 -- name: StockConvItemLock :one
--- Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP + satuan dasarnya.
-SELECT i.id, i.sku, i.name, i.kind, i.avg_cost, u.name AS unit_name
+-- Mengunci baris barang (dipanggil terurut menurut id) dan membaca HPP outlet + satuan dasarnya.
+-- HPP = HPP cabang bila ada, selain itu HPP awal barang (items.avg_cost).
+SELECT i.id, i.sku, i.name, i.kind, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, u.name AS unit_name
 FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
-WHERE i.tenant_id = $1 AND i.id = $2 FOR UPDATE OF i;
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
+WHERE i.tenant_id = @tenant_id AND i.id = @id FOR UPDATE OF i;
 
--- name: StockTotalQty :one
--- Total stok barang di semua outlet & bucket (dasar keputusan memasang HPP hasil pecah satuan).
-SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND item_id = $2;
+-- name: StockOutletQty :one
+-- Total stok barang di satu outlet (semua bucket): dasar keputusan memasang HPP hasil pecah satuan dan rata-rata tertimbang.
+SELECT coalesce(sum(qty), 0)::numeric AS qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3;
 
 -- name: StockSetCost :exec
-UPDATE items SET avg_cost = @cost, last_cost = @cost WHERE tenant_id = @tenant_id AND id = @item_id;
+INSERT INTO item_outlet_costs (tenant_id, outlet_id, item_id, avg_cost, last_cost)
+VALUES (@tenant_id, @outlet_id, @item_id, @avg_cost, @last_cost)
+ON CONFLICT (tenant_id, outlet_id, item_id) DO UPDATE SET avg_cost = EXCLUDED.avg_cost, last_cost = EXCLUDED.last_cost;
 
 -- name: StockConvByIdemKey :one
 SELECT id, request_hash FROM stock_conversions WHERE tenant_id = $1 AND idempotency_key = $2;
@@ -188,3 +192,146 @@ WHERE m.tenant_id = @tenant_id AND m.outlet_id = @outlet_id AND m.item_id = @ite
   AND m.created_at >= @start_at::timestamptz AND m.created_at < @end_at::timestamptz AND m.id > @after_id
 ORDER BY m.id
 LIMIT @page_limit;
+
+-- ---- Stok opname (Fase 4.3) ----
+
+-- name: StockCountNextNo :one
+INSERT INTO stock_count_counters (tenant_id, outlet_id, day, last_no) VALUES (@tenant_id, @outlet_id, @day, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_count_counters.last_no + 1
+RETURNING last_no;
+
+-- name: StockCountInsert :exec
+INSERT INTO stock_counts (id, tenant_id, outlet_id, doc_no, bucket, note, created_by)
+VALUES (@id, @tenant_id, @outlet_id, @doc_no, @bucket, @note, sqlc.narg('created_by'));
+
+-- name: StockCountLockUpdate :one
+-- Penyelesaian/pembatalan: kunci eksklusif; hasil menentukan boleh tidaknya diproses.
+SELECT outlet_id, doc_no, bucket, status FROM stock_counts WHERE tenant_id = $1 AND id = $2 FOR UPDATE;
+
+-- name: StockCountLockShare :one
+-- Perubahan baris draf: berbagi kunci, sehingga penyelesaian bersamaan menunggu/menolak.
+SELECT outlet_id, doc_no, bucket, status FROM stock_counts WHERE tenant_id = $1 AND id = $2 FOR SHARE;
+
+-- name: StockCountHeader :one
+SELECT c.id, c.outlet_id, c.doc_no, c.bucket, c.status, c.note, c.created_at, c.completed_at, c.cancelled_at, c.kind, c.adjust_mode,
+       coalesce(cu.name, '') AS created_name, coalesce(fu.name, '') AS completed_name, coalesce(xu.name, '') AS cancelled_name
+FROM stock_counts c
+LEFT JOIN users cu ON cu.tenant_id = c.tenant_id AND cu.id = c.created_by
+LEFT JOIN users fu ON fu.tenant_id = c.tenant_id AND fu.id = c.completed_by
+LEFT JOIN users xu ON xu.tenant_id = c.tenant_id AND xu.id = c.cancelled_by
+WHERE c.tenant_id = $1 AND c.id = $2;
+
+-- name: StockCountList :many
+SELECT c.id, c.outlet_id, c.doc_no, c.bucket, c.status, c.note, c.created_at, c.completed_at, c.cancelled_at, c.kind, c.adjust_mode,
+       coalesce(cu.name, '') AS created_name,
+       (SELECT coalesce(sum(CASE WHEN c.status = 'completed' THEN l.diff * l.unit_cost
+                                 ELSE (l.counted_qty - l.snapshot_qty) * coalesce(oc.avg_cost, i.avg_cost, 0) END), 0)
+          FROM stock_count_lines l JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+          LEFT JOIN item_outlet_costs oc ON oc.tenant_id = l.tenant_id AND oc.item_id = l.item_id AND oc.outlet_id = c.outlet_id
+         WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id AND l.counted_qty IS NOT NULL)::numeric AS diff_value,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id)::bigint AS line_count,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id AND l.counted_qty IS NOT NULL)::bigint AS counted_count,
+       (SELECT count(*) FROM stock_count_lines l WHERE l.tenant_id = c.tenant_id AND l.count_id = c.id
+                AND l.counted_qty IS NOT NULL AND l.counted_qty <> l.snapshot_qty)::bigint AS diff_count,
+       count(*) OVER () AS total
+FROM stock_counts c
+LEFT JOIN users cu ON cu.tenant_id = c.tenant_id AND cu.id = c.created_by
+WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id AND (@status::text = '' OR c.status = @status)
+  AND (@kind::text = '' OR c.kind = @kind) AND (@q::text = '' OR c.doc_no ILIKE '%' || @q || '%')
+ORDER BY c.created_at DESC, c.id
+LIMIT @page_limit OFFSET @page_offset;
+
+-- name: StockCountLines :many
+-- Baris sesi beserta stok sistem TERKINI di bucket sesi (pratinjau hasil akhir).
+SELECT l.item_id, i.sku, i.name, u.name AS unit_name, l.snapshot_qty, l.counted_qty, l.diff, l.unit_cost, l.counted_at,
+       coalesce(sb.qty, 0)::numeric AS current_qty, coalesce(oc.avg_cost, i.avg_cost, 0)::numeric AS item_cost
+FROM stock_count_lines l
+JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+JOIN stock_counts c ON c.tenant_id = l.tenant_id AND c.id = l.count_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = l.tenant_id AND oc.item_id = l.item_id AND oc.outlet_id = c.outlet_id
+LEFT JOIN stock_balances sb ON sb.tenant_id = l.tenant_id AND sb.outlet_id = c.outlet_id AND sb.item_id = l.item_id AND sb.bucket = c.bucket
+WHERE l.tenant_id = $1 AND l.count_id = $2
+ORDER BY lower(i.name), i.id;
+
+-- name: StockCountLineCount :one
+SELECT count(*) FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2;
+
+-- name: StockCountAddItems :execrows
+-- Menambah barang goods aktif ke sesi dengan snapshot stok bucket sesi. Gabungan penyaring: semua, id eksplisit, kategori, brand.
+INSERT INTO stock_count_lines (tenant_id, count_id, item_id, snapshot_qty)
+SELECT i.tenant_id, @count_id, i.id, coalesce(sb.qty, 0)
+FROM items i
+LEFT JOIN stock_balances sb ON sb.tenant_id = i.tenant_id AND sb.outlet_id = @outlet_id AND sb.item_id = i.id AND sb.bucket = @bucket
+WHERE i.tenant_id = @tenant_id AND i.kind = 'goods' AND i.active
+  AND (@all_items::bool OR i.id = ANY(@item_ids::uuid[])
+       OR i.category_id = sqlc.narg('category_id') OR i.brand_id = sqlc.narg('brand_id'))
+ON CONFLICT (count_id, item_id) DO NOTHING;
+
+-- name: StockCountRemoveItem :execrows
+DELETE FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2 AND item_id = $3;
+
+-- name: StockCountSetQty :execrows
+UPDATE stock_count_lines SET counted_qty = sqlc.narg('counted_qty'),
+       counted_by = CASE WHEN sqlc.narg('counted_qty')::numeric IS NULL THEN NULL ELSE sqlc.narg('actor_id')::uuid END,
+       counted_at = CASE WHEN sqlc.narg('counted_qty')::numeric IS NULL THEN NULL ELSE now() END
+WHERE tenant_id = @tenant_id AND count_id = @count_id AND item_id = @item_id;
+
+-- name: StockCountDiffLines :many
+-- Baris yang sudah dihitung dengan selisih ≠ 0 terhadap snapshot.
+SELECT item_id, (counted_qty - snapshot_qty)::numeric AS delta
+FROM stock_count_lines
+WHERE tenant_id = $1 AND count_id = $2 AND counted_qty IS NOT NULL AND counted_qty <> snapshot_qty;
+
+-- name: StockCountFinalizeLines :exec
+UPDATE stock_count_lines l SET diff = l.counted_qty - l.snapshot_qty, unit_cost = coalesce(oc.avg_cost, i.avg_cost, 0)
+FROM items i
+JOIN stock_counts c ON c.tenant_id = i.tenant_id AND c.id = @count_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = c.outlet_id
+WHERE l.tenant_id = @tenant_id AND l.count_id = @count_id AND l.counted_qty IS NOT NULL
+  AND i.tenant_id = l.tenant_id AND i.id = l.item_id;
+
+-- name: StockCountComplete :exec
+UPDATE stock_counts SET status = 'completed', completed_at = now(), completed_by = sqlc.narg('actor_id')
+WHERE tenant_id = @tenant_id AND id = @id;
+
+-- name: StockCountCancel :exec
+UPDATE stock_counts SET status = 'cancelled', cancelled_at = now(), cancelled_by = sqlc.narg('actor_id')
+WHERE tenant_id = @tenant_id AND id = @id;
+
+-- name: StockCountCountedLines :one
+SELECT count(*) FROM stock_count_lines WHERE tenant_id = $1 AND count_id = $2 AND counted_qty IS NOT NULL;
+
+-- ---- Opname langsung ----
+
+-- name: StockCountInsertQuick :exec
+INSERT INTO stock_counts (id, tenant_id, outlet_id, doc_no, bucket, note, kind, adjust_mode, status,
+                          created_by, completed_by, completed_at)
+VALUES (@id, @tenant_id, @outlet_id, @doc_no, @bucket, @note, 'quick', @adjust_mode, 'completed',
+        sqlc.narg('actor_id'), sqlc.narg('actor_id'), now());
+
+-- name: StockCountLineInsertDone :exec
+INSERT INTO stock_count_lines (tenant_id, count_id, item_id, snapshot_qty, counted_qty, diff, unit_cost, counted_by, counted_at)
+VALUES (@tenant_id, @count_id, @item_id, @snapshot_qty, @counted_qty, @diff, @unit_cost, sqlc.narg('actor_id'), now());
+
+-- name: StockBalanceEnsure :exec
+INSERT INTO stock_balances (tenant_id, outlet_id, item_id, bucket, qty)
+VALUES (@tenant_id, @outlet_id, @item_id, @bucket, 0)
+ON CONFLICT (tenant_id, outlet_id, item_id, bucket) DO NOTHING;
+
+-- name: StockBalanceLock :one
+SELECT qty FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2 AND item_id = $3 AND bucket = $4 FOR UPDATE;
+
+-- name: StockCountSummary :one
+-- Ringkasan 30 hari terakhir di outlet: sesi berjalan, dokumen selesai, dan nilai selisih (lebih / kurang).
+SELECT
+  (SELECT count(*) FROM stock_counts c WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id AND c.status = 'draft')::bigint AS open_count,
+  (SELECT count(*) FROM stock_counts c WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id AND c.status = 'completed'
+        AND c.completed_at >= now() - interval '30 days')::bigint AS done_count,
+  coalesce(sum(CASE WHEN l.diff > 0 THEN l.diff * l.unit_cost END), 0)::numeric AS plus_value,
+  coalesce(sum(CASE WHEN l.diff < 0 THEN l.diff * l.unit_cost END), 0)::numeric AS minus_value,
+  (count(*) FILTER (WHERE l.diff <> 0))::bigint AS diff_lines
+FROM stock_counts c
+JOIN stock_count_lines l ON l.tenant_id = c.tenant_id AND l.count_id = c.id
+WHERE c.tenant_id = @tenant_id AND c.outlet_id = @outlet_id AND c.status = 'completed'
+  AND c.completed_at >= now() - interval '30 days';

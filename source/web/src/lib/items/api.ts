@@ -70,7 +70,7 @@ export type Row = {
   price_max?: string;
   price_override: boolean;
   /** Rincian per cabang (hanya mode semua cabang). */
-  outlets?: { outlet_id: string; code: string; name: string; price: string; stock: StockQty }[];
+  outlets?: { outlet_id: string; code: string; name: string; price: string; avg_cost: string; last_cost: string; stock: StockQty }[];
   /** Harga rata (HPP rata-rata) dan harga beli akhir. */
   avg_cost: string;
   last_cost: string;
