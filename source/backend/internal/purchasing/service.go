@@ -63,6 +63,10 @@ var (
 	ErrEditWindowClosed = errors.New("batas waktu edit nota sudah lewat")
 	ErrOutletMismatch   = errors.New("nota milik outlet lain")
 	ErrPayablePaid      = errors.New("hutang nota ini sudah dibayar")
+	ErrHasReturns       = errors.New("nota ini sudah memiliki retur aktif")
+	ErrNotReturnable    = errors.New("nota tidak dapat diretur (dibatalkan atau digantikan revisi)")
+	ErrReturnNotActive  = errors.New("retur sudah dibatalkan")
+	ErrReturnLocked     = errors.New("hutang nota sudah dibayar setelah retur dibuat")
 	idemKeyPattern      = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
 )
 

@@ -94,7 +94,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	paymentmethod.NewHandler(paymentmethod.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	purchaseH := purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log)
+	purchaseH.Routes(r)
+	purchaseH.ReturnRoutes(r)
 	payable.NewHandler(payable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

@@ -97,7 +97,7 @@ export const nav: NavGroup[] = [
         icon: 'receipt',
         children: [
           { labelKey: 'nav.purchaseInvoices', module: 'purchase_invoices', href: '/purchases/new' },
-          { labelKey: 'nav.purchaseReturns', module: 'purchase_returns' }
+          { labelKey: 'nav.purchaseReturns', module: 'purchase_returns', href: '/purchase-returns' }
         ]
       },
       {

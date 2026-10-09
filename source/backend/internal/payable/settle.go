@@ -228,7 +228,10 @@ func (s *Service) plan(ctx context.Context, tx pgx.Tx, a authz.Actor, n settleNo
 		for i, c := range all {
 			cids[i] = c.id
 		}
-		prow, err := tx.Query(ctx, `SELECT payable_id, sum(amount) FROM payable_payments WHERE tenant_id = $1 AND payable_id = ANY($2::uuid[]) GROUP BY payable_id`, a.TenantID, cids)
+		// paid = pembayaran + potongan retur pembelian aktif (keduanya mengurangi saldo).
+		prow, err := tx.Query(ctx, `
+			SELECT pb.id, (SELECT coalesce(sum(x.amount), 0) FROM payable_payments x WHERE x.tenant_id = pb.tenant_id AND x.payable_id = pb.id) + `+returnedSQL+`
+			FROM payables pb WHERE pb.tenant_id = $1 AND pb.id = ANY($2::uuid[])`, a.TenantID, cids)
 		if err != nil {
 			return Plan{}, nil, err
 		}

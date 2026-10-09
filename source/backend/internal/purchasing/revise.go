@@ -108,6 +108,12 @@ func (s *Service) reverse(ctx context.Context, tx pgx.Tx, a authz.Actor, nota ge
 	} else if paid {
 		return ErrPayablePaid
 	}
+	// Nota yang sudah diretur (retur aktif) tidak boleh dibalik: batalkan returnya dulu.
+	if has, err := hasActiveReturns(ctx, tx, a.TenantID, nota.ID); err != nil {
+		return err
+	} else if has {
+		return ErrHasReturns
+	}
 	q := gen.New(tx)
 	lines, err := q.PurchaseLines(ctx, gen.PurchaseLinesParams{TenantID: a.TenantID, PurchaseID: nota.ID})
 	if err != nil {
