@@ -100,6 +100,10 @@ const (
 	ActionStockOpeningLock = "stock.opening_lock"
 	ActionStockConvert     = "stock.convert"
 
+	ActionStockTransferSend    = "stock.transfer_send"
+	ActionStockTransferReceive = "stock.transfer_receive"
+	ActionStockTransferCancel  = "stock.transfer_cancel"
+
 	ActionStockCountCreate   = "stock.count_create"
 	ActionStockCountItems    = "stock.count_items"
 	ActionStockCountComplete = "stock.count_complete"

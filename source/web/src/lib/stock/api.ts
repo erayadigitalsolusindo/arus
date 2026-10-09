@@ -154,3 +154,71 @@ export const counts = {
   complete: (id: string) => api<CountDetail>(`/stock/counts/${id}/complete`, { method: 'POST' }),
   cancel: (id: string) => api<void>(`/stock/counts/${id}/cancel`, { method: 'POST' })
 };
+
+// ---- Mutasi stok (antar cabang / antar bucket) ----
+export type TransferOutlet = { id: string; code: string; name: string };
+export type TransferStatus = 'sent' | 'received' | 'cancelled';
+export type TransferLine = {
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  qty_sent: string;
+  qty_received: string | null;
+  unit_cost: string;
+};
+export type Transfer = {
+  id: string;
+  doc_no: string;
+  from: TransferOutlet;
+  from_bucket: Bucket;
+  to: TransferOutlet;
+  to_bucket: Bucket;
+  status: TransferStatus;
+  note: string;
+  sent_by: string;
+  sent_at: string;
+  received_by?: string;
+  received_at: string | null;
+  cancelled_by?: string;
+  cancelled_at: string | null;
+  cancel_reason?: string;
+  line_count: number;
+  qty_sent: string;
+  qty_short: string;
+  lines?: TransferLine[];
+};
+export type TransferPage = {
+  data: Transfer[];
+  next_cursor: string;
+  has_more: boolean;
+  summary: { to_receive: number; in_transit: number };
+};
+export type SendTransferInput = {
+  to_outlet_id: string;
+  from_bucket: Bucket;
+  to_bucket: Bucket;
+  note?: string;
+  lines: { item_id: string; qty: string }[];
+};
+
+export const transfers = {
+  /** Barang bertipe goods + stok per bucket cabang aktif (pemilih barang; izin kirim mutasi). */
+  items: (q: string, limit = 20) => api<Page<OpeningRow>>(`/stock/transfers/items?${new URLSearchParams({ q, limit: String(limit) })}`),
+  destinations: () => api<{ data: TransferOutlet[] }>('/stock/transfers/destinations'),
+  list: (p: { direction: 'out' | 'in'; status?: string; q?: string; cursor?: string; limit?: number }) => {
+    const s = new URLSearchParams({ direction: p.direction });
+    if (p.status) s.set('status', p.status);
+    if (p.q) s.set('q', p.q);
+    if (p.cursor) s.set('cursor', p.cursor);
+    if (p.limit) s.set('limit', String(p.limit));
+    return api<TransferPage>(`/stock/transfers/?${s}`);
+  },
+  get: (id: string) => api<Transfer>(`/stock/transfers/${id}`),
+  send: (input: SendTransferInput, idempotencyKey: string) =>
+    api<Transfer>('/stock/transfers/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  /** lines kosong = semua diterima penuh. */
+  receive: (id: string, lines: { item_id: string; qty: string }[] = []) =>
+    api<Transfer>(`/stock/transfers/${id}/receive`, { method: 'POST', body: JSON.stringify({ lines }) }),
+  cancel: (id: string, reason: string) => api<Transfer>(`/stock/transfers/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
+};

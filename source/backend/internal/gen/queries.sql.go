@@ -9393,6 +9393,602 @@ func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGua
 	return qty, err
 }
 
+const stockTrByIdemKey = `-- name: StockTrByIdemKey :one
+SELECT id, request_hash FROM stock_transfers WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type StockTrByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type StockTrByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) StockTrByIdemKey(ctx context.Context, arg StockTrByIdemKeyParams) (StockTrByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, stockTrByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i StockTrByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const stockTrDestinations = `-- name: StockTrDestinations :many
+SELECT id, code, name FROM outlets WHERE tenant_id = $1 AND active ORDER BY lower(name), code
+`
+
+type StockTrDestinationsRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+func (q *Queries) StockTrDestinations(ctx context.Context, tenantID uuid.UUID) ([]StockTrDestinationsRow, error) {
+	rows, err := q.db.Query(ctx, stockTrDestinations, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrDestinationsRow
+	for rows.Next() {
+		var i StockTrDestinationsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrGet = `-- name: StockTrGet :one
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at, t.cancel_reason,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name, coalesce(ur.name, '') AS received_by_name, coalesce(uc.name, '') AS cancelled_by_name
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+LEFT JOIN users ur ON ur.tenant_id = t.tenant_id AND ur.id = t.received_by
+LEFT JOIN users uc ON uc.tenant_id = t.tenant_id AND uc.id = t.cancelled_by
+WHERE t.tenant_id = $1 AND t.id = $2
+`
+
+type StockTrGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrGetRow struct {
+	ID              uuid.UUID
+	DocNo           string
+	FromOutletID    uuid.UUID
+	FromBucket      string
+	ToOutletID      uuid.UUID
+	ToBucket        string
+	Status          string
+	Note            string
+	SentAt          pgtype.Timestamptz
+	ReceivedAt      pgtype.Timestamptz
+	CancelledAt     pgtype.Timestamptz
+	CancelReason    string
+	FromCode        string
+	FromName        string
+	ToCode          string
+	ToName          string
+	SentByName      string
+	ReceivedByName  string
+	CancelledByName string
+}
+
+func (q *Queries) StockTrGet(ctx context.Context, arg StockTrGetParams) (StockTrGetRow, error) {
+	row := q.db.QueryRow(ctx, stockTrGet, arg.TenantID, arg.ID)
+	var i StockTrGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.DocNo,
+		&i.FromOutletID,
+		&i.FromBucket,
+		&i.ToOutletID,
+		&i.ToBucket,
+		&i.Status,
+		&i.Note,
+		&i.SentAt,
+		&i.ReceivedAt,
+		&i.CancelledAt,
+		&i.CancelReason,
+		&i.FromCode,
+		&i.FromName,
+		&i.ToCode,
+		&i.ToName,
+		&i.SentByName,
+		&i.ReceivedByName,
+		&i.CancelledByName,
+	)
+	return i, err
+}
+
+const stockTrInsert = `-- name: StockTrInsert :one
+INSERT INTO stock_transfers (id, tenant_id, doc_no, idempotency_key, request_hash, from_outlet_id, from_bucket, to_outlet_id, to_bucket,
+                             status, note, sent_by, received_by, received_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type StockTrInsertParams struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromOutletID   uuid.UUID
+	FromBucket     string
+	ToOutletID     uuid.UUID
+	ToBucket       string
+	Status         string
+	Note           string
+	SentBy         pgtype.UUID
+	ReceivedBy     pgtype.UUID
+	ReceivedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) StockTrInsert(ctx context.Context, arg StockTrInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, stockTrInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.FromOutletID,
+		arg.FromBucket,
+		arg.ToOutletID,
+		arg.ToBucket,
+		arg.Status,
+		arg.Note,
+		arg.SentBy,
+		arg.ReceivedBy,
+		arg.ReceivedAt,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const stockTrItemLock = `-- name: StockTrItemLock :one
+SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric  AS avg_cost,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3 FOR NO KEY UPDATE OF i
+`
+
+type StockTrItemLockParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrItemLockRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	Active   bool
+	UnitName string
+	AvgCost  decimal.Decimal
+	LastCost decimal.Decimal
+}
+
+// Kunci baris barang (terurut id) + data & HPP efektif di outlet yang diminta. FOR NO KEY UPDATE (bukan FOR UPDATE)
+// agar tidak bentrok dengan FOR KEY SHARE dari FK saat penjualan menulis movement (deadlock).
+func (q *Queries) StockTrItemLock(ctx context.Context, arg StockTrItemLockParams) (StockTrItemLockRow, error) {
+	row := q.db.QueryRow(ctx, stockTrItemLock, arg.OutletID, arg.TenantID, arg.ID)
+	var i StockTrItemLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.UnitName,
+		&i.AvgCost,
+		&i.LastCost,
+	)
+	return i, err
+}
+
+const stockTrLineInsert = `-- name: StockTrLineInsert :exec
+INSERT INTO stock_transfer_lines (tenant_id, transfer_id, item_id, qty_sent, qty_received, unit_cost)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type StockTrLineInsertParams struct {
+	TenantID    uuid.UUID
+	TransferID  uuid.UUID
+	ItemID      uuid.UUID
+	QtySent     decimal.Decimal
+	QtyReceived pgtype.Numeric
+	UnitCost    decimal.Decimal
+}
+
+func (q *Queries) StockTrLineInsert(ctx context.Context, arg StockTrLineInsertParams) error {
+	_, err := q.db.Exec(ctx, stockTrLineInsert,
+		arg.TenantID,
+		arg.TransferID,
+		arg.ItemID,
+		arg.QtySent,
+		arg.QtyReceived,
+		arg.UnitCost,
+	)
+	return err
+}
+
+const stockTrLineSetReceived = `-- name: StockTrLineSetReceived :exec
+UPDATE stock_transfer_lines SET qty_received = $1
+WHERE tenant_id = $2 AND transfer_id = $3 AND item_id = $4
+`
+
+type StockTrLineSetReceivedParams struct {
+	QtyReceived pgtype.Numeric
+	TenantID    uuid.UUID
+	TransferID  uuid.UUID
+	ItemID      uuid.UUID
+}
+
+func (q *Queries) StockTrLineSetReceived(ctx context.Context, arg StockTrLineSetReceivedParams) error {
+	_, err := q.db.Exec(ctx, stockTrLineSetReceived,
+		arg.QtyReceived,
+		arg.TenantID,
+		arg.TransferID,
+		arg.ItemID,
+	)
+	return err
+}
+
+const stockTrLines = `-- name: StockTrLines :many
+SELECT l.item_id, l.qty_sent, l.qty_received, l.unit_cost, i.sku, i.name, u.name AS unit_name
+FROM stock_transfer_lines l
+JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE l.tenant_id = $1 AND l.transfer_id = $2 ORDER BY lower(i.name), i.id
+`
+
+type StockTrLinesParams struct {
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+}
+
+type StockTrLinesRow struct {
+	ItemID      uuid.UUID
+	QtySent     decimal.Decimal
+	QtyReceived pgtype.Numeric
+	UnitCost    decimal.Decimal
+	Sku         string
+	Name        string
+	UnitName    string
+}
+
+func (q *Queries) StockTrLines(ctx context.Context, arg StockTrLinesParams) ([]StockTrLinesRow, error) {
+	rows, err := q.db.Query(ctx, stockTrLines, arg.TenantID, arg.TransferID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrLinesRow
+	for rows.Next() {
+		var i StockTrLinesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.QtySent,
+			&i.QtyReceived,
+			&i.UnitCost,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrLinesForMove = `-- name: StockTrLinesForMove :many
+SELECT item_id, qty_sent, unit_cost FROM stock_transfer_lines WHERE tenant_id = $1 AND transfer_id = $2 ORDER BY item_id
+`
+
+type StockTrLinesForMoveParams struct {
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+}
+
+type StockTrLinesForMoveRow struct {
+	ItemID   uuid.UUID
+	QtySent  decimal.Decimal
+	UnitCost decimal.Decimal
+}
+
+func (q *Queries) StockTrLinesForMove(ctx context.Context, arg StockTrLinesForMoveParams) ([]StockTrLinesForMoveRow, error) {
+	rows, err := q.db.Query(ctx, stockTrLinesForMove, arg.TenantID, arg.TransferID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrLinesForMoveRow
+	for rows.Next() {
+		var i StockTrLinesForMoveRow
+		if err := rows.Scan(&i.ItemID, &i.QtySent, &i.UnitCost); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrList = `-- name: StockTrList :many
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name,
+       (SELECT count(*) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id) AS line_count,
+       (SELECT coalesce(sum(l.qty_sent), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_sent,
+       (SELECT coalesce(sum(l.qty_sent - coalesce(l.qty_received, l.qty_sent)), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_short
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+WHERE t.tenant_id = $1
+  AND (($2::text = 'out' AND t.from_outlet_id = $3) OR ($2::text = 'in' AND t.to_outlet_id = $3))
+  AND ($4::text = '' OR t.status = $4::text)
+  AND ($5::text = '' OR t.doc_no ILIKE '%' || $5::text || '%')
+  AND ($6::timestamptz IS NULL OR (t.sent_at, t.id) < ($6::timestamptz, $7::uuid))
+ORDER BY t.sent_at DESC, t.id DESC
+LIMIT $8
+`
+
+type StockTrListParams struct {
+	TenantID  uuid.UUID
+	Direction string
+	OutletID  uuid.UUID
+	Status    string
+	Q         string
+	CursorAt  pgtype.Timestamptz
+	CursorID  pgtype.UUID
+	PageLimit int32
+}
+
+type StockTrListRow struct {
+	ID           uuid.UUID
+	DocNo        string
+	FromOutletID uuid.UUID
+	FromBucket   string
+	ToOutletID   uuid.UUID
+	ToBucket     string
+	Status       string
+	Note         string
+	SentAt       pgtype.Timestamptz
+	ReceivedAt   pgtype.Timestamptz
+	CancelledAt  pgtype.Timestamptz
+	FromCode     string
+	FromName     string
+	ToCode       string
+	ToName       string
+	SentByName   string
+	LineCount    int64
+	QtySent      decimal.Decimal
+	QtyShort     decimal.Decimal
+}
+
+// direction: 'out' = keluar dari outlet ini, 'in' = masuk ke outlet ini (termasuk antar-bucket di outlet yang sama untuk keduanya).
+func (q *Queries) StockTrList(ctx context.Context, arg StockTrListParams) ([]StockTrListRow, error) {
+	rows, err := q.db.Query(ctx, stockTrList,
+		arg.TenantID,
+		arg.Direction,
+		arg.OutletID,
+		arg.Status,
+		arg.Q,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrListRow
+	for rows.Next() {
+		var i StockTrListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.FromOutletID,
+			&i.FromBucket,
+			&i.ToOutletID,
+			&i.ToBucket,
+			&i.Status,
+			&i.Note,
+			&i.SentAt,
+			&i.ReceivedAt,
+			&i.CancelledAt,
+			&i.FromCode,
+			&i.FromName,
+			&i.ToCode,
+			&i.ToName,
+			&i.SentByName,
+			&i.LineCount,
+			&i.QtySent,
+			&i.QtyShort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrLock = `-- name: StockTrLock :one
+SELECT id, doc_no, from_outlet_id, from_bucket, to_outlet_id, to_bucket, status
+FROM stock_transfers WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type StockTrLockParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrLockRow struct {
+	ID           uuid.UUID
+	DocNo        string
+	FromOutletID uuid.UUID
+	FromBucket   string
+	ToOutletID   uuid.UUID
+	ToBucket     string
+	Status       string
+}
+
+func (q *Queries) StockTrLock(ctx context.Context, arg StockTrLockParams) (StockTrLockRow, error) {
+	row := q.db.QueryRow(ctx, stockTrLock, arg.TenantID, arg.ID)
+	var i StockTrLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.DocNo,
+		&i.FromOutletID,
+		&i.FromBucket,
+		&i.ToOutletID,
+		&i.ToBucket,
+		&i.Status,
+	)
+	return i, err
+}
+
+const stockTrNextNo = `-- name: StockTrNextNo :one
+INSERT INTO stock_transfer_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_transfer_counters.last_no + 1
+RETURNING last_no
+`
+
+type StockTrNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) StockTrNextNo(ctx context.Context, arg StockTrNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockTrNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const stockTrOutlet = `-- name: StockTrOutlet :one
+
+SELECT id, code, name, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type StockTrOutletParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrOutletRow struct {
+	ID       uuid.UUID
+	Code     string
+	Name     string
+	Active   bool
+	LocalDay pgtype.Date
+}
+
+// ---- Mutasi stok (Fase 4.3 / 6.5) ----
+func (q *Queries) StockTrOutlet(ctx context.Context, arg StockTrOutletParams) (StockTrOutletRow, error) {
+	row := q.db.QueryRow(ctx, stockTrOutlet, arg.TenantID, arg.ID)
+	var i StockTrOutletRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.LocalDay,
+	)
+	return i, err
+}
+
+const stockTrSetCancelled = `-- name: StockTrSetCancelled :exec
+UPDATE stock_transfers SET status = 'cancelled', cancelled_by = $1, cancelled_at = now(), cancel_reason = $2
+WHERE tenant_id = $3 AND id = $4
+`
+
+type StockTrSetCancelledParams struct {
+	ActorID  pgtype.UUID
+	Reason   string
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockTrSetCancelled(ctx context.Context, arg StockTrSetCancelledParams) error {
+	_, err := q.db.Exec(ctx, stockTrSetCancelled,
+		arg.ActorID,
+		arg.Reason,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
+}
+
+const stockTrSetReceived = `-- name: StockTrSetReceived :exec
+UPDATE stock_transfers SET status = 'received', received_by = $1, received_at = now()
+WHERE tenant_id = $2 AND id = $3
+`
+
+type StockTrSetReceivedParams struct {
+	ActorID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockTrSetReceived(ctx context.Context, arg StockTrSetReceivedParams) error {
+	_, err := q.db.Exec(ctx, stockTrSetReceived, arg.ActorID, arg.TenantID, arg.ID)
+	return err
+}
+
+const stockTrSummary = `-- name: StockTrSummary :one
+SELECT
+  count(*) FILTER (WHERE status = 'sent' AND to_outlet_id = $1 AND from_outlet_id <> $1) AS to_receive,
+  count(*) FILTER (WHERE status = 'sent' AND from_outlet_id = $1 AND to_outlet_id <> $1) AS in_transit
+FROM stock_transfers WHERE tenant_id = $2 AND (from_outlet_id = $1 OR to_outlet_id = $1)
+`
+
+type StockTrSummaryParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+}
+
+type StockTrSummaryRow struct {
+	ToReceive int64
+	InTransit int64
+}
+
+func (q *Queries) StockTrSummary(ctx context.Context, arg StockTrSummaryParams) (StockTrSummaryRow, error) {
+	row := q.db.QueryRow(ctx, stockTrSummary, arg.OutletID, arg.TenantID)
+	var i StockTrSummaryRow
+	err := row.Scan(&i.ToReceive, &i.InTransit)
+	return i, err
+}
+
 const supplierCreate = `-- name: SupplierCreate :one
 INSERT INTO suppliers (tenant_id, code, name, contact_name, phone, email, address, note)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
