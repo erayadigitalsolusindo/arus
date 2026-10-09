@@ -95,6 +95,8 @@ const purchases = {
     viewIt: 'Lihat',
     newAnother: 'Faktur lain',
     totalsPending: 'Menghitung…',
+    draftRestored: 'Draf faktur sebelumnya dipulihkan. Isian disimpan otomatis di browser ini.',
+    draftDiscard: 'Buang draf',
     needLines: 'Isi qty dan harga beli pada setiap barang.',
     incomplete: 'Lengkapi pemasok, tanggal, dan baris barang.'
   }
