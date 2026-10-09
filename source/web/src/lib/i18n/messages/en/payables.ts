@@ -12,7 +12,7 @@ const payables: Messages['payables'] = {
   status: { open: 'Unpaid', overdue: 'Overdue', paid: 'Paid', all: 'All' },
   stat: { outstanding: 'Total payable', overdue: 'Overdue', open: 'Unpaid invoices' },
   aging: { title: 'Payable aging', current: 'Not yet due', d1_30: '1–30 days overdue', d31_60: '31–60 days overdue', d60_plus: '> 60 days overdue' },
-  col: { docNo: 'Purchase No.', invoice: 'Invoice No.', supplier: 'Supplier', date: 'Date', due: 'Due date', amount: 'Payable', paid: 'Paid', balance: 'Balance', status: 'Status', action: 'Action' },
+  col: { docNo: 'Purchase No.', invoice: 'Invoice No.', supplier: 'Supplier', date: 'Date', due: 'Due date', amount: 'Payable', paid: 'Paid', returned: 'Offset by returns', balance: 'Balance', status: 'Status', action: 'Action' },
   noDue: '—',
   pay: 'Pay',
   detail: 'Details',

@@ -10,7 +10,7 @@ const payables = {
   status: { open: 'Belum lunas', overdue: 'Lewat jatuh tempo', paid: 'Lunas', all: 'Semua' },
   stat: { outstanding: 'Total hutang', overdue: 'Lewat jatuh tempo', open: 'Nota belum lunas' },
   aging: { title: 'Umur hutang', current: 'Belum jatuh tempo', d1_30: 'Lewat 1–30 hari', d31_60: 'Lewat 31–60 hari', d60_plus: 'Lewat > 60 hari' },
-  col: { docNo: 'No. Pembelian', invoice: 'No. Faktur', supplier: 'Pemasok', date: 'Tanggal', due: 'Jatuh tempo', amount: 'Hutang', paid: 'Dibayar', balance: 'Sisa', status: 'Status', action: 'Aksi' },
+  col: { docNo: 'No. Pembelian', invoice: 'No. Faktur', supplier: 'Pemasok', date: 'Tanggal', due: 'Jatuh tempo', amount: 'Hutang', paid: 'Dibayar', returned: 'Dipotong retur', balance: 'Sisa', status: 'Status', action: 'Aksi' },
   noDue: '—',
   pay: 'Bayar',
   detail: 'Rincian',

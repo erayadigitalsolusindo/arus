@@ -41,11 +41,12 @@ type Cost struct {
 
 // PayableInfo = hutang yang lahir dari nota kredit (saldo = amount − pembayaran, Fase 6.3).
 type PayableInfo struct {
-	ID      uuid.UUID `json:"id"`
-	Amount  string    `json:"amount"`
-	DueDate *string   `json:"due_date"`
-	Paid    string    `json:"paid"`
-	Balance string    `json:"balance"`
+	ID       uuid.UUID `json:"id"`
+	Amount   string    `json:"amount"`
+	DueDate  *string   `json:"due_date"`
+	Paid     string    `json:"paid"`
+	Returned string    `json:"returned"` // dipotong retur pembelian aktif
+	Balance  string    `json:"balance"`
 }
 
 // Event = satu catatan audit nota (siapa, kapan, dan rinciannya).
@@ -88,6 +89,16 @@ type Purchase struct {
 	SupersedesID      *uuid.UUID   `json:"supersedes_id"`
 	VoidReason        string       `json:"void_reason"`
 	VoidedAt          *time.Time   `json:"voided_at"`
+	Returns           []ReturnRef  `json:"returns"`
+}
+
+// ReturnRef = dokumen retur pembelian atas nota ini (aktif maupun batal).
+type ReturnRef struct {
+	ID        uuid.UUID `json:"id"`
+	DocNo     string    `json:"doc_no"`
+	Status    string    `json:"status"`
+	Total     string    `json:"total"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func timePtr(t pgtype.Timestamptz) *time.Time {
@@ -167,12 +178,36 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Purchas
 		}
 		pay, err := q.PurchasePayable(ctx, gen.PurchasePayableParams{TenantID: a.TenantID, PurchaseID: id})
 		if err == nil {
-			var paid dec
+			var paid, returned dec
 			if err := tx.QueryRow(ctx, `SELECT coalesce(sum(amount), 0) FROM payable_payments WHERE tenant_id = $1 AND payable_id = $2`, a.TenantID, pay.ID).Scan(&paid); err != nil {
 				return err
 			}
-			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate), Paid: paid.StringFixed(2), Balance: pay.Amount.Sub(paid).StringFixed(2)}
+			if err := tx.QueryRow(ctx, `SELECT coalesce(sum(payable_cut), 0) FROM purchase_returns WHERE tenant_id = $1 AND purchase_id = $2 AND status = 'completed'`, a.TenantID, id).Scan(&returned); err != nil {
+				return err
+			}
+			p.Payable = &PayableInfo{ID: pay.ID, Amount: pay.Amount.StringFixed(2), DueDate: dateStr(pay.DueDate), Paid: paid.StringFixed(2),
+				Returned: returned.StringFixed(2), Balance: pay.Amount.Sub(paid).Sub(returned).StringFixed(2)}
 		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		p.Returns = []ReturnRef{}
+		rrows, err := tx.Query(ctx, `SELECT id, doc_no, status, total, created_at FROM purchase_returns
+			WHERE tenant_id = $1 AND purchase_id = $2 ORDER BY created_at, id`, a.TenantID, id)
+		if err != nil {
+			return err
+		}
+		for rrows.Next() {
+			var r ReturnRef
+			var total dec
+			if err := rrows.Scan(&r.ID, &r.DocNo, &r.Status, &total, &r.CreatedAt); err != nil {
+				rrows.Close()
+				return err
+			}
+			r.Total = total.StringFixed(2)
+			p.Returns = append(p.Returns, r)
+		}
+		rrows.Close()
+		if err := rrows.Err(); err != nil {
 			return err
 		}
 		evs, err := q.PurchaseAuditEvents(ctx, gen.PurchaseAuditEventsParams{TenantID: a.TenantID, PurchaseID: id})
