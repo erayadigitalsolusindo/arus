@@ -24,6 +24,9 @@ const ConversionModule = "stock_conversion"
 // CountModule = modul izin Stok Opname: view = lihat, create = buat/isi/batal draf, approve = selesaikan (menerapkan selisih).
 const CountModule = "stock_opname"
 
+// TransferModule = modul izin Mutasi Stok: view = lihat, create = kirim, approve = terima/batal.
+const TransferModule = "stock_transfer"
+
 type Handler struct {
 	svc      *Service
 	resolver *authz.Resolver
@@ -54,6 +57,16 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ConversionModule, authz.ActView)).Get("/items", h.List)
 		r.With(authz.Require(ConversionModule, authz.ActCreate)).Post("/", h.Convert)
 		r.With(authz.Require(ConversionModule, authz.ActView)).Get("/{id}", h.GetConversion)
+	})
+	r.Route("/stock/transfers", func(r chi.Router) {
+		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
+		r.With(authz.Require(TransferModule, authz.ActView)).Get("/", h.ListTransfers)
+		r.With(authz.RequireAny([2]string{TransferModule, authz.ActCreate})).Get("/destinations", h.TransferDestinations)
+		r.With(authz.RequireAny([2]string{TransferModule, authz.ActCreate})).Get("/items", h.List)
+		r.With(authz.Require(TransferModule, authz.ActCreate)).Post("/", h.SendTransfer)
+		r.With(authz.Require(TransferModule, authz.ActView)).Get("/{id}", h.GetTransfer)
+		r.With(authz.Require(TransferModule, authz.ActApprove)).Post("/{id}/receive", h.ReceiveTransfer)
+		r.With(authz.Require(TransferModule, authz.ActApprove)).Post("/{id}/cancel", h.CancelTransfer)
 	})
 	r.Route("/stock/counts", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
@@ -147,6 +160,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "NOT_STOCKED", "Barang ini tidak memiliki stok.")
 	case errors.Is(err, ErrInsufficient):
 		httpx.Error(w, http.StatusConflict, "STOCK_INSUFFICIENT", "Stok barang tidak mencukupi.")
+	case errors.Is(err, ErrTransferNotPending):
+		httpx.Error(w, http.StatusConflict, "TRANSFER_NOT_PENDING", "Mutasi sudah diterima atau dibatalkan.")
 	case errors.Is(err, ErrKeyRequired):
 		httpx.Error(w, http.StatusBadRequest, "IDEMPOTENCY_KEY_REQUIRED", "Header Idempotency-Key wajib (8–100 karakter).")
 	case errors.Is(err, ErrKeyMismatch):
@@ -371,4 +386,105 @@ func (h *Handler) CancelCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SendTransfer: POST /stock/transfers — header `Idempotency-Key` wajib. 201 = dokumen baru; 200 + `Idempotent-Replay: true` = kunci sama.
+func (h *Handler) SendTransfer(w http.ResponseWriter, r *http.Request) {
+	var req TransferInput
+	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
+		return
+	}
+	t, replayed, err := h.svc.SendTransfer(r.Context(), actor(r), r.Header.Get("Idempotency-Key"), req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	status := http.StatusCreated
+	if replayed {
+		w.Header().Set("Idempotent-Replay", "true")
+		status = http.StatusOK
+	}
+	httpx.JSON(w, status, t)
+}
+
+func (h *Handler) TransferDestinations(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.svc.Destinations(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": rows})
+}
+
+// ListTransfers: ?direction=out|in&status=&q=&cursor=&limit=
+func (h *Handler) ListTransfers(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	p := TransferListParams{Direction: qs.Get("direction"), Status: qs.Get("status"), Q: qs.Get("q"), Cursor: qs.Get("cursor")}
+	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
+	page, err := h.svc.ListTransfers(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, page)
+}
+
+func (h *Handler) GetTransfer(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	t, err := h.svc.GetTransfer(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, t)
+}
+
+// ReceiveTransfer: POST /stock/transfers/{id}/receive — body {lines:[{item_id,qty}]} opsional (kosong = diterima penuh).
+func (h *Handler) ReceiveTransfer(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Lines []ReceiveLine `json:"lines"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &req, 64<<10) {
+		return
+	}
+	if err := h.svc.ReceiveTransfer(r.Context(), actor(r), id, req.Lines); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	t, err := h.svc.GetTransfer(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, t)
+}
+
+func (h *Handler) CancelTransfer(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if err := h.svc.CancelTransfer(r.Context(), actor(r), id, req.Reason); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	t, err := h.svc.GetTransfer(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, t)
 }

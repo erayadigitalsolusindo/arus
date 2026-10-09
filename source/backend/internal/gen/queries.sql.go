@@ -3466,6 +3466,21 @@ func (q *Queries) PayableInsert(ctx context.Context, arg PayableInsertParams) er
 	return err
 }
 
+const payableVoid = `-- name: PayableVoid :exec
+UPDATE payables SET voided_at = now() WHERE tenant_id = $1 AND purchase_id = $2 AND voided_at IS NULL
+`
+
+type PayableVoidParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+}
+
+// Hutang nota yang dibatalkan/digantikan ditandai (jumlah tidak berubah; hanya kolom voided_at yang boleh diubah).
+func (q *Queries) PayableVoid(ctx context.Context, arg PayableVoidParams) error {
+	_, err := q.db.Exec(ctx, payableVoid, arg.TenantID, arg.PurchaseID)
+	return err
+}
+
 const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
 SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
 FROM payment_methods
@@ -4228,6 +4243,54 @@ func (q *Queries) PosShortcutSet(ctx context.Context, arg PosShortcutSetParams) 
 	return err
 }
 
+const purchaseAuditEvents = `-- name: PurchaseAuditEvents :many
+SELECT a.action, a.actor_name, a.details, a.created_at FROM audit_log a
+WHERE a.tenant_id = $1 AND a.entity = 'purchase'
+  AND a.entity_id IN (
+    SELECT p.id::text FROM purchases p
+    WHERE p.tenant_id = $1
+      AND coalesce(p.root_id, p.id) = (SELECT coalesce(r.root_id, r.id) FROM purchases r WHERE r.tenant_id = $1 AND r.id = $2))
+ORDER BY a.id
+`
+
+type PurchaseAuditEventsParams struct {
+	TenantID   uuid.UUID
+	PurchaseID uuid.UUID
+}
+
+type PurchaseAuditEventsRow struct {
+	Action    string
+	ActorName string
+	Details   []byte
+	CreatedAt pgtype.Timestamptz
+}
+
+// Riwayat audit satu rantai revisi (nota asal + semua revisinya): siapa mengerjakan apa dan kapan.
+func (q *Queries) PurchaseAuditEvents(ctx context.Context, arg PurchaseAuditEventsParams) ([]PurchaseAuditEventsRow, error) {
+	rows, err := q.db.Query(ctx, purchaseAuditEvents, arg.TenantID, arg.PurchaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurchaseAuditEventsRow
+	for rows.Next() {
+		var i PurchaseAuditEventsRow
+		if err := rows.Scan(
+			&i.Action,
+			&i.ActorName,
+			&i.Details,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const purchaseByIdemKey = `-- name: PurchaseByIdemKey :one
 SELECT id, request_hash FROM purchases WHERE tenant_id = $1 AND idempotency_key = $2
 `
@@ -4311,7 +4374,8 @@ const purchaseGet = `-- name: PurchaseGet :one
 SELECT p.id, p.outlet_id, o.code AS outlet_code, o.name AS outlet_name, p.doc_no, p.supplier_id, s.name AS supplier_name,
        p.supplier_invoice_no, p.purchase_date, p.payment_type, p.due_date, p.status, p.note,
        p.subtotal, p.tax_pct, p.tax_amount, p.other_cost, p.total, p.created_at,
-       coalesce(u.name, '') AS created_name
+       coalesce(u.name, '') AS created_name,
+       p.revision, p.revision_reason, p.void_reason, p.revised_at, p.voided_at, p.superseded_by, p.supersedes_id
 FROM purchases p
 JOIN outlets o ON o.tenant_id = p.tenant_id AND o.id = p.outlet_id
 JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
@@ -4345,6 +4409,13 @@ type PurchaseGetRow struct {
 	Total             decimal.Decimal
 	CreatedAt         pgtype.Timestamptz
 	CreatedName       string
+	Revision          int32
+	RevisionReason    string
+	VoidReason        string
+	RevisedAt         pgtype.Timestamptz
+	VoidedAt          pgtype.Timestamptz
+	SupersededBy      pgtype.UUID
+	SupersedesID      pgtype.UUID
 }
 
 func (q *Queries) PurchaseGet(ctx context.Context, arg PurchaseGetParams) (PurchaseGetRow, error) {
@@ -4371,15 +4442,24 @@ func (q *Queries) PurchaseGet(ctx context.Context, arg PurchaseGetParams) (Purch
 		&i.Total,
 		&i.CreatedAt,
 		&i.CreatedName,
+		&i.Revision,
+		&i.RevisionReason,
+		&i.VoidReason,
+		&i.RevisedAt,
+		&i.VoidedAt,
+		&i.SupersededBy,
+		&i.SupersedesID,
 	)
 	return i, err
 }
 
 const purchaseInsert = `-- name: PurchaseInsert :one
 INSERT INTO purchases (id, tenant_id, outlet_id, doc_no, idempotency_key, request_hash, supplier_id, supplier_invoice_no, purchase_date,
-                       payment_type, due_date, note, subtotal, tax_pct, tax_amount, other_cost, total, created_by)
+                       payment_type, due_date, note, subtotal, tax_pct, tax_amount, other_cost, total, created_by,
+                       root_id, revision, supersedes_id, revision_reason)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        $10, $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20::int, $21, $22)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id
 `
@@ -4403,6 +4483,10 @@ type PurchaseInsertParams struct {
 	OtherCost         decimal.Decimal
 	Total             decimal.Decimal
 	CreatedBy         pgtype.UUID
+	RootID            pgtype.UUID
+	Revision          int32
+	SupersedesID      pgtype.UUID
+	RevisionReason    string
 }
 
 // Pengiriman ganda bersamaan (kunci idempotensi sama): yang kalah tidak menghasilkan baris → pemanggil membatalkan transaksi.
@@ -4426,6 +4510,10 @@ func (q *Queries) PurchaseInsert(ctx context.Context, arg PurchaseInsertParams) 
 		arg.OtherCost,
 		arg.Total,
 		arg.CreatedBy,
+		arg.RootID,
+		arg.Revision,
+		arg.SupersedesID,
+		arg.RevisionReason,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -4437,7 +4525,7 @@ SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
        coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost
 FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
-WHERE i.tenant_id = $2 AND i.id = $3 FOR UPDATE OF i
+WHERE i.tenant_id = $2 AND i.id = $3 FOR NO KEY UPDATE OF i
 `
 
 type PurchaseItemLockParams struct {
@@ -4541,7 +4629,8 @@ func (q *Queries) PurchaseItemSearch(ctx context.Context, arg PurchaseItemSearch
 
 const purchaseItemState = `-- name: PurchaseItemState :one
 SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
-       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
 FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
 WHERE i.tenant_id = $2 AND i.id = $3
@@ -4561,6 +4650,7 @@ type PurchaseItemStateRow struct {
 	Active   bool
 	UnitName string
 	AvgCost  decimal.Decimal
+	LastCost decimal.Decimal
 }
 
 // Seperti PurchaseItemLock tanpa penguncian (pratinjau/quote).
@@ -4575,8 +4665,38 @@ func (q *Queries) PurchaseItemState(ctx context.Context, arg PurchaseItemStatePa
 		&i.Active,
 		&i.UnitName,
 		&i.AvgCost,
+		&i.LastCost,
 	)
 	return i, err
+}
+
+const purchaseLastUnitCost = `-- name: PurchaseLastUnitCost :one
+SELECT l.unit_cost FROM purchase_lines l
+JOIN purchases p ON p.tenant_id = l.tenant_id AND p.id = l.purchase_id
+WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND l.item_id = $3
+  AND p.status = 'completed' AND p.id <> $4
+ORDER BY p.created_at DESC, l.position DESC
+LIMIT 1
+`
+
+type PurchaseLastUnitCostParams struct {
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	ItemID    uuid.UUID
+	ExcludeID uuid.UUID
+}
+
+// HPP baris pembelian aktif terakhir barang ini di cabang, selain nota tertentu (dipakai saat pembalikan).
+func (q *Queries) PurchaseLastUnitCost(ctx context.Context, arg PurchaseLastUnitCostParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, purchaseLastUnitCost,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ItemID,
+		arg.ExcludeID,
+	)
+	var unit_cost decimal.Decimal
+	err := row.Scan(&unit_cost)
+	return unit_cost, err
 }
 
 const purchaseLineInsert = `-- name: PurchaseLineInsert :exec
@@ -4711,18 +4831,18 @@ func (q *Queries) PurchaseLines(ctx context.Context, arg PurchaseLinesParams) ([
 const purchaseList = `-- name: PurchaseList :many
 SELECT p.id, p.doc_no, p.supplier_id, s.name AS supplier_name, p.supplier_invoice_no, p.purchase_date, p.payment_type,
        p.due_date, p.status, p.total, p.created_at, coalesce(u.name, '') AS created_name,
-       (SELECT count(*) FROM purchase_lines l WHERE l.tenant_id = p.tenant_id AND l.purchase_id = p.id)::bigint AS line_count,
-       count(*) OVER () AS total_rows
+       (SELECT count(*) FROM purchase_lines l WHERE l.tenant_id = p.tenant_id AND l.purchase_id = p.id)::bigint AS line_count
 FROM purchases p
 JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
 LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.created_by
-WHERE p.tenant_id = $1 AND p.outlet_id = $2
+WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status <> 'superseded'
   AND p.purchase_date >= $3 AND p.purchase_date <= $4
   AND ($5::uuid IS NULL OR p.supplier_id = $5)
   AND ($6::text = '' OR p.payment_type = $6)
   AND ($7::text = '' OR p.doc_no ILIKE '%' || $7 || '%' OR p.supplier_invoice_no ILIKE '%' || $7 || '%' OR s.name ILIKE '%' || $7 || '%')
-ORDER BY p.purchase_date DESC, p.created_at DESC, p.id
-LIMIT $9 OFFSET $8
+  AND (NOT $8::bool OR (p.purchase_date, p.created_at, p.id) < ($9::date, $10::timestamptz, $11::uuid))
+ORDER BY p.purchase_date DESC, p.created_at DESC, p.id DESC
+LIMIT $12
 `
 
 type PurchaseListParams struct {
@@ -4733,7 +4853,10 @@ type PurchaseListParams struct {
 	SupplierID  pgtype.UUID
 	PaymentType string
 	Q           string
-	PageOffset  int32
+	HasCursor   bool
+	CurDate     pgtype.Date
+	CurAt       pgtype.Timestamptz
+	CurID       uuid.UUID
 	PageLimit   int32
 }
 
@@ -4751,9 +4874,10 @@ type PurchaseListRow struct {
 	CreatedAt         pgtype.Timestamptz
 	CreatedName       string
 	LineCount         int64
-	TotalRows         int64
 }
 
+// Keyset (bukan OFFSET): halaman berikutnya mulai setelah (tanggal, waktu input, id) terakhir. Tanpa count(*) per halaman;
+// total diambil dari PurchaseListSummary. Pemanggil meminta limit+1 untuk tahu ada halaman berikut.
 func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]PurchaseListRow, error) {
 	rows, err := q.db.Query(ctx, purchaseList,
 		arg.TenantID,
@@ -4763,7 +4887,10 @@ func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]P
 		arg.SupplierID,
 		arg.PaymentType,
 		arg.Q,
-		arg.PageOffset,
+		arg.HasCursor,
+		arg.CurDate,
+		arg.CurAt,
+		arg.CurID,
 		arg.PageLimit,
 	)
 	if err != nil {
@@ -4787,7 +4914,6 @@ func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]P
 			&i.CreatedAt,
 			&i.CreatedName,
 			&i.LineCount,
-			&i.TotalRows,
 		); err != nil {
 			return nil, err
 		}
@@ -4800,11 +4926,12 @@ func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]P
 }
 
 const purchaseListSummary = `-- name: PurchaseListSummary :one
-SELECT count(*)::bigint AS cnt, coalesce(sum(p.total), 0)::numeric AS total,
-       coalesce(sum(p.total) FILTER (WHERE p.payment_type = 'credit'), 0)::numeric AS credit_total
+SELECT count(*) FILTER (WHERE p.status = 'completed')::bigint AS cnt,
+       coalesce(sum(p.total) FILTER (WHERE p.status = 'completed'), 0)::numeric AS total,
+       coalesce(sum(p.total) FILTER (WHERE p.status = 'completed' AND p.payment_type = 'credit'), 0)::numeric AS credit_total
 FROM purchases p
 JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
-WHERE p.tenant_id = $1 AND p.outlet_id = $2
+WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status <> 'superseded'
   AND p.purchase_date >= $3 AND p.purchase_date <= $4
   AND ($5::uuid IS NULL OR p.supplier_id = $5)
   AND ($6::text = '' OR p.payment_type = $6)
@@ -4840,6 +4967,85 @@ func (q *Queries) PurchaseListSummary(ctx context.Context, arg PurchaseListSumma
 	var i PurchaseListSummaryRow
 	err := row.Scan(&i.Cnt, &i.Total, &i.CreditTotal)
 	return i, err
+}
+
+const purchaseLockForChange = `-- name: PurchaseLockForChange :one
+SELECT p.id, p.outlet_id, p.status, p.doc_no, p.root_id, p.revision, p.payment_type,
+       (p.created_at AT TIME ZONE o.timezone)::date AS created_day,
+       (now() AT TIME ZONE o.timezone)::date AS today,
+       t.sale_edit_window_days::int AS window_days
+FROM purchases p
+JOIN outlets o ON o.tenant_id = p.tenant_id AND o.id = p.outlet_id
+JOIN tenants t ON t.id = p.tenant_id
+WHERE p.tenant_id = $1 AND p.id = $2
+FOR UPDATE OF p
+`
+
+type PurchaseLockForChangeParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PurchaseLockForChangeRow struct {
+	ID          uuid.UUID
+	OutletID    uuid.UUID
+	Status      string
+	DocNo       string
+	RootID      pgtype.UUID
+	Revision    int32
+	PaymentType string
+	CreatedDay  pgtype.Date
+	Today       pgtype.Date
+	WindowDays  int32
+}
+
+// Mengunci nota untuk edit/batal (dua perubahan atas nota yang sama antre) dan membaca konteks aturannya:
+// hari buat nota dan hari ini menurut zona waktu outlet, serta batas hari edit tenant.
+func (q *Queries) PurchaseLockForChange(ctx context.Context, arg PurchaseLockForChangeParams) (PurchaseLockForChangeRow, error) {
+	row := q.db.QueryRow(ctx, purchaseLockForChange, arg.TenantID, arg.ID)
+	var i PurchaseLockForChangeRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.Status,
+		&i.DocNo,
+		&i.RootID,
+		&i.Revision,
+		&i.PaymentType,
+		&i.CreatedDay,
+		&i.Today,
+		&i.WindowDays,
+	)
+	return i, err
+}
+
+const purchaseMarkSuperseded = `-- name: PurchaseMarkSuperseded :execrows
+UPDATE purchases
+SET status = 'superseded', superseded_by = $1, revised_at = now(), revised_by = $2, revision_reason = $3
+WHERE tenant_id = $4 AND id = $5 AND status = 'completed'
+`
+
+type PurchaseMarkSupersededParams struct {
+	SupersededBy pgtype.UUID
+	RevisedBy    pgtype.UUID
+	Reason       string
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+}
+
+// Nota lama ditandai digantikan revisi. Hanya dari status completed (hanya satu revisi aktif per rantai).
+func (q *Queries) PurchaseMarkSuperseded(ctx context.Context, arg PurchaseMarkSupersededParams) (int64, error) {
+	result, err := q.db.Exec(ctx, purchaseMarkSuperseded,
+		arg.SupersededBy,
+		arg.RevisedBy,
+		arg.Reason,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const purchaseNextNo = `-- name: PurchaseNextNo :one
@@ -4891,7 +5097,7 @@ func (q *Queries) PurchaseOutletInfo(ctx context.Context, arg PurchaseOutletInfo
 }
 
 const purchasePayable = `-- name: PurchasePayable :one
-SELECT id, amount, due_date FROM payables WHERE tenant_id = $1 AND purchase_id = $2
+SELECT id, amount, due_date FROM payables WHERE tenant_id = $1 AND purchase_id = $2 AND voided_at IS NULL
 `
 
 type PurchasePayableParams struct {
@@ -4910,6 +5116,32 @@ func (q *Queries) PurchasePayable(ctx context.Context, arg PurchasePayableParams
 	var i PurchasePayableRow
 	err := row.Scan(&i.ID, &i.Amount, &i.DueDate)
 	return i, err
+}
+
+const purchaseSetVoided = `-- name: PurchaseSetVoided :execrows
+UPDATE purchases
+SET status = 'void', void_reason = $1, voided_at = now(), voided_by = $2
+WHERE tenant_id = $3 AND id = $4 AND status = 'completed'
+`
+
+type PurchaseSetVoidedParams struct {
+	Reason   string
+	VoidedBy pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) PurchaseSetVoided(ctx context.Context, arg PurchaseSetVoidedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, purchaseSetVoided,
+		arg.Reason,
+		arg.VoidedBy,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const purchaseSupplierState = `-- name: PurchaseSupplierState :one
@@ -9159,6 +9391,602 @@ func (q *Queries) StockSubtractGuarded(ctx context.Context, arg StockSubtractGua
 	var qty decimal.Decimal
 	err := row.Scan(&qty)
 	return qty, err
+}
+
+const stockTrByIdemKey = `-- name: StockTrByIdemKey :one
+SELECT id, request_hash FROM stock_transfers WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type StockTrByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey string
+}
+
+type StockTrByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash string
+}
+
+func (q *Queries) StockTrByIdemKey(ctx context.Context, arg StockTrByIdemKeyParams) (StockTrByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, stockTrByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i StockTrByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const stockTrDestinations = `-- name: StockTrDestinations :many
+SELECT id, code, name FROM outlets WHERE tenant_id = $1 AND active ORDER BY lower(name), code
+`
+
+type StockTrDestinationsRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+func (q *Queries) StockTrDestinations(ctx context.Context, tenantID uuid.UUID) ([]StockTrDestinationsRow, error) {
+	rows, err := q.db.Query(ctx, stockTrDestinations, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrDestinationsRow
+	for rows.Next() {
+		var i StockTrDestinationsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrGet = `-- name: StockTrGet :one
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at, t.cancel_reason,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name, coalesce(ur.name, '') AS received_by_name, coalesce(uc.name, '') AS cancelled_by_name
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+LEFT JOIN users ur ON ur.tenant_id = t.tenant_id AND ur.id = t.received_by
+LEFT JOIN users uc ON uc.tenant_id = t.tenant_id AND uc.id = t.cancelled_by
+WHERE t.tenant_id = $1 AND t.id = $2
+`
+
+type StockTrGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrGetRow struct {
+	ID              uuid.UUID
+	DocNo           string
+	FromOutletID    uuid.UUID
+	FromBucket      string
+	ToOutletID      uuid.UUID
+	ToBucket        string
+	Status          string
+	Note            string
+	SentAt          pgtype.Timestamptz
+	ReceivedAt      pgtype.Timestamptz
+	CancelledAt     pgtype.Timestamptz
+	CancelReason    string
+	FromCode        string
+	FromName        string
+	ToCode          string
+	ToName          string
+	SentByName      string
+	ReceivedByName  string
+	CancelledByName string
+}
+
+func (q *Queries) StockTrGet(ctx context.Context, arg StockTrGetParams) (StockTrGetRow, error) {
+	row := q.db.QueryRow(ctx, stockTrGet, arg.TenantID, arg.ID)
+	var i StockTrGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.DocNo,
+		&i.FromOutletID,
+		&i.FromBucket,
+		&i.ToOutletID,
+		&i.ToBucket,
+		&i.Status,
+		&i.Note,
+		&i.SentAt,
+		&i.ReceivedAt,
+		&i.CancelledAt,
+		&i.CancelReason,
+		&i.FromCode,
+		&i.FromName,
+		&i.ToCode,
+		&i.ToName,
+		&i.SentByName,
+		&i.ReceivedByName,
+		&i.CancelledByName,
+	)
+	return i, err
+}
+
+const stockTrInsert = `-- name: StockTrInsert :one
+INSERT INTO stock_transfers (id, tenant_id, doc_no, idempotency_key, request_hash, from_outlet_id, from_bucket, to_outlet_id, to_bucket,
+                             status, note, sent_by, received_by, received_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14)
+ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+RETURNING id
+`
+
+type StockTrInsertParams struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	DocNo          string
+	IdempotencyKey string
+	RequestHash    string
+	FromOutletID   uuid.UUID
+	FromBucket     string
+	ToOutletID     uuid.UUID
+	ToBucket       string
+	Status         string
+	Note           string
+	SentBy         pgtype.UUID
+	ReceivedBy     pgtype.UUID
+	ReceivedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) StockTrInsert(ctx context.Context, arg StockTrInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, stockTrInsert,
+		arg.ID,
+		arg.TenantID,
+		arg.DocNo,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.FromOutletID,
+		arg.FromBucket,
+		arg.ToOutletID,
+		arg.ToBucket,
+		arg.Status,
+		arg.Note,
+		arg.SentBy,
+		arg.ReceivedBy,
+		arg.ReceivedAt,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const stockTrItemLock = `-- name: StockTrItemLock :one
+SELECT i.id, i.sku, i.name, i.kind, i.active, u.name AS unit_name,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric  AS avg_cost,
+       coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost
+FROM items i JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+WHERE i.tenant_id = $2 AND i.id = $3 FOR NO KEY UPDATE OF i
+`
+
+type StockTrItemLockParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrItemLockRow struct {
+	ID       uuid.UUID
+	Sku      string
+	Name     string
+	Kind     string
+	Active   bool
+	UnitName string
+	AvgCost  decimal.Decimal
+	LastCost decimal.Decimal
+}
+
+// Kunci baris barang (terurut id) + data & HPP efektif di outlet yang diminta. FOR NO KEY UPDATE (bukan FOR UPDATE)
+// agar tidak bentrok dengan FOR KEY SHARE dari FK saat penjualan menulis movement (deadlock).
+func (q *Queries) StockTrItemLock(ctx context.Context, arg StockTrItemLockParams) (StockTrItemLockRow, error) {
+	row := q.db.QueryRow(ctx, stockTrItemLock, arg.OutletID, arg.TenantID, arg.ID)
+	var i StockTrItemLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Kind,
+		&i.Active,
+		&i.UnitName,
+		&i.AvgCost,
+		&i.LastCost,
+	)
+	return i, err
+}
+
+const stockTrLineInsert = `-- name: StockTrLineInsert :exec
+INSERT INTO stock_transfer_lines (tenant_id, transfer_id, item_id, qty_sent, qty_received, unit_cost)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type StockTrLineInsertParams struct {
+	TenantID    uuid.UUID
+	TransferID  uuid.UUID
+	ItemID      uuid.UUID
+	QtySent     decimal.Decimal
+	QtyReceived pgtype.Numeric
+	UnitCost    decimal.Decimal
+}
+
+func (q *Queries) StockTrLineInsert(ctx context.Context, arg StockTrLineInsertParams) error {
+	_, err := q.db.Exec(ctx, stockTrLineInsert,
+		arg.TenantID,
+		arg.TransferID,
+		arg.ItemID,
+		arg.QtySent,
+		arg.QtyReceived,
+		arg.UnitCost,
+	)
+	return err
+}
+
+const stockTrLineSetReceived = `-- name: StockTrLineSetReceived :exec
+UPDATE stock_transfer_lines SET qty_received = $1
+WHERE tenant_id = $2 AND transfer_id = $3 AND item_id = $4
+`
+
+type StockTrLineSetReceivedParams struct {
+	QtyReceived pgtype.Numeric
+	TenantID    uuid.UUID
+	TransferID  uuid.UUID
+	ItemID      uuid.UUID
+}
+
+func (q *Queries) StockTrLineSetReceived(ctx context.Context, arg StockTrLineSetReceivedParams) error {
+	_, err := q.db.Exec(ctx, stockTrLineSetReceived,
+		arg.QtyReceived,
+		arg.TenantID,
+		arg.TransferID,
+		arg.ItemID,
+	)
+	return err
+}
+
+const stockTrLines = `-- name: StockTrLines :many
+SELECT l.item_id, l.qty_sent, l.qty_received, l.unit_cost, i.sku, i.name, u.name AS unit_name
+FROM stock_transfer_lines l
+JOIN items i ON i.tenant_id = l.tenant_id AND i.id = l.item_id
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+WHERE l.tenant_id = $1 AND l.transfer_id = $2 ORDER BY lower(i.name), i.id
+`
+
+type StockTrLinesParams struct {
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+}
+
+type StockTrLinesRow struct {
+	ItemID      uuid.UUID
+	QtySent     decimal.Decimal
+	QtyReceived pgtype.Numeric
+	UnitCost    decimal.Decimal
+	Sku         string
+	Name        string
+	UnitName    string
+}
+
+func (q *Queries) StockTrLines(ctx context.Context, arg StockTrLinesParams) ([]StockTrLinesRow, error) {
+	rows, err := q.db.Query(ctx, stockTrLines, arg.TenantID, arg.TransferID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrLinesRow
+	for rows.Next() {
+		var i StockTrLinesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.QtySent,
+			&i.QtyReceived,
+			&i.UnitCost,
+			&i.Sku,
+			&i.Name,
+			&i.UnitName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrLinesForMove = `-- name: StockTrLinesForMove :many
+SELECT item_id, qty_sent, unit_cost FROM stock_transfer_lines WHERE tenant_id = $1 AND transfer_id = $2 ORDER BY item_id
+`
+
+type StockTrLinesForMoveParams struct {
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+}
+
+type StockTrLinesForMoveRow struct {
+	ItemID   uuid.UUID
+	QtySent  decimal.Decimal
+	UnitCost decimal.Decimal
+}
+
+func (q *Queries) StockTrLinesForMove(ctx context.Context, arg StockTrLinesForMoveParams) ([]StockTrLinesForMoveRow, error) {
+	rows, err := q.db.Query(ctx, stockTrLinesForMove, arg.TenantID, arg.TransferID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrLinesForMoveRow
+	for rows.Next() {
+		var i StockTrLinesForMoveRow
+		if err := rows.Scan(&i.ItemID, &i.QtySent, &i.UnitCost); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrList = `-- name: StockTrList :many
+SELECT t.id, t.doc_no, t.from_outlet_id, t.from_bucket, t.to_outlet_id, t.to_bucket, t.status, t.note, t.sent_at, t.received_at, t.cancelled_at,
+       fo.code AS from_code, fo.name AS from_name, too.code AS to_code, too.name AS to_name,
+       coalesce(us.name, '') AS sent_by_name,
+       (SELECT count(*) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id) AS line_count,
+       (SELECT coalesce(sum(l.qty_sent), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_sent,
+       (SELECT coalesce(sum(l.qty_sent - coalesce(l.qty_received, l.qty_sent)), 0) FROM stock_transfer_lines l WHERE l.tenant_id = t.tenant_id AND l.transfer_id = t.id)::numeric AS qty_short
+FROM stock_transfers t
+JOIN outlets fo  ON fo.tenant_id = t.tenant_id AND fo.id = t.from_outlet_id
+JOIN outlets too ON too.tenant_id = t.tenant_id AND too.id = t.to_outlet_id
+LEFT JOIN users us ON us.tenant_id = t.tenant_id AND us.id = t.sent_by
+WHERE t.tenant_id = $1
+  AND (($2::text = 'out' AND t.from_outlet_id = $3) OR ($2::text = 'in' AND t.to_outlet_id = $3))
+  AND ($4::text = '' OR t.status = $4::text)
+  AND ($5::text = '' OR t.doc_no ILIKE '%' || $5::text || '%')
+  AND ($6::timestamptz IS NULL OR (t.sent_at, t.id) < ($6::timestamptz, $7::uuid))
+ORDER BY t.sent_at DESC, t.id DESC
+LIMIT $8
+`
+
+type StockTrListParams struct {
+	TenantID  uuid.UUID
+	Direction string
+	OutletID  uuid.UUID
+	Status    string
+	Q         string
+	CursorAt  pgtype.Timestamptz
+	CursorID  pgtype.UUID
+	PageLimit int32
+}
+
+type StockTrListRow struct {
+	ID           uuid.UUID
+	DocNo        string
+	FromOutletID uuid.UUID
+	FromBucket   string
+	ToOutletID   uuid.UUID
+	ToBucket     string
+	Status       string
+	Note         string
+	SentAt       pgtype.Timestamptz
+	ReceivedAt   pgtype.Timestamptz
+	CancelledAt  pgtype.Timestamptz
+	FromCode     string
+	FromName     string
+	ToCode       string
+	ToName       string
+	SentByName   string
+	LineCount    int64
+	QtySent      decimal.Decimal
+	QtyShort     decimal.Decimal
+}
+
+// direction: 'out' = keluar dari outlet ini, 'in' = masuk ke outlet ini (termasuk antar-bucket di outlet yang sama untuk keduanya).
+func (q *Queries) StockTrList(ctx context.Context, arg StockTrListParams) ([]StockTrListRow, error) {
+	rows, err := q.db.Query(ctx, stockTrList,
+		arg.TenantID,
+		arg.Direction,
+		arg.OutletID,
+		arg.Status,
+		arg.Q,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StockTrListRow
+	for rows.Next() {
+		var i StockTrListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocNo,
+			&i.FromOutletID,
+			&i.FromBucket,
+			&i.ToOutletID,
+			&i.ToBucket,
+			&i.Status,
+			&i.Note,
+			&i.SentAt,
+			&i.ReceivedAt,
+			&i.CancelledAt,
+			&i.FromCode,
+			&i.FromName,
+			&i.ToCode,
+			&i.ToName,
+			&i.SentByName,
+			&i.LineCount,
+			&i.QtySent,
+			&i.QtyShort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stockTrLock = `-- name: StockTrLock :one
+SELECT id, doc_no, from_outlet_id, from_bucket, to_outlet_id, to_bucket, status
+FROM stock_transfers WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type StockTrLockParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrLockRow struct {
+	ID           uuid.UUID
+	DocNo        string
+	FromOutletID uuid.UUID
+	FromBucket   string
+	ToOutletID   uuid.UUID
+	ToBucket     string
+	Status       string
+}
+
+func (q *Queries) StockTrLock(ctx context.Context, arg StockTrLockParams) (StockTrLockRow, error) {
+	row := q.db.QueryRow(ctx, stockTrLock, arg.TenantID, arg.ID)
+	var i StockTrLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.DocNo,
+		&i.FromOutletID,
+		&i.FromBucket,
+		&i.ToOutletID,
+		&i.ToBucket,
+		&i.Status,
+	)
+	return i, err
+}
+
+const stockTrNextNo = `-- name: StockTrNextNo :one
+INSERT INTO stock_transfer_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = stock_transfer_counters.last_no + 1
+RETURNING last_no
+`
+
+type StockTrNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) StockTrNextNo(ctx context.Context, arg StockTrNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, stockTrNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const stockTrOutlet = `-- name: StockTrOutlet :one
+
+SELECT id, code, name, active, (now() AT TIME ZONE timezone)::date AS local_day
+FROM outlets WHERE tenant_id = $1 AND id = $2
+`
+
+type StockTrOutletParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type StockTrOutletRow struct {
+	ID       uuid.UUID
+	Code     string
+	Name     string
+	Active   bool
+	LocalDay pgtype.Date
+}
+
+// ---- Mutasi stok (Fase 4.3 / 6.5) ----
+func (q *Queries) StockTrOutlet(ctx context.Context, arg StockTrOutletParams) (StockTrOutletRow, error) {
+	row := q.db.QueryRow(ctx, stockTrOutlet, arg.TenantID, arg.ID)
+	var i StockTrOutletRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Active,
+		&i.LocalDay,
+	)
+	return i, err
+}
+
+const stockTrSetCancelled = `-- name: StockTrSetCancelled :exec
+UPDATE stock_transfers SET status = 'cancelled', cancelled_by = $1, cancelled_at = now(), cancel_reason = $2
+WHERE tenant_id = $3 AND id = $4
+`
+
+type StockTrSetCancelledParams struct {
+	ActorID  pgtype.UUID
+	Reason   string
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockTrSetCancelled(ctx context.Context, arg StockTrSetCancelledParams) error {
+	_, err := q.db.Exec(ctx, stockTrSetCancelled,
+		arg.ActorID,
+		arg.Reason,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
+}
+
+const stockTrSetReceived = `-- name: StockTrSetReceived :exec
+UPDATE stock_transfers SET status = 'received', received_by = $1, received_at = now()
+WHERE tenant_id = $2 AND id = $3
+`
+
+type StockTrSetReceivedParams struct {
+	ActorID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) StockTrSetReceived(ctx context.Context, arg StockTrSetReceivedParams) error {
+	_, err := q.db.Exec(ctx, stockTrSetReceived, arg.ActorID, arg.TenantID, arg.ID)
+	return err
+}
+
+const stockTrSummary = `-- name: StockTrSummary :one
+SELECT
+  count(*) FILTER (WHERE status = 'sent' AND to_outlet_id = $1 AND from_outlet_id <> $1) AS to_receive,
+  count(*) FILTER (WHERE status = 'sent' AND from_outlet_id = $1 AND to_outlet_id <> $1) AS in_transit
+FROM stock_transfers WHERE tenant_id = $2 AND (from_outlet_id = $1 OR to_outlet_id = $1)
+`
+
+type StockTrSummaryParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+}
+
+type StockTrSummaryRow struct {
+	ToReceive int64
+	InTransit int64
+}
+
+func (q *Queries) StockTrSummary(ctx context.Context, arg StockTrSummaryParams) (StockTrSummaryRow, error) {
+	row := q.db.QueryRow(ctx, stockTrSummary, arg.OutletID, arg.TenantID)
+	var i StockTrSummaryRow
+	err := row.Scan(&i.ToReceive, &i.InTransit)
+	return i, err
 }
 
 const supplierCreate = `-- name: SupplierCreate :one

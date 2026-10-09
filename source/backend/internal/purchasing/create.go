@@ -48,7 +48,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, key string, in Requ
 	var id uuid.UUID
 	err = s.tx(ctx, a, func(tx pgx.Tx) error {
 		var e error
-		id, e = s.save(ctx, tx, a, n, am, key, h)
+		id, e = s.save(ctx, tx, a, n, am, key, h, nil)
 		return e
 	})
 	var rp replay
@@ -91,7 +91,9 @@ func lockItems(ctx context.Context, q *gen.Queries, a authz.Actor, n norm) (map[
 	return rows, f, nil
 }
 
-func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, am amounts, key, h string) (uuid.UUID, error) {
+// save menulis nota beserta stok, HPP, hutang, dan audit dalam transaksi pemanggil. rev = nil untuk pembelian baru;
+// berisi untuk revisi (edit): nomor, id, dan tautan rantai diberikan pemanggil.
+func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, am amounts, key, h string, rev *revision) (uuid.UUID, error) {
 	q := gen.New(tx)
 	if ex, err := q.PurchaseByIdemKey(ctx, gen.PurchaseByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key}); err == nil {
 		if ex.RequestHash != h {
@@ -132,11 +134,20 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, am
 	}
 
 	pid := uuid.New()
-	no, err := q.PurchaseNextNo(ctx, gen.PurchaseNextNoParams{TenantID: a.TenantID, OutletID: a.OutletID, Day: out.LocalDay})
-	if err != nil {
-		return uuid.Nil, err
+	docNo := ""
+	if rev != nil {
+		pid, docNo = rev.id, rev.docNo
+	} else {
+		no, err := q.PurchaseNextNo(ctx, gen.PurchaseNextNoParams{TenantID: a.TenantID, OutletID: a.OutletID, Day: out.LocalDay})
+		if err != nil {
+			return uuid.Nil, err
+		}
+		docNo = fmt.Sprintf("PB-%s-%s-%04d", strings.ToUpper(out.Code), out.LocalDay.Time.Format("060102"), no)
 	}
-	docNo := fmt.Sprintf("PB-%s-%s-%04d", strings.ToUpper(out.Code), out.LocalDay.Time.Format("060102"), no)
+	rootID, supersedes, number, reason := pgtype.UUID{}, pgtype.UUID{}, int32(1), ""
+	if rev != nil {
+		rootID, supersedes, number, reason = nullUUID(rev.rootID), nullUUID(rev.supersedes), rev.number, rev.reason
+	}
 	payType := "cash"
 	if n.credit {
 		payType = "credit"
@@ -150,6 +161,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, am
 		SupplierID: n.supplier, SupplierInvoiceNo: n.invoice, PurchaseDate: pgDate(purchaseDate), PaymentType: payType, DueDate: dueArg,
 		Note: n.note, Subtotal: am.subtotal, TaxPct: am.taxPct, TaxAmount: am.tax, OtherCost: am.other, Total: am.total,
 		CreatedBy: nullUUID(a.UserID),
+		RootID:    rootID, Revision: number, SupersedesID: supersedes, RevisionReason: reason,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tak terpakai) dan kembalikan nota itu.
@@ -242,10 +254,17 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, am
 			return uuid.Nil, err
 		}
 	}
+	action := audit.ActionPurchaseCreate
+	details := map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "supplier": sup.Name, "payment_type": payType,
+		"lines": len(n.lines), "subtotal": am.subtotal.String(), "tax": am.tax.String(), "other_cost": am.other.String(), "total": am.total.String()}
+	if rev != nil {
+		action = audit.ActionPurchaseEdit
+		details["revision"] = number
+		details["supersedes_id"] = rev.supersedes.String()
+		details["reason"] = rev.reason
+	}
 	err = audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
-		Action: audit.ActionPurchaseCreate, Entity: audit.EntityPurchase, EntityID: pid.String(),
-		Details: map[string]any{"doc_no": docNo, "outlet_id": a.OutletID.String(), "supplier": sup.Name, "payment_type": payType,
-			"lines": len(n.lines), "subtotal": am.subtotal.String(), "tax": am.tax.String(), "other_cost": am.other.String(), "total": am.total.String()},
+		Action: action, Entity: audit.EntityPurchase, EntityID: pid.String(), Details: details,
 	})
 	return pid, err
 }

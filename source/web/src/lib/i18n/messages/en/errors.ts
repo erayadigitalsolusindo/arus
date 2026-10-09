@@ -60,6 +60,8 @@ const errors: Messages['errors'] = {
   OUTLET_NOT_FOUND: 'No active outlet found.',
   SALE_NOT_EDITABLE: 'This receipt can no longer be changed (it was voided or replaced by a revision).',
   EDIT_WINDOW_CLOSED: 'The time window for editing this receipt has passed.',
+  PURCHASE_NOT_EDITABLE: 'This invoice can no longer be changed (already voided or replaced by a revision).',
+  PAYABLE_PAID: 'This invoice has already been paid (in part or in full) and can no longer be changed or voided.',
   OUTLET_MISMATCH: 'This receipt belongs to another outlet; switch to that outlet first.',
   FIELD_REQUIRED: 'This field is required.',
   FIELD_INVALID: 'Invalid value or contains disallowed characters.',
@@ -87,6 +89,9 @@ const errors: Messages['errors'] = {
   FIELD_DUPLICATE: 'Duplicate entries (same quantity, unit, or barcode).',
   FIELD_NOT_DECREASING: 'The price must not be higher for a larger quantity.',
   FIELD_SAME_ITEM: 'The target item must differ from the source item.',
+  TRANSFER_NOT_PENDING: 'This transfer was already received or cancelled.',
+  FIELD_SAME_LOCATION: 'Source and destination cannot be identical.',
+  FIELD_OVER_SENT: 'Received quantity exceeds what was sent.',
   FIELD_BASE_LEVEL: 'The base level cannot be changed this way.',
   FIELD_POINTS_INSUFFICIENT: 'Not enough points.',
   FIELD_MEMBER_REQUIRED: 'Choose a member first.',
@@ -113,8 +118,8 @@ const errors: Messages['errors'] = {
   CREDIT_LIMIT_EXCEEDED: "The member's receivable exceeds the credit limit. Owner/Supervisor approval (PIN) is required.",
   RECEIVABLE_PAID: 'This receipt\'s receivable has been paid in part or in full, so the receipt can no longer be edited or voided.',
   FIELD_CREDIT_NOT_NEEDED: 'The payment already covers the total. Use Cash/Non-cash, not Credit.',
-  FIELD_OVERPAID: 'The amount exceeds the remaining receivable.',
-  FIELD_SETTLED: 'This receivable is already settled.',
+  FIELD_OVERPAID: 'The amount exceeds the remaining balance (receivable/payable).',
+  FIELD_SETTLED: 'This balance is already settled.',
 };
 
 export default errors;
