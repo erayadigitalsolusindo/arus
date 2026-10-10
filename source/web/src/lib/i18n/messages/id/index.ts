@@ -25,6 +25,7 @@ import purchases from './purchases.ts';
 import deposits from './deposits.ts';
 import supplierCredits from './supplierCredits.ts';
 import shift from './shift.ts';
+import accounting from './accounting.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting };

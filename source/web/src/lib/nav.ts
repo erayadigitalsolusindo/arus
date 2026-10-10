@@ -25,7 +25,8 @@ export const nav: NavGroup[] = [
     items: [
       { id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' }, // selalu tampil
       { id: 'live-sales', labelKey: 'nav.liveSales', icon: 'activity', module: 'sales_list', href: '/live-sales' },
-      { id: 'siak', labelKey: 'nav.siak', icon: 'book-open', module: 'siak' }
+      // Pintu masuk ke mode SIAK (sidebar berganti ke `siakNav`); href-nya diganti Sidebar ke halaman SIAK pertama yang boleh dibuka.
+      { id: 'siak', labelKey: 'nav.siak', icon: 'book-open', anyOf: ['accounts', 'journals', 'general_ledger', 'accounting_periods'], href: '/accounting/accounts' }
     ]
   },
   {
@@ -140,9 +141,9 @@ export const nav: NavGroup[] = [
  * Menyaring menu menurut izin: item tanpa izin `view` dibuang. Induk yang punya izin sendiri tetapi tidak punya anak
  * yang boleh dilihat menjadi item biasa; induk tanpa izin sendiri hilang bila semua anaknya hilang.
  */
-export function visibleNav(allowed: (module: string) => boolean): NavGroup[] {
+export function visibleNav(allowed: (module: string) => boolean, source: NavGroup[] = nav): NavGroup[] {
   const out: NavGroup[] = [];
-  for (const group of nav) {
+  for (const group of source) {
     const items: NavItem[] = [];
     for (const item of group.items) {
       if (item.children) {
@@ -157,3 +158,38 @@ export function visibleNav(allowed: (module: string) => boolean): NavGroup[] {
   }
   return out;
 }
+
+/** Halaman SIAK berada di bawah awalan ini; di sana sidebar berganti ke `siakNav`. */
+export const SIAK_PREFIX = '/accounting';
+
+/** Menu mode SIAK (akuntansi): tampil menggantikan menu ARUS selama pengguna berada di halaman SIAK. */
+export const siakNav: NavGroup[] = [
+  {
+    titleKey: 'nav.group.siak',
+    items: [
+      {
+        id: 'acc-accounting',
+        labelKey: 'nav.accAccounting',
+        icon: 'calculator',
+        children: [
+          { labelKey: 'nav.accAccounts', module: 'accounts', href: '/accounting/accounts' },
+          { labelKey: 'nav.accJournals', module: 'journals', href: '/accounting/journals' },
+          { labelKey: 'nav.accCashBank', module: 'general_ledger', href: '/accounting/cash-bank' },
+          { labelKey: 'nav.accPeriods', module: 'accounting_periods', href: '/accounting/periods' }
+        ]
+      },
+      {
+        id: 'acc-reports',
+        labelKey: 'nav.accReports',
+        icon: 'chart-no-axes-combined',
+        children: [
+          { labelKey: 'nav.accLedger', module: 'general_ledger', href: '/accounting/ledger' },
+          { labelKey: 'nav.accGeneralJournal', module: 'general_ledger', href: '/accounting/general-journal' },
+          { labelKey: 'nav.accTrialBalance', module: 'general_ledger', href: '/accounting/trial-balance' },
+          { labelKey: 'nav.accBalanceSheet', module: 'general_ledger', href: '/accounting/balance-sheet' },
+          { labelKey: 'nav.accIncomeStatement', module: 'general_ledger', href: '/accounting/income-statement' }
+        ]
+      }
+    ]
+  }
+];

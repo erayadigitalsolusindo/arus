@@ -1,7 +1,7 @@
 <script lang="ts">
   import { session, logout, can } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
-  import { visibleNav, type NavItem } from '#lib/nav.ts';
+  import { visibleNav, siakNav, SIAK_PREFIX, type NavItem } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
   import OutletSwitcher from '#lib/components/OutletSwitcher.svelte';
 
@@ -13,7 +13,17 @@
   }: { collapsed: boolean; mobileOpen: boolean; ontoggle: () => void; onclose: () => void } = $props();
 
   // Menu disaring menurut izin pengguna (penegakan sebenarnya di server).
-  const groups = $derived(visibleNav((m) => can(m) || (m === 'price_override' && can('outlet_switch'))));
+  const allowed = (m: string) => can(m) || (m === 'price_override' && can('outlet_switch'));
+
+  // Mode SIAK: di halaman akuntansi, menu ARUS diganti menu SIAK (dengan tautan kembali ke ARUS).
+  const siakMode = $derived(page.url.pathname === SIAK_PREFIX || page.url.pathname.startsWith(SIAK_PREFIX + '/'));
+  const siakGroups = $derived(visibleNav(allowed, siakNav));
+  const siakEntry = $derived(siakGroups[0]?.items[0]?.href ?? '/accounting/accounts');
+  const groups = $derived(
+    siakMode
+      ? siakGroups
+      : visibleNav(allowed).map((g) => ({ ...g, items: g.items.map((i) => (i.id === 'siak' ? { ...i, href: siakEntry } : i)) }))
+  );
 
   // Semua submenu tertutup saat halaman dimuat/di-reload.
   let open = $state<Record<string, boolean>>({});
@@ -41,6 +51,13 @@
   $effect(() => {
     if (!collapsed) bubbleItem = null;
   });
+
+  // Mode SIAK: submenu yang memuat halaman aktif terbuka otomatis.
+  $effect(() => {
+    if (!siakMode) return;
+    for (const g of siakGroups)
+      for (const i of g.items) if (i.children?.some((c) => c.href === page.url.pathname)) open[i.id] = true;
+  });
 </script>
 
 {#if mobileOpen}
@@ -67,6 +84,14 @@
 
   <nav class="sidebar-inner flex-1 overflow-y-auto scroll-thin px-3 pb-4 mt-1" aria-label={t('shell.mainNav')}>
     <ul role="menu">
+      {#if siakMode}
+        <li>
+          <a href="/dashboard" class="sidebar-link" aria-label={t('nav.backToArus')}>
+            <i class="icon-arrow-left text-[16px]"></i>
+            <span class="sidebar-label">{t('nav.backToArus')}</span>
+          </a>
+        </li>
+      {/if}
       {#each groups as group (group.titleKey)}
         <li class="sidebar-group-title">{t(group.titleKey)}</li>
         {#each group.items as item (item.id)}

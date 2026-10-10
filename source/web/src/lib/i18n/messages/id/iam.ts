@@ -2,6 +2,10 @@ export default {
   actions: { view: 'Lihat', create: 'Tambah', update: 'Ubah', delete: 'Hapus', approve: 'Setujui' },
   module: {
     siak: 'SIAK Aciraba',
+    accounts: 'Bagan Akun (COA)',
+    journals: 'Jurnal (posting, jurnal balik, saldo awal = Setujui)',
+    accounting_periods: 'Periode Akuntansi (Ubah = tutup buku, Setujui = buka kembali)',
+    general_ledger: 'Buku Besar & Laporan Keuangan',
     items: 'Daftar Item',
     stock_card: 'Kartu Stok',
     coupons: 'Kupon Belanja',

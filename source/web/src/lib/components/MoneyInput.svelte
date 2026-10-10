@@ -11,7 +11,7 @@
     pad?: boolean;
   };
 
-  let { value = $bindable(''), decimals = 2, pad = true, onblur, onfocus: onfocusProp, class: cls = '', ...rest }: Props = $props();
+  let { value = $bindable(''), decimals = 2, pad = true, onblur, onfocus: onfocusProp, oninput: oninputProp, class: cls = '', ...rest }: Props = $props();
 
   const MAX_INT_DIGITS = 15;
 
@@ -90,6 +90,7 @@
       pos++;
     }
     el.setSelectionRange(pos, pos);
+    oninputProp?.(e);
   }
 
   function onfocus(e: FocusEvent & { currentTarget: EventTarget & HTMLInputElement }) {

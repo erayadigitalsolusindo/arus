@@ -4,6 +4,10 @@ const iam: Messages['iam'] = {
   actions: { view: 'View', create: 'Create', update: 'Edit', delete: 'Delete', approve: 'Approve' },
   module: {
     siak: 'SIAK Aciraba',
+    accounts: 'Chart of Accounts',
+    journals: 'Journals (Approve = post, reverse, opening balance)',
+    accounting_periods: 'Accounting Periods (Update = close, Approve = reopen)',
+    general_ledger: 'General Ledger & Financial Reports',
     items: 'Item List',
     stock_card: 'Stock Card',
     coupons: 'Shopping Coupons',
