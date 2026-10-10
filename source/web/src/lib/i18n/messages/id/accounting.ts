@@ -110,6 +110,13 @@ export default {
     tplTitle: 'Template cepat',
     tplHint: 'Isi otomatis akun & jenis; tinggal ketik nominal.',
     tplApplied: 'Template dipakai. Ketik nominal, sisi lawan ikut terisi.',
+    tplSave: 'Simpan sebagai template',
+    tplName: 'Nama template',
+    tplSaved: 'Template "{name}" tersimpan.',
+    tplDelete: 'Hapus template',
+    tplDeleteConfirm: 'Hapus template "{name}"? Jurnal yang sudah dibuat tidak terpengaruh.',
+    tplNeedSides: 'Template butuh minimal dua baris berakun, masing-masing dengan nominal, dan ada sisi debit serta kredit.',
+    tplMine: 'Template saya',
     tpl: {
       capital: 'Setoran modal pemilik',
       toBank: 'Setor tunai ke bank',

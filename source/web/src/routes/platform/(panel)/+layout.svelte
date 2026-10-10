@@ -23,6 +23,7 @@
       titleKey: 'platform.nav.groupSystem',
       items: [
         { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' },
+        { href: '/platform/mobile', key: 'platform.nav.mobile', icon: 'smartphone' },
         { href: '/platform/security', key: 'platform.nav.security', icon: 'key-round' }
       ]
     }

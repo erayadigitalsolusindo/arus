@@ -17,7 +17,7 @@ const platform: Messages['platform'] = {
   },
   nav: {
     groupMain: 'Platform',
-    groupSystem: 'System', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
+    groupSystem: 'System', mobile: 'Mobile App', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',
@@ -104,6 +104,28 @@ const platform: Messages['platform'] = {
     daysShort: '{days} days',
     editWindowDaysHint: 'Receipts can be edited/voided up to {days} days after the day they were created (3650 ≈ no limit).'
   },
+  mobile: {
+    title: 'Cashier mobile app',
+    subtitle: 'The APK uploaded here is offered on the web sign-in page as the download for the ARUS Cashier app.',
+    current: 'Active APK',
+    none: 'No APK uploaded yet. The download button is hidden on the sign-in page.',
+    version: 'Version',
+    size: 'Size',
+    uploadedAt: 'Uploaded',
+    checksum: 'SHA-256',
+    download: 'Download',
+    uploadTitle: 'Upload a new APK',
+    uploadHelp: 'Replaces the active APK. Maximum 150 MB. Only a valid Android package (.apk) is accepted.',
+    versionLabel: 'Version (optional)',
+    versionHint: 'E.g. 1.4.0',
+    choose: 'Choose APK file',
+    upload: 'Upload',
+    uploading: 'Uploading…',
+    uploaded: 'APK uploaded.',
+    remove: 'Remove APK',
+    removeConfirm: 'Remove the active APK? The download button will be hidden.',
+    removed: 'APK removed.'
+  },
   security: {
     title: 'Account security',
     subtitle: 'Two-step verification (2FA) is required for Platform Admins because this account can see all tenant data.',
@@ -171,6 +193,8 @@ const platform: Messages['platform'] = {
       platform_mfa_enable: 'Enabled 2FA',
       platform_mfa_disable: 'Disabled 2FA',
       platform_mfa_reset: 'Reset another admin\x27s 2FA',
+      platform_apk_upload: 'Uploaded cashier APK',
+      platform_apk_delete: 'Deleted cashier APK',
       platform_mfa_recovery: 'Regenerated recovery codes',
       platform_setup: 'First admin setup',
       platform_login: 'Signed in',

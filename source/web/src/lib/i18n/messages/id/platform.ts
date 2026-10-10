@@ -13,7 +13,7 @@ export default {
     evening: 'Selamat malam',
     subtitle: 'Pusat kendali ARUS: pantau semua tenant, kelola akses, dan telusuri setiap tindakan lewat audit.'
   },
-  nav: { groupMain: 'Platform', groupSystem: 'Sistem', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
+  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',
@@ -100,6 +100,28 @@ export default {
     daysShort: '{days} hari',
     editWindowDaysHint: 'Nota masih bisa diedit/dibatalkan sampai {days} hari sesudah hari ia dibuat (3650 ≈ tanpa batas).'
   },
+  mobile: {
+    title: 'Aplikasi mobile kasir',
+    subtitle: 'APK yang diunggah di sini ditawarkan di halaman login web sebagai unduhan aplikasi ARUS Kasir.',
+    current: 'APK aktif',
+    none: 'Belum ada APK. Tombol unduh disembunyikan di halaman login.',
+    version: 'Versi',
+    size: 'Ukuran',
+    uploadedAt: 'Diunggah',
+    checksum: 'SHA-256',
+    download: 'Unduh',
+    uploadTitle: 'Unggah APK baru',
+    uploadHelp: 'Menggantikan APK aktif. Maksimal 150 MB. Hanya paket Android (.apk) yang sah yang diterima.',
+    versionLabel: 'Versi (opsional)',
+    versionHint: 'Mis. 1.4.0',
+    choose: 'Pilih berkas APK',
+    upload: 'Unggah',
+    uploading: 'Mengunggah…',
+    uploaded: 'APK berhasil diunggah.',
+    remove: 'Hapus APK',
+    removeConfirm: 'Hapus APK aktif? Tombol unduh akan disembunyikan.',
+    removed: 'APK dihapus.'
+  },
   security: {
     title: 'Keamanan Akun',
     subtitle: 'Verifikasi dua langkah (2FA) wajib untuk Platform Admin karena akun ini dapat melihat semua data tenant.',
@@ -167,6 +189,8 @@ export default {
       platform_mfa_enable: 'Mengaktifkan 2FA',
       platform_mfa_disable: 'Menonaktifkan 2FA',
       platform_mfa_reset: 'Mereset 2FA admin lain',
+      platform_apk_upload: 'Mengunggah APK Kasir',
+      platform_apk_delete: 'Menghapus APK Kasir',
       platform_mfa_recovery: 'Membuat ulang kode pemulihan',
       platform_setup: 'Setup admin pertama',
       platform_login: 'Masuk',

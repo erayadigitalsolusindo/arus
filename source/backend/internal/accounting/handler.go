@@ -58,6 +58,12 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/{id}/reverse", h.ReverseJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/opening", h.PostOpening)
 
+		// Template jurnal buatan pengguna: pakai izin journals (lihat = view; kelola = create/update/delete).
+		r.With(req(ModuleJournals, authz.ActView)).Get("/journal-templates", h.ListTemplates)
+		r.With(req(ModuleJournals, authz.ActCreate)).Post("/journal-templates", h.CreateTemplate)
+		r.With(req(ModuleJournals, authz.ActCreate)).Put("/journal-templates/{id}", h.UpdateTemplate)
+		r.With(req(ModuleJournals, authz.ActCreate)).Delete("/journal-templates/{id}", h.DeleteTemplate)
+
 		r.With(req(ModuleLedger, authz.ActView)).Get("/ledger", h.Ledger)
 		// Laporan keuangan (fase B): memakai izin general_ledger.
 		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/trial-balance", h.TrialBalance)
@@ -411,6 +417,10 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		e(http.StatusConflict, "ACCOUNT_IN_USE", "Akun masih dipakai (punya anak atau baris jurnal); nonaktifkan saja.")
 	case errors.Is(err, ErrAccountSystem):
 		e(http.StatusConflict, "ACCOUNT_SYSTEM", "Akun sistem dipakai otomatis oleh aplikasi; tidak boleh dihapus, dinonaktifkan, atau diubah kode/kelasnya.")
+	case errors.Is(err, ErrTemplateNameTaken):
+		e(http.StatusConflict, "TEMPLATE_NAME_TAKEN", "Nama template sudah dipakai.")
+	case errors.Is(err, ErrTemplateLimit):
+		e(http.StatusConflict, "TEMPLATE_LIMIT", "Jumlah template mencapai batas.")
 	case errors.Is(err, ErrCOAExists):
 		e(http.StatusConflict, "COA_EXISTS", "Bagan akun sudah ada.")
 	default:
