@@ -333,6 +333,7 @@
               <dl class="space-y-1.5 tabular-nums">
                 <div class="flex justify-between"><dt>{t('sales.detail.credit.amount')}</dt><dd>{money(d.credit.amount)}</dd></div>
                 <div class="flex justify-between"><dt>{t('sales.detail.credit.paid')}</dt><dd>{money(d.credit.paid)}</dd></div>
+                <div class="flex justify-between"><dt>{t('sales.detail.credit.returned')}</dt><dd>{money(d.credit.returned)}</dd></div>
                 <div class="flex justify-between border-t border-[var(--border-subtle)] pt-1.5 text-[14px] font-bold"><dt>{t('sales.detail.credit.balance')}</dt><dd class={num(d.credit.balance) > 0 ? 'text-[var(--color-danger-600)]' : ''}>{money(d.credit.balance)}</dd></div>
                 <div class="flex justify-between"><dt>{t('sales.detail.credit.due')}</dt><dd>{d.credit.due_date ? formatDate(d.credit.due_date) : t('receivables.noDue')}</dd></div>
               </dl>

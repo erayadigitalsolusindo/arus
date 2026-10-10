@@ -10,6 +10,7 @@
   import { receivables } from '#lib/receivables/api.ts';
   import { lookup, paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { members } from '#lib/members/api.ts';
+  import { memberDeposits, supplierCredits } from '#lib/wallet/api.ts';
   import { settle, type SettleKind, type SettleMode, type SettleInput, type SettlePlan, type SettleResult } from '#lib/settle/api.ts';
   import { newIdempotencyKey } from '#lib/sales/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
@@ -57,7 +58,7 @@
   // Metode bayar dimuat sekali.
   $effect(() => {
     paymentMethodsLookup
-      .all()
+      .all(kind === 'payable' ? 'payable' : 'receivable')
       .then((l) => {
         methods = l;
         methodId = methodId || (l[0]?.id ?? '');
@@ -98,6 +99,17 @@
   const total = $derived(mode === 'auto' ? amountC : manualTotal);
   const manualValid = $derived(pickedIds.length > 0 && pickedIds.every((id) => { const c = toCents(picks[id] ?? ''); const n = notes.find((x) => x.id === id); return c > 0n && !!n && c <= toCents(n.balance); }));
   const picked = $derived(methods.find((m) => m.id === methodId));
+  /** Saldo deposit member / kredit pemasok pihak terpilih (bila metode saldo titipan dipilih). Server tetap memeriksa. */
+  let walletBal = $state<string | null>(null);
+  $effect(() => {
+    const id = partyId;
+    const k = picked?.kind;
+    if (!id || (k !== 'deposit' && k !== 'supplier_credit')) {
+      walletBal = null;
+      return;
+    }
+    void (k === 'deposit' ? memberDeposits.account(id) : supplierCredits.account(id)).then((acc) => (walletBal = acc.balance)).catch((e) => (error = errorMessage(e)));
+  });
 
   const payload = $derived<SettleInput>({
     party_id: partyId,
@@ -105,7 +117,7 @@
     method_id: methodId || undefined,
     amount: mode === 'auto' ? dec(amountC) : undefined,
     allocations: mode === 'manual' ? pickedIds.map((id) => ({ id, amount: dec(toCents(picks[id] ?? '')) })) : undefined,
-    ref_no: picked && picked.kind !== 'cash' ? ref.trim().slice(0, 100) : undefined,
+    ref_no: picked && picked.kind !== 'cash' && picked.kind !== 'deposit' && picked.kind !== 'supplier_credit' ? ref.trim().slice(0, 100) : undefined,
     note: note.trim().slice(0, 200) || undefined
   });
   const ready = $derived(!!partyId && !!methodId && total > 0n && (mode === 'auto' ? amountC <= outstanding : manualValid));
@@ -292,7 +304,10 @@
               <span class="font-semibold">{t('settle.method')}</span>
               <div class="mt-1"><Select bind:value={methodId} ariaLabel={t('settle.method')} options={methods.map((m) => ({ value: m.id, label: m.name }))} /></div>
             </label>
-            {#if picked && picked.kind !== 'cash'}
+            {#if walletBal !== null}
+              <p class="self-end text-[12px] text-[var(--text-secondary)]">{t(kind === 'payable' ? 'supplierCredits.balanceLine' : 'pos.depositBalance', { amount: money(walletBal) })}</p>
+            {/if}
+            {#if picked && picked.kind !== 'cash' && picked.kind !== 'deposit' && picked.kind !== 'supplier_credit'}
               <label class="block text-[13px]">
                 <span class="font-semibold">{t('settle.ref')}</span>
                 <input bind:value={ref} maxlength="100" class="{inputClass} mt-1" />

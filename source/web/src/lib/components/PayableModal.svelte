@@ -6,6 +6,7 @@
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { payables, type PayableDetail } from '#lib/payables/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
+  import { supplierCredits } from '#lib/wallet/api.ts';
   import { newIdempotencyKey } from '#lib/sales/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
@@ -43,10 +44,21 @@
   const balance = $derived(d ? toCents(d.balance) : 0n);
   const amountC = $derived(toCents(amount));
   const picked = $derived(methods.find((m) => m.id === methodId));
-  const valid = $derived(!!picked && amountC > 0n && amountC <= balance);
+  /** Saldo kredit pemasok (hanya dimuat bila metode Kredit Pemasok dipilih). */
+  let walletBal = $state<string | null>(null);
+  $effect(() => {
+    const supplierId = d?.supplier_id;
+    if (picked?.kind !== 'supplier_credit' || !supplierId) {
+      walletBal = null;
+      return;
+    }
+    void supplierCredits.account(supplierId).then((a) => (walletBal = a.balance)).catch((e) => (error = errorMessage(e)));
+  });
+  const walletOver = $derived(walletBal !== null && amountC > toCents(walletBal));
+  const valid = $derived(!!picked && amountC > 0n && amountC <= balance && !walletOver && (picked.kind !== 'supplier_credit' || walletBal !== null));
   onMount(async () => {
     try {
-      const [detail, list] = await Promise.all([payables.get(id), canPay ? paymentMethodsLookup.all() : Promise.resolve([])]);
+      const [detail, list] = await Promise.all([payables.get(id), canPay ? paymentMethodsLookup.all('payable') : Promise.resolve([])]);
       d = detail;
       methods = list;
       methodId = list[0]?.id ?? '';
@@ -139,7 +151,8 @@
           </div>
           {#if amountC > balance}<p class="text-[12px] text-[var(--color-danger-600)]">{fieldMessage('OVERPAID')}</p>{/if}
           {#if amountC > 0n && amountC <= balance}<p class="text-[12px] text-[var(--text-secondary)]">{t('payables.modal.afterPay', { balance: money(balance - amountC) })}</p>{/if}
-          {#if picked && picked.kind !== 'cash'}
+          {#if walletBal !== null}<p class="text-[12px] {walletOver ? 'text-[var(--color-danger-600)] font-semibold' : 'text-[var(--text-secondary)]'}">{t('supplierCredits.balanceLine', { amount: money(walletBal) })}{#if walletOver} · {t('supplierCredits.over')}{/if}</p>{/if}
+          {#if picked && picked.kind !== 'cash' && picked.kind !== 'supplier_credit'}
             <input bind:value={ref} maxlength="100" placeholder={t('payables.modal.ref')} aria-label={t('payables.modal.ref')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
           {/if}
           <input bind:value={note} maxlength="200" placeholder={t('payables.modal.note')} aria-label={t('payables.modal.note')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />

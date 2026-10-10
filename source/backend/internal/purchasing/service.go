@@ -67,6 +67,7 @@ var (
 	ErrNotReturnable    = errors.New("nota tidak dapat diretur (dibatalkan atau digantikan revisi)")
 	ErrReturnNotActive  = errors.New("retur sudah dibatalkan")
 	ErrReturnLocked     = errors.New("hutang nota sudah dibayar setelah retur dibuat")
+	ErrReturnRefunded   = errors.New("retur sudah menerima dana kembali dari pemasok")
 	idemKeyPattern      = regexp.MustCompile(`^[A-Za-z0-9_.:-]{8,100}$`)
 )
 

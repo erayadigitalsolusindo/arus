@@ -23,7 +23,9 @@ import payables from './payables.ts';
 import purchaseReturns from './purchaseReturns.ts';
 import settle from './settle.ts';
 import purchases from './purchases.ts';
+import deposits from './deposits.ts';
+import supplierCredits from './supplierCredits.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits };
 
 export default en;

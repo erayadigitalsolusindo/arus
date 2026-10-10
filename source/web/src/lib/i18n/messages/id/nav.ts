@@ -34,6 +34,7 @@ export default {
   purchaseList: 'Daftar Pembelian',
   buyPriceHistory: 'History Harga Beli',
   supplierPayables: 'Daftar Hutang Suplier',
+  supplierCredits: 'Kredit Pemasok',
   stockOpening: 'Saldo Awal Stok',
   stockConversion: 'Pecah Satuan',
   pin: 'PIN Penyetuju',

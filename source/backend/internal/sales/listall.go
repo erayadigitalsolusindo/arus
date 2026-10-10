@@ -31,7 +31,7 @@ const (
 	allMaxDays      = 366
 )
 
-var payMethods = map[string]bool{"cash": true, "debit": true, "credit_card": true, "ewallet": true, "transfer": true}
+var payMethods = map[string]bool{"cash": true, "debit": true, "credit_card": true, "ewallet": true, "transfer": true, "deposit": true}
 
 // AllParams = filter daftar penjualan lengkap. Semua string kosong = tidak difilter.
 type AllParams struct {

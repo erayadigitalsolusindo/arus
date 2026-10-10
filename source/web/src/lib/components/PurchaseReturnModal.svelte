@@ -124,7 +124,9 @@
       {/if}
     </div>
     <div class="mt-5 flex flex-wrap justify-end gap-2">
-      {#if r.status === 'completed' && canVoid && !voiding}
+      {#if r.status === 'completed' && canVoid && !voiding && Number(r.refund) > 0 && r.refund_method !== 'supplier_credit'}
+        <p class="me-auto self-center text-[11.5px] text-[var(--text-tertiary)]">{t('purchaseReturns.modal.voidRefunded')}</p>
+      {:else if r.status === 'completed' && canVoid && !voiding}
         <button type="button" class="btn btn-sm" onclick={() => (voiding = true)}><i class="icon-ban text-[13px]"></i>{t('purchaseReturns.modal.voidAction')}</button>
       {/if}
       <button type="button" class="btn" onclick={onclose}>{t('purchaseReturns.modal.close')}</button>

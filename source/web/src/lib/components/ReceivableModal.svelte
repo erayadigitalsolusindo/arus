@@ -6,6 +6,7 @@
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { receivables, type ReceivableDetail } from '#lib/receivables/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
+  import { memberDeposits } from '#lib/wallet/api.ts';
   import { newIdempotencyKey } from '#lib/sales/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
@@ -43,7 +44,18 @@
   const balance = $derived(d ? toCents(d.balance) : 0n);
   const amountC = $derived(toCents(amount));
   const picked = $derived(methods.find((m) => m.id === methodId));
-  const valid = $derived(!!picked && amountC > 0n && amountC <= balance);
+  /** Saldo deposit member (hanya dimuat bila metode Deposit Member dipilih). */
+  let walletBal = $state<string | null>(null);
+  $effect(() => {
+    const memberId = d?.member_id;
+    if (picked?.kind !== 'deposit' || !memberId) {
+      walletBal = null;
+      return;
+    }
+    void memberDeposits.account(memberId).then((a) => (walletBal = a.balance)).catch((e) => (error = errorMessage(e)));
+  });
+  const walletOver = $derived(walletBal !== null && amountC > toCents(walletBal));
+  const valid = $derived(!!picked && amountC > 0n && amountC <= balance && !walletOver && (picked.kind !== 'deposit' || walletBal !== null));
   const feeLine = $derived.by(() => {
     if (!picked || amountC <= 0n) return '';
     const pctH = BigInt(Math.round(Number(picked.fee_pct ?? 0) * 100));
@@ -56,7 +68,7 @@
 
   onMount(async () => {
     try {
-      const [detail, list] = await Promise.all([receivables.get(id), canPay ? paymentMethodsLookup.all() : Promise.resolve([])]);
+      const [detail, list] = await Promise.all([receivables.get(id), canPay ? paymentMethodsLookup.all('receivable') : Promise.resolve([])]);
       d = detail;
       methods = list;
       methodId = list[0]?.id ?? '';
@@ -97,12 +109,13 @@
     {#if error}<p role="alert" class="text-[12.5px] text-[var(--color-danger-600)]">{error}</p>{:else}<p class="text-[12.5px] text-[var(--text-tertiary)]">…</p>{/if}
   {:else}
     <div class="space-y-4">
-      <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-3">
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.member')}</dt><dd class="font-semibold">{d.member_name}<span class="ms-1 font-mono text-[11px] font-normal text-[var(--text-tertiary)]">{d.member_code}</span></dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.date')}</dt><dd>{formatDate(d.sale_at)}</dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.due')}</dt><dd>{d.due_date ? formatDate(d.due_date) : t('receivables.noDue')}</dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.amount')}</dt><dd class="tabular-nums">{money(d.amount)}</dd></div>
         <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.paid')}</dt><dd class="tabular-nums">{money(d.paid)}</dd></div>
+        <div><dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.returned')}</dt><dd class="tabular-nums">{money(d.returned)}</dd></div>
         <div>
           <dt class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('receivables.col.balance')}</dt>
           <dd class="flex items-center gap-2"><span class="text-[16px] font-extrabold tabular-nums {balance > 0n ? 'text-[var(--color-danger-600)]' : 'text-[var(--color-success-600)]'}">{money(d.balance)}</span><span class="badge-soft {statusClass[d.status]}">{t(`receivables.status.${d.status}`)}</span></dd>
@@ -150,7 +163,8 @@
           {#if amountC > balance}<p class="text-[12px] text-[var(--color-danger-600)]">{fieldMessage('OVERPAID')}</p>{/if}
           {#if feeLine}<p class="text-[12px] text-[var(--color-warning-600)]">{feeLine}</p>{/if}
           {#if amountC > 0n && amountC <= balance}<p class="text-[12px] text-[var(--text-secondary)]">{t('receivables.modal.afterPay', { balance: money(balance - amountC) })}</p>{/if}
-          {#if picked && picked.kind !== 'cash'}
+          {#if walletBal !== null}<p class="text-[12px] {walletOver ? 'text-[var(--color-danger-600)] font-semibold' : 'text-[var(--text-secondary)]'}">{t('pos.depositBalance', { amount: money(walletBal) })}{#if walletOver} · {t('pos.depositOver')}{/if}</p>{/if}
+          {#if picked && picked.kind !== 'cash' && picked.kind !== 'deposit'}
             <input bind:value={ref} maxlength="100" placeholder={t('receivables.modal.ref')} aria-label={t('receivables.modal.ref')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
           {/if}
           <input bind:value={note} maxlength="200" placeholder={t('receivables.modal.note')} aria-label={t('receivables.modal.note')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />

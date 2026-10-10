@@ -9,7 +9,7 @@ const receivables = {
   loadMore: 'Muat lebih banyak',
   status: { open: 'Belum lunas', overdue: 'Lewat jatuh tempo', paid: 'Lunas', all: 'Semua' },
   stat: { outstanding: 'Total piutang', overdue: 'Lewat jatuh tempo', open: 'Nota belum lunas' },
-  col: { docNo: 'No. Nota', member: 'Member', date: 'Tanggal', due: 'Jatuh tempo', amount: 'Piutang', paid: 'Dibayar', balance: 'Sisa', status: 'Status', action: 'Aksi' },
+  col: { docNo: 'No. Nota', member: 'Member', date: 'Tanggal', due: 'Jatuh tempo', amount: 'Piutang', paid: 'Dibayar', returned: 'Dipotong retur', balance: 'Sisa', status: 'Status', action: 'Aksi' },
   noDue: '—',
   pay: 'Bayar',
   detail: 'Rincian',

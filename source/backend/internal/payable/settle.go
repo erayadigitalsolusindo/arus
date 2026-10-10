@@ -28,6 +28,7 @@ import (
 	"aciraba/internal/authz"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/wallet"
 )
 
 const maxAllocations = 200
@@ -402,6 +403,8 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 			return e
 		case !mActive:
 			return FieldErrors{"method_id": "METHOD_INACTIVE"}
+		case mKind == wallet.KindDeposit:
+			return FieldErrors{"method_id": sanitize.Invalid}
 		}
 		var (
 			code   string
@@ -441,6 +444,15 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 			}
 			allocs = append(allocs, map[string]string{"payable_id": c.id.String(), "purchase_doc_no": c.docNo, "amount": c.allocated.String(),
 				"balance_after": c.balance.Sub(c.allocated).String()})
+		}
+		if mKind == wallet.KindSupplierCredit {
+			if _, e := wallet.SupplierCredit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: n.supplier, OutletID: a.OutletID,
+				Kind: wallet.CrPayablePayment, Amount: total.Neg(), RefID: setID, DocNo: docNo, ActorID: a.UserID}); e != nil {
+				if errors.Is(e, wallet.ErrInsufficient) {
+					return FieldErrors{"amount": "CREDIT_INSUFFICIENT"}
+				}
+				return e
+			}
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionPayableSettle, Entity: audit.EntityPayable, EntityID: setID.String(),
 			Details: map[string]any{"doc_no": docNo, "supplier": supplierName, "mode": n.mode, "method": mName, "total": total.String(),

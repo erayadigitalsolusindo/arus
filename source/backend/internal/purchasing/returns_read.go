@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 
 	"aciraba/internal/authz"
 )
@@ -43,6 +44,7 @@ type PurchaseReturn struct {
 	Total             string       `json:"total"`
 	PayableCut        string       `json:"payable_cut"`
 	Refund            string       `json:"refund"`
+	RefundMethod      string       `json:"refund_method"` // jenis metode dana kembali ("" = tanpa dana kembali)
 	RefundMethodName  string       `json:"refund_method_name"`
 	RefundRef         string       `json:"refund_ref"`
 	CreatedAt         time.Time    `json:"created_at"`
@@ -65,7 +67,7 @@ func (s *Service) GetReturn(ctx context.Context, a authz.Actor, id uuid.UUID) (P
 		)
 		err := tx.QueryRow(ctx, `
 			SELECT r.id, r.doc_no, r.outlet_id, o.code, o.name, r.purchase_id, p.doc_no, r.supplier_id, s.name, p.supplier_invoice_no,
-			       r.return_date, r.status, r.note, r.subtotal, r.tax_amount, r.total, r.payable_cut, r.refund, r.refund_method_name, r.refund_ref,
+			       r.return_date, r.status, r.note, r.subtotal, r.tax_amount, r.total, r.payable_cut, r.refund, coalesce(r.refund_method, ''), r.refund_method_name, r.refund_ref,
 			       r.created_at, coalesce(cu.name, ''), r.void_reason, r.voided_at, coalesce(vu.name, '')
 			FROM purchase_returns r
 			JOIN outlets o   ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
@@ -75,7 +77,7 @@ func (s *Service) GetReturn(ctx context.Context, a authz.Actor, id uuid.UUID) (P
 			LEFT JOIN users vu ON vu.tenant_id = r.tenant_id AND vu.id = r.voided_by
 			WHERE r.tenant_id = $1 AND r.id = $2`, a.TenantID, id).Scan(
 			&r.ID, &r.DocNo, &r.OutletID, &r.OutletCode, &r.OutletName, &r.PurchaseID, &r.PurchaseDocNo, &r.SupplierID, &r.SupplierName,
-			&r.SupplierInvoiceNo, &date, &r.Status, &r.Note, &sub, &tax, &total, &cut, &refund, &r.RefundMethodName, &r.RefundRef,
+			&r.SupplierInvoiceNo, &date, &r.Status, &r.Note, &sub, &tax, &total, &cut, &refund, &r.RefundMethod, &r.RefundMethodName, &r.RefundRef,
 			&createdAt, &r.CreatedBy, &r.VoidReason, &voidedAt, &r.VoidedBy)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -274,6 +276,7 @@ type ReturnablePurchase struct {
 	PurchaseDate      string    `json:"purchase_date"`
 	PaymentType       string    `json:"payment_type"`
 	Total             string    `json:"total"`
+	PayableBalance    *string   `json:"payable_balance"` // nil = tanpa hutang (tunai); "0.00" = hutang sudah lunas
 }
 
 // ReturnablePurchases = nota completed di cabang aktif yang masih punya sisa qty untuk diretur (terbaru dulu, maks 20).
@@ -285,8 +288,11 @@ func (s *Service) ReturnablePurchases(ctx context.Context, a authz.Actor, q stri
 	out := []ReturnablePurchase{}
 	err := s.tx(ctx, a, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT p.id, p.doc_no, s.name, p.supplier_invoice_no, p.purchase_date, p.payment_type, p.total
+			SELECT p.id, p.doc_no, s.name, p.supplier_invoice_no, p.purchase_date, p.payment_type, p.total,
+			       pb.amount - (SELECT coalesce(sum(x.amount), 0) FROM payable_payments x WHERE x.tenant_id = pb.tenant_id AND x.payable_id = pb.id)
+			                 - (SELECT coalesce(sum(r.payable_cut), 0) FROM purchase_returns r WHERE r.tenant_id = pb.tenant_id AND r.purchase_id = p.id AND r.status = 'completed')
 			FROM purchases p JOIN suppliers s ON s.tenant_id = p.tenant_id AND s.id = p.supplier_id
+			LEFT JOIN payables pb ON pb.tenant_id = p.tenant_id AND pb.purchase_id = p.id AND pb.voided_at IS NULL
 			WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status = 'completed'
 			  AND ($3::text = '' OR p.doc_no ILIKE $3 OR p.supplier_invoice_no ILIKE $3 OR s.name ILIKE $3)
 			  AND EXISTS (
@@ -305,8 +311,13 @@ func (s *Service) ReturnablePurchases(ctx context.Context, a authz.Actor, q stri
 			var r ReturnablePurchase
 			var date pgtype.Date
 			var total dec
-			if err := rows.Scan(&r.ID, &r.DocNo, &r.SupplierName, &r.SupplierInvoiceNo, &date, &r.PaymentType, &total); err != nil {
+			var bal decimal.NullDecimal
+			if err := rows.Scan(&r.ID, &r.DocNo, &r.SupplierName, &r.SupplierInvoiceNo, &date, &r.PaymentType, &total, &bal); err != nil {
 				return err
+			}
+			if bal.Valid {
+				b := bal.Decimal.StringFixed(2)
+				r.PayableBalance = &b
 			}
 			r.PurchaseDate, r.Total = date.Time.Format("2006-01-02"), total.StringFixed(2)
 			out = append(out, r)
