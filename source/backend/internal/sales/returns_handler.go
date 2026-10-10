@@ -51,6 +51,8 @@ func (h *Handler) CreateSaleReturn(w http.ResponseWriter, r *http.Request) {
 	if replayed {
 		status = http.StatusOK
 		w.Header().Set("Idempotent-Replay", "true")
+	} else {
+		h.changed(actor(r), actor(r).OutletID)
 	}
 	httpx.JSON(w, status, ret)
 }
@@ -134,5 +136,6 @@ func (h *Handler) VoidSaleReturn(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	h.changed(actor(r), uuid.Nil)
 	httpx.JSON(w, http.StatusOK, ret)
 }
