@@ -3,9 +3,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Versi dokumen | 0.3 (Draf) |
+| Versi dokumen | 0.4 (Draf) |
 | Status | Draf — menunggu review pemilik produk (bagian Kasir Mobile = **usulan**, belum disetujui) |
-| Tanggal | 9 Oktober 2026 |
+| Tanggal | 10 Oktober 2026 |
 | Pemilik produk | Pemilik ACIRABA (Erayadigital) |
 | Penyusun | Tim pengembang (dibantu AI) |
 | Dokumen terkait | `AGENTS.md` (BAGAIMANA: keputusan teknis, status, roadmap), `reference/template/` (acuan UI) |
@@ -14,6 +14,7 @@
 
 | Versi | Tanggal | Perubahan | Oleh |
 |---|---|---|---|
+| 0.4 | 2026-10-10 | Status diselaraskan dengan kode di `main` (PR #21): cetak struk + print-agent, shift kasir, retur penjualan + batal retur, retur pembelian, deposit member, kredit pemasok, saldo awal piutang selesai. FR-AR-02 disesuaikan dengan keputusan 2026-10-09 (retur selalu ke lokasi Retur). Q10 terjawab (toko pilot Kotak Cantik Magelang). Posisi saat ini dan jalur kritis (§6, §6.3) diperbarui. | Tim |
 | 0.3 | 2026-10-09 | (1) PRD diselaraskan dengan keputusan produk 8–9 Okt yang sebelumnya hanya tercatat di `AGENTS.md`: urutan hitung nota tanpa pembulatan, format nomor nota, harga per cabang, barcode boleh kembar, kredit hanya untuk member + limit, edit nota = revisi, biaya metode bayar (MDR), kupon, level member, HPP per cabang, opname, mutasi dua tahap, pelunasan kolektif. (2) FR-POS-13 **diubah**: nota yang piutangnya sudah dibayar tidak dapat diedit. (3) Kolom **Status** pada setiap tabel FR. (4) Tambahan **§7.11 Kasir Mobile (MOB)**, NFR mobile, metrik, risiko, pertanyaan Q11–Q17, dan analisis opsi platform (§15.4). (5) Q4, Q5, Q8 ditandai terjawab; Q3 dan Q6 sebagian. | Tim |
 | 0.2 | 2026-10-07 | Pendekatan **data baru**: tidak ada migrasi data legacy. Golden test diganti *spec test*; ETL/cutover diganti onboarding; ditambah FR-ONB; Q4/Q6 diganti | Tim |
 | 0.1 | 2026-10-06 | Draf awal berdasarkan analisis sistem legacy ACIRABA SIAK OS | Tim |
@@ -159,7 +160,7 @@ ARUS adalah **aplikasi baru dengan data baru**. Data transaksi legacy **tidak di
 
 Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 
-**Posisi saat ini (9 Okt 2026):** R0 selesai. Sebagian besar isi R1 dan R2 sudah dibangun lebih dulu daripada urutannya (pembelian, hutang, opname, mutasi). Yang masih menghalangi **go-live toko pilot** adalah: cetak struk (FR-POS-15), import barang (FR-ONB-01), saldo awal piutang (FR-ONB-04), retur penjualan (FR-AR-01..03), dan spec test yang disetujui (M4). Lihat §6.3.
+**Posisi saat ini (10 Okt 2026):** R0 selesai. Fitur kasir web R1 praktis lengkap (FR-POS 20 dari 22 selesai; sisa catatan per baris dan offline yang masih [KONFIRMASI]). Cetak struk, shift kasir, retur penjualan, saldo awal piutang, deposit member sudah ada. Sebagian besar R2 juga sudah dibangun (pembelian, retur beli, hutang, opname, mutasi). Toko pilot: **Kotak Cantik Magelang**, target mulai 1 Nov 2026. Yang masih menghalangi go-live kini **bukan layar kasir**, melainkan: import barang (FR-ONB-01, katalog > 100 ribu barang), spec test yang disetujui (M4), backup + uji restore (NFR-OPS), dan uji coba di toko. Lihat §6.3.
 
 ### 6.1 Prioritas Modul
 
@@ -201,13 +202,18 @@ Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
 
 ### 6.3 Jalur Kritis ke Go-Live Pilot (R1)
 
-Urutan yang disarankan agar R1 benar-benar selesai sebelum fitur baru ditambah:
+Urutan yang disarankan agar R1 benar-benar selesai sebelum fitur baru ditambah (diperbarui 2026-10-10):
 
-1. Cetak struk + model struk bersama (FR-POS-15). **Kasir Mobile juga bergantung pada ini.**
-2. Retur penjualan (FR-AR-01..03).
-3. Import barang dan saldo awal piutang (FR-ONB-01, FR-ONB-04).
-4. Spec test penjualan yang disetujui pemilik produk (M4, `AGENTS.md` Fase 1.3).
-5. Go-live toko pilot (`AGENTS.md` Fase 9).
+1. ~~Cetak struk + model struk bersama (FR-POS-15)~~ — selesai 2026-10-10.
+2. ~~Retur penjualan (FR-AR-01..03)~~ — selesai 2026-10-09/10.
+3. ~~Saldo awal piutang manual (FR-ONB-04)~~ — selesai 2026-10-10. ~~Shift kasir (FR-POS-16)~~ — selesai 2026-10-10.
+4. **Import barang + saldo awal stok dari Excel/CSV (FR-ONB-01, FR-ONB-03 import)** — penghalang utama; sumber awal = ekspor master barang legacy toko pilot.
+5. **Backup terjadwal di luar server + satu kali uji restore** (NFR-OPS).
+6. **Spec test penjualan** yang disetujui pemilik produk (M4, `AGENTS.md` Fase 1.3).
+7. CI otomatis (test + check setiap PR).
+8. Uji coba satu hari di PC kasir toko (buka/tutup shift, cetak, retur, piutang), lalu go-live toko pilot (`AGENTS.md` Fase 9).
+
+Tidak menghalangi go-live, boleh menyusul: pembatalan pembayaran piutang/hutang (FR-AR-07, FR-PUR-09), saldo awal hutang (FR-ONB-05), catatan per baris (FR-POS-02), laporan lanjutan (FR-RPT).
 
 ---
 
@@ -255,7 +261,7 @@ Urutan yang disarankan agar R1 benar-benar selesai sebelum fitur baru ditambah:
 | FR-MD-06 | Master satuan, kategori, brand, principal, supplier, **salesman** (label, bukan akun; komisi disimpan, belum dihitung). | M | ✅ |
 | FR-MD-06a | **Metode pembayaran** per tenant: nama bebas (mis. "QRIS BCA") + jenis dasar (tunai/transfer/debit/kartu kredit/e-wallet) + **biaya (MDR)** persen dan/atau nominal + penanggung biaya (**toko** atau **pelanggan**). Tunai bawaan tidak bisa diarsipkan dan tidak berbiaya. Nota menyimpan snapshot nama, jenis, dan tarif. | M | ✅ |
 | FR-MD-07 | Member: kode, biodata, telepon (dinormalisasi `+62`), batas kredit, jatuh tempo (hari), masa berlaku, foto sampul, poin. **Level member** dihitung dari poin seumur hidup (tidak disimpan). Setiap level punya aturan "belanja per poin" dan nilai tukar poin. | M | ✅ |
-| FR-MD-07a | **Deposit member** sebagai tabel transaksi sendiri (top-up, pakai, saldo dihitung). | S | ⏸ (bersama piutang/kas) |
+| FR-MD-07a | **Deposit member** sebagai ledger sendiri (top-up, tarik, pakai bayar nota/piutang, dana retur). Dipakai lewat metode bayar sistem `deposit`. | S | ✅ (saldo awal deposit & laporan saldo belum) |
 | FR-MD-08 | Setiap perubahan harga dan atribut penting barang tercatat di audit log. Riwayat harga jual per barang dan lintas barang dapat dilihat. | M | ✅ |
 | FR-MD-09 | Ekspor barang ke Excel/CSV (import: lihat FR-ONB-01). | S | ○ |
 | FR-MD-10 | Cetak label barcode/harga. | C | ○ |
@@ -289,7 +295,7 @@ Berlaku untuk **kasir web dan Kasir Mobile**.
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
 | FR-POS-01 | Tambah barang lewat scan barcode (barang atau satuan tambahan), ketik kode, atau cari nama (hasil < 150 ms). Barcode kembar → kasir memilih. Kolom QTY sebelum scan. | M | ✅ |
-| FR-POS-02 | Ubah qty, hapus baris, catatan per item. Operasi utama dapat dilakukan dengan keyboard; daftar shortcut terdokumentasi. | M | ◐ (dokumentasi shortcut belum) |
+| FR-POS-02 | Ubah qty, hapus baris, catatan per item. Operasi utama dapat dilakukan dengan keyboard; daftar shortcut terdokumentasi. | M | ◐ (shortcut lengkap + bantuan F1 selesai 2026-10-10; catatan per baris belum ada di layar kasir — kolom `sale_lines.note` sudah ada) |
 | FR-POS-03 | **Harga, grosir, potongan, kupon, poin, dan pajak dihitung server.** Klien hanya menampilkan pratinjau dari endpoint hitung (`quote`). Keranjang menandai lebih awal baris yang stoknya kurang atau di bawah HPP. | M | ✅ |
 | FR-POS-04 | Ubah harga per baris hanya dengan persetujuan penyetuju + PIN; harga di bawah HPP tetap ditolak walau disetujui (kecuali barang "boleh di bawah HPP"); tercatat di audit (harga daftar → harga baru, penyetuju). | M | ✅ |
 | FR-POS-05 | Potongan per baris, potongan nota, pajak toko & pajak negara (tarif per outlet, dapat dimatikan per nota), dan **biaya lain-lain dengan rincian** (nama + jumlah, maks 20). | M | ✅ |
@@ -302,8 +308,8 @@ Berlaku untuk **kasir web dan Kasir Mobile**.
 | FR-POS-12 | Poin member = `floor((subtotal − seluruh potongan) ÷ belanja-per-poin level)`. Tukar poin = potongan nota (poin × nilai poin). Edit/void menyesuaikan poin sebesar **selisih**, bukan menambah ulang. | M | ✅ |
 | FR-POS-13 | **Edit nota = revisi** (keputusan 2026-10-08): nota lama menjadi *superseded*, nota revisi baru dibuat dan tertaut. Stok, poin, dan kupon dibalik lalu diterapkan ulang dalam satu transaksi. Harga dan HPP baris lama dipertahankan. Butuh izin + PIN penyetuju + alasan; hanya dalam batas hari edit tenant (bawaan: hari yang sama; diatur operator platform). **Nota yang piutangnya sudah dibayar (sebagian/seluruh) tidak dapat diedit atau dibatalkan** (keputusan 2026-10-09, menggantikan v0.2). | M | ✅ |
 | FR-POS-14 | Void/batal nota: tidak menghapus data. Status *void* + alasan; stok kembali lewat movement; poin dan kupon dikembalikan. | M | ✅ |
-| FR-POS-15 | **Cetak struk** otomatis/manual. Server menyusun **satu model struk** (header toko, baris, potongan, pajak, biaya, pembayaran, biaya metode yang dibebankan ke pelanggan, kembalian, piutang, poin, catatan kaki). Model ini dipakai oleh print-agent PC **dan** Kasir Mobile sehingga isinya identik. Cetak ulang tercatat. | M | ○ |
-| FR-POS-16 | Daftar penjualan hari ini **per kasir** (untuk mencocokkan uang laci), dipecah per metode. Rekap tutup kasir (shift) dengan setoran per metode. | S | ◐ (tutup shift belum) |
+| FR-POS-15 | **Cetak struk** otomatis/manual. Server menyusun **satu model struk** (header toko, baris, potongan, pajak, biaya, pembayaran, biaya metode yang dibebankan ke pelanggan, kembalian, piutang, poin, catatan kaki). Model ini dipakai oleh print-agent PC **dan** Kasir Mobile sehingga isinya identik. Cetak ulang tercatat. | M | ✅ (browser + print-agent ESC/POS 58/80 mm, diuji di printer fisik; logo belum) |
+| FR-POS-16 | Daftar penjualan hari ini **per kasir** (untuk mencocokkan uang laci), dipecah per metode. **Shift kasir** (keputusan 2026-10-10): buka shift wajib dengan modal awal; tutup shift dengan hitung fisik per metode; selisih ≠ 0 wajib catatan + PIN penyetuju (`shift_close.approve`); rekap dibekukan; struk tutup shift + cetak rekap harian. | S | ✅ (edit/batal tutup shift belum ada) |
 | FR-POS-17 | Salesman per transaksi (opsional). | S | ✅ |
 | FR-POS-18 | Mode offline (lihat §7.11 FR-MOB-15 dan Q2). | **[KONFIRMASI]** | ○ |
 | FR-POS-19 | Kupon belanja di nota (FR-MD-04a): semua kupon dihitung dari dasar yang sama (urutan tidak berpengaruh); kuota dipakai secara atomik saat nota disimpan. | S | ✅ |
@@ -336,9 +342,9 @@ Nota yang setelah potongan/kupon/tukar poin jatuh di bawah HPP ditolak (kecuali 
 
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
-| FR-AR-01 | Retur penjualan merujuk nota asal; qty retur ≤ qty terjual − retur sebelumnya. Nota asal tetap utuh. | M | ○ |
-| FR-AR-02 | Barang retur masuk ke lokasi **Retur** atau **Display** (dipilih) lewat movement `SALE_RETURN`. | M | ○ |
-| FR-AR-03 | Pengembalian dana tunai atau potong piutang; poin disesuaikan. | M | ○ |
+| FR-AR-01 | Retur penjualan merujuk nota asal; qty retur ≤ qty terjual − retur sebelumnya. Nota asal tetap utuh. Retur dapat dibatalkan (alasan + izin) selama dana kembali belum diserahkan lewat metode biasa. | M | ✅ |
+| FR-AR-02 | Barang retur **selalu** masuk ke lokasi **Retur** lewat movement `SALE_RETURN` (keputusan 2026-10-09; menggantikan pilihan Retur/Display). | M | ✅ |
+| FR-AR-03 | Nilai retur memotong piutang nota dulu, sisanya dikembalikan lewat metode bayar (referensi wajib untuk non-tunai) atau ke **deposit member**. Biaya lain dan biaya metode yang dibebankan ke pelanggan tidak dikembalikan. Poin diperoleh dikurangi, poin yang ditukar dikembalikan (saldo boleh negatif). | M | ✅ |
 | FR-AR-04 | Daftar piutang per member: status terbuka/lewat tempo/lunas, jatuh tempo, ringkasan. Aging per kelompok umur. | M | ◐ (aging berkelompok belum) |
 | FR-AR-05 | Pembayaran piutang sebagian/penuh, idempoten, tidak boleh melebihi sisa. Sisa = total − Σ pembayaran (dihitung, bukan kolom yang dimutasi). | M | ✅ |
 | FR-AR-06 | **Pelunasan kolektif** per member: otomatis ke nota terlama dulu, atau pilih nota sendiri. | S | ✅ |
@@ -353,7 +359,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 | FR-ONB-01 | Import barang dari Excel/CSV memakai template unduhan. Pratinjau menampilkan validasi per baris (kode duplikat, satuan/kategori belum ada, harga tidak valid); hanya baris valid yang disimpan; laporan error dapat diunduh. | M | ○ |
 | FR-ONB-02 | Import master pendukung (kategori, satuan, supplier, member, metode bayar) dengan mekanisme yang sama. | S | ○ |
 | FR-ONB-03 | Input **saldo awal stok** per outlet × barang × lokasi (manual atau import), dicatat sebagai movement `OPENING`. | M | ✅ manual / ○ import |
-| FR-ONB-04 | Input **saldo awal piutang** per member (nomor referensi lama, nominal, jatuh tempo); dapat dibayar seperti piutang biasa. | M | ○ |
+| FR-ONB-04 | Input **saldo awal piutang** per member (nomor referensi lama, nominal, jatuh tempo); dapat dibayar seperti piutang biasa; dapat dibatalkan selama belum dibayar. | M | ✅ manual / ○ import |
 | FR-ONB-05 | Input **saldo awal hutang** per supplier. | M (R2) | ○ |
 | FR-ONB-06 | Wizard setup tenant: profil usaha → outlet (pajak, zona waktu) → user & role → import barang → saldo awal → siap transaksi. | S | ○ |
 | FR-ONB-07 | Saldo awal hanya dapat diinput/diubah sebelum "tanggal mulai operasional" dikunci. Setelah dikunci, perubahan stok hanya lewat opname. | M | ✅ |
@@ -369,7 +375,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 | FR-PUR-01 | Pembelian langsung (tanpa PO): stok masuk ke Display dan/atau Gudang per baris. PO opsional → penerimaan bertahap; PO tidak menggerakkan stok. | M | ✅ langsung / ○ PO |
 | FR-PUR-02 | Pembelian tunai/kredit; kredit membuat hutang dengan jatuh tempo opsional. Nomor faktur pemasok unik per pemasok. | M | ✅ |
 | FR-PUR-03 | **HPP per cabang, rata-rata tertimbang** (keputusan 2026-10-09): `(stok_sebelum × HPP_lama + qty × HPP_baris) ÷ (stok_sebelum + qty)`. Stok sebelum = semua lokasi di cabang itu, dihitung **sebelum** barang masuk (legacy menghitung sesudahnya). Bila stok sebelum ≤ 0 atau HPP lama = 0 → HPP baru = HPP baris. HPP baris = harga setelah diskon + alokasi biaya lain nota (proporsional nilai baris). **PPN masukan dipisah dari HPP.** | M | ✅ |
-| FR-PUR-04 | Retur pembelian **hanya dari lokasi Retur** (barang dimutasi dulu ke Retur), merujuk nota asal; qty ≤ dibeli − diretur; potong hutang atau kredit supplier. | M | ○ |
+| FR-PUR-04 | Retur pembelian **hanya dari lokasi Retur** (barang dimutasi dulu ke Retur), merujuk nota asal; qty ≤ dibeli − diretur; potong hutang, kelebihannya = dana kembali atau **kredit pemasok**. Biaya lain nota tidak dikembalikan. | M | ✅ |
 | FR-PUR-05 | Pembayaran hutang sebagian/penuh, aging 4 kelompok, pelunasan kolektif per pemasok (otomatis terlama dulu atau pilih nota). | M | ✅ |
 | FR-PUR-06 | Edit/batal pembelian dengan pola revisi (`-R2`) dan alasan. HPP dihitung mundur. Ditolak bila stok sudah terjual sehingga kurang, atau bila hutang sudah dibayar. | M | ✅ |
 | FR-PUR-07 | Baris pembelian: diskon **4 tingkat bertingkat**, masing-masing persen (< 100) atau rupiah (≥ 100); harga beli sampai 4 desimal; sub total boleh diketik (harga = sub total ÷ qty); satuan pembelian = satuan dasar. Biaya lain dinamis di level nota. | M | ✅ |
@@ -380,7 +386,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
-| FR-RPT-01 | Penjualan per periode/outlet/kasir/metode bayar/barang/kategori/salesman. | M (R1 dasar) | ◐ (daftar penjualan + ringkasan per metode) |
+| FR-RPT-01 | Penjualan per periode/outlet/kasir/metode bayar/barang/kategori/salesman. | M (R1 dasar) | ◐ (daftar penjualan + ringkasan per metode, rekap harian & shift; per barang/kategori/salesman belum) |
 | FR-RPT-02 | Laba kotor (penjualan − potongan − HPP snapshot saat transaksi), hanya untuk pemegang izin `sales_cost`. Laba bersih setelah biaya metode bayar. | M | ◐ |
 | FR-RPT-03 | Stok saat ini, kartu stok, nilai persediaan (stok × HPP cabang). | M | ◐ (kartu stok) |
 | FR-RPT-04 | Pembelian, retur, piutang, hutang (+ aging). | M (R2) | ◐ |
@@ -679,7 +685,7 @@ Rancangan kolom: `AGENTS.md` §4 dan migration di `source/backend/db/migrations/
 | Q7 | Jumlah tenant, outlet, dan kasir aktif saat ini? | Target performa, biaya server | Terbuka |
 | Q8 | Apakah harga dapat berbeda per outlet? | FR-MD-02 | **Dijawab:** ya, default + harga khusus per cabang |
 | Q9 | Apakah lisensi template Dreams Core mencakup SaaS komersial **dan aplikasi mobile**? | Risiko legal UI | Terbuka |
-| Q10 | Siapa tenant pilot dan kapan target go-live R1? | Jadwal | Terbuka |
+| Q10 | Siapa tenant pilot dan kapan target go-live R1? | Jadwal | **Dijawab 2026-10-10:** TOKO KOTAK CANTIK MAGELANG (cabang pusat dulu); go-live akhir bulan — usulan opname malam 31 Okt, mulai 1 Nov 2026 |
 | Q11 | Kasir Mobile disetujui masuk scope? Bila ya, mulai **setelah** go-live pilot web atau paralel? | §6.2, jadwal | Terbuka |
 | Q12 | Perangkat & printer apa yang **benar-benar** dipakai calon pengguna mobile (merek/model HP, perangkat POS genggam, printer Bluetooth, lebar kertas)? Android minimum? | FR-MOB-05/09/09b, NFR-UX-06 | Terbuka |
 | Q13 | Apakah Kasir Mobile wajib bisa berjualan **tanpa internet**? Bila ya, metode bayar apa yang boleh offline dan bagaimana nota yang ditolak saat sinkron diselesaikan? | FR-MOB-15, arsitektur | Terbuka |
