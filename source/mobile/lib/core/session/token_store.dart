@@ -8,7 +8,8 @@ abstract class TokenStore {
 }
 
 class SecureTokenStore implements TokenStore {
-  SecureTokenStore([FlutterSecureStorage? storage]) : _s = storage ?? const FlutterSecureStorage();
+  SecureTokenStore([FlutterSecureStorage? storage])
+    : _s = storage ?? const FlutterSecureStorage();
 
   static const _key = 'arus.refresh_token';
   final FlutterSecureStorage _s;
@@ -17,7 +18,8 @@ class SecureTokenStore implements TokenStore {
   Future<String?> readRefreshToken() => _s.read(key: _key);
 
   @override
-  Future<void> writeRefreshToken(String token) => _s.write(key: _key, value: token);
+  Future<void> writeRefreshToken(String token) =>
+      _s.write(key: _key, value: token);
 
   @override
   Future<void> clear() => _s.delete(key: _key);

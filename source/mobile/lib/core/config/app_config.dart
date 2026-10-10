@@ -5,7 +5,10 @@
 class AppConfig {
   const AppConfig._();
 
-  static const String apiUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8080');
+  static const String apiUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:8080',
+  );
 
   /// Penanda klien native: server mengirim/menerima refresh token lewat badan JSON, bukan cookie.
   static const String clientHeader = 'X-Client';
