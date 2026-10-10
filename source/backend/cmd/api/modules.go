@@ -71,6 +71,11 @@ func mountModules(r chi.Router, d appDeps) error {
 		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 	}).Routes(r)
 
+	uploads, err := storage.NewLocal(d.Cfg.UploadDir)
+	if err != nil {
+		return err
+	}
+
 	// Platform Admin (operator ACIRABA): token & cookie terpisah; lockout login memakai kebijakan yang sama.
 	totpBox, err := pauth.NewTOTPBox(d.Cfg.JWTSecret)
 	if err != nil {
@@ -85,16 +90,13 @@ func mountModules(r chi.Router, d appDeps) error {
 		Service: platformSvc, Log: d.Log, Redis: d.Redis,
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
+		APK: uploads,
 	}).Routes(r)
 
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
 	audit.NewHandler(audit.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	catalog.NewHandler(catalog.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	uploads, err := storage.NewLocal(d.Cfg.UploadDir)
-	if err != nil {
-		return err
-	}
 	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
