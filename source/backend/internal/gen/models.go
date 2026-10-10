@@ -221,6 +221,10 @@ type Outlet struct {
 	UpdatedAt     pgtype.Timestamptz
 	StockLockedAt pgtype.Timestamptz
 	OpsStartDate  pgtype.Date
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 type Payable struct {

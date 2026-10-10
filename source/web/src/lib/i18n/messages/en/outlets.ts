@@ -12,6 +12,14 @@ const outlets: Messages['outlets'] = {
   timezone: 'Time zone',
   taxStore: 'Store tax (%)',
   taxGov: 'Government tax (%)',
+  receipt: {
+    title: 'Receipt',
+    hint: 'Printed on the cashier receipt (58 mm paper, about 32 characters per line). Leave empty if not needed.',
+    address: 'Address',
+    phone: 'Phone',
+    header: 'Receipt header text',
+    footer: 'Receipt footer text'
+  },
   taxHint: 'A percentage from 0 to 100, up to 2 decimals.',
   status: 'Status',
   active: 'Active',
