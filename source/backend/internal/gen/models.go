@@ -133,6 +133,7 @@ type Item struct {
 	CreatedAt          pgtype.Timestamptz
 	UpdatedAt          pgtype.Timestamptz
 	Origin             string
+	MinStock           decimal.Decimal
 }
 
 type ItemCounter struct {

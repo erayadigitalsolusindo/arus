@@ -44,6 +44,8 @@ const items: Messages['items'] = {
     originHint: 'Optional. Fill in when another item shares the barcode, e.g. country of origin, so the cashier can tell them apart.',
     name: 'Item name',
     weight: 'Weight (grams)',
+    minStock: 'Minimum stock level',
+    minStockHint: 'The dashboard warns when a branch stock is at or below this number. Leave empty to skip.',
     unit: 'Unit',
     category: 'Category',
     brand: 'Brand',

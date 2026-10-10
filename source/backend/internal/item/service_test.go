@@ -28,28 +28,30 @@ func TestValidate(t *testing.T) {
 	}
 
 	bad := map[string]Input{
-		"nama kosong":           {Name: " ", UnitID: unit},
-		"nama markup":           {Name: "<b>", UnitID: unit},
-		"nama 201 karakter":     {Name: strings.Repeat("a", 201), UnitID: unit},
-		"sku berspasi":          {Name: "X", SKU: "A B", UnitID: unit},
-		"sku 41 karakter":       {Name: "X", SKU: strings.Repeat("a", 41), UnitID: unit},
-		"barcode kontrol":       {Name: "X", Barcode: "12\x003", UnitID: unit},
-		"barcode panjang":       {Name: "X", Barcode: strings.Repeat("1", 201), UnitID: unit},
-		"berat negatif":         {Name: "X", Weight: "-1", UnitID: unit},
-		"berat 4 desimal":       {Name: "X", Weight: "1.2345", UnitID: unit},
-		"harga negatif":         {Name: "X", SellPrice: "-0.01", UnitID: unit},
-		"harga 3 desimal":       {Name: "X", SellPrice: "1.005", UnitID: unit},
-		"harga bukan angka":     {Name: "X", SellPrice: "seribu", UnitID: unit},
-		"harga terlalu besar":   {Name: "X", SellPrice: "1000000000001", UnitID: unit},
-		"hpp negatif":           {Name: "X", Cost: "-5", UnitID: unit},
-		"satuan kosong":         {Name: "X"},
-		"satuan bukan uuid":     {Name: "X", UnitID: "abc"},
-		"kategori bukan uuid":   {Name: "X", UnitID: unit, CategoryID: "abc"},
-		"jenis asing":           {Name: "X", UnitID: unit, Kind: "bundle"},
-		"keterangan kontrol":    {Name: "X", UnitID: unit, Description: "a\x07b"},
-		"keterangan zero-width": {Name: "X", UnitID: unit, Description: "a​b"},
-		"keterangan 5001":       {Name: "X", UnitID: unit, Description: strings.Repeat("a", maxDesc+1)},
-		"harga cabang kosong":   {Name: "X", UnitID: unit, OutletPrices: &[]OutletPriceInput{{OutletID: uuid.NewString(), SellPrice: ""}}},
+		"nama kosong":            {Name: " ", UnitID: unit},
+		"nama markup":            {Name: "<b>", UnitID: unit},
+		"nama 201 karakter":      {Name: strings.Repeat("a", 201), UnitID: unit},
+		"sku berspasi":           {Name: "X", SKU: "A B", UnitID: unit},
+		"sku 41 karakter":        {Name: "X", SKU: strings.Repeat("a", 41), UnitID: unit},
+		"barcode kontrol":        {Name: "X", Barcode: "12\x003", UnitID: unit},
+		"barcode panjang":        {Name: "X", Barcode: strings.Repeat("1", 201), UnitID: unit},
+		"berat negatif":          {Name: "X", Weight: "-1", UnitID: unit},
+		"berat 4 desimal":        {Name: "X", Weight: "1.2345", UnitID: unit},
+		"stok minimum negatif":   {Name: "X", MinStock: "-1", UnitID: unit},
+		"stok minimum 4 desimal": {Name: "X", MinStock: "1.2345", UnitID: unit},
+		"harga negatif":          {Name: "X", SellPrice: "-0.01", UnitID: unit},
+		"harga 3 desimal":        {Name: "X", SellPrice: "1.005", UnitID: unit},
+		"harga bukan angka":      {Name: "X", SellPrice: "seribu", UnitID: unit},
+		"harga terlalu besar":    {Name: "X", SellPrice: "1000000000001", UnitID: unit},
+		"hpp negatif":            {Name: "X", Cost: "-5", UnitID: unit},
+		"satuan kosong":          {Name: "X"},
+		"satuan bukan uuid":      {Name: "X", UnitID: "abc"},
+		"kategori bukan uuid":    {Name: "X", UnitID: unit, CategoryID: "abc"},
+		"jenis asing":            {Name: "X", UnitID: unit, Kind: "bundle"},
+		"keterangan kontrol":     {Name: "X", UnitID: unit, Description: "a\x07b"},
+		"keterangan zero-width":  {Name: "X", UnitID: unit, Description: "a​b"},
+		"keterangan 5001":        {Name: "X", UnitID: unit, Description: strings.Repeat("a", maxDesc+1)},
+		"harga cabang kosong":    {Name: "X", UnitID: unit, OutletPrices: &[]OutletPriceInput{{OutletID: uuid.NewString(), SellPrice: ""}}},
 		"harga cabang ganda": {Name: "X", UnitID: unit, OutletPrices: &[]OutletPriceInput{
 			{OutletID: "00000000-0000-0000-0000-000000000001", SellPrice: "1"}, {OutletID: "00000000-0000-0000-0000-000000000001", SellPrice: "2"}}},
 	}
@@ -176,6 +178,19 @@ func TestCreateGetAndCodes(t *testing.T) {
 	if err != nil || i1.SKU != "ITM-000001" || i1.LastCost != "1000.00" || i1.AvgCost != "1000.00" || i1.SellPrice != "1500.00" || i1.Unit.Name != "Pcs" || !i1.Active {
 		t.Fatalf("item pertama: %+v %v", i1, err)
 	}
+	if i1.MinStock != "0" {
+		t.Fatalf("batas minimum bawaan 0: %q", i1.MinStock)
+	}
+	im, err := e.svc.Create(ctx, e.a, Input{Name: "Dipantau", SKU: "MIN-1", UnitID: unit.String(), MinStock: "12.5"})
+	if err != nil || im.MinStock != "12.5" {
+		t.Fatalf("batas minimum: %+v %v", im, err)
+	}
+	if _, err := e.svc.Update(ctx, e.a, im.ID, Input{SKU: im.SKU, Name: "Dipantau", UnitID: unit.String(), MinStock: "3"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.svc.Get(ctx, e.a, im.ID); err != nil || got.MinStock != "3" {
+		t.Fatalf("batas minimum setelah ubah: %+v %v", got, err)
+	}
 	if _, err := e.svc.Create(ctx, e.a, Input{Name: "Manual", SKU: "itm-000002", UnitID: unit.String()}); err != nil {
 		t.Fatal(err)
 	}
@@ -221,8 +236,8 @@ func TestCreateGetAndCodes(t *testing.T) {
 	if _, err := e.svc.SetActive(ctx, e.b, i1.ID, false); !errors.Is(err, ErrNotFound) {
 		t.Errorf("arsip lintas tenant: %v", err)
 	}
-	if e.auditCount(t, e.a.TenantID, "item.create") != 8 {
-		t.Errorf("audit item.create = %d, want 8", e.auditCount(t, e.a.TenantID, "item.create"))
+	if e.auditCount(t, e.a.TenantID, "item.create") != 9 {
+		t.Errorf("audit item.create = %d, want 9", e.auditCount(t, e.a.TenantID, "item.create"))
 	}
 }
 

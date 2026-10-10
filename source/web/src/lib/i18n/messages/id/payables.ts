@@ -1,6 +1,6 @@
 const payables = {
-  docTitle: 'Hutang Suplier | ACIRABA',
-  title: 'Daftar Hutang Suplier',
+  docTitle: 'Hutang Pemasok | ACIRABA',
+  title: 'Hutang Ke Pemasok',
   subtitle: 'Hutang dari pembelian kredit ke pemasok di cabang yang boleh Anda akses. Pembayaran boleh dicicil.',
   search: 'Cari no. nota, no. faktur, atau pemasok…',
   loadFailed: 'Gagal memuat daftar hutang.',

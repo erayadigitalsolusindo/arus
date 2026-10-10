@@ -103,8 +103,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := h.Lockout.Reset(r.Context(), ip, emailHash); err != nil {
 		h.Log.Error("reset kunci login", "err", err)
 	}
-	h.setRefreshCookie(w, sess)
-	httpx.JSON(w, http.StatusOK, sess)
+	h.writeSession(w, r, http.StatusOK, sess)
 }
 
 func (h *Handler) locked(w http.ResponseWriter, d time.Duration) {
@@ -112,12 +111,15 @@ func (h *Handler) locked(w http.ResponseWriter, d time.Duration) {
 }
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie(refreshCookie)
-	if err != nil || c.Value == "" {
+	token, ok := h.refreshTokenOf(w, r)
+	if !ok {
+		return
+	}
+	if token == "" {
 		httpx.Error(w, http.StatusUnauthorized, "SESSION_INVALID", "Sesi tidak ditemukan.")
 		return
 	}
-	sess, err := h.svc.Refresh(r.Context(), c.Value)
+	sess, err := h.svc.Refresh(r.Context(), token)
 	switch {
 	case errors.Is(err, ErrInvalidSession):
 		h.clearRefreshCookie(w)
@@ -127,14 +129,17 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		h.internal(w, r, "refresh gagal", err)
 		return
 	}
-	h.setRefreshCookie(w, sess)
-	httpx.JSON(w, http.StatusOK, sess)
+	h.writeSession(w, r, http.StatusOK, sess)
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.clearRefreshCookie(w) // sebelum menulis status: header Set-Cookie harus terkirim bersama respons
-	if c, err := r.Cookie(refreshCookie); err == nil && c.Value != "" {
-		if err := h.svc.Logout(r.Context(), c.Value); err != nil {
+	token, ok := h.refreshTokenOf(w, r)
+	if !ok {
+		return
+	}
+	if token != "" {
+		if err := h.svc.Logout(r.Context(), token); err != nil {
 			h.internal(w, r, "logout gagal", err)
 			return
 		}

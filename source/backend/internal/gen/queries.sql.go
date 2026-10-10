@@ -1055,10 +1055,10 @@ func (q *Queries) ItemByBarcode(ctx context.Context, arg ItemByBarcodeParams) ([
 }
 
 const itemCreate = `-- name: ItemCreate :one
-INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
+INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, min_stock, last_cost, avg_cost, sell_price, unit_id, category_id,
                    brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17, $18)
 RETURNING id
 `
 
@@ -1069,6 +1069,7 @@ type ItemCreateParams struct {
 	Name               string
 	Origin             string
 	WeightGrams        decimal.Decimal
+	MinStock           decimal.Decimal
 	Cost               decimal.Decimal
 	SellPrice          decimal.Decimal
 	UnitID             uuid.UUID
@@ -1090,6 +1091,7 @@ func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UU
 		arg.Name,
 		arg.Origin,
 		arg.WeightGrams,
+		arg.MinStock,
 		arg.Cost,
 		arg.SellPrice,
 		arg.UnitID,
@@ -1108,7 +1110,7 @@ func (q *Queries) ItemCreate(ctx context.Context, arg ItemCreateParams) (uuid.UU
 }
 
 const itemGet = `-- name: ItemGet :one
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.min_stock,
        coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
@@ -1139,6 +1141,7 @@ type ItemGetRow struct {
 	Name               string
 	Origin             string
 	WeightGrams        decimal.Decimal
+	MinStock           decimal.Decimal
 	LastCost           decimal.Decimal
 	AvgCost            decimal.Decimal
 	SellPrice          decimal.Decimal
@@ -1172,6 +1175,7 @@ func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, e
 		&i.Name,
 		&i.Origin,
 		&i.WeightGrams,
+		&i.MinStock,
 		&i.LastCost,
 		&i.AvgCost,
 		&i.SellPrice,
@@ -1197,7 +1201,7 @@ func (q *Queries) ItemGet(ctx context.Context, arg ItemGetParams) (ItemGetRow, e
 }
 
 const itemGetForUpdate = `-- name: ItemGetForUpdate :one
-SELECT id, sku, barcode, name, origin, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
+SELECT id, sku, barcode, name, origin, weight_grams, min_stock, sell_price, kind, allow_negative_stock, sell_below_cost, active,
        unit_id, category_id, brand_id, principal_id, supplier_id
 FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE
 `
@@ -1214,6 +1218,7 @@ type ItemGetForUpdateRow struct {
 	Name               string
 	Origin             string
 	WeightGrams        decimal.Decimal
+	MinStock           decimal.Decimal
 	SellPrice          decimal.Decimal
 	Kind               string
 	AllowNegativeStock bool
@@ -1237,6 +1242,7 @@ func (q *Queries) ItemGetForUpdate(ctx context.Context, arg ItemGetForUpdatePara
 		&i.Name,
 		&i.Origin,
 		&i.WeightGrams,
+		&i.MinStock,
 		&i.SellPrice,
 		&i.Kind,
 		&i.AllowNegativeStock,
@@ -2150,11 +2156,11 @@ func (q *Queries) ItemUnitStates(ctx context.Context, arg ItemUnitStatesParams) 
 }
 
 const itemUpdate = `-- name: ItemUpdate :exec
-UPDATE items SET sku = $1, barcode = $2, name = $3, origin = $4, weight_grams = $5, sell_price = $6,
-       unit_id = $7, category_id = $8, brand_id = $9, principal_id = $10,
-       supplier_id = $11, kind = $12, allow_negative_stock = $13,
-       sell_below_cost = $14, description = $15
-WHERE tenant_id = $16 AND id = $17
+UPDATE items SET sku = $1, barcode = $2, name = $3, origin = $4, weight_grams = $5, min_stock = $6, sell_price = $7,
+       unit_id = $8, category_id = $9, brand_id = $10, principal_id = $11,
+       supplier_id = $12, kind = $13, allow_negative_stock = $14,
+       sell_below_cost = $15, description = $16
+WHERE tenant_id = $17 AND id = $18
 `
 
 type ItemUpdateParams struct {
@@ -2163,6 +2169,7 @@ type ItemUpdateParams struct {
 	Name               string
 	Origin             string
 	WeightGrams        decimal.Decimal
+	MinStock           decimal.Decimal
 	SellPrice          decimal.Decimal
 	UnitID             uuid.UUID
 	CategoryID         pgtype.UUID
@@ -2185,6 +2192,7 @@ func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
 		arg.Name,
 		arg.Origin,
 		arg.WeightGrams,
+		arg.MinStock,
 		arg.SellPrice,
 		arg.UnitID,
 		arg.CategoryID,

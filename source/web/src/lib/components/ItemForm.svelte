@@ -26,7 +26,7 @@
   let { item, outlets }: { item: Item | null; outlets: Outlet[] } = $props();
 
   type Field =
-    | 'sku' | 'barcode' | 'name' | 'weight_grams' | 'cost' | 'sell_price' | 'unit_id'
+    | 'sku' | 'barcode' | 'name' | 'weight_grams' | 'min_stock' | 'cost' | 'sell_price' | 'unit_id'
     | 'category_id' | 'brand_id' | 'principal_id' | 'supplier_id' | 'kind' | 'description' | 'outlet_prices' | 'wholesale' | 'units' | 'origin';
 
   const SKU_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/;
@@ -43,6 +43,7 @@
   let origin = $state(init?.origin ?? '');
   let name = $state(init?.name ?? '');
   let weight = $state(init ? trimZeros(init.weight_grams) : '');
+  let minStock = $state(init ? trimZeros(init.min_stock) : '');
   let cost = $state('');
   let sellPrice = $state(init ? trimZeros(init.sell_price) : '');
   let kind = $state<ItemKind>(init?.kind ?? 'goods');
@@ -93,7 +94,7 @@
   // (di mode ubah, gambar langsung tersimpan ke server). Tambahkan field baru ke sini bila form bertambah isian.
   const snapshot = () =>
     JSON.stringify([
-      sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
+      sku, barcode, origin, name, weight, minStock, cost, sellPrice, kind, active, allowNegative, belowCost, description,
       unitId, categoryId, brandId, principalId, supplierId, outletPrices.map((p) => p.value), pending.length, mainIndex,
       defaultTiers, outletTierSets, unitRows
     ]);
@@ -105,7 +106,7 @@
   // diunggah tidak ikut. `initialSnapshot` tetap keadaan dari server, jadi form yang dipulihkan tetap dianggap berubah.
   const draftPath = page.url.pathname;
   const collect = () => ({
-    sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description,
+    sku, barcode, origin, name, weight, minStock, cost, sellPrice, kind, active, allowNegative, belowCost, description,
     unitId, unitLabel, categoryId, categoryLabel, brandId, brandLabel, principalId, principalLabel, supplierId, supplierLabel,
     outletPrices, defaultTiers, outletTierSets, unitRows
   });
@@ -114,7 +115,7 @@
   if (canWrite) {
     const d = drafts.load<Draft>(draftPath);
     if (d) {
-      ({ sku, barcode, origin, name, weight, cost, sellPrice, kind, active, allowNegative, belowCost, description } = d);
+      ({ sku, barcode, origin, name, weight, minStock, cost, sellPrice, kind, active, allowNegative, belowCost, description } = d);
       ({ unitId, unitLabel, categoryId, categoryLabel, brandId, brandLabel, principalId, principalLabel, supplierId, supplierLabel } = d);
       ({ outletPrices, defaultTiers, outletTierSets, unitRows } = d);
       restored = true;
@@ -241,6 +242,7 @@
     const bc = barcode.trim();
     if (bc && (CONTROL.test(bc) || [...bc].length > 200)) next.barcode = fieldMessage(CONTROL.test(bc) ? 'INVALID' : 'TOO_LONG');
     if (weight.trim() && !GRAMS_RE.test(weight.trim())) next.weight_grams = fieldMessage('INVALID');
+    if (minStock.trim() && !GRAMS_RE.test(minStock.trim())) next.min_stock = fieldMessage('INVALID');
     if (sellPrice.trim() && !MONEY_RE.test(sellPrice.trim())) next.sell_price = fieldMessage('INVALID');
     if (!init && cost.trim() && !MONEY_RE.test(cost.trim())) next.cost = fieldMessage('INVALID');
     if (!unitId) next.unit_id = fieldMessage('REQUIRED');
@@ -273,6 +275,7 @@
       origin: origin.trim(),
       name: n.value,
       weight_grams: weight.trim(),
+      min_stock: kind === 'goods' ? minStock.trim() : '',
       sell_price: sellPrice.trim(),
       unit_id: unitId,
       category_id: categoryId,
@@ -404,6 +407,13 @@
             <MoneyInput id="i-weight" class={inputClass} bind:value={weight} decimals={3} pad={false} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.weight_grams} />
             {#if errors.weight_grams}<p class={errClass}>{errors.weight_grams}</p>{/if}
           </div>
+          {#if kind === 'goods'}
+            <div>
+              <label for="i-minstock" class={labelClass}>{t('items.field.minStock')}</label>
+              <MoneyInput id="i-minstock" class={inputClass} bind:value={minStock} decimals={3} pad={false} placeholder="0" disabled={!canWrite} aria-invalid={!!errors.min_stock} />
+              {#if errors.min_stock}<p class={errClass}>{errors.min_stock}</p>{:else}<p class="text-[11px] mt-1 u-color-text-tertiary">{t('items.field.minStockHint')}</p>{/if}
+            </div>
+          {/if}
           <div>
             <label for="i-unit" class={labelClass}>{t('items.field.unit')}</label>
             <Combobox id="i-unit" bind:value={unitId} bind:label={unitLabel} search={searchUnits} placeholder={t('items.field.unit')} clearable={false} disabled={!canWrite} invalid={!!errors.unit_id} />
