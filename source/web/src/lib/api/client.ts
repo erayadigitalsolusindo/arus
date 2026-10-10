@@ -150,6 +150,28 @@ async function withRefresh<T>(path: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
+/** Aliran SSE yang butuh autentikasi (EventSource tidak bisa mengirim header Authorization, jadi memakai fetch). */
+async function requestStream(path: string, signal: AbortSignal, token: string | null = accessToken): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
+      signal,
+      headers: { Accept: 'text/event-stream', 'Accept-Language': i18n.locale, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    });
+  } catch (err) {
+    if (signal.aborted) throw err;
+    throw new ApiError(0, 'NETWORK', 'Network error');
+  }
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${res.status}`);
+  }
+  return res;
+}
+
+export const apiStream = (path: string, signal: AbortSignal): Promise<Response> => withRefresh(path, () => requestStream(path, signal));
+
 export const api = <T>(path: string, init: RequestInit = {}): Promise<T> => withRefresh(path, () => request<T>(path, init));
 
 /** Mengunduh berkas yang butuh autentikasi (token ada di header, bukan cookie, jadi <img src> langsung tidak bisa). */

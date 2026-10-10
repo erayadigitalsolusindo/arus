@@ -1,12 +1,18 @@
 <script lang="ts">
   import { t, formatDate, type MessageKey } from '#lib/i18n/index.ts';
+  import { can } from '#lib/auth/session.svelte.ts';
+  import LiveSalesToday from '#lib/components/LiveSalesToday.svelte';
 
-  const kpis: { icon: string; tone: string; label: MessageKey; value: string; rows: [MessageKey, string][] }[] = [
+  const allKpis: { icon: string; tone: string; label: MessageKey; value: string; rows: [MessageKey, string][] }[] = [
     { icon: 'banknote', tone: 'primary', label: 'dashboard.kpi.salesToday', value: 'Rp —', rows: [['dashboard.kpi.monthlyTarget', '—'], ['dashboard.kpi.profitShare', '—']] },
     { icon: 'receipt', tone: 'info', label: 'dashboard.kpi.receipts', value: '—', rows: [['dashboard.kpi.dailyAverage', '—'], ['dashboard.kpi.peakHour', '—']] },
     { icon: 'boxes', tone: 'warning', label: 'dashboard.kpi.lowStock', value: '—', rows: [['dashboard.kpi.activeItems', '—'], ['dashboard.kpi.negativeStock', '—']] },
     { icon: 'wallet', tone: 'danger', label: 'dashboard.kpi.overdue', value: 'Rp —', rows: [['dashboard.kpi.totalReceivable', '—'], ['dashboard.kpi.due7Days', '—']] }
   ];
+
+  // Penjualan & jumlah nota sudah tampil langsung di panel "Penjualan Langsung" bagi yang berhak.
+  const live = $derived(can('sales_list', 'view'));
+  const kpis = $derived(live ? allKpis.slice(2) : allKpis);
 
   const today = $derived(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 </script>
@@ -54,10 +60,12 @@
     </div>
   </div>
 
+  {#if live}<LiveSalesToday />{/if}
+
   <!-- KPI -->
   <div class="bento-grid">
     {#each kpis as k (k.icon)}
-      <article class="surface-card is-interactive col-span-12 sm:col-span-6 lg:col-span-3 p-4 animate-rise-in">
+      <article class="surface-card is-interactive col-span-12 sm:col-span-6 {live ? 'lg:col-span-6' : 'lg:col-span-3'} p-4 animate-rise-in">
         <div class="flex items-start justify-between gap-2">
           <span class="grid place-items-center size-9 rounded-lg badge-solid-{k.tone} shrink-0"><i class="icon-{k.icon} text-[16px]"></i></span>
         </div>
