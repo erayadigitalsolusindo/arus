@@ -83,12 +83,12 @@ func DueDate(day pgtype.Date, days int) pgtype.Date {
 }
 
 func Create(ctx context.Context, tx pgx.Tx, tenant, outlet, sale, member uuid.UUID, amount dec, due pgtype.Date) error {
-	return gen.New(tx).ReceivableInsert(ctx, gen.ReceivableInsertParams{TenantID: tenant, OutletID: outlet, SaleID: sale, MemberID: member, Amount: amount, DueDate: due})
+	return gen.New(tx).ReceivableInsert(ctx, gen.ReceivableInsertParams{TenantID: tenant, OutletID: outlet, SaleID: pgtype.UUID{Bytes: sale, Valid: true}, MemberID: member, Amount: amount, DueDate: due})
 }
 
 // HasPayments = piutang nota ini sudah pernah dibayar (nota tidak boleh diedit/dibatalkan lagi).
 func HasPayments(ctx context.Context, tx pgx.Tx, tenant, sale uuid.UUID) (bool, error) {
-	n, err := gen.New(tx).ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: tenant, SaleID: sale})
+	n, err := gen.New(tx).ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: tenant, SaleID: pgtype.UUID{Bytes: sale, Valid: true}})
 	return n > 0, err
 }
 
@@ -99,19 +99,21 @@ type Service struct{ pool *pgxpool.Pool }
 func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
 
 type Row struct {
-	ID         uuid.UUID `json:"id"`
-	SaleID     uuid.UUID `json:"sale_id"`
-	DocNo      string    `json:"doc_no"`
-	MemberID   uuid.UUID `json:"member_id"`
-	MemberCode string    `json:"member_code"`
-	MemberName string    `json:"member_name"`
-	Amount     string    `json:"amount"`
-	Paid       string    `json:"paid"`
-	Returned   string    `json:"returned"`
-	Balance    string    `json:"balance"`
-	DueDate    *string   `json:"due_date,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	Status     string    `json:"status"` // open | overdue | paid
+	ID         uuid.UUID  `json:"id"`
+	SaleID     *uuid.UUID `json:"sale_id"` // kosong untuk saldo awal
+	Kind       string     `json:"kind"`    // sale | opening
+	RefNo      string     `json:"ref_no,omitempty"`
+	DocNo      string     `json:"doc_no"`
+	MemberID   uuid.UUID  `json:"member_id"`
+	MemberCode string     `json:"member_code"`
+	MemberName string     `json:"member_name"`
+	Amount     string     `json:"amount"`
+	Paid       string     `json:"paid"`
+	Returned   string     `json:"returned"`
+	Balance    string     `json:"balance"`
+	DueDate    *string    `json:"due_date,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	Status     string     `json:"status"` // open | overdue | paid
 }
 
 type Summary struct {
@@ -147,7 +149,14 @@ type Detail struct {
 	Row
 	SaleTotal string    `json:"sale_total"`
 	SaleAt    time.Time `json:"sale_at"`
-	Payments  []Payment `json:"payments"`
+	// Saldo awal: tanggal dokumen lama, catatan, pembuat, dan pembatalan.
+	DocDate    *string    `json:"doc_date,omitempty"`
+	Note       string     `json:"note,omitempty"`
+	CreatedBy  string     `json:"created_by,omitempty"`
+	VoidedAt   *time.Time `json:"voided_at,omitempty"`
+	VoidReason string     `json:"void_reason,omitempty"`
+	VoidedBy   string     `json:"voided_by,omitempty"`
+	Payments   []Payment  `json:"payments"`
 }
 
 type ListParams struct {
@@ -166,6 +175,14 @@ func statusOf(balance dec, due pgtype.Date, today pgtype.Date) string {
 		return "overdue"
 	}
 	return "open"
+}
+
+func uuidPtr(u pgtype.UUID) *uuid.UUID {
+	if !u.Valid {
+		return nil
+	}
+	id := uuid.UUID(u.Bytes)
+	return &id
 }
 
 func dateStr(d pgtype.Date) *string {
@@ -225,7 +242,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		}
 		for _, r := range rows {
 			bal := r.Amount.Sub(r.Paid).Sub(r.Returned)
-			res.Data = append(res.Data, Row{ID: r.ID, SaleID: r.SaleID, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode,
+			res.Data = append(res.Data, Row{ID: r.ID, SaleID: uuidPtr(r.SaleID), Kind: r.Kind, RefNo: r.RefNo, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode,
 				MemberName: r.MemberName, Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Returned: r.Returned.StringFixed(2), Balance: bal.StringFixed(2),
 				DueDate: dateStr(r.DueDate), CreatedAt: r.CreatedAt.Time, Status: statusOf(bal, r.DueDate, r.Today)})
 		}
@@ -261,10 +278,15 @@ func (s *Service) detail(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.
 	}
 	bal := r.Amount.Sub(r.Paid).Sub(r.Returned)
 	d := Detail{
-		Row: Row{ID: r.ID, SaleID: r.SaleID, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode, MemberName: r.MemberName,
+		Row: Row{ID: r.ID, SaleID: uuidPtr(r.SaleID), Kind: r.Kind, RefNo: r.RefNo, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode, MemberName: r.MemberName,
 			Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Returned: r.Returned.StringFixed(2), Balance: bal.StringFixed(2), DueDate: dateStr(r.DueDate),
 			CreatedAt: r.CreatedAt.Time, Status: statusOf(bal, r.DueDate, r.Today)},
 		SaleTotal: r.SaleTotal.StringFixed(2), SaleAt: r.SaleAt.Time, Payments: []Payment{},
+		DocDate: dateStr(r.DocDate), Note: r.Note, CreatedBy: r.CreatedByName, VoidReason: r.VoidReason.String, VoidedBy: r.VoidedByName,
+	}
+	if r.VoidedAt.Valid {
+		t := r.VoidedAt.Time
+		d.VoidedAt, d.Status = &t, "void"
 	}
 	ps, err := q.ReceivablePaymentsList(ctx, gen.ReceivablePaymentsListParams{TenantID: a.TenantID, ReceivableID: id})
 	if err != nil {
@@ -359,7 +381,7 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 		} else if !errors.Is(e, pgx.ErrNoRows) {
 			return e
 		}
-		r, e := q.ReceivableLockForPay(ctx, gen.ReceivableLockForPayParams{TenantID: a.TenantID, ID: id})
+		r, e := lockForPay(ctx, q, a.TenantID, id)
 		if errors.Is(e, pgx.ErrNoRows) || (e == nil && !a.Outlets[r.OutletID]) {
 			return ErrNotFound
 		}
@@ -455,7 +477,7 @@ type SaleInfo struct {
 
 // ForSale = piutang nota (nil bila nota bukan kredit).
 func ForSale(ctx context.Context, tx pgx.Tx, tenant, sale uuid.UUID) (*SaleInfo, error) {
-	r, err := gen.New(tx).ReceivableForSale(ctx, gen.ReceivableForSaleParams{TenantID: tenant, SaleID: sale})
+	r, err := gen.New(tx).ReceivableForSale(ctx, gen.ReceivableForSaleParams{TenantID: tenant, SaleID: pgtype.UUID{Bytes: sale, Valid: true}})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

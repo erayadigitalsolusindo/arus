@@ -333,7 +333,7 @@ func TestEditAndVoidCreditSale(t *testing.T) {
 		t.Fatalf("revisi: %+v err=%v", rev, err)
 	}
 	l, err := rs.List(ctx, a, receivable.ListParams{})
-	if err != nil || len(l.Data) != 1 || l.Data[0].SaleID != rev.ID || l.Summary.Outstanding != "40000.00" {
+	if err != nil || len(l.Data) != 1 || l.Data[0].SaleID == nil || *l.Data[0].SaleID != rev.ID || l.Summary.Outstanding != "40000.00" {
 		t.Fatalf("setelah edit: %+v err=%v", l, err)
 	}
 	// Batal nota kredit yang belum dibayar → piutang hilang dari daftar dan dari total.

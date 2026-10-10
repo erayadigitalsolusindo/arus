@@ -41,6 +41,25 @@
   let key = newIdempotencyKey();
 
   const canPay = $derived(can('member_receivables', 'create'));
+  const canVoid = $derived(can('receivable_opening', 'delete'));
+  let voidOpen = $state(false);
+  let voidReason = $state('');
+  let voiding = $state(false);
+  async function voidOpening(e: Event) {
+    e.preventDefault();
+    if (!d || voiding || voidReason.trim().length < 3) return;
+    voiding = true;
+    error = '';
+    try {
+      d = await receivables.voidOpening(d.id, voidReason.trim().slice(0, 200));
+      voidOpen = false;
+      onchanged();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      voiding = false;
+    }
+  }
   const balance = $derived(d ? toCents(d.balance) : 0n);
   const amountC = $derived(toCents(amount));
   const picked = $derived(methods.find((m) => m.id === methodId));
@@ -101,7 +120,7 @@
     }
   }
 
-  const statusClass = { open: 'badge-info', overdue: 'badge-danger', paid: 'badge-success' } as const;
+  const statusClass = { open: 'badge-info', overdue: 'badge-danger', paid: 'badge-success', void: 'badge-neutral' } as const;
 </script>
 
 <Modal title={d ? t('receivables.modal.title', { doc: d.doc_no }) : t('receivables.detail')} {onclose} wide>
@@ -121,6 +140,15 @@
           <dd class="flex items-center gap-2"><span class="text-[16px] font-extrabold tabular-nums {balance > 0n ? 'text-[var(--color-danger-600)]' : 'text-[var(--color-success-600)]'}">{money(d.balance)}</span><span class="badge-soft {statusClass[d.status]}">{t(`receivables.status.${d.status}`)}</span></dd>
         </div>
       </dl>
+
+      {#if d.kind === 'opening'}
+        <div class="rounded-md bg-[var(--surface-sunken)] p-3 text-[12.5px] space-y-0.5">
+          <div><span class="badge-soft badge-warning me-1">{t('receivables.opening.badge')}</span>{#if d.ref_no}{t('receivables.opening.refLabel')}: <b>{d.ref_no}</b>{/if}</div>
+          {#if d.note}<div>{d.note}</div>{/if}
+          {#if d.created_by}<div class="text-[var(--text-tertiary)]">{t('receivables.opening.createdBy')} {d.created_by}</div>{/if}
+          {#if d.voided_at}<div class="font-semibold text-[var(--color-danger-600)]">{t('receivables.opening.voided', { time: formatDateTime(d.voided_at), by: d.voided_by ?? '', reason: d.void_reason ?? '' })}</div>{/if}
+        </div>
+      {/if}
 
       <section>
         <h3 class="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('receivables.modal.history')}</h3>
@@ -144,7 +172,25 @@
         {/if}
       </section>
 
-      {#if canPay && balance > 0n}
+      {#if d.kind === 'opening' && !d.voided_at && d.payments.length === 0 && canVoid}
+        {#if voidOpen}
+          <form class="space-y-2 rounded border border-[color-mix(in_oklab,var(--color-danger-500)_40%,transparent)] p-3" onsubmit={voidOpening}>
+            <p class="text-[12px] text-[var(--text-secondary)]">{t('receivables.opening.voidHint')}</p>
+            <input bind:value={voidReason} maxlength="200" placeholder={t('receivables.opening.voidReason')} aria-label={t('receivables.opening.voidReason')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)]" />
+            <div class="flex justify-end gap-2">
+              <button type="button" class="btn btn-sm" onclick={() => (voidOpen = false)} disabled={voiding}>{t('receivables.modal.close')}</button>
+              <button type="submit" class="btn btn-sm btn-danger" disabled={voiding || voidReason.trim().length < 3}>{voiding ? t('receivables.opening.voiding') : t('receivables.opening.voidConfirm')}</button>
+            </div>
+          </form>
+        {:else}
+          <button type="button" class="btn btn-sm" onclick={() => (voidOpen = true)}><i class="icon-ban"></i> {t('receivables.opening.void')}</button>
+        {/if}
+      {/if}
+
+      {#if d.voided_at}
+        {#if error}<p role="alert" class="text-[12.5px] text-[var(--color-danger-600)]">{error}</p>{/if}
+        <div class="flex justify-end"><button type="button" class="btn" onclick={onclose}>{t('receivables.modal.close')}</button></div>
+      {:else if canPay && balance > 0n}
         <form class="space-y-3 rounded border border-[var(--border-default)] p-3" onsubmit={submit} autocomplete="off">
           <h3 class="text-[12px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('receivables.modal.payTitle')}</h3>
           <div class="grid gap-3 sm:grid-cols-2">

@@ -20,8 +20,12 @@ const audit: Messages['audit'] = {
   loading: 'Loading…',
   empty: 'No entries for this filter.',
   loadFailed: 'Failed to load the audit log.',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', purchase: 'Purchase', purchase_return: 'Purchase Return', sale_return: 'Sales Return', member_deposit: 'Member Deposit', supplier_credit: 'Supplier Credit' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', purchase: 'Purchase', purchase_return: 'Purchase Return', sale_return: 'Sales Return', member_deposit: 'Member Deposit', supplier_credit: 'Supplier Credit', shift: 'Cashier Shift' },
   actions: {
+    receivable_opening: 'Recorded an opening receivable',
+    receivable_opening_void: 'Voided an opening receivable',
+    shift_open: 'Opened a cashier shift',
+    shift_close: 'Closed a cashier shift',
     auth_register: 'Registered the business',
     auth_login: 'Signed in',
     auth_password_reset: 'Password reset (forgot password)',

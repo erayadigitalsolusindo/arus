@@ -23,6 +23,9 @@
   import Combobox from '#lib/components/Combobox.svelte';
   import { salespeopleLookup } from '#lib/catalog/api.ts';
   import PayModal from '#lib/components/PayModal.svelte';
+  import ShiftOpenModal from '#lib/components/ShiftOpenModal.svelte';
+  import ShiftCloseModal from '#lib/components/ShiftCloseModal.svelte';
+  import { shifts, type Shift } from '#lib/shift/api.ts';
   import VoucherModal from '#lib/components/VoucherModal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import { fitText } from '#lib/fitText.ts';
@@ -41,6 +44,44 @@
   type Line = { key: string; id: string; override: string | null; disc: string | null; discTotal: boolean; unitId: string | null; sku: string; name: string; unit: string; price: string; qty: string; goods: boolean; imageId: string | null };
 
   const PAGE = 24;
+  // Daftar shortcut yang ditampilkan di bantuan (F1); urutan = urutan kerja kasir.
+  const KEY_GROUPS: { title: MessageKey; keys: [string, MessageKey][] }[] = [
+    {
+      title: 'pos.keys.groupMain',
+      keys: [
+        ['F1', 'pos.keys.help'],
+        ['F2', 'pos.keys.search'],
+        ['F3', 'pos.keys.qty'],
+        ['F4', 'pos.keys.member'],
+        ['F6', 'pos.keys.salesperson'],
+        ['Ctrl+K', 'pos.keys.voucher'],
+        ['F7', 'pos.keys.hold'],
+        ['F8', 'pos.keys.pending'],
+        ['F9', 'pos.keys.today'],
+        ['F10 / Ctrl+Enter', 'pos.keys.pay'],
+        ['Esc', 'pos.keys.escape']
+      ]
+    },
+    {
+      title: 'pos.keys.groupCart',
+      keys: [
+        ['Ctrl+↑ / Ctrl+↓', 'pos.keys.select'],
+        ['Ctrl++ / Ctrl+-', 'pos.keys.qtyStep'],
+        ['Ctrl+E', 'pos.keys.editPrice'],
+        ['Ctrl+Del', 'pos.keys.remove']
+      ]
+    },
+    {
+      title: 'pos.keys.groupPay',
+      keys: [
+        ['F1', 'pos.mode.cash'],
+        ['F2', 'pos.mode.credit'],
+        ['F3', 'pos.mode.noncash'],
+        ['F4', 'pos.mode.split'],
+        ['End', 'pos.keys.save']
+      ]
+    }
+  ];
   const money = (c: bigint) => formatCurrency(centsToNumber(c), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ---------- Katalog ----------
@@ -86,6 +127,7 @@
     void load(true);
     void refreshOutlets();
     void loadSlots();
+    void loadShift(!page.url.searchParams.get('edit'));
     searchEl?.focus();
     const editId = page.url.searchParams.get('edit');
     if (editId) {
@@ -191,9 +233,11 @@
 
   let cartEl = $state<HTMLElement>();
   let hotKey = $state('');
+  let selKey = $state(''); // baris keranjang terpilih untuk shortcut Ctrl+↑/↓, Ctrl+±, Ctrl+Del, Ctrl+E
   let hotTimer: ReturnType<typeof setTimeout>;
   function highlight(key: string) {
     hotKey = key;
+    selKey = key;
     cartEl?.scrollTo({ top: 0, behavior: 'smooth' });
     clearTimeout(hotTimer);
     hotTimer = setTimeout(() => (hotKey = ''), 1400);
@@ -492,6 +536,35 @@
 
   // ---------- Bayar ----------
   let paying = $state(false);
+
+  // ---------- Shift kasir ----------
+  // Nota baru hanya bisa disimpan bila kasir punya shift terbuka di outlet aktif (server menegakkan: SHIFT_REQUIRED).
+  // undefined = belum dimuat; null = belum ada shift terbuka.
+  let shift = $state<Shift | null | undefined>(undefined);
+  let shiftOpenDlg = $state(false);
+  let shiftCloseId = $state<string | null>(null); // dipegang terpisah: layar "shift ditutup" tetap tampil setelah shift = null
+  async function loadShift(ask: boolean) {
+    try {
+      shift = await shifts.current();
+      if (!shift && ask && !editSale) shiftOpenDlg = true;
+    } catch (e) {
+      flash(errorMessage(e));
+    }
+  }
+  /** Bayar: tanpa shift terbuka, buka shift dulu (edit nota tidak butuh shift). */
+  function startPay() {
+    if (!editSale && shift === null) {
+      shiftOpenDlg = true;
+      return;
+    }
+    paying = true;
+  }
+  function shiftOpened(s: Shift) {
+    shift = s;
+    shiftOpenDlg = false;
+    flash(t('shift.open.done', { doc: s.doc_no }));
+    searchEl?.focus();
+  }
   function resetCart() {
     cart = [];
     approval = null;
@@ -719,6 +792,7 @@
       cancelTax();
       await load(true);
       void loadSlots(); // harga efektif mengikuti outlet
+      void loadShift(true); // shift berlaku per outlet
     } catch (err) {
       outletSel = session.outlet?.id ?? '';
       if (rethrow) throw err;
@@ -792,12 +866,74 @@
     else void document.documentElement.requestFullscreen?.();
   }
 
+  // ---------- Shortcut keyboard (daftar lengkap: F1) ----------
+  let keysOpen = $state(false);
+  const payDisabled = $derived(!fresh || quoting || hasIssue || grand <= 0n || !editReady);
+
+  function selectLine(step: number) {
+    if (!cart.length) return;
+    const i = cart.findIndex((l) => l.key === selKey);
+    const next = i < 0 ? 0 : (i + step + cart.length) % cart.length;
+    selKey = cart[next].key;
+    document.getElementById(`cart-line-${next}`)?.scrollIntoView({ block: 'nearest' });
+  }
+
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === 'F2') {
-      e.preventDefault();
-      searchEl?.focus();
-      searchEl?.select();
+    // Dialog terbuka (bayar, member, pending, …): biarkan dialog yang menangani tombolnya sendiri.
+    if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+      if (e.key === 'F1') e.preventDefault(); // F1 = bantuan peramban
+      return;
     }
+    const ctrl = e.ctrlKey || e.metaKey;
+    const sel = cart.findIndex((l) => l.key === selKey);
+    const act = (fn: () => void) => {
+      e.preventDefault();
+      fn();
+    };
+    switch (e.key) {
+      case 'F1':
+        return act(() => (keysOpen = true));
+      case 'F2':
+        return act(() => {
+          searchEl?.focus();
+          searchEl?.select();
+        });
+      case 'F3':
+        return act(() => (document.getElementById('pos-qty') as HTMLInputElement | null)?.select());
+      case 'F4':
+        return act(() => (pickingMember = true));
+      case 'F6':
+        return act(openSalesperson);
+      case 'F7':
+        return act(() => {
+          if (cart.length && !editSale) askHold();
+        });
+      case 'F8':
+        return act(() => (pendingOpen = true));
+      case 'F9':
+        return act(() => (todayOpen = true));
+      case 'F10':
+        return act(() => {
+          if (!payDisabled) startPay();
+        });
+      case 'Escape':
+        if (q) act(() => ((q = ''), void load(true), searchEl?.focus()));
+        return;
+    }
+    if (!ctrl) return;
+    if (e.key === 'Enter') return act(() => !payDisabled && startPay());
+    if (e.key.toLowerCase() === 'k') return act(() => (voucherOpen = true));
+    if (e.key === 'ArrowUp') return act(() => selectLine(-1));
+    if (e.key === 'ArrowDown') return act(() => selectLine(1));
+    if (sel < 0) return;
+    const line = cart[sel];
+    if (e.code === 'Equal' || e.code === 'NumpadAdd') return act(() => issueOf(sel) !== 'STOCK_INSUFFICIENT' && (line.qty = bump(line.qty, 1)));
+    if (e.code === 'Minus' || e.code === 'NumpadSubtract') return act(() => (line.qty = bump(line.qty, -1)));
+    if (e.key === 'Delete') return act(() => {
+      remove(line.key);
+      selKey = cart[Math.min(sel, cart.length - 1)]?.key ?? '';
+    });
+    if (e.key.toLowerCase() === 'e') return act(() => (editing = sel));
   }
 
   // Item pertama yang ditambahkan tidak perlu memicu muat ulang katalog; efek ini hanya menjaga fokus setelah modal.
@@ -819,6 +955,9 @@
     {/if}
     <span class="font-display font-extrabold tracking-tight text-[15px] uppercase text-[var(--color-primary-600)] truncate">{session.tenant?.name}</span>
     <span class="grow"></span>
+    <button type="button" class="header-icon-btn hidden sm:inline-flex" aria-label={t('pos.keys.title')} title={`${t('pos.keys.title')} (F1)`} onclick={() => (keysOpen = true)}>
+      <i class="icon-keyboard text-[17px]"></i>
+    </button>
     <LanguageSwitcher />
     <button type="button" class="header-icon-btn hidden sm:inline-flex" aria-label={t('pos.fullscreen')} title={t('pos.fullscreen')} onclick={toggleFullscreen}>
       <i class="icon-maximize text-[16px]"></i>
@@ -862,6 +1001,11 @@
         <dl class="text-[12px] space-y-0.5 text-[var(--text-secondary)]">
           <div>{formatDateTime(now, { dateStyle: 'short', timeStyle: 'medium' })}</div>
           <div>{t('pos.cashier')} : {session.user?.name}</div>
+          {#if shift}
+            <div title={t('shift.openAt', { time: shift.opened_local })}>{t('shift.button')} : <span class="font-semibold">{shift.doc_no}</span></div>
+          {:else if shift === null}
+            <div class="font-semibold text-[var(--color-danger-600)]">{t('shift.none')}</div>
+          {/if}
           <div>
             {t('pos.salesperson')} :
             <button type="button" class="font-semibold underline decoration-dotted underline-offset-2 hover:text-[var(--color-primary-600)]" title={t('pos.salespersonPick')} onclick={openSalesperson}>{salesperson?.name ?? t('pos.salespersonNone')}</button>
@@ -871,7 +1015,11 @@
           <button type="button" class="btn btn-primary btn-sm" onclick={() => (pendingOpen = true)}>
             {t('pos.pendingReceipt')}{#if pending.length}<span class="ms-1.5 min-w-5 px-1 rounded-full bg-white/25 text-[11px] tabular-nums">{pending.length}</span>{/if}
           </button>
-          <button type="button" class="btn btn-sm" disabled title={t('pos.soon')}>{t('pos.cashDrawer')}</button>
+          {#if shift}
+            <button type="button" class="btn btn-sm" onclick={() => (shiftCloseId = shift?.id ?? null)}><i class="icon-lock"></i> {t('shift.close')}</button>
+          {:else if shift === null}
+            <button type="button" class="btn btn-sm" onclick={() => (shiftOpenDlg = true)}><i class="icon-lock-open"></i> {t('shift.open.submit')}</button>
+          {/if}
         </div>
       </section>
 
@@ -1084,7 +1232,8 @@
           </div>
         {/if}
         {#each cart as l, i (l.key)}
-          <div class="rounded-md border p-2.5 transition-shadow {hotKey === l.key ? 'ring-2 ring-[var(--color-primary-500)] shadow-[var(--shadow-md)]' : ''} {issueOf(i) ? 'border-[var(--color-danger-500)] bg-[color-mix(in_oklab,var(--color-danger-500)_6%,transparent)]' : 'border-[var(--border-subtle)]'}">
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <div id={`cart-line-${i}`} onclick={() => (selKey = l.key)} class="rounded-md border p-2.5 transition-shadow {hotKey === l.key ? 'ring-2 ring-[var(--color-primary-500)] shadow-[var(--shadow-md)]' : selKey === l.key ? 'ring-1 ring-[var(--color-primary-400)]' : ''} {issueOf(i) ? 'border-[var(--color-danger-500)] bg-[color-mix(in_oklab,var(--color-danger-500)_6%,transparent)]' : 'border-[var(--border-subtle)]'}">
             <div class="flex items-start gap-2">
               <span class="grid place-items-center size-8 shrink-0 rounded bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><i class="icon-package text-[14px]"></i></span>
               <div class="min-w-0 grow leading-tight">
@@ -1183,7 +1332,7 @@
         <button type="button" class="h-12 rounded text-[12px] font-bold bg-[var(--color-warning-500)] text-black disabled:opacity-60" disabled={!cart.length || !!editSale} onclick={askHold}>
           <i class="icon-pause block mx-auto mb-0.5 text-[13px]"></i>{t('pos.pending')}
         </button>
-        <button type="button" class="h-12 rounded text-[16px] font-extrabold text-white bg-[var(--color-success-600)] disabled:opacity-60 tabular-nums" disabled={!fresh || quoting || hasIssue || grand <= 0n || !editReady} title={editReady ? '' : t('pos.edit.notReady')} onclick={() => (paying = true)}>
+        <button type="button" class="h-12 rounded text-[16px] font-extrabold text-white bg-[var(--color-success-600)] disabled:opacity-60 tabular-nums" disabled={!fresh || quoting || hasIssue || grand <= 0n || !editReady} title={editReady ? '' : t('pos.edit.notReady')} onclick={startPay}>
           <i class="{editSale ? 'icon-save' : 'icon-wallet'} me-1.5"></i>{editSale ? t('pos.edit.save') : t('pos.pay')} : {money(grand)}
         </button>
       </div>
@@ -1289,6 +1438,36 @@
       </div>
     </div>
   </Modal>
+{/if}
+
+{#if keysOpen}
+  <Modal title={t('pos.keys.title')} onclose={() => (keysOpen = false)}>
+    <p class="text-[12.5px] text-[var(--text-secondary)] mb-3">{t('pos.keys.hint')}</p>
+    {#each KEY_GROUPS as g (g.title)}
+      <h3 class="mt-3 mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t(g.title)}</h3>
+      <dl class="text-[13px] divide-y divide-[var(--border-subtle)]">
+        {#each g.keys as [k, label] (k)}
+          <div class="flex items-center justify-between gap-3 py-1.5">
+            <dt>{t(label)}</dt>
+            <dd class="flex gap-1">{#each k.split(' / ') as part (part)}<kbd class="px-1.5 py-0.5 rounded border border-[var(--border-default)] bg-[var(--surface-sunken)] font-mono text-[11.5px] whitespace-nowrap">{part}</kbd>{/each}</dd>
+          </div>
+        {/each}
+      </dl>
+    {/each}
+  </Modal>
+{/if}
+
+{#if shiftOpenDlg}
+  <ShiftOpenModal onclose={() => (shiftOpenDlg = false)} onopened={shiftOpened} />
+{/if}
+
+{#if shiftCloseId}
+  <ShiftCloseModal
+    shiftId={shiftCloseId}
+    onclose={() => ((shiftCloseId = null), searchEl?.focus())}
+    onclosed={() => (shift = null)}
+    onopennew={() => ((shiftCloseId = null), (shiftOpenDlg = true))}
+  />
 {/if}
 
 {#if paying}

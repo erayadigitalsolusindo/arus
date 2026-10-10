@@ -130,8 +130,17 @@ const (
 
 // Piutang member (penjualan kredit).
 const (
-	ActionReceivablePay    = "receivable.pay"
-	ActionReceivableSettle = "receivable.settle" // pelunasan kolektif per member
+	ActionReceivablePay         = "receivable.pay"
+	ActionReceivableSettle      = "receivable.settle"       // pelunasan kolektif per member
+	ActionReceivableOpening     = "receivable.opening"      // saldo awal piutang (onboarding)
+	ActionReceivableOpeningVoid = "receivable.opening_void" // batal saldo awal piutang
+)
+
+// Shift kasir (buka/tutup laci).
+const (
+	EntityShift      = "shift"
+	ActionShiftOpen  = "shift.open"
+	ActionShiftClose = "shift.close"
 )
 
 // Hutang pemasok (pembelian kredit).

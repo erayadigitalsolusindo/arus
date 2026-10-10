@@ -25,7 +25,8 @@ import settle from './settle.ts';
 import purchases from './purchases.ts';
 import deposits from './deposits.ts';
 import supplierCredits from './supplierCredits.ts';
+import shift from './shift.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift };
 
 export default en;
