@@ -11,6 +11,11 @@ export type Outlet = {
   timezone: string;
   active: boolean;
   created_at: string;
+  /** Data struk: dicetak di kepala/kaki struk; kosong = tidak dicetak. */
+  address: string;
+  phone: string;
+  receipt_header: string;
+  receipt_footer: string;
 };
 
 export type OutletInput = {
@@ -20,6 +25,10 @@ export type OutletInput = {
   tax_store_pct: number;
   tax_gov_pct: number;
   active?: boolean; // hanya saat mengubah
+  address: string;
+  phone: string;
+  receipt_header: string;
+  receipt_footer: string;
 };
 
 export const outlets = {

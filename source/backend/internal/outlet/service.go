@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -37,6 +38,11 @@ func (f FieldErrors) Error() string { return "input tidak valid" }
 const (
 	maxName         = 100
 	defaultTimezone = "Asia/Jakarta"
+	maxAddress      = 200
+	maxPhone        = 30
+	maxReceiptText  = 300
+	// Kertas 58 mm muat ±32 karakter per baris; batas baris menjaga struk tidak memanjang tanpa sengaja.
+	maxReceiptLines = 6
 )
 
 var codeRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,19}$`)
@@ -50,6 +56,11 @@ type Outlet struct {
 	Timezone    string          `json:"timezone"`
 	Active      bool            `json:"active"`
 	CreatedAt   time.Time       `json:"created_at"`
+	// Data struk (FR-POS-15): alamat/telepon dicetak di kepala struk, header/footer = teks bebas beberapa baris.
+	Address       string `json:"address"`
+	Phone         string `json:"phone"`
+	ReceiptHeader string `json:"receipt_header"`
+	ReceiptFooter string `json:"receipt_footer"`
 }
 
 type Service struct {
@@ -69,12 +80,21 @@ type Input struct {
 	TaxStorePct string
 	TaxGovPct   string
 	Active      bool // hanya saat mengubah
+	// Data struk; kosong = tidak dicetak.
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 type clean struct {
 	code, name, tz   string
 	taxStore, taxGov decimal.Decimal
+	receipt          receiptText
 }
+
+// receiptText = isian struk yang sudah dibersihkan.
+type receiptText struct{ address, phone, header, footer string }
 
 func validate(in Input, creating bool) (clean, FieldErrors) {
 	f := FieldErrors{}
@@ -104,10 +124,38 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 	if c.taxGov, ok = pct(in.TaxGovPct); !ok {
 		f["tax_gov_pct"] = "INVALID"
 	}
+	c.receipt = validateReceipt(in, f)
 	if len(f) > 0 {
 		return clean{}, f
 	}
 	return c, nil
+}
+
+// validateReceipt membersihkan isian struk dan menulis galat per field ke f.
+func validateReceipt(in Input, f FieldErrors) receiptText {
+	var r receiptText
+	multi := func(field, raw string, max int) string {
+		v, code := sanitize.Multiline(raw, max)
+		if code == "" && strings.Count(v, "\n") >= maxReceiptLines {
+			code = sanitize.TooLong
+		}
+		if code != "" {
+			f[field] = code
+		}
+		return v
+	}
+	r.address = multi("address", in.Address, maxAddress)
+	r.header = multi("receipt_header", in.ReceiptHeader, maxReceiptText)
+	r.footer = multi("receipt_footer", in.ReceiptFooter, maxReceiptText)
+	phone, ok := sanitize.Text(in.Phone)
+	switch {
+	case !ok:
+		f["phone"] = sanitize.Invalid
+	case utf8.RuneCountInString(phone) > maxPhone:
+		f["phone"] = sanitize.TooLong
+	}
+	r.phone = phone
+	return r
 }
 
 // pct memvalidasi persen 0..100 dengan maksimal 2 desimal; kosong dianggap 0.
@@ -123,8 +171,15 @@ func pct(s string) (decimal.Decimal, bool) {
 	return d, true
 }
 
-func outletOf(id uuid.UUID, code, name string, tStore, tGov decimal.Decimal, tz string, active bool, created time.Time) Outlet {
-	return Outlet{ID: id, Code: code, Name: name, TaxStorePct: tStore, TaxGovPct: tGov, Timezone: tz, Active: active, CreatedAt: created}
+// outletRow = kolom outlet yang sama pada semua query sqlc (OutletList/Get/Create/Update).
+type outletRow interface {
+	gen.OutletListRow | gen.OutletGetRow | gen.OutletCreateRow | gen.OutletUpdateRow
+}
+
+func outletOf[R outletRow](row R) Outlet {
+	r := gen.OutletListRow(row)
+	return Outlet{ID: r.ID, Code: r.Code, Name: r.Name, TaxStorePct: r.TaxStorePct, TaxGovPct: r.TaxGovPct, Timezone: r.Timezone,
+		Active: r.Active, CreatedAt: r.CreatedAt.Time, Address: r.Address, Phone: r.Phone, ReceiptHeader: r.ReceiptHeader, ReceiptFooter: r.ReceiptFooter}
 }
 
 // List: pemilik melihat semua outlet (termasuk nonaktif); pengguna lain hanya outlet aktif yang ditugaskan.
@@ -134,7 +189,7 @@ func (s *Service) List(ctx context.Context, actor authz.Actor) ([]Outlet, error)
 		rows, err := gen.New(tx).OutletList(ctx, actor.TenantID)
 		for _, r := range rows {
 			if actor.Perms.All || actor.Outlets[r.ID] {
-				out = append(out, outletOf(r.ID, r.Code, r.Name, r.TaxStorePct, r.TaxGovPct, r.Timezone, r.Active, r.CreatedAt.Time))
+				out = append(out, outletOf(r))
 			}
 		}
 		return err
@@ -166,7 +221,8 @@ func (s *Service) Create(ctx context.Context, actor authz.Actor, in Input) (*Out
 	err := db.WithTenant(ctx, s.pool, actor.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
 		var err error
-		row, err = q.OutletCreate(ctx, gen.OutletCreateParams{TenantID: actor.TenantID, Code: c.code, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz})
+		row, err = q.OutletCreate(ctx, gen.OutletCreateParams{TenantID: actor.TenantID, Code: c.code, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz,
+			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer})
 		if err != nil {
 			return err
 		}
@@ -189,7 +245,7 @@ func (s *Service) Create(ctx context.Context, actor authz.Actor, in Input) (*Out
 		return nil, err
 	}
 	s.resolver.InvalidateTenant(actor.TenantID)
-	o := outletOf(row.ID, row.Code, row.Name, row.TaxStorePct, row.TaxGovPct, row.Timezone, row.Active, row.CreatedAt.Time)
+	o := outletOf(row)
 	return &o, nil
 }
 
@@ -221,15 +277,18 @@ func (s *Service) Update(ctx context.Context, actor authz.Actor, id uuid.UUID, i
 				return ErrLastOutlet
 			}
 		}
-		row, err = q.OutletUpdate(ctx, gen.OutletUpdateParams{TenantID: actor.TenantID, ID: id, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz, Active: in.Active})
+		row, err = q.OutletUpdate(ctx, gen.OutletUpdateParams{TenantID: actor.TenantID, ID: id, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz, Active: in.Active,
+			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer})
 		if err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.FromActor(actor), audit.Entry{
 			Action: audit.ActionOutletUpdate, Entity: audit.EntityOutlet, EntityID: id.String(),
 			Details: map[string]any{
-				"before": map[string]any{"name": cur.Name, "timezone": cur.Timezone, "tax_store_pct": cur.TaxStorePct.String(), "tax_gov_pct": cur.TaxGovPct.String(), "active": cur.Active},
-				"after":  map[string]any{"name": row.Name, "timezone": row.Timezone, "tax_store_pct": row.TaxStorePct.String(), "tax_gov_pct": row.TaxGovPct.String(), "active": row.Active},
+				"before": map[string]any{"name": cur.Name, "timezone": cur.Timezone, "tax_store_pct": cur.TaxStorePct.String(), "tax_gov_pct": cur.TaxGovPct.String(), "active": cur.Active,
+					"address": cur.Address, "phone": cur.Phone, "receipt_header": cur.ReceiptHeader, "receipt_footer": cur.ReceiptFooter},
+				"after": map[string]any{"name": row.Name, "timezone": row.Timezone, "tax_store_pct": row.TaxStorePct.String(), "tax_gov_pct": row.TaxGovPct.String(), "active": row.Active,
+					"address": row.Address, "phone": row.Phone, "receipt_header": row.ReceiptHeader, "receipt_footer": row.ReceiptFooter},
 			},
 		})
 	})
@@ -240,6 +299,6 @@ func (s *Service) Update(ctx context.Context, actor authz.Actor, id uuid.UUID, i
 		return nil, err
 	}
 	s.resolver.InvalidateTenant(actor.TenantID)
-	o := outletOf(row.ID, row.Code, row.Name, row.TaxStorePct, row.TaxGovPct, row.Timezone, row.Active, row.CreatedAt.Time)
+	o := outletOf(row)
 	return &o, nil
 }

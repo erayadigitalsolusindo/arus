@@ -10,6 +10,14 @@ export default {
   timezone: 'Zona waktu',
   taxStore: 'Pajak toko (%)',
   taxGov: 'Pajak negara (%)',
+  receipt: {
+    title: 'Struk',
+    hint: 'Dicetak di struk kasir (kertas 58 mm ±32 karakter per baris). Kosongkan bila tidak perlu.',
+    address: 'Alamat',
+    phone: 'Telepon',
+    header: 'Teks kepala struk',
+    footer: 'Teks kaki struk'
+  },
   taxHint: 'Persentase 0–100, maksimal 2 desimal.',
   status: 'Status',
   active: 'Aktif',

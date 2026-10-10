@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -153,5 +154,34 @@ func TestCreateUpdateAndGuards(t *testing.T) {
 	_ = e.admin.QueryRow(ctx, `SELECT count(*) FROM user_outlets WHERE tenant_id = $1 AND user_id = $2 AND outlet_id = $3`, e.tenant, mgr.UserID, made.ID).Scan(&assigned)
 	if assigned != 1 {
 		t.Error("pembuat non-pemilik harus otomatis ditugaskan ke outlet buatannya")
+	}
+}
+
+// Data struk: teks beberapa baris boleh, tetapi dibatasi panjang/jumlah baris dan tanpa karakter tak terlihat.
+func TestValidateReceiptFields(t *testing.T) {
+	base := Input{Name: "Pusat", Code: "main"}
+	ok := base
+	ok.Address, ok.Phone, ok.ReceiptHeader, ok.ReceiptFooter = " Jl. Pemuda 12\r\nMagelang ", "0293-123456", "TOKO KOTAK CANTIK", "Terima kasih\nBarang tidak dapat ditukar"
+	c, f := validate(ok, true)
+	if f != nil || c.receipt.address != "Jl. Pemuda 12\nMagelang" || c.receipt.footer != "Terima kasih\nBarang tidak dapat ditukar" || c.receipt.phone != "0293-123456" {
+		t.Fatalf("isian sah ditolak: %v %+v", f, c.receipt)
+	}
+	for _, tc := range []struct {
+		field string
+		mut   func(*Input)
+		code  string
+	}{
+		{"receipt_footer", func(in *Input) { in.ReceiptFooter = "a\nb\nc\nd\ne\nf\ng" }, "TOO_LONG"},
+		{"receipt_header", func(in *Input) { in.ReceiptHeader = strings.Repeat("x", 301) }, "TOO_LONG"},
+		{"address", func(in *Input) { in.Address = "Jl.​Pemuda" }, "INVALID"},
+		{"phone", func(in *Input) { in.Phone = strings.Repeat("1", 31) }, "TOO_LONG"},
+		{"phone", func(in *Input) { in.Phone = "0293‮" }, "INVALID"},
+	} {
+		in := base
+		tc.mut(&in)
+		_, f := validate(in, true)
+		if f[tc.field] != tc.code {
+			t.Errorf("%s: mau %s, dapat %v", tc.field, tc.code, f)
+		}
 	}
 }
