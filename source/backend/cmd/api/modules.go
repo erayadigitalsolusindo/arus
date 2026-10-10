@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +16,7 @@ import (
 	"aciraba/internal/dashboard"
 	"aciraba/internal/iam"
 	"aciraba/internal/item"
+	"aciraba/internal/live"
 	"aciraba/internal/member"
 	"aciraba/internal/outlet"
 	"aciraba/internal/payable"
@@ -40,6 +42,7 @@ type appDeps struct {
 	Cfg    config.Config
 	Log    *slog.Logger
 	Pool   *pgxpool.Pool
+	Ctx    context.Context // umur proses: menghentikan langganan realtime saat shutdown
 	Redis  *redis.Client
 	Mailer mailer.Mailer
 	Jobs   *background.Runner
@@ -51,6 +54,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	tokens := pauth.NewTokenIssuer(d.Cfg.JWTSecret)
 	sessions := pauth.NewSessions(d.Redis)
 	perms := authz.NewResolver(d.Pool)
+
+	liveHub := live.NewHub(d.Redis, d.Log)
+	go liveHub.Run(d.Ctx)
 
 	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
 	authSvc := auth.NewService(auth.Deps{
@@ -92,7 +98,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
-	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard), perms, tokens, d.Log)
+	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
+	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
 	receivableSvc := receivable.NewService(d.Pool)

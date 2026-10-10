@@ -2,6 +2,27 @@ import type { Messages } from '../../types.ts';
 
 const dashboard: Messages['dashboard'] = {
   docTitle: 'Dashboard · ACIRABA',
+  live: {
+    title: 'Live Sales',
+    subtitle: 'Today · {outlet}',
+    statusLive: 'LIVE',
+    statusConnecting: 'Connecting…',
+    statusOffline: 'Disconnected, retrying…',
+    failed: 'Could not load the latest data. Showing the last known figures.',
+    sales: "Today's revenue",
+    receipts: 'Receipts',
+    average: 'Average per receipt',
+    returns: "Today's returns",
+    net: 'Net: {amount}',
+    vsYesterday: 'vs yesterday at this hour',
+    noBaseline: 'no sales yesterday',
+    perHour: 'Sales per hour',
+    recent: 'Latest transactions',
+    empty: 'No sales yet today.',
+    walkIn: 'Walk-in',
+    lines: { one: '{count} item', other: '{count} items' },
+    updated: 'Updated {time}'
+  },
   title: 'Store Overview',
   refresh: 'Refresh',
   updatedAt: 'Updated {time}',
