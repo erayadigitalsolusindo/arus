@@ -2,16 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../api/api_error.dart';
+import '../config/server_url.dart';
 import 'session_models.dart';
 import 'token_store.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(
+  final client = ApiClient(
     tokens: ref.watch(tokenStoreProvider),
+    baseUrl: ref.read(serverUrlProvider),
     onSessionExpired: () => ref.read(sessionProvider.notifier).expire(),
   );
+  ref.listen<String>(serverUrlProvider, (_, url) => client.setBaseUrl(url));
+  return client;
 });
 
 /// Status sesi untuk router: [booting] saat memulihkan dari penyimpanan, lalu [signedOut] / [signedIn].
@@ -36,7 +40,9 @@ class SessionSignedIn extends SessionState {
   final Profile profile;
 }
 
-final sessionProvider = NotifierProvider<SessionController, SessionState>(SessionController.new);
+final sessionProvider = NotifierProvider<SessionController, SessionState>(
+  SessionController.new,
+);
 
 class SessionController extends Notifier<SessionState> {
   @override
@@ -57,8 +63,31 @@ class SessionController extends Notifier<SessionState> {
     }
   }
 
-  Future<void> login({required String email, required String password, required bool remember}) async {
-    final s = await _api.login(email: email, password: password, remember: remember);
+  Future<void> login({
+    required String email,
+    required String password,
+    required bool remember,
+  }) async {
+    final s = await _api.login(
+      email: email,
+      password: password,
+      remember: remember,
+    );
+    state = SessionSignedIn(s.profile);
+  }
+
+  Future<void> switchOutlet(
+    String outletId, {
+    bool pos = false,
+    String? approvalUserId,
+    String? pin,
+  }) async {
+    final s = await _api.switchOutlet(
+      outletId,
+      pos: pos,
+      approvalUserId: approvalUserId,
+      pin: pin,
+    );
     state = SessionSignedIn(s.profile);
   }
 

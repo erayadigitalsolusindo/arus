@@ -1,6 +1,11 @@
 /// Identitas ringkas (pengguna / bisnis / outlet) dari respons auth.
 class Identity {
-  const Identity({required this.id, required this.name, this.code = '', this.email = ''});
+  const Identity({
+    required this.id,
+    required this.name,
+    this.code = '',
+    this.email = '',
+  });
 
   final String id;
   final String name;
@@ -8,13 +13,18 @@ class Identity {
   final String email;
 
   factory Identity.fromJson(Map<String, dynamic> j) => Identity(
-        id: '${j['id'] ?? ''}',
-        name: '${j['name'] ?? ''}',
-        code: '${j['code'] ?? ''}',
-        email: '${j['email'] ?? ''}',
-      );
+    id: '${j['id'] ?? ''}',
+    name: '${j['name'] ?? ''}',
+    code: '${j['code'] ?? ''}',
+    email: '${j['email'] ?? ''}',
+  );
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'code': code, 'email': email};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'code': code,
+    'email': email,
+  };
 }
 
 /// Izin efektif dari server: `{"*":true}` atau `{"modul":["view","create",...]}`.
@@ -58,25 +68,30 @@ class Profile {
   final bool emailVerified;
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
-        user: Identity.fromJson((j['user'] as Map).cast<String, dynamic>()),
-        tenant: Identity.fromJson((j['tenant'] as Map).cast<String, dynamic>()),
-        outlet: Identity.fromJson((j['outlet'] as Map).cast<String, dynamic>()),
-        permissions: Permissions.fromJson(j['permissions']),
-        emailVerified: j['email_verified'] != false,
-      );
+    user: Identity.fromJson((j['user'] as Map).cast<String, dynamic>()),
+    tenant: Identity.fromJson((j['tenant'] as Map).cast<String, dynamic>()),
+    outlet: Identity.fromJson((j['outlet'] as Map).cast<String, dynamic>()),
+    permissions: Permissions.fromJson(j['permissions']),
+    emailVerified: j['email_verified'] != false,
+  );
 
   Map<String, dynamic> toJson() => {
-        'user': user.toJson(),
-        'tenant': tenant.toJson(),
-        'outlet': outlet.toJson(),
-        'permissions': permissions.toJson(),
-        'email_verified': emailVerified,
-      };
+    'user': user.toJson(),
+    'tenant': tenant.toJson(),
+    'outlet': outlet.toJson(),
+    'permissions': permissions.toJson(),
+    'email_verified': emailVerified,
+  };
 }
 
 /// Hasil login / refresh / pindah outlet. [refreshToken] kosong bila server tidak merotasi (mis. pindah outlet).
 class AuthSession {
-  const AuthSession({required this.accessToken, required this.expiresIn, required this.refreshToken, required this.profile});
+  const AuthSession({
+    required this.accessToken,
+    required this.expiresIn,
+    required this.refreshToken,
+    required this.profile,
+  });
 
   final String accessToken;
   final int expiresIn;
@@ -84,9 +99,9 @@ class AuthSession {
   final Profile profile;
 
   factory AuthSession.fromJson(Map<String, dynamic> j) => AuthSession(
-        accessToken: '${j['access_token']}',
-        expiresIn: (j['expires_in'] as num?)?.toInt() ?? 0,
-        refreshToken: '${j['refresh_token'] ?? ''}',
-        profile: Profile.fromJson(j),
-      );
+    accessToken: '${j['access_token']}',
+    expiresIn: (j['expires_in'] as num?)?.toInt() ?? 0,
+    refreshToken: '${j['refresh_token'] ?? ''}',
+    profile: Profile.fromJson(j),
+  );
 }

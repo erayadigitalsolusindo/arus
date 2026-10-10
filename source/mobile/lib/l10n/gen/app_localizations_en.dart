@@ -114,4 +114,263 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorSessionInvalid =>
       'Your session has ended. Please sign in again.';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String themeTooltip(String mode) {
+    return 'Theme: $mode';
+  }
+
+  @override
+  String get posTitle => 'Cashier';
+
+  @override
+  String get posSearchHint => 'Search name, code or barcode';
+
+  @override
+  String get posSearchEmpty => 'No items found.';
+
+  @override
+  String get posCartTitle => 'Cart';
+
+  @override
+  String posItemsCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String get posSubtotal => 'Subtotal';
+
+  @override
+  String get posDiscount => 'Discount';
+
+  @override
+  String get posTaxLine => 'Tax';
+
+  @override
+  String get posOtherCost => 'Other costs';
+
+  @override
+  String get posTotal => 'Total';
+
+  @override
+  String get posPay => 'Pay';
+
+  @override
+  String get posTaxToggle => 'Apply tax';
+
+  @override
+  String get posClearCart => 'Clear cart';
+
+  @override
+  String get posRemoveLine => 'Remove';
+
+  @override
+  String posStock(String qty) {
+    return 'Stock $qty';
+  }
+
+  @override
+  String posStockShort(String qty) {
+    return 'Not enough stock ($qty available)';
+  }
+
+  @override
+  String get posBelowCost => 'Price below cost';
+
+  @override
+  String get posQuoteFailed => 'Could not calculate totals.';
+
+  @override
+  String get posPanelOutlet => 'Outlet';
+
+  @override
+  String get posPanelCashier => 'Cashier';
+
+  @override
+  String get posPanelBusiness => 'Business';
+
+  @override
+  String get posPanelShift => 'Shift';
+
+  @override
+  String get posPanelToggle => 'Outlet info';
+
+  @override
+  String get posBackHome => 'Back to home';
+
+  @override
+  String posShiftOpenedAt(String time) {
+    return 'Opened $time';
+  }
+
+  @override
+  String get posShiftNone => 'No shift yet';
+
+  @override
+  String get shiftOpenTitle => 'Open shift';
+
+  @override
+  String get shiftOpenHint =>
+      'Enter the opening cash in the drawer before you start selling.';
+
+  @override
+  String get shiftOpeningCash => 'Opening cash (Rp)';
+
+  @override
+  String get shiftOpenSubmit => 'Open shift';
+
+  @override
+  String get payTitle => 'Payment';
+
+  @override
+  String get payMethod => 'Method';
+
+  @override
+  String get payAmount => 'Amount (Rp)';
+
+  @override
+  String get payExact => 'Exact amount';
+
+  @override
+  String get payAddMethod => 'Add method';
+
+  @override
+  String get payRef => 'Reference no.';
+
+  @override
+  String get payTotalDue => 'Amount due';
+
+  @override
+  String get payPaid => 'Paid';
+
+  @override
+  String get payChange => 'Change';
+
+  @override
+  String payShortBy(String amount) {
+    return 'Short by $amount';
+  }
+
+  @override
+  String get paySubmit => 'Complete payment';
+
+  @override
+  String get payProcessing => 'Processing...';
+
+  @override
+  String get paySuccessTitle => 'Sale completed';
+
+  @override
+  String paySuccessDoc(String docNo) {
+    return 'Receipt no. $docNo';
+  }
+
+  @override
+  String get payNewSale => 'New sale';
+
+  @override
+  String payChangeDue(String amount) {
+    return 'Change $amount';
+  }
+
+  @override
+  String get errorShiftRequired => 'Open a shift before selling.';
+
+  @override
+  String get errorStockInsufficient => 'Not enough stock for one of the items.';
+
+  @override
+  String get errorValidation => 'Some fields are invalid. Please check.';
+
+  @override
+  String get errorForbidden => 'You do not have permission for this action.';
+
+  @override
+  String get errorIdempotencyMismatch =>
+      'The request conflicts with a previous transaction. Try again.';
+
+  @override
+  String get errorMethodInactive => 'The payment method is inactive.';
+
+  @override
+  String get errorEditWindow => 'Outside the edit window.';
+
+  @override
+  String get serverTitle => 'Server address';
+
+  @override
+  String get serverHelp =>
+      'ARUS API address. On a physical phone use your computer\'s IP on the same network, e.g. http://192.168.1.10:8080. Leave empty to use the default.';
+
+  @override
+  String get serverLabel => 'Server address';
+
+  @override
+  String get serverInvalid =>
+      'Must start with http:// or https:// and include a host.';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get posCartEmptyTitle => 'Your cart is empty';
+
+  @override
+  String get posCartEmptyHint => 'Pick items to start selling';
+
+  @override
+  String get languageTooltip => 'Language';
+
+  @override
+  String get languageSystem => 'Follow phone';
+
+  @override
+  String get outletSwitch => 'Switch outlet';
+
+  @override
+  String get outletSwitchTitle => 'Choose outlet';
+
+  @override
+  String outletSwitched(String name) {
+    return 'Now at $name';
+  }
+
+  @override
+  String get outletApprovalTitle => 'Outlet switch approval';
+
+  @override
+  String outletApprovalBody(String name) {
+    return 'Switching to $name from the register needs Owner/Supervisor approval. The current cart will be cleared.';
+  }
+
+  @override
+  String get outletApprovalNone => 'No approver at the destination outlet.';
+
+  @override
+  String get outletApprover => 'Approver';
+
+  @override
+  String get outletPin => 'Approver PIN (6 digits)';
+
+  @override
+  String get outletApprovalConfirm => 'Approve & switch';
+
+  @override
+  String get errorPinRequired => 'Owner/Supervisor approval (PIN) is required.';
+
+  @override
+  String get errorInvalidPin => 'Wrong approver or PIN.';
+
+  @override
+  String get errorPinLocked =>
+      'PIN is temporarily locked after too many attempts. Try again later.';
 }

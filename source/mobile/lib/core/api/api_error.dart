@@ -52,7 +52,10 @@ class ApiError implements Exception {
         attemptsLeft: (err['attempts_left'] as num?)?.toInt() ?? 0,
       );
     }
-    return ApiError(code: res == null ? 'NETWORK' : 'UNKNOWN', status: res?.statusCode ?? 0);
+    return ApiError(
+      code: res == null ? 'NETWORK' : 'UNKNOWN',
+      status: res?.statusCode ?? 0,
+    );
   }
 
   /// Pesan untuk pengguna dalam bahasa aktif. Kode yang belum punya terjemahan jatuh ke pesan umum.
@@ -63,7 +66,9 @@ class ApiError implements Exception {
       case 'TIMEOUT':
         return l.errorTimeout;
       case 'INVALID_CREDENTIALS':
-        return attemptsLeft > 0 ? l.errorInvalidCredentialsLeft(attemptsLeft) : l.errorInvalidCredentials;
+        return attemptsLeft > 0
+            ? l.errorInvalidCredentialsLeft(attemptsLeft)
+            : l.errorInvalidCredentials;
       case 'ACCOUNT_DISABLED':
         return l.errorAccountDisabled;
       case 'NO_OUTLET':
@@ -76,6 +81,25 @@ class ApiError implements Exception {
         return l.errorUnavailable;
       case 'SESSION_INVALID':
         return l.errorSessionInvalid;
+      case 'SHIFT_REQUIRED':
+        return l.errorShiftRequired;
+      case 'STOCK_INSUFFICIENT':
+        return l.errorStockInsufficient;
+      case 'VALIDATION':
+        return l.errorValidation;
+      case 'FORBIDDEN':
+      case 'OUTLET_FORBIDDEN':
+        return l.errorForbidden;
+      case 'IDEMPOTENCY_MISMATCH':
+        return l.errorIdempotencyMismatch;
+      case 'METHOD_INACTIVE':
+        return l.errorMethodInactive;
+      case 'PIN_REQUIRED':
+        return l.errorPinRequired;
+      case 'INVALID_PIN':
+        return l.errorInvalidPin;
+      case 'PIN_LOCKED':
+        return l.errorPinLocked;
       case 'INTERNAL':
         return l.errorInternal;
       default:
