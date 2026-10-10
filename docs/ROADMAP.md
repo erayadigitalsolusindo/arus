@@ -58,7 +58,7 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 **Fase 10 — Kasir Mobile Android [PRD §7.11, §6.2, §15.4]**
 - **Keputusan pengguna 2026-10-10: aplikasi kasir mobile dibuat dengan Flutter di `source/mobile/` (menggantikan usulan Capacitor di 10.1), dikerjakan LEBIH CEPAT dari rencana karena dibutuhkan segera; import barang (3.4) menyusul. Konsekuensi: template struk (`receipt.ts`/`escpos.ts`) harus ditulis ulang di Dart, UI kasir dibuat dari nol memakai API Go yang sama. PRD §7.11/§15.4 belum diselaraskan.**
 - [ ] 10.0 Validasi (M0): klien peminta, perangkat & printer nyata (PRD Q11–Q17); jangan mulai 10.1 sebelum go-live pilot web kecuali pengguna menyetujui
-- [ ] 10.1 (M1) Capacitor membungkus SPA; sesi native tanpa cookie + tabel perangkat + cabut per perangkat; kanal/perangkat di nota; scan kamera; cetak Bluetooth ESC/POS dari model struk server (prasyarat 5.4); tahan sinyal buruk
+- [ ] 10.1 (M1) Flutter (bukan Capacitor) — **sebagian 2026-10-10: proyek `source/mobile/` + login (jalur auth native tanpa cookie, sesi pulih dari Keystore) selesai**; sisa: tabel perangkat + cabut per perangkat; kanal/perangkat di nota; scan kamera; cetak Bluetooth ESC/POS dari model struk server (prasyarat 5.4); tahan sinyal buruk
 - [ ] 10.2 (M2) printer bawaan perangkat POS, tablet lanskap, scanner HID
 - [ ] 10.3 (M3) offline — hanya bila PRD Q13 = ya dan aturan konflik disetujui
 
