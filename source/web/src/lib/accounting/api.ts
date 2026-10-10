@@ -62,6 +62,10 @@ export type JournalPage = { items: JournalSummary[]; next_cursor?: string };
 export type LineInput = { account_id: string; debit: string; credit: string; memo: string };
 export type JournalInput = { date: string; type: string; narration: string; lines: LineInput[] };
 
+export type SavedTemplateLine = { account_id: string; account_code: string; account_name: string; active: boolean; side: 'debit' | 'credit'; memo: string };
+export type SavedTemplate = { id: string; name: string; type: 'JU' | 'KM' | 'KK' | 'TK'; narration: string; lines: SavedTemplateLine[] };
+export type SavedTemplateInput = { name: string; type: string; narration: string; lines: { account_id: string; side: 'debit' | 'credit'; memo: string }[] };
+
 export type LedgerRow = { line_id: string; entry_id: string; date: string; doc_no: string; type: JournalType; narration: string; memo: string; debit: string; credit: string; balance: string };
 export type Ledger = { account: Account; opening_balance: string; rows: LedgerRow[]; next_cursor?: string; total_debit?: string; total_credit?: string };
 
@@ -111,6 +115,9 @@ export const accounting = {
   postJournal: (id: string) => api<Journal>(`/accounting/journals/${id}/post`, json('POST')),
   reverseJournal: (id: string, date: string, narration: string) => api<Journal>(`/accounting/journals/${id}/reverse`, json('POST', { date, narration })),
   opening: (b: { date: string; narration: string; lines: LineInput[] }) => api<Journal>('/accounting/opening', json('POST', b)),
+  templates: () => api<{ items: SavedTemplate[] }>('/accounting/journal-templates').then((r) => r.items),
+  createTemplate: (b: SavedTemplateInput) => api<SavedTemplate>('/accounting/journal-templates', json('POST', b)),
+  deleteTemplate: (id: string) => api<void>(`/accounting/journal-templates/${id}`, json('DELETE')),
 
   trialBalance: (p: { from: string; to: string }) => api<TrialBalance>(`/accounting/reports/trial-balance?${qs(p)}`),
   incomeStatement: (p: { from: string; to: string }) => api<IncomeStatement>(`/accounting/reports/income-statement?${qs(p)}`),

@@ -6,7 +6,7 @@
   import JournalModal from '#lib/components/JournalModal.svelte';
   import { accounting, todayISO, type JournalSummary } from '#lib/accounting/api.ts';
   import { can, session } from '#lib/auth/session.svelte.ts';
-  import { t, formatCurrency } from '#lib/i18n/index.ts';
+  import { t, formatCurrency, formatDate } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
   let rows = $state<JournalSummary[]>([]);
@@ -116,46 +116,49 @@
     </div>
 
     <div class="overflow-x-auto scroll-thin">
-      <table class="w-full min-w-[980px] text-[12.5px]">
+      <table class="w-full min-w-[860px] text-[12.5px]">
         <thead>
           <tr class="border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)] text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-            <th class="px-4 py-2.5 text-start" scope="col">{t('accounting.journals.col.doc')}</th>
-            <th class="px-3 py-2.5 text-start" scope="col">{t('accounting.journals.col.date')}</th>
-            <th class="px-3 py-2.5 text-start" scope="col">{t('accounting.journals.col.type')}</th>
-            <th class="px-3 py-2.5 text-start" scope="col">{t('accounting.journals.col.narration')}</th>
-            <th class="px-3 py-2.5 text-end" scope="col">{t('accounting.journals.col.total')}</th>
-            <th class="px-3 py-2.5 text-start" scope="col">{t('accounting.journals.col.status')}</th>
-            <th class="px-3 py-2.5"></th>
+            <th class="px-4 py-2 text-start whitespace-nowrap" scope="col">{t('accounting.journals.col.date')}</th>
+            <th class="px-3 py-2 text-start whitespace-nowrap" scope="col">{t('accounting.journals.col.doc')}</th>
+            <th class="px-3 py-2 text-start" scope="col">{t('accounting.journals.col.narration')}</th>
+            <th class="px-3 py-2 text-end whitespace-nowrap" scope="col">{t('accounting.journals.col.total')}</th>
+            <th class="px-3 py-2 text-start whitespace-nowrap" scope="col">{t('accounting.journals.col.status')}</th>
+            <th class="px-3 py-2"></th>
           </tr>
         </thead>
         <tbody>
           {#each rows as r (r.id)}
             <tr class="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--color-primary)]/5">
-              <td class="px-4 py-2 whitespace-nowrap">
-                <button type="button" class="font-mono text-[12px] font-bold text-[var(--color-primary-600)] hover:underline" onclick={() => (editor = { id: r.id, opening: false })}>{r.doc_no || t('accounting.journals.draftNo')}</button>
-                {#if r.source}<div class="mt-0.5"><span class="badge-soft badge-info !text-[10px]"><i class="icon-zap text-[10px]"></i> {t('accounting.journals.auto')}</span></div>{/if}
+              <td class="px-4 py-1.5 whitespace-nowrap tabular-nums align-top">
+                <div class="font-medium">{formatDate(r.date, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                {#if r.created_by}<div class="text-[11px] text-[var(--text-tertiary)]">{r.created_by}</div>{/if}
               </td>
-              <td class="px-3 py-2 whitespace-nowrap tabular-nums">{r.date}</td>
-              <td class="px-3 py-2 whitespace-nowrap"><span class="badge-soft {typeBadge[r.type] ?? 'badge-info'}">{t(`accounting.type.${r.type}`)}</span></td>
-              <td class="px-3 py-2 max-w-[26rem]">
+              <td class="px-3 py-1.5 whitespace-nowrap align-top">
+                <button type="button" class="font-mono text-[12px] font-bold text-[var(--color-primary-600)] hover:underline" onclick={() => (editor = { id: r.id, opening: false })}>{r.doc_no || t('accounting.journals.draftNo')}</button>
+                <div class="mt-0.5 flex items-center gap-1">
+                  <span class="badge-soft {typeBadge[r.type] ?? 'badge-info'} !text-[10px]">{t(`accounting.type.${r.type}`)}</span>
+                  {#if r.source}<span class="badge-soft badge-info !text-[10px]"><i class="icon-zap text-[10px]"></i> {t('accounting.journals.auto')}</span>{/if}
+                </div>
+              </td>
+              <td class="px-3 py-1.5 max-w-[28rem] align-top">
                 <div class="line-clamp-1 font-medium" title={r.narration}>{r.narration || '—'}</div>
                 {#if r.debit_account || r.credit_account}
-                  <div class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-[var(--text-tertiary)]">
+                  <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
                     <span class="truncate max-w-[11rem]" title={r.debit_account}>{r.debit_account}</span>
-                    <i class="icon-arrow-right text-[10px]"></i>
+                    <i class="icon-arrow-right text-[10px] shrink-0"></i>
                     <span class="truncate max-w-[11rem]" title={r.credit_account}>{r.credit_account}</span>
-                    <span class="rounded bg-[var(--surface-sunken)] px-1.5">{t('accounting.journals.lineCount', { n: r.lines })}</span>
+                    <span class="shrink-0 rounded bg-[var(--surface-sunken)] px-1.5">{t('accounting.journals.lineCount', { n: r.lines })}</span>
                   </div>
                 {/if}
               </td>
-              <td class="px-3 py-2 text-end tabular-nums whitespace-nowrap font-semibold">{formatCurrency(Number(r.total))}</td>
-              <td class="px-3 py-2 whitespace-nowrap">
+              <td class="px-3 py-1.5 text-end tabular-nums whitespace-nowrap font-semibold align-top">{formatCurrency(Number(r.total))}</td>
+              <td class="px-3 py-1.5 whitespace-nowrap align-top">
                 <span class="badge-soft {r.status === 'posted' ? 'badge-success' : 'badge-info'}">{t(`accounting.status.${r.status}`)}</span>
                 {#if r.reversed}<span class="badge-soft badge-warning ms-1">{t('accounting.journals.reversed')}</span>{/if}
                 {#if r.is_reversal}<span class="badge-soft badge-warning ms-1">{t('accounting.journals.reversal')}</span>{/if}
-                {#if r.created_by}<div class="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{r.created_by}</div>{/if}
               </td>
-              <td class="px-3 py-2 text-end whitespace-nowrap">
+              <td class="px-3 py-1.5 text-end whitespace-nowrap align-top">
                 {#if r.status === 'draft'}
                   {#if can('journals', 'update')}<button type="button" class="btn btn-sm" onclick={() => (editor = { id: r.id, opening: false })}>{t('accounting.journals.edit')}</button>{/if}
                   {#if can('journals', 'approve')}<button type="button" class="btn btn-sm" onclick={() => post(r)}>{t('accounting.journals.post')}</button>{/if}
@@ -166,7 +169,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="7" class="px-4 py-14 text-center text-[var(--text-tertiary)]">{loading ? '…' : t('accounting.journals.empty')}</td></tr>
+            <tr><td colspan="6" class="px-4 py-14 text-center text-[var(--text-tertiary)]">{loading ? '…' : t('accounting.journals.empty')}</td></tr>
           {/each}
         </tbody>
       </table>

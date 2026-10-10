@@ -7,7 +7,7 @@
   import DatePicker from '#lib/components/DatePicker.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Select from '#lib/components/Select.svelte';
-  import { accounting, todayISO, type Account, type Journal, type LineInput } from '#lib/accounting/api.ts';
+  import { accounting, todayISO, type Account, type Journal, type LineInput, type SavedTemplate } from '#lib/accounting/api.ts';
   import { journalTemplates, type JournalTemplate } from '#lib/accounting/templates.ts';
   import { toCents } from '#lib/pos/money.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -52,6 +52,7 @@
     if (!id && initialType) type = initialType;
     try {
       accounts = (await accounting.accounts()).filter((a) => a.kind === 'ledger' && a.active);
+      if (!id && !opening) saved = await accounting.templates().catch(() => []);
       if (id) {
         const j = await accounting.journal(id);
         journal = j;
@@ -107,6 +108,59 @@
         other.credit = '';
       }
     }
+  }
+
+  let saved = $state<SavedTemplate[]>([]);
+  // Template pengguna hanya dipakai bila semua akunnya masih aktif (akun yang dihapus sudah ikut menghapus barisnya).
+  const usableSaved = $derived(saved.filter((tp) => tp.lines.length >= 2 && tp.lines.every((l) => l.active)));
+  const focusOnMount = (el: HTMLInputElement) => (el.focus(), el.select());
+  let savingTpl = $state(false);
+  let tplName = $state('');
+
+  const canSaveTpl = $derived(
+    filled.length >= 2 &&
+      filled.every((r) => (toCents(r.debit) > 0n) !== (toCents(r.credit) > 0n)) &&
+      filled.some((r) => toCents(r.debit) > 0n) &&
+      filled.some((r) => toCents(r.credit) > 0n)
+  );
+
+  function applySaved(tp: SavedTemplate) {
+    type = tp.type;
+    if (!narration.trim()) narration = tp.narration || tp.name;
+    rows = tp.lines.map((l) => ({ ...blank(), account: l.account_id, label: `${l.account_code} · ${l.account_name}`, memo: l.memo }));
+    mirror = tp.lines.length === 2;
+    notice = t('accounting.journals.tplApplied');
+    void focusCell(0, tp.lines[0].side === 'debit' ? 1 : 2);
+  }
+
+  function startSaveTpl() {
+    tplName = narration.trim().slice(0, 80);
+    savingTpl = true;
+  }
+
+  async function saveTpl(e: Event) {
+    e.preventDefault();
+    const name = tplName.trim();
+    if (!name) return;
+    await run(async () => {
+      const made = await accounting.createTemplate({
+        name,
+        type,
+        narration: narration.trim(),
+        lines: filled.map((r) => ({ account_id: r.account, side: toCents(r.debit) > 0n ? 'debit' : 'credit', memo: r.memo.trim() }))
+      });
+      saved = [...saved, made].sort((a, b) => a.name.localeCompare(b.name));
+      savingTpl = false;
+      notice = t('accounting.journals.tplSaved', { name });
+    });
+  }
+
+  async function removeTpl(tp: SavedTemplate) {
+    if (!confirm(t('accounting.journals.tplDeleteConfirm', { name: tp.name }))) return;
+    await run(async () => {
+      await accounting.deleteTemplate(tp.id);
+      saved = saved.filter((x) => x.id !== tp.id);
+    });
   }
 
   const byCode = $derived(new Map(accounts.map((a) => [a.code, a])));
@@ -285,13 +339,21 @@
       {#if opening}<p class="text-[12px] text-[var(--text-secondary)]">{t('accounting.journals.openingHint')}</p>{/if}
       {#if !opening && accounts.length < 2 && !readonly}<p class="text-[12px] text-[var(--color-warning-700)]">{t('accounting.journals.noAccounts')}</p>{/if}
 
-      {#if !readonly && !opening && !id && usableTemplates.length}
+      {#if !readonly && !opening && !id && (usableTemplates.length || usableSaved.length)}
         <div>
           <div class="flex items-baseline gap-2">
             <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.tplTitle')}</span>
             <span class="text-[11px] text-[var(--text-tertiary)]">{t('accounting.journals.tplHint')}</span>
           </div>
           <div class="mt-1.5 flex flex-wrap gap-1.5">
+            {#each usableSaved as tp (tp.id)}
+              <span class="inline-flex items-center rounded-full border border-[var(--color-primary-500)]/50 bg-[color-mix(in_srgb,var(--color-primary-500)_8%,transparent)] text-[12px]">
+                <button type="button" class="ps-2.5 pe-1.5 py-1 hover:text-[var(--color-primary-600)]" title={tp.narration} onclick={() => applySaved(tp)}>
+                  <i class="icon-bookmark text-[11px] text-[var(--color-primary-600)]"></i> {tp.name}
+                </button>
+                <button type="button" class="pe-2 ps-0.5 py-1 text-[var(--text-tertiary)] hover:text-[var(--color-danger-600)]" aria-label="{t('accounting.journals.tplDelete')}: {tp.name}" title={t('accounting.journals.tplDelete')} onclick={() => removeTpl(tp)}><i class="icon-x text-[11px]"></i></button>
+              </span>
+            {/each}
             {#each usableTemplates as tp (tp.id)}
               <button type="button" class="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2.5 py-1 text-[12px] hover:border-[var(--color-primary-500)] hover:text-[var(--color-primary-600)]" onclick={() => applyTemplate(tp)}>
                 <span class="font-mono text-[10.5px] text-[var(--text-tertiary)]">{tp.type}</span> {t(`accounting.journals.tpl.${tp.id}`)}
@@ -388,6 +450,17 @@
           {#if !opening}<span><kbd class={kbd}>Ctrl+S</kbd> {t('accounting.journals.keyDraft')}</span>{/if}
           <span><kbd class={kbd}>Ctrl+Enter</kbd> {opening ? t('accounting.journals.saveOpening') : t('accounting.journals.keyPost')}</span>
         </p>
+      {/if}
+      {#if !readonly && !opening && can('journals', 'create')}
+        {#if savingTpl}
+          <form class="flex flex-wrap items-center gap-2" onsubmit={saveTpl}>
+            <div class="w-64"><input bind:value={tplName} use:focusOnMount maxlength="80" placeholder={t('accounting.journals.tplName')} aria-label={t('accounting.journals.tplName')} class={inputClass} /></div>
+            <button type="submit" class="btn btn-sm btn-primary" disabled={busy || !tplName.trim()}>{t('accounting.journals.tplSave')}</button>
+            <button type="button" class="btn btn-sm" onclick={() => (savingTpl = false)}>{t('accounting.journals.close')}</button>
+          </form>
+        {:else}
+          <button type="button" class="btn btn-sm" disabled={!canSaveTpl} title={canSaveTpl ? '' : t('accounting.journals.tplNeedSides')} onclick={startSaveTpl}><i class="icon-bookmark-plus"></i> {t('accounting.journals.tplSave')}</button>
+        {/if}
       {/if}
       {#each Object.entries(fields) as [k, code] (k)}<p class="text-[12px] text-[var(--color-danger-600)]">{k}: {fieldMessage(code)}</p>{/each}
 

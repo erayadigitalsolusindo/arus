@@ -55,7 +55,18 @@ export type PlatformAuditItem = {
 
 const json = (v: unknown) => JSON.stringify(v);
 
+export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
+
 export const platformApi = {
+  apkInfo: () => papi<ApkInfo>('/public/mobile/apk/info'),
+  /** Unggah APK Kasir (multipart; versi harus dikirim sebelum berkas). */
+  uploadApk: (file: File, version: string) => {
+    const form = new FormData();
+    if (version) form.append('version', version);
+    form.append('file', file);
+    return papi<ApkInfo>('/platform/mobile/apk', { method: 'PUT', body: form });
+  },
+  deleteApk: () => papi<void>('/platform/mobile/apk', { method: 'DELETE' }),
   tenants: (q: string, limit: number, offset: number) => papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
   /** Batas hari edit/batal nota tenant (0 = hanya hari nota dibuat, maks 3650). Hanya operator platform yang boleh mengubah. */

@@ -19,6 +19,7 @@ import (
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/platform/storage"
 )
 
 const (
@@ -36,6 +37,7 @@ type HandlerDeps struct {
 	Lockout      *auth.Lockout // dipakai bersama login tenant; kunci hitungannya diberi awalan "platform:"
 	Origins      []string      // untuk CSRFGuard (endpoint ber-cookie)
 	SecureCookie bool
+	APK          *storage.Local // penyimpanan APK Kasir; nil = fitur unggah APK nonaktif
 }
 
 type Handler struct {
@@ -50,6 +52,10 @@ func (h *Handler) Routes(r chi.Router) {
 	authed := httpx.RequireAuth(h.svc.PTokens)
 
 	r.Get("/platform/setup/status", h.SetupStatus)
+
+	// APK Kasir: unduh publik (halaman login web); unggah/hapus khusus Platform Admin (di bawah).
+	r.With(httpx.RateLimit(h.Redis, "public-apk-info", 600, time.Hour)).Get("/public/mobile/apk/info", h.APKInfoPublic)
+	r.With(httpx.RateLimit(h.Redis, "public-apk", 60, time.Hour)).Get("/public/mobile/apk", h.APKDownload)
 	r.With(httpx.RateLimit(h.Redis, "platform-setup", 10, time.Hour)).Post("/platform/setup", h.Setup)
 	r.With(httpx.RateLimit(h.Redis, "platform-login", 30, 15*time.Minute)).Post("/platform/auth/login", h.Login)
 	r.With(httpx.RateLimit(h.Redis, "platform-login-mfa", 30, 15*time.Minute)).Post("/platform/auth/login/mfa", h.LoginMFA)
@@ -83,6 +89,9 @@ func (h *Handler) Routes(r chi.Router) {
 
 			r.Get("/platform/audit", h.Audit)
 			r.Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
+
+			r.Put("/platform/mobile/apk", h.APKUpload)
+			r.Delete("/platform/mobile/apk", h.APKDelete)
 		})
 	})
 }

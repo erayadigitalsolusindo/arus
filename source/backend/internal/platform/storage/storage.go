@@ -116,3 +116,43 @@ func (l *Local) Delete(_ context.Context, key string) error {
 	}
 	return nil
 }
+
+// PutStream menulis isi r (streaming, tanpa menampung seluruhnya di memori) ke file sementara, menjalankan verify atas
+// file itu, lalu rename atomik ke key. Dipakai untuk berkas besar (APK). verify boleh nil. Mengembalikan jumlah byte.
+func (l *Local) PutStream(_ context.Context, key string, r io.Reader, verify func(path string, size int64) error) (int64, error) {
+	p, err := l.path(key)
+	if err != nil {
+		return 0, err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+		return 0, fmt.Errorf("storage: buat folder: %w", err)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
+	if err != nil {
+		return 0, fmt.Errorf("storage: file sementara: %w", err)
+	}
+	name := tmp.Name()
+	n, err := io.Copy(tmp, r)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(name)
+		return 0, fmt.Errorf("storage: tulis: %w", err)
+	}
+	if verify != nil {
+		if err := verify(name, n); err != nil {
+			os.Remove(name)
+			return 0, err
+		}
+	}
+	if err := os.Chmod(name, 0o640); err != nil && !errors.Is(err, fs.ErrPermission) {
+		os.Remove(name)
+		return 0, err
+	}
+	if err := os.Rename(name, p); err != nil {
+		os.Remove(name)
+		return 0, fmt.Errorf("storage: rename: %w", err)
+	}
+	return n, nil
+}

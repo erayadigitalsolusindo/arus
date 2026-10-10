@@ -15,6 +15,7 @@ export default {
     submit: 'Masuk',
     noAccount: 'Belum punya akun?',
     createOne: 'Buat akun',
+    downloadApk: 'UNDUH APK KASIR',
     emailRequired: 'Email wajib diisi.',
     emailInvalid: 'Format email tidak valid.',
     passwordRequired: 'Kata sandi wajib diisi.'

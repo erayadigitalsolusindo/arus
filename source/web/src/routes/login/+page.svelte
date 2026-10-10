@@ -1,7 +1,8 @@
 <script lang="ts">
   import { z } from 'zod';
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { api, ApiError, type AuthResponse } from '#lib/api/client.ts';
+  import { api, API_URL, ApiError, request, type AuthResponse } from '#lib/api/client.ts';
   import { homePath, startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -9,6 +10,15 @@
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
+
+  // APK Kasir yang diunggah Platform Admin; tombol hanya tampil bila sudah ada.
+  const APK_URL = `${API_URL}/public/mobile/apk`;
+  let apk = $state<{ available: boolean; version?: string } | null>(null);
+  onMount(() => {
+    request<{ available: boolean; version?: string }>('/public/mobile/apk/info', {}, null)
+      .then((r) => (apk = r))
+      .catch(() => (apk = null));
+  });
 
   // Dibuat per submit agar pesan validasi mengikuti bahasa aktif.
   const makeSchema = () =>
@@ -175,6 +185,16 @@
       <p class="text-center text-[12.5px] mt-6 text-tertiary">
         {t('auth.login.noAccount')} <a href="/register" class="font-semibold text-primary-600">{t('auth.login.createOne')}</a>
       </p>
+
+      {#if apk?.available}
+      <a
+        href={APK_URL}
+        download
+        class="btn btn-outline w-full justify-center !text-[12.5px] mt-4 font-bold tracking-wide"
+      >
+        <i class="icon-smartphone text-[14px]"></i>{t('auth.login.downloadApk')}
+      </a>
+      {/if}
     </div>
 
     <div class="relative w-full max-w-[400px] mx-auto">
