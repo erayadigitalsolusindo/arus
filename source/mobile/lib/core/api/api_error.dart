@@ -85,6 +85,8 @@ class ApiError implements Exception {
         return l.errorShiftRequired;
       case 'STOCK_INSUFFICIENT':
         return l.errorStockInsufficient;
+      case 'CREDIT_LIMIT_EXCEEDED':
+        return l.errorCreditLimit;
       case 'VALIDATION':
         return l.errorValidation;
       case 'FORBIDDEN':
@@ -100,6 +102,14 @@ class ApiError implements Exception {
         return l.errorInvalidPin;
       case 'PIN_LOCKED':
         return l.errorPinLocked;
+      case 'SHIFT_RECAP_CHANGED':
+        return l.errorShiftRecapChanged;
+      case 'SHIFT_DIFF_NOTE_REQUIRED':
+        return l.errorShiftDiffNote;
+      case 'SHIFT_CLOSED':
+        return l.errorShiftClosed;
+      case 'SHIFT_ALREADY_OPEN':
+        return l.errorShiftAlreadyOpen;
       case 'INTERNAL':
         return l.errorInternal;
       default:

@@ -407,9 +407,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const Positioned(
                 top: 4,
                 right: 4,
-                child: Row(
-                  children: [LanguageButton(), ThemeToggleButton()],
-                ),
+                child: Row(children: [LanguageButton(), ThemeToggleButton()]),
               ),
             ],
           ),

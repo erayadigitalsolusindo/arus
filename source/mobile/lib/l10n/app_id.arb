@@ -200,5 +200,485 @@
   "outletApprovalConfirm": "Setujui & pindah",
   "errorPinRequired": "Persetujuan Owner/Supervisor (PIN) wajib.",
   "errorInvalidPin": "Penyetuju atau PIN salah.",
-  "errorPinLocked": "PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti."
+  "errorPinLocked": "PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti.",
+  "posShiftCloseTooltip": "Tutup shift",
+  "posSalesTodayTooltip": "Penjualan hari ini",
+  "shiftCloseTitle": "Tutup shift {doc}",
+  "@shiftCloseTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseBody": "Hitung uang fisik di laci untuk setiap metode, lalu isi di bawah. Selisih wajib dicatat dan disetujui Owner/Supervisor.",
+  "shiftCloseOpened": "Dibuka {time}",
+  "@shiftCloseOpened": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseSales": "{count} nota, {total}",
+  "@shiftCloseSales": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseVoid": "{count} nota batal",
+  "@shiftCloseVoid": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseReceivable": "Piutang {amount}",
+  "@shiftCloseReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftColExpected": "Seharusnya",
+  "shiftColCounted": "Uang fisik (Rp)",
+  "shiftColDiff": "Selisih",
+  "shiftFillExpected": "Isi sesuai rekap",
+  "shiftTotalDiff": "Total selisih",
+  "shiftNote": "Catatan selisih",
+  "shiftNoteHint": "Jelaskan penyebab selisih (min. 3 huruf)",
+  "shiftNeedApproval": "Ada selisih: butuh persetujuan Owner/Supervisor.",
+  "shiftApprovalNone": "Belum ada penyetuju di cabang ini.",
+  "shiftCloseSubmit": "Tutup shift",
+  "shiftChangedNotice": "Ada transaksi baru sejak rekap ditampilkan. Rekap sudah dimuat ulang; periksa lagi hitungan Anda.",
+  "shiftClosedTitle": "Shift {doc} ditutup",
+  "@shiftClosedTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftClosedBody": "Rekap dibekukan dan tersimpan di server.",
+  "shiftTotalExpected": "Seharusnya",
+  "shiftTotalCounted": "Dihitung",
+  "shiftOpenNew": "Buka shift baru",
+  "shiftDone": "Selesai",
+  "errorShiftRecapChanged": "Ada transaksi baru sejak rekap ditampilkan. Muat ulang rekap lalu hitung lagi.",
+  "errorShiftDiffNote": "Selisih wajib disertai catatan dan persetujuan.",
+  "errorShiftClosed": "Shift ini sudah ditutup.",
+  "errorShiftAlreadyOpen": "Shift Anda di cabang ini sudah terbuka.",
+  "salesTodayTitle": "Penjualan hari ini",
+  "salesTodaySummary": "{count} nota, {total}",
+  "@salesTodaySummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTodaySearch": "Cari nomor nota",
+  "salesTodayEmpty": "Belum ada penjualan.",
+  "salesTodayTruncated": "Daftar dipotong; persempit dengan pencarian.",
+  "saleVoidBadge": "BATAL",
+  "saleReturnedBadge": "Retur {amount}",
+  "@saleReturnedBadge": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saleCreditBadge": "Piutang",
+  "saleDetailCashier": "Kasir {name}",
+  "@saleDetailCashier": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleDetailMember": "Member {name}",
+  "@saleDetailMember": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReason": "Alasan batal: {reason}",
+  "@saleVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "saleSubtotal": "Subtotal",
+  "saleDiscount": "Potongan",
+  "saleTax": "Pajak",
+  "saleOtherCost": "Biaya lain",
+  "saleTotal": "Total",
+  "salePaid": "Dibayar",
+  "saleChange": "Kembalian",
+  "saleReceivable": "Piutang",
+  "posScanTooltip": "Scan barcode dengan kamera",
+  "scanTitle": "Scan barang",
+  "scanTorch": "Senter",
+  "scanSwitchCamera": "Ganti kamera",
+  "scanHint": "Arahkan kamera ke barcode barang",
+  "scanDone": "Selesai",
+  "scanPermissionDenied": "Izin kamera ditolak. Aktifkan izin kamera untuk ARUS di pengaturan HP.",
+  "scanCameraError": "Kamera tidak bisa dibuka.",
+  "scanAdded": "{name} masuk keranjang",
+  "@scanAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scanNotFound": "Kode {code} tidak ditemukan",
+  "@scanNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "scanAmbiguous": "Kode {code} cocok dengan lebih dari satu barang; cari manual",
+  "@scanAmbiguous": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "memberChoose": "Pilih member",
+  "memberChange": "Ganti member",
+  "memberGeneral": "Pelanggan umum",
+  "memberSearchHint": "Cari nama, kode, atau telepon",
+  "memberSearchEmpty": "Member tidak ditemukan.",
+  "memberRemove": "Lepas member",
+  "memberPoints": "{points} poin",
+  "@memberPoints": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberPointsAndDeposit": "{points} poin · deposit {deposit}",
+  "@memberPointsAndDeposit": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "deposit": {
+        "type": "String"
+      }
+    }
+  },
+  "memberEarn": "+{points} poin",
+  "@memberEarn": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberRedeemTitle": "Tukar poin",
+  "memberRedeemAvailable": "Bisa ditukar maksimal {points} poin (senilai {value})",
+  "@memberRedeemAvailable": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "memberRedeemField": "Poin yang ditukar",
+  "memberRedeemAll": "Semua",
+  "memberRedeemNone": "Poin member ini belum bisa ditukar untuk nota ini.",
+  "memberRedeemReset": "Batalkan tukar",
+  "memberRedeemDone": "Terapkan",
+  "memberRedeemValue": "Potongan {amount}",
+  "@memberRedeemValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "errorRedeemInvalid": "Poin yang ditukar melebihi batas. Kurangi jumlahnya.",
+  "payDepositOver": "Deposit melebihi saldo ({amount})",
+  "@payDepositOver": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustTitle": "Ubah harga / potongan",
+  "adjustBody": "Butuh persetujuan penyetuju (Owner/Supervisor) dengan PIN-nya.",
+  "adjustItem": "Barang",
+  "adjustListPrice": "Harga normal",
+  "adjustTabPrice": "Ubah harga",
+  "adjustTabDiscount": "Potongan",
+  "adjustNewPrice": "Harga baru per satuan (Rp)",
+  "adjustDiscountRp": "Potongan (Rp)",
+  "adjustDiscountPct": "Potongan (%)",
+  "adjustUnitTotal": "Total baris",
+  "adjustUnitPerUnit": "Per satuan",
+  "adjustPercentPreview": "Potongan {amount} per satuan",
+  "@adjustPercentPreview": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustChecking": "Memeriksa PIN...",
+  "adjustApply": "Terapkan",
+  "adjustReset": "Kembalikan ke harga normal",
+  "adjustEditTooltip": "Ubah harga / potongan",
+  "adjustBadgePrice": "Harga diubah",
+  "adjustBadgeDiscount": "Potongan {amount}",
+  "@adjustBadgeDiscount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustApprovedBy": "disetujui {name}",
+  "@adjustApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurcharge": "Biaya metode bayar",
+  "payCharged": "Ditagih ke pelanggan",
+  "payFeeCustomer": "Biaya {rate} = {fee}, ditagihkan ke pelanggan (pelanggan bayar {amount})",
+  "@payFeeCustomer": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "payFeeStore": "Biaya {rate} = {fee}, ditanggung toko",
+  "@payFeeStore": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurchargeDone": "Biaya metode {surcharge} · ditagih {charged}",
+  "@paySurchargeDone": {
+    "placeholders": {
+      "surcharge": {
+        "type": "String"
+      },
+      "charged": {
+        "type": "String"
+      }
+    }
+  },
+  "costsTitle": "Keterangan & biaya lain",
+  "costsHint": "Biaya lain-lain dengan rincian (maks 20), misalnya ongkir atau packing.",
+  "costsName": "Nama biaya",
+  "costsAmount": "Jumlah (Rp)",
+  "costsRemove": "Hapus",
+  "costsAdd": "Tambah biaya",
+  "costsTotal": "Total biaya lain",
+  "costsDone": "Terapkan",
+  "costsClear": "Hapus semua",
+  "posCostsButton": "Keterangan & biaya lain",
+  "posTaxStore": "Pajak toko ({pct}%)",
+  "@posTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posTaxGov": "Pajak negara ({pct}%)",
+  "@posTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posCostUnnamed": "Biaya lain",
+  "payModePay": "Bayar",
+  "payModeCredit": "Kredit",
+  "payCreditNoMember": "Kredit hanya untuk member. Pilih member di keranjang dulu.",
+  "payCreditNotNeeded": "Uang muka sudah menutup total nota; gunakan mode Bayar.",
+  "payCreditDpAdd": "Tambah uang muka (DP)",
+  "payCreditReceivable": "Piutang (sisa belum dibayar)",
+  "payCreditDue": "Jatuh tempo",
+  "payCreditDueDays": "{days} hari setelah nota",
+  "@payCreditDueDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "payCreditNoDue": "Tanpa jatuh tempo",
+  "payCreditLimit": "Limit kredit",
+  "payCreditNoLimit": "Tanpa batas",
+  "payCreditOutstanding": "Piutang saat ini",
+  "payCreditAfter": "Piutang setelah nota ini",
+  "payCreditOverLimit": "Melewati limit kredit member. Butuh persetujuan penyetuju dengan PIN-nya.",
+  "payCreditSameApprover": "Penyetuju yang sama (ubah harga/potongan) dipakai untuk limit kredit.",
+  "errorCreditLimit": "Piutang member melewati limit kredit. Butuh persetujuan penyetuju (PIN).",
+  "paySuccessReceivable": "Piutang {amount}",
+  "@paySuccessReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paySuccessDue": "Jatuh tempo {date}",
+  "@paySuccessDue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingHoldTitle": "Tunda nota",
+  "pendingLabel": "Keterangan (opsional)",
+  "pendingLabelHint": "Nama pelanggan atau ciri-cirinya",
+  "pendingHold": "Tunda",
+  "pendingHoldTooltip": "Tunda nota",
+  "pendingListTooltip": "Nota pending",
+  "pendingFull": "Nota pending penuh (maks {max}). Buka atau hapus salah satu dulu.",
+  "@pendingFull": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingSaved": "Nota ditunda sebagai Pending {no}",
+  "@pendingSaved": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpened": "Pending {no} dibuka",
+  "@pendingOpened": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpenedSwapped": "Pending {no} dibuka; isi sebelumnya disimpan sebagai Pending {saved}",
+  "@pendingOpenedSwapped": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingTitle": "Nota pending ({count}/{max})",
+  "@pendingTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingHint": "Tersimpan di HP ini, kedaluwarsa 24 jam. Harga dan stok dihitung ulang saat dibuka.",
+  "pendingEmpty": "Belum ada nota pending.",
+  "pendingNo": "Pending {no}",
+  "@pendingNo": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingLines": "{count} baris",
+  "@pendingLines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingDelete": "Hapus",
+  "pendingDeleteAsk": "Hapus Pending {no}?",
+  "@pendingDeleteAsk": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "shortcutsEmpty": "Belum ada pintasan. Ketuk ikon di kanan untuk mengatur.",
+  "shortcutsManage": "Atur pintasan barang",
+  "shortcutsTitle": "Pintasan barang",
+  "shortcutsHint": "16 slot milik Anda, sama dengan kasir web. Ketuk slot untuk memasang barang.",
+  "shortcutsSlotEmpty": "Kosong — ketuk untuk memasang barang",
+  "shortcutsInactive": "Barang nonaktif",
+  "shortcutsClear": "Kosongkan slot",
+  "salespersonLabel": "Salesman",
+  "salespersonNone": "Umum (tanpa salesman)",
+  "salespersonSearch": "Cari salesman",
+  "salespersonEmpty": "Salesman tidak ditemukan.",
+  "payQuickAmounts": "Uang diterima",
+  "categoryAll": "Semua",
+  "noteLabel": "Keterangan nota",
+  "noteHint": "Mis. nama pelanggan, titipan, alamat kirim",
+  "homeGreetMorning": "Selamat pagi, {name}",
+  "@homeGreetMorning": {"placeholders": {"name": {"type": "String"}}},
+  "homeGreetNoon": "Selamat siang, {name}",
+  "@homeGreetNoon": {"placeholders": {"name": {"type": "String"}}},
+  "homeGreetAfternoon": "Selamat sore, {name}",
+  "@homeGreetAfternoon": {"placeholders": {"name": {"type": "String"}}},
+  "homeGreetNight": "Selamat malam, {name}",
+  "@homeGreetNight": {"placeholders": {"name": {"type": "String"}}},
+  "homeTodayTitle": "Penjualan hari ini",
+  "homeTodayNotes": "Nota",
+  "homeShiftLabel": "Shift",
+  "homeStallHint": "Ketuk untuk mulai berjualan"
 }
