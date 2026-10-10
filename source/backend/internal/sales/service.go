@@ -281,10 +281,19 @@ type MemberInfo struct {
 type Service struct {
 	pool      *pgxpool.Pool
 	approvals *approval.Service // nil = ubah harga tidak tersedia (tes)
+	// shiftGuard != nil: nota baru hanya boleh disimpan bila kasir punya shift terbuka di outlet aktif (shift.Guard).
+	// nil di tes modul ini agar fixture tidak perlu membuka shift.
+	shiftGuard func(ctx context.Context, tx pgx.Tx, a authz.Actor) error
 }
 
 func NewService(pool *pgxpool.Pool, approvals *approval.Service) *Service {
 	return &Service{pool: pool, approvals: approvals}
+}
+
+// WithShiftGuard memasang pemeriksa shift kasir untuk nota baru (bukan revisi edit).
+func (s *Service) WithShiftGuard(g func(ctx context.Context, tx pgx.Tx, a authz.Actor) error) *Service {
+	s.shiftGuard = g
+	return s
 }
 
 // ---- Validasi & normalisasi ----
@@ -901,6 +910,11 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		return replay{ex.ID}
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return err
+	}
+	if ed == nil && s.shiftGuard != nil {
+		if err := s.shiftGuard(ctx, tx, a); err != nil {
+			return err
+		}
 	}
 
 	out, err := q.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})

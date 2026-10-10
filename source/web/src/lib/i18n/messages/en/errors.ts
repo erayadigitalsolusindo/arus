@@ -135,6 +135,13 @@ const errors: Messages['errors'] = {
   FIELD_CREDIT_INSUFFICIENT: 'The supplier credit balance is not enough.',
   FIELD_BALANCE_INSUFFICIENT: 'The amount exceeds the available balance.',
   FIELD_SETTLED: 'This balance is already settled.',
+  SHIFT_REQUIRED: 'Open a cashier shift before saving receipts.',
+  SHIFT_ALREADY_OPEN: 'Your shift at this outlet is already open.',
+  SHIFT_CLOSED: 'This shift is already closed.',
+  SHIFT_RECAP_CHANGED: 'New transactions arrived since the recap was shown. Reload the recap and count again.',
+  SHIFT_DIFF_NOTE_REQUIRED: 'There is a cash difference; add a note (min. 3 characters) and ask an approver (PIN).',
+  RECEIVABLE_NOT_OPENING: 'Only opening receivables can be voided here; void the receipt for receipt receivables.',
+  RECEIVABLE_VOIDED: 'This opening balance is already voided.',
 };
 
 export default errors;

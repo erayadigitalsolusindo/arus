@@ -12,6 +12,7 @@ import (
 	"aciraba/internal/authz"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
+	"aciraba/internal/shift"
 	"aciraba/internal/stock"
 	"aciraba/internal/wallet"
 )
@@ -148,6 +149,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusBadRequest, "IDEMPOTENCY_KEY_REQUIRED", "Header Idempotency-Key wajib (8–100 karakter).")
 	case errors.Is(err, ErrKeyMismatch):
 		httpx.Error(w, http.StatusUnprocessableEntity, "IDEMPOTENCY_MISMATCH", "Idempotency-Key sudah dipakai untuk permintaan yang berbeda.")
+	case errors.Is(err, shift.ErrRequired):
+		httpx.Error(w, http.StatusConflict, "SHIFT_REQUIRED", "Buka shift kasir dulu sebelum menyimpan nota.")
 	case errors.Is(err, ErrOutletInactive):
 		httpx.Error(w, http.StatusConflict, "OUTLET_NOT_FOUND", "Outlet aktif tidak ditemukan atau tidak aktif.")
 	case errors.As(err, &cl):

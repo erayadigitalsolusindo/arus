@@ -116,7 +116,7 @@ func lockForEdit(ctx context.Context, q *gen.Queries, a authz.Actor, id uuid.UUI
 		return row, ErrSaleHasReturns
 	}
 	// Nota kredit yang piutangnya sudah dibayar tidak boleh diubah/dibatalkan: uang yang diterima tidak boleh hilang diam-diam.
-	if paid, err := q.ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: a.TenantID, SaleID: row.ID}); err != nil {
+	if paid, err := q.ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: a.TenantID, SaleID: pgtype.UUID{Bytes: row.ID, Valid: true}}); err != nil {
 		return row, err
 	} else if paid > 0 {
 		return row, ErrReceivablePaid

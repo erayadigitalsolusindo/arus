@@ -6,7 +6,9 @@
   import { sales, type SaleList, type Sale } from '#lib/sales/api.ts';
   import { t, formatCurrency, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
-  import { printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
+  import { loadReceiptSettings, printErrorMessage, printLines, printReceipt } from '#lib/pos/receipt.ts';
+  import { dailyRecapLines } from '#lib/pos/report-receipts.ts';
+  import { session } from '#lib/auth/session.svelte.ts';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -62,6 +64,24 @@
     }
   }
 
+  // Cetak rekap rentang yang dipilih (per kasir yang login). Pencarian no. nota diabaikan: rekap selalu seluruh rentang.
+  let printingRecap = $state(false);
+  async function printRecap() {
+    if (printingRecap || !data) return;
+    printingRecap = true;
+    error = '';
+    try {
+      const list = q.trim() ? await sales.list({ from: data.from, to: data.to }) : data;
+      const settings = loadReceiptSettings();
+      const meta = { tenant: session.tenant?.name ?? '', outlet: session.outlet?.name ?? '', cashier: session.user?.name ?? '' };
+      await printLines(dailyRecapLines(list, meta, settings.paper), settings);
+    } catch (err) {
+      error = printErrorMessage(err);
+    } finally {
+      printingRecap = false;
+    }
+  }
+
   async function toggle(id: string) {
     if (open[id]) {
       open[id] = undefined;
@@ -102,7 +122,9 @@
     />
     <div class="flex items-center gap-2">
       <DateRange bind:from bind:to onchange={load} ariaLabel={t('pos.today.range')} class="grow" />
-      <button type="button" class="btn btn-sm btn-primary shrink-0 h-10" disabled title={t('pos.soon')}><i class="icon-printer"></i> {t('pos.today.print')}</button>
+      <button type="button" class="btn btn-sm btn-primary shrink-0 h-10" disabled={!data || loading || printingRecap} title={t('pos.today.printHint')} onclick={printRecap}>
+        <i class={printingRecap ? 'icon-loader-circle animate-spin' : 'icon-printer'}></i> {t('pos.today.print')}
+      </button>
     </div>
 
     <div class="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">

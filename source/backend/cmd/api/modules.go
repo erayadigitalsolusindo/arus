@@ -28,6 +28,7 @@ import (
 	"aciraba/internal/purchasing"
 	"aciraba/internal/receivable"
 	"aciraba/internal/sales"
+	"aciraba/internal/shift"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
 	"aciraba/internal/wallet"
@@ -90,7 +91,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
-	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log)
+	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard), perms, tokens, d.Log)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
 	receivable.NewHandler(receivable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
@@ -102,5 +103,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	purchaseH.ReturnRoutes(r)
 	payable.NewHandler(payable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	return nil
 }
