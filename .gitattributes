@@ -3,3 +3,6 @@
 *.woff binary
 *.ttf binary
 *.eot binary
+# Skrip Windows harus CRLF agar cmd.exe membacanya dengan benar
+*.cmd text eol=crlf
+*.bat text eol=crlf
