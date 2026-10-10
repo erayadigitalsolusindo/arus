@@ -41,6 +41,66 @@ type Brand struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type CashShift struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	OutletID        uuid.UUID
+	UserID          uuid.UUID
+	DocNo           string
+	Status          string
+	OpeningCash     decimal.Decimal
+	OpenedAt        pgtype.Timestamptz
+	ClosedAt        pgtype.Timestamptz
+	ClosedBy        pgtype.UUID
+	ExpectedTotal   pgtype.Numeric
+	CountedTotal    pgtype.Numeric
+	DiffTotal       pgtype.Numeric
+	DiffAbs         pgtype.Numeric
+	SaleCount       pgtype.Int4
+	VoidCount       pgtype.Int4
+	SalesTotal      pgtype.Numeric
+	ReceivableTotal pgtype.Numeric
+	Note            string
+	ApprovedBy      pgtype.UUID
+	ApprovedName    pgtype.Text
+	CloseKey        pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+}
+
+type CashShiftCount struct {
+	TenantID   uuid.UUID
+	ShiftID    uuid.UUID
+	Position   int32
+	MethodID   uuid.UUID
+	MethodName string
+	Kind       string
+	Sales      decimal.Decimal
+	Flows      decimal.Decimal
+	Opening    decimal.Decimal
+	Expected   decimal.Decimal
+	Counted    decimal.Decimal
+	Diff       decimal.Decimal
+}
+
+type CashShiftCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type CashShiftFlow struct {
+	TenantID   uuid.UUID
+	ShiftID    uuid.UUID
+	Position   int32
+	Source     string
+	MethodID   uuid.UUID
+	MethodName string
+	Kind       string
+	Amount     decimal.Decimal
+	DocCount   int32
+}
+
 type Category struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -472,14 +532,32 @@ type PurchaseReturnLine struct {
 }
 
 type Receivable struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	OutletID  uuid.UUID
-	SaleID    uuid.UUID
-	MemberID  uuid.UUID
-	Amount    decimal.Decimal
-	DueDate   pgtype.Date
-	CreatedAt pgtype.Timestamptz
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	SaleID         pgtype.UUID
+	MemberID       uuid.UUID
+	Amount         decimal.Decimal
+	DueDate        pgtype.Date
+	CreatedAt      pgtype.Timestamptz
+	Kind           string
+	DocNo          pgtype.Text
+	RefNo          string
+	DocDate        pgtype.Date
+	Note           string
+	CreatedBy      pgtype.UUID
+	IdempotencyKey pgtype.Text
+	RequestHash    pgtype.Text
+	VoidedAt       pgtype.Timestamptz
+	VoidedBy       pgtype.UUID
+	VoidReason     pgtype.Text
+}
+
+type ReceivableOpeningCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
 }
 
 type ReceivablePayment struct {

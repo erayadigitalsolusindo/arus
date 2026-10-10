@@ -20,6 +20,8 @@ export const DEFAULT_AGENT_URL = 'http://127.0.0.1:9100';
 
 const SETTINGS_KEY = 'aciraba.receipt.settings';
 const COLS: Record<Paper, number> = { 58: 32, 80: 48 };
+/** Lebar struk dalam karakter untuk kertas `paper`. */
+export const receiptCols = (paper: Paper) => COLS[paper];
 
 /** Pengaturan per perangkat (PC kasir), bukan per akun: tiap komputer bisa punya printer berbeda. */
 export function loadReceiptSettings(): ReceiptSettings {
@@ -42,7 +44,7 @@ export function saveReceiptSettings(s: ReceiptSettings) {
 }
 
 /** Rupiah tanpa simbol; desimal hanya bila ada sen. */
-function amt(cents: bigint): string {
+export function amt(cents: bigint): string {
   const neg = cents < 0n;
   const abs = neg ? -cents : cents;
   const whole = formatNumber(abs / 100n);
@@ -59,7 +61,7 @@ function qty(s: string): string {
 }
 
 /** Pecah teks panjang menjadi beberapa baris selebar `w` (per kata; kata yang terlalu panjang dipotong). */
-function wrap(text: string, w: number): string[] {
+export function wrap(text: string, w: number): string[] {
   const out: string[] = [];
   for (const para of text.split('\n')) {
     let cur = '';
@@ -79,10 +81,10 @@ function wrap(text: string, w: number): string[] {
   return out;
 }
 
-const center = (s: string, w: number) => ' '.repeat(Math.max(0, Math.floor((w - s.length) / 2))) + s;
+export const center = (s: string, w: number) => ' '.repeat(Math.max(0, Math.floor((w - s.length) / 2))) + s;
 
 /** Label kiri + nilai kanan dalam satu baris; label dipotong bila tidak muat. */
-function lr(left: string, right: string, w: number): string {
+export function lr(left: string, right: string, w: number): string {
   const room = w - right.length - 1;
   if (room < 1) return right.padStart(w);
   const l = left.length > room ? left.slice(0, room) : left;

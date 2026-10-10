@@ -82,6 +82,7 @@ export const nav: NavGroup[] = [
         icon: 'file-text',
         children: [
           { labelKey: 'nav.salesList', module: 'sales_list', href: '/sales' },
+          { labelKey: 'nav.cashShifts', module: 'cash_shifts', href: '/shifts' },
           { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history', href: '/sell-price-history' },
           { labelKey: 'nav.memberReceivables', module: 'member_receivables', href: '/receivables' }
         ]
@@ -127,7 +128,7 @@ export const nav: NavGroup[] = [
     items: [
       { id: 'users', labelKey: 'nav.users', icon: 'users', module: 'users', href: '/users' },
       { id: 'roles', labelKey: 'nav.roles', icon: 'shield-check', module: 'roles', href: '/roles' },
-      { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', anyOf: ['outlet_switch', 'sale_edit'], href: '/pin' },
+      { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', anyOf: ['outlet_switch', 'sale_edit', 'credit_limit', 'shift_close'], href: '/pin' },
       { id: 'outlets', labelKey: 'nav.outlets', icon: 'store', module: 'outlets', href: '/outlets' },
       { id: 'auditLog', labelKey: 'nav.auditLog', icon: 'history', module: 'audit_log', href: '/audit-log' }
     ]

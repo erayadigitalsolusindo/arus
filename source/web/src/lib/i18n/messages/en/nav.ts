@@ -26,6 +26,7 @@ const nav: Messages['nav'] = {
   salesReturns: 'Sales Returns',
   salesData: 'Sales Data',
   salesList: 'Sales List',
+  cashShifts: 'Cashier Shifts',
   sellPriceHistory: 'Selling Price History',
   memberReceivables: 'Member Receivables',
   orderList: 'Order List',

@@ -6,7 +6,7 @@ export type Approver = { id: string; name: string };
 
 export const approvals = {
   /** Tanpa argumen = penyetuju ubah harga di outlet aktif; `outlet_switch` + outlet tujuan = penyetuju pindah outlet. */
-  approvers: (purpose?: 'outlet_switch' | 'sale_edit' | 'credit_limit', outletId?: string) => {
+  approvers: (purpose?: 'outlet_switch' | 'sale_edit' | 'credit_limit' | 'shift_close', outletId?: string) => {
     const q = purpose ? `?for=${purpose}${outletId ? `&outlet_id=${encodeURIComponent(outletId)}` : ''}` : '';
     return api<{ approvers: Approver[] }>(`/approvals/approvers${q}`).then((r) => r.approvers);
   },

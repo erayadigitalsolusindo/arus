@@ -18,8 +18,12 @@ export default {
   loading: 'Memuat…',
   empty: 'Belum ada catatan untuk filter ini.',
   loadFailed: 'Gagal memuat audit log.',
-  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon', payment_method: 'Metode Pembayaran', purchase: 'Pembelian', purchase_return: 'Retur Pembelian', sale_return: 'Retur Penjualan', member_deposit: 'Deposit Member', supplier_credit: 'Kredit Pemasok' },
+  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon', payment_method: 'Metode Pembayaran', purchase: 'Pembelian', purchase_return: 'Retur Pembelian', sale_return: 'Retur Penjualan', member_deposit: 'Deposit Member', supplier_credit: 'Kredit Pemasok', shift: 'Shift Kasir' },
   actions: {
+    receivable_opening: 'Mencatat saldo awal piutang',
+    receivable_opening_void: 'Membatalkan saldo awal piutang',
+    shift_open: 'Membuka shift kasir',
+    shift_close: 'Menutup shift kasir',
     auth_register: 'Mendaftarkan usaha',
     auth_login: 'Masuk',
     auth_password_reset: 'Reset password (lupa password)',

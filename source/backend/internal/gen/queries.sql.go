@@ -5367,7 +5367,7 @@ WHERE r.tenant_id = $1 AND r.sale_id = $2
 
 type ReceivableForSaleParams struct {
 	TenantID uuid.UUID
-	SaleID   uuid.UUID
+	SaleID   pgtype.UUID
 }
 
 type ReceivableForSaleRow struct {
@@ -5395,14 +5395,18 @@ func (q *Queries) ReceivableForSale(ctx context.Context, arg ReceivableForSalePa
 }
 
 const receivableGet = `-- name: ReceivableGet :one
-SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
-       s.doc_no, s.total AS sale_total, s.created_at AS sale_at, m.code AS member_code, m.name AS member_name,
+SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at, r.kind, r.ref_no, r.doc_date, r.note,
+       r.voided_at, r.void_reason, coalesce(cu.name, '')::text AS created_by_name, coalesce(vu.name, '')::text AS voided_by_name,
+       coalesce(s.doc_no, r.doc_no)::text AS doc_no, coalesce(s.total, r.amount)::numeric AS sale_total,
+       coalesce(s.created_at, (r.doc_date::timestamp AT TIME ZONE o.timezone))::timestamptz AS sale_at, m.code AS member_code, m.name AS member_name,
     coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
-JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
+LEFT JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 JOIN members m ON m.tenant_id = r.tenant_id AND m.id = r.member_id
 JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
+LEFT JOIN users cu ON cu.tenant_id = r.tenant_id AND cu.id = r.created_by
+LEFT JOIN users vu ON vu.tenant_id = r.tenant_id AND vu.id = r.voided_by
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
@@ -5411,7 +5415,7 @@ LEFT JOIN LATERAL (
     SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
     WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
 ) rr ON true
-WHERE r.tenant_id = $1 AND r.id = $2
+WHERE r.tenant_id = $1 AND r.id = $2 AND (r.sale_id IS NULL OR s.status = 'completed')
 `
 
 type ReceivableGetParams struct {
@@ -5420,23 +5424,32 @@ type ReceivableGetParams struct {
 }
 
 type ReceivableGetRow struct {
-	ID         uuid.UUID
-	SaleID     uuid.UUID
-	OutletID   uuid.UUID
-	MemberID   uuid.UUID
-	Amount     decimal.Decimal
-	DueDate    pgtype.Date
-	CreatedAt  pgtype.Timestamptz
-	DocNo      string
-	SaleTotal  decimal.Decimal
-	SaleAt     pgtype.Timestamptz
-	MemberCode string
-	MemberName string
-	Paid       decimal.Decimal
-	Returned   decimal.Decimal
-	Today      pgtype.Date
+	ID            uuid.UUID
+	SaleID        pgtype.UUID
+	OutletID      uuid.UUID
+	MemberID      uuid.UUID
+	Amount        decimal.Decimal
+	DueDate       pgtype.Date
+	CreatedAt     pgtype.Timestamptz
+	Kind          string
+	RefNo         string
+	DocDate       pgtype.Date
+	Note          string
+	VoidedAt      pgtype.Timestamptz
+	VoidReason    pgtype.Text
+	CreatedByName string
+	VoidedByName  string
+	DocNo         string
+	SaleTotal     decimal.Decimal
+	SaleAt        pgtype.Timestamptz
+	MemberCode    string
+	MemberName    string
+	Paid          decimal.Decimal
+	Returned      decimal.Decimal
+	Today         pgtype.Date
 }
 
+// Satu piutang: nota completed, atau saldo awal (termasuk yang sudah dibatalkan, untuk riwayat).
 func (q *Queries) ReceivableGet(ctx context.Context, arg ReceivableGetParams) (ReceivableGetRow, error) {
 	row := q.db.QueryRow(ctx, receivableGet, arg.TenantID, arg.ID)
 	var i ReceivableGetRow
@@ -5448,6 +5461,14 @@ func (q *Queries) ReceivableGet(ctx context.Context, arg ReceivableGetParams) (R
 		&i.Amount,
 		&i.DueDate,
 		&i.CreatedAt,
+		&i.Kind,
+		&i.RefNo,
+		&i.DocDate,
+		&i.Note,
+		&i.VoidedAt,
+		&i.VoidReason,
+		&i.CreatedByName,
+		&i.VoidedByName,
 		&i.DocNo,
 		&i.SaleTotal,
 		&i.SaleAt,
@@ -5468,7 +5489,7 @@ VALUES ($1, $2, $3, $4, $5, $6)
 type ReceivableInsertParams struct {
 	TenantID uuid.UUID
 	OutletID uuid.UUID
-	SaleID   uuid.UUID
+	SaleID   pgtype.UUID
 	MemberID uuid.UUID
 	Amount   decimal.Decimal
 	DueDate  pgtype.Date
@@ -5486,13 +5507,30 @@ func (q *Queries) ReceivableInsert(ctx context.Context, arg ReceivableInsertPara
 	return err
 }
 
+const receivableKind = `-- name: ReceivableKind :one
+SELECT kind FROM receivables WHERE tenant_id = $1 AND id = $2
+`
+
+type ReceivableKindParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ReceivableKind(ctx context.Context, arg ReceivableKindParams) (string, error) {
+	row := q.db.QueryRow(ctx, receivableKind, arg.TenantID, arg.ID)
+	var kind string
+	err := row.Scan(&kind)
+	return kind, err
+}
+
 const receivableList = `-- name: ReceivableList :many
-SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
-       s.doc_no, s.total AS sale_total, m.code AS member_code, m.name AS member_name,
+SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date,
+       coalesce(s.created_at, r.doc_date::timestamp AT TIME ZONE o.timezone, r.created_at)::timestamptz AS created_at, r.kind, r.ref_no,
+       coalesce(s.doc_no, r.doc_no)::text AS doc_no, coalesce(s.total, r.amount)::numeric AS sale_total, m.code AS member_code, m.name AS member_name,
     coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
-JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
+LEFT JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 JOIN members m ON m.tenant_id = r.tenant_id AND m.id = r.member_id
 JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
 LEFT JOIN LATERAL (
@@ -5505,8 +5543,9 @@ LEFT JOIN LATERAL (
 ) rr ON true
 WHERE r.tenant_id = $1
   AND r.outlet_id = ANY($2::uuid[])
+  AND r.voided_at IS NULL AND (r.sale_id IS NULL OR s.status = 'completed')
   AND ($3::uuid IS NULL OR r.member_id = $3::uuid)
-  AND ($4::text = '' OR s.doc_no ILIKE '%' || $4 || '%' OR m.code ILIKE '%' || $4 || '%' OR m.name ILIKE '%' || $4 || '%')
+  AND ($4::text = '' OR coalesce(s.doc_no, r.doc_no) ILIKE '%' || $4 || '%' OR r.ref_no ILIKE '%' || $4 || '%' OR m.code ILIKE '%' || $4 || '%' OR m.name ILIKE '%' || $4 || '%')
   AND (
         $5::text = 'all'
     OR ($5::text = 'paid'    AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) <= 0)
@@ -5530,12 +5569,14 @@ type ReceivableListParams struct {
 
 type ReceivableListRow struct {
 	ID         uuid.UUID
-	SaleID     uuid.UUID
+	SaleID     pgtype.UUID
 	OutletID   uuid.UUID
 	MemberID   uuid.UUID
 	Amount     decimal.Decimal
 	DueDate    pgtype.Date
 	CreatedAt  pgtype.Timestamptz
+	Kind       string
+	RefNo      string
 	DocNo      string
 	SaleTotal  decimal.Decimal
 	MemberCode string
@@ -5545,7 +5586,9 @@ type ReceivableListRow struct {
 	Today      pgtype.Date
 }
 
-// Daftar piutang nota yang masih berlaku (completed). Filter: member, status (open|overdue|paid|all), cari (no. nota / kode / nama member).
+// Daftar piutang nota yang masih berlaku (completed) + saldo awal yang tidak dibatalkan. Filter: member, status
+// (open|overdue|paid|all), cari (no. nota / no. saldo awal / no. referensi lama / kode / nama member).
+// created_at = tanggal piutang: waktu nota, atau tanggal dokumen lama untuk saldo awal.
 func (q *Queries) ReceivableList(ctx context.Context, arg ReceivableListParams) ([]ReceivableListRow, error) {
 	rows, err := q.db.Query(ctx, receivableList,
 		arg.TenantID,
@@ -5571,6 +5614,8 @@ func (q *Queries) ReceivableList(ctx context.Context, arg ReceivableListParams) 
 			&i.Amount,
 			&i.DueDate,
 			&i.CreatedAt,
+			&i.Kind,
+			&i.RefNo,
 			&i.DocNo,
 			&i.SaleTotal,
 			&i.MemberCode,
@@ -5608,7 +5653,7 @@ type ReceivableLockForPayParams struct {
 
 type ReceivableLockForPayRow struct {
 	ID       uuid.UUID
-	SaleID   uuid.UUID
+	SaleID   pgtype.UUID
 	OutletID uuid.UUID
 	MemberID uuid.UUID
 	Amount   decimal.Decimal
@@ -5630,6 +5675,42 @@ func (q *Queries) ReceivableLockForPay(ctx context.Context, arg ReceivableLockFo
 		&i.Amount,
 		&i.DocNo,
 		&i.Returned,
+	)
+	return i, err
+}
+
+const receivableLockOpening = `-- name: ReceivableLockOpening :one
+SELECT r.id, r.outlet_id, r.member_id, r.amount, r.doc_no, r.voided_at
+FROM receivables r
+WHERE r.tenant_id = $1 AND r.id = $2 AND r.kind = 'opening'
+FOR UPDATE OF r
+`
+
+type ReceivableLockOpeningParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ReceivableLockOpeningRow struct {
+	ID       uuid.UUID
+	OutletID uuid.UUID
+	MemberID uuid.UUID
+	Amount   decimal.Decimal
+	DocNo    pgtype.Text
+	VoidedAt pgtype.Timestamptz
+}
+
+// Saldo awal tidak punya nota: baris piutangnya sendiri yang dikunci (bayar, pelunasan kolektif, dan batal berbagi kunci ini).
+func (q *Queries) ReceivableLockOpening(ctx context.Context, arg ReceivableLockOpeningParams) (ReceivableLockOpeningRow, error) {
+	row := q.db.QueryRow(ctx, receivableLockOpening, arg.TenantID, arg.ID)
+	var i ReceivableLockOpeningRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.MemberID,
+		&i.Amount,
+		&i.DocNo,
+		&i.VoidedAt,
 	)
 	return i, err
 }
@@ -5656,10 +5737,109 @@ func (q *Queries) ReceivableMemberTerms(ctx context.Context, arg ReceivableMembe
 	return i, err
 }
 
+const receivableOpeningByIdemKey = `-- name: ReceivableOpeningByIdemKey :one
+SELECT id, request_hash FROM receivables WHERE tenant_id = $1 AND idempotency_key = $2
+`
+
+type ReceivableOpeningByIdemKeyParams struct {
+	TenantID       uuid.UUID
+	IdempotencyKey pgtype.Text
+}
+
+type ReceivableOpeningByIdemKeyRow struct {
+	ID          uuid.UUID
+	RequestHash pgtype.Text
+}
+
+func (q *Queries) ReceivableOpeningByIdemKey(ctx context.Context, arg ReceivableOpeningByIdemKeyParams) (ReceivableOpeningByIdemKeyRow, error) {
+	row := q.db.QueryRow(ctx, receivableOpeningByIdemKey, arg.TenantID, arg.IdempotencyKey)
+	var i ReceivableOpeningByIdemKeyRow
+	err := row.Scan(&i.ID, &i.RequestHash)
+	return i, err
+}
+
+const receivableOpeningInsert = `-- name: ReceivableOpeningInsert :one
+INSERT INTO receivables (tenant_id, outlet_id, member_id, amount, due_date, kind, doc_no, ref_no, doc_date, note, created_by, idempotency_key, request_hash)
+VALUES ($1, $2, $3, $4, $5, 'opening', $6, $7, $8, $9, $10, $11, $12)
+RETURNING id
+`
+
+type ReceivableOpeningInsertParams struct {
+	TenantID       uuid.UUID
+	OutletID       uuid.UUID
+	MemberID       uuid.UUID
+	Amount         decimal.Decimal
+	DueDate        pgtype.Date
+	DocNo          pgtype.Text
+	RefNo          string
+	DocDate        pgtype.Date
+	Note           string
+	CreatedBy      pgtype.UUID
+	IdempotencyKey pgtype.Text
+	RequestHash    pgtype.Text
+}
+
+func (q *Queries) ReceivableOpeningInsert(ctx context.Context, arg ReceivableOpeningInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, receivableOpeningInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.MemberID,
+		arg.Amount,
+		arg.DueDate,
+		arg.DocNo,
+		arg.RefNo,
+		arg.DocDate,
+		arg.Note,
+		arg.CreatedBy,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const receivableOpeningNextNo = `-- name: ReceivableOpeningNextNo :one
+INSERT INTO receivable_opening_counters (tenant_id, outlet_id, day, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, outlet_id, day) DO UPDATE SET last_no = receivable_opening_counters.last_no + 1
+RETURNING last_no
+`
+
+type ReceivableOpeningNextNoParams struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+}
+
+func (q *Queries) ReceivableOpeningNextNo(ctx context.Context, arg ReceivableOpeningNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, receivableOpeningNextNo, arg.TenantID, arg.OutletID, arg.Day)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const receivableOpeningRefTaken = `-- name: ReceivableOpeningRefTaken :one
+SELECT EXISTS (SELECT 1 FROM receivables WHERE tenant_id = $1 AND member_id = $2 AND kind = 'opening' AND ref_no <> ''
+                 AND lower(ref_no) = lower($3::text) AND voided_at IS NULL) AS taken
+`
+
+type ReceivableOpeningRefTakenParams struct {
+	TenantID uuid.UUID
+	MemberID uuid.UUID
+	RefNo    string
+}
+
+func (q *Queries) ReceivableOpeningRefTaken(ctx context.Context, arg ReceivableOpeningRefTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, receivableOpeningRefTaken, arg.TenantID, arg.MemberID, arg.RefNo)
+	var taken bool
+	err := row.Scan(&taken)
+	return taken, err
+}
+
 const receivableOutstanding = `-- name: ReceivableOutstanding :one
 SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))), 0)::numeric AS outstanding
 FROM receivables r
-JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
+LEFT JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
@@ -5668,7 +5848,9 @@ LEFT JOIN LATERAL (
     SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
     WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
 ) rr ON true
-WHERE r.tenant_id = $1 AND r.member_id = $2 AND r.sale_id <> $3
+WHERE r.tenant_id = $1 AND r.member_id = $2 AND r.voided_at IS NULL
+  AND (r.sale_id IS NULL OR s.status = 'completed')
+  AND r.sale_id IS DISTINCT FROM $3::uuid
 `
 
 type ReceivableOutstandingParams struct {
@@ -5677,7 +5859,8 @@ type ReceivableOutstandingParams struct {
 	ExcludeSaleID uuid.UUID
 }
 
-// Sisa piutang member dari nota yang masih berlaku, di luar nota `exclude_sale_id` (revisi nota membuang piutang lamanya).
+// Sisa piutang member dari nota yang masih berlaku + saldo awal yang tidak dibatalkan, di luar nota `exclude_sale_id`
+// (revisi nota membuang piutang lamanya).
 func (q *Queries) ReceivableOutstanding(ctx context.Context, arg ReceivableOutstandingParams) (decimal.Decimal, error) {
 	row := q.db.QueryRow(ctx, receivableOutstanding, arg.TenantID, arg.MemberID, arg.ExcludeSaleID)
 	var outstanding decimal.Decimal
@@ -5754,7 +5937,7 @@ WHERE r.tenant_id = $1 AND r.sale_id = $2
 
 type ReceivablePaymentCountForSaleParams struct {
 	TenantID uuid.UUID
-	SaleID   uuid.UUID
+	SaleID   pgtype.UUID
 }
 
 func (q *Queries) ReceivablePaymentCountForSale(ctx context.Context, arg ReceivablePaymentCountForSaleParams) (int64, error) {
@@ -5938,7 +6121,7 @@ SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.ret
        count(*) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0) AS open_count,
        count(*) AS total_count
 FROM receivables r
-JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
+LEFT JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
@@ -5949,6 +6132,7 @@ LEFT JOIN LATERAL (
     WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
 ) rr ON true
 WHERE r.tenant_id = $1 AND r.outlet_id = ANY($2::uuid[])
+  AND r.voided_at IS NULL AND (r.sale_id IS NULL OR s.status = 'completed')
   AND ($3::uuid IS NULL OR r.member_id = $3::uuid)
 `
 
@@ -5976,6 +6160,28 @@ func (q *Queries) ReceivableSummary(ctx context.Context, arg ReceivableSummaryPa
 		&i.TotalCount,
 	)
 	return i, err
+}
+
+const receivableVoid = `-- name: ReceivableVoid :exec
+UPDATE receivables SET voided_at = now(), voided_by = $1, void_reason = $2
+WHERE tenant_id = $3 AND id = $4 AND kind = 'opening' AND voided_at IS NULL
+`
+
+type ReceivableVoidParams struct {
+	VoidedBy   pgtype.UUID
+	VoidReason pgtype.Text
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+}
+
+func (q *Queries) ReceivableVoid(ctx context.Context, arg ReceivableVoidParams) error {
+	_, err := q.db.Exec(ctx, receivableVoid,
+		arg.VoidedBy,
+		arg.VoidReason,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
 }
 
 const saleHasReturns = `-- name: SaleHasReturns :one

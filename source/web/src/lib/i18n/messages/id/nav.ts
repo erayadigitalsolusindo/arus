@@ -24,6 +24,7 @@ export default {
   salesReturns: 'Retur Penjualan',
   salesData: 'Data Penjualan',
   salesList: 'Daftar Penjualan',
+  cashShifts: 'Daftar Shift Kasir',
   sellPriceHistory: 'History Harga Jual',
   memberReceivables: 'Daftar Piutang Anggota',
   orderList: 'Daftar Pesanan',
