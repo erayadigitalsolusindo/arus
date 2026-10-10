@@ -373,6 +373,29 @@ const pos: Messages['pos'] = {
     clear: 'Clear breakdown',
     prefix: 'Other costs',
     unnamed: 'Other'
+  },
+  // Desktop-style cashier screen (/kasirb).
+  classic: {
+    loggedInAs: 'Logged in as',
+    docNo: 'Receipt No.',
+    outlet: 'Location',
+    itemList: 'Item List',
+    code: 'Item Code',
+    name: 'Item Name',
+    unit: 'Unit',
+    price: 'Price',
+    discount: 'Discount',
+    subTotal: 'Subtotal',
+    total: 'Total',
+    save: 'Save',
+    refresh: 'Refresh',
+    exit: 'Exit',
+    pointsEarned: 'Points Earned',
+    itemCount: 'Item Count',
+    qtyCount: 'Total QTY',
+    empty: 'The cart is empty. Type an item code or scan a barcode.',
+    expand: 'Expand',
+    collapse: 'Collapse'
   }
 };
 

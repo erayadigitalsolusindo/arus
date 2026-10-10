@@ -7,6 +7,7 @@
 - Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
 - Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql` = `items.min_stock`, `internal/dashboard`, item). Migration 00055 sudah diterapkan ke DB dev.
 - **Penjualan Langsung (SSE)** sudah di `main` dan digabung ke branch ini (2026-10-10): menu Utama → Penjualan Langsung (`/live-sales`, izin `sales_list.view`; paket `internal/live`, komponen `LiveSalesToday`, teks `dashboard.live.*`). `/dashboard` = dasbor lengkap buatan pengguna; jangan menimpa halaman yang sudah ada, fitur baru = menu/halaman baru.
+- **Kasir klasik `/kasirb` (2026-10-10):** layar kasir bergaya aplikasi desktop (isian nota di atas, tabel keranjang, tombol F di bawah, dialog saldo awal). Logikanya sama dengan `/kasir`: halaman dipindah ke komponen `lib/components/PosScreen.svelte` (prop `variant`), kedua rute hanya membungkusnya; ubah logika kasir = sekali di `PosScreen`. Belum ada di klasik: T.O.P/J. Tempo (dipilih di dialog bayar), INV Website, Pisah Tumpukan, Manual (Rp).
 
 ## Toko pilot: TOKO KOTAK CANTIK MAGELANG (keputusan 2026-10-10)
 - Klien legacy yang sama dengan dump `kotakcantik.sql` (±430 rb nota, ±10 jt baris kartu stok di legacy). Prioritas = apa yang menghalangi toko ini berjualan.

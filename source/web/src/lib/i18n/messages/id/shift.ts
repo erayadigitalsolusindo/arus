@@ -13,7 +13,11 @@ export default {
     submit: 'Buka Shift',
     busy: 'Membuka…',
     later: 'Nanti',
-    done: 'Shift {doc} dibuka.'
+    done: 'Shift {doc} dibuka.',
+    classicTitle: 'Kas Saldo Awal Kasir Tanggal {date}',
+    cashierName: 'Nama Kasir',
+    outletName: 'Lokasi Outlet',
+    classicSave: 'Simpan Saldo Awal'
   },
   closing: {
     title: 'Tutup Shift {doc}',
