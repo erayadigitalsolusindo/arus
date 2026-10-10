@@ -14,6 +14,7 @@ class PosItem {
     required this.stockDisplay,
     required this.isGoods,
     this.origin = '',
+    this.mainImageId,
   });
 
   final String id;
@@ -25,6 +26,7 @@ class PosItem {
   final Decimal stockDisplay;
   final bool isGoods;
   final String origin;
+  final String? mainImageId;
 
   factory PosItem.fromJson(Map<String, dynamic> j) => PosItem(
     id: '${j['id']}',
@@ -36,6 +38,7 @@ class PosItem {
     stockDisplay: dec((j['stock'] as Map?)?['display']),
     isGoods: j['kind'] != 'service',
     origin: '${j['origin'] ?? ''}',
+    mainImageId: j['main_image_id'] as String?,
   );
 }
 

@@ -142,9 +142,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get posCartTitle => 'Cart';
 
   @override
-  String get posCartEmpty => 'Cart is empty. Pick items to start.';
-
-  @override
   String posItemsCount(int count) {
     return '$count items';
   }
@@ -323,4 +320,57 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save => 'Save';
+
+  @override
+  String get posCartEmptyTitle => 'Your cart is empty';
+
+  @override
+  String get posCartEmptyHint => 'Pick items to start selling';
+
+  @override
+  String get languageTooltip => 'Language';
+
+  @override
+  String get languageSystem => 'Follow phone';
+
+  @override
+  String get outletSwitch => 'Switch outlet';
+
+  @override
+  String get outletSwitchTitle => 'Choose outlet';
+
+  @override
+  String outletSwitched(String name) {
+    return 'Now at $name';
+  }
+
+  @override
+  String get outletApprovalTitle => 'Outlet switch approval';
+
+  @override
+  String outletApprovalBody(String name) {
+    return 'Switching to $name from the register needs Owner/Supervisor approval. The current cart will be cleared.';
+  }
+
+  @override
+  String get outletApprovalNone => 'No approver at the destination outlet.';
+
+  @override
+  String get outletApprover => 'Approver';
+
+  @override
+  String get outletPin => 'Approver PIN (6 digits)';
+
+  @override
+  String get outletApprovalConfirm => 'Approve & switch';
+
+  @override
+  String get errorPinRequired => 'Owner/Supervisor approval (PIN) is required.';
+
+  @override
+  String get errorInvalidPin => 'Wrong approver or PIN.';
+
+  @override
+  String get errorPinLocked =>
+      'PIN is temporarily locked after too many attempts. Try again later.';
 }

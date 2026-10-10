@@ -8,6 +8,7 @@ import '../../core/api/api_error.dart';
 import '../../core/config/server_url.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/locale/locale_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/ocean_background.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -403,7 +404,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ),
               ),
-              const Positioned(top: 4, right: 4, child: ThemeToggleButton()),
+              const Positioned(
+                top: 4,
+                right: 4,
+                child: Row(
+                  children: [LanguageButton(), ThemeToggleButton()],
+                ),
+              ),
             ],
           ),
         ),

@@ -12,6 +12,10 @@ import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../core/locale/locale_controller.dart';
+import '../../core/outlet/outlet_switcher.dart';
+import 'empty_cart.dart';
+import 'item_thumb.dart';
 import 'pay_sheet.dart';
 import 'pos_controller.dart';
 import 'pos_models.dart';
@@ -136,6 +140,19 @@ class _PosPageState extends ConsumerState<PosPage> {
     final outletCode = session is SessionSignedIn
         ? session.profile.outlet.code
         : '';
+    final outletId = session is SessionSignedIn ? session.profile.outlet.id : '';
+
+    // Cabang berganti: keranjang cabang lama dibuang, shift dimuat ulang, katalog dimuat ulang (ProductPane ber-key).
+    ref.listen(sessionProvider, (prev, next) {
+      if (prev is SessionSignedIn &&
+          next is SessionSignedIn &&
+          prev.profile.outlet.id != next.profile.outlet.id) {
+        ref.read(cartProvider.notifier).clear();
+        ref.invalidate(shiftProvider);
+        _shiftPrompted = false;
+        _ensureShift();
+      }
+    });
 
     return Scaffold(
       key: _scaffold,
@@ -179,7 +196,15 @@ class _PosPageState extends ConsumerState<PosPage> {
               ),
           ],
         ),
-        actions: const [ThemeToggleButton()],
+        actions: [
+          IconButton(
+            tooltip: l.outletSwitch,
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: () => showOutletSwitcher(context, pos: true),
+          ),
+          const LanguageButton(),
+          const ThemeToggleButton(),
+        ],
       ),
       body: wide
           ? Row(
@@ -206,7 +231,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                     ),
                   ),
                 ),
-                const Expanded(child: ProductPane()),
+                Expanded(child: ProductPane(key: ValueKey(outletId))),
                 Container(
                   width: 380,
                   decoration: BoxDecoration(
@@ -218,7 +243,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             )
           : Column(
               children: [
-                const Expanded(child: ProductPane()),
+                Expanded(child: ProductPane(key: ValueKey(outletId))),
                 _CartBar(onOpen: _openCartSheet, onPay: _pay),
               ],
             ),
@@ -314,6 +339,15 @@ class OutletPanel extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () {
+            onClose();
+            showOutletSwitcher(context, pos: true);
+          },
+          icon: const Icon(Icons.swap_horiz, size: 18),
+          label: Text(l.outletSwitch),
+        ),
+        const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () {
             onClose();
@@ -455,7 +489,7 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 190,
-                    mainAxisExtent: 128,
+                    mainAxisExtent: 196,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),
@@ -493,6 +527,15 @@ class _ProductCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: SizedBox(
+                  height: 84,
+                  width: double.infinity,
+                  child: ItemThumb(itemId: item.id, imageId: item.mainImageId),
+                ),
+              ),
+              const SizedBox(height: 8),
               Expanded(
                 child: Text(
                   item.name,
@@ -666,16 +709,7 @@ class CartPane extends ConsumerWidget {
         ),
         Expanded(
           child: cart.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      l.posCartEmpty,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: pal.textTertiary),
-                    ),
-                  ),
-                )
+              ? const EmptyCart()
               : ListView.separated(
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 12),

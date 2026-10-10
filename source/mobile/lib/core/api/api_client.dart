@@ -116,6 +116,37 @@ class ApiClient {
     return s;
   }
 
+  /// Pindah outlet: token akses baru (refresh token tidak dirotasi server). `pos` = dari layar kasir → server meminta
+  /// persetujuan PIN ([approvalUserId] + [pin]) kecuali pelaku sendiri penyetuju.
+  Future<AuthSession> switchOutlet(
+    String outletId, {
+    bool pos = false,
+    String? approvalUserId,
+    String? pin,
+  }) async {
+    final token = await tokens.readRefreshToken();
+    if (token == null || token.isEmpty) {
+      throw ApiError(code: 'SESSION_INVALID', status: 401);
+    }
+    try {
+      final r = await dio.post<Map<String, dynamic>>(
+        '/auth/switch-outlet',
+        data: {
+          'outlet_id': outletId,
+          'refresh_token': token,
+          if (pos) 'pos': true,
+          if (pos && approvalUserId != null)
+            'approval': {'user_id': approvalUserId, 'pin': pin},
+        },
+      );
+      final s = AuthSession.fromJson(r.data!);
+      await _adopt(s);
+      return s;
+    } on DioException catch (e) {
+      throw ApiError.fromDio(e);
+    }
+  }
+
   Future<void> logout() async {
     final token = await tokens.readRefreshToken();
     _accessToken = null;

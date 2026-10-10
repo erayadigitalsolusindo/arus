@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/locale/locale_controller.dart';
+import '../core/outlet/outlet_switcher.dart';
 import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_controller.dart';
@@ -23,6 +25,7 @@ class HomePage extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l.appName),
         actions: [
+          const LanguageButton(),
           const ThemeToggleButton(),
           IconButton(
             tooltip: l.logout,
@@ -39,9 +42,20 @@ class HomePage extends ConsumerWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
-          Text(
-            '${p.tenant.name} · ${p.outlet.name}',
-            style: TextStyle(color: pal.textTertiary),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${p.tenant.name} · ${p.outlet.name}',
+                  style: TextStyle(color: pal.textTertiary),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => showOutletSwitcher(context),
+                icon: const Icon(Icons.swap_horiz, size: 18),
+                label: Text(l.outletSwitch),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           if (p.permissions.can('sales_orders', 'create'))

@@ -76,6 +76,21 @@ class SessionController extends Notifier<SessionState> {
     state = SessionSignedIn(s.profile);
   }
 
+  Future<void> switchOutlet(
+    String outletId, {
+    bool pos = false,
+    String? approvalUserId,
+    String? pin,
+  }) async {
+    final s = await _api.switchOutlet(
+      outletId,
+      pos: pos,
+      approvalUserId: approvalUserId,
+      pin: pin,
+    );
+    state = SessionSignedIn(s.profile);
+  }
+
   Future<void> logout() async {
     await _api.logout();
     state = const SessionSignedOut();

@@ -94,6 +94,12 @@ class ApiError implements Exception {
         return l.errorIdempotencyMismatch;
       case 'METHOD_INACTIVE':
         return l.errorMethodInactive;
+      case 'PIN_REQUIRED':
+        return l.errorPinRequired;
+      case 'INVALID_PIN':
+        return l.errorInvalidPin;
+      case 'PIN_LOCKED':
+        return l.errorPinLocked;
       case 'INTERNAL':
         return l.errorInternal;
       default:

@@ -142,9 +142,6 @@ class AppLocalizationsId extends AppLocalizations {
   String get posCartTitle => 'Keranjang';
 
   @override
-  String get posCartEmpty => 'Keranjang kosong. Pilih barang untuk memulai.';
-
-  @override
   String posItemsCount(int count) {
     return '$count barang';
   }
@@ -325,4 +322,57 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get save => 'Simpan';
+
+  @override
+  String get posCartEmptyTitle => 'Keranjang masih kosong';
+
+  @override
+  String get posCartEmptyHint => 'Pilih barang untuk mulai berjualan';
+
+  @override
+  String get languageTooltip => 'Bahasa';
+
+  @override
+  String get languageSystem => 'Ikuti HP';
+
+  @override
+  String get outletSwitch => 'Pindah cabang';
+
+  @override
+  String get outletSwitchTitle => 'Pilih cabang';
+
+  @override
+  String outletSwitched(String name) {
+    return 'Sekarang di cabang $name';
+  }
+
+  @override
+  String get outletApprovalTitle => 'Persetujuan pindah cabang';
+
+  @override
+  String outletApprovalBody(String name) {
+    return 'Pindah dari kasir ke $name butuh persetujuan Owner/Supervisor. Keranjang aktif akan dikosongkan.';
+  }
+
+  @override
+  String get outletApprovalNone => 'Belum ada penyetuju di cabang tujuan.';
+
+  @override
+  String get outletApprover => 'Penyetuju';
+
+  @override
+  String get outletPin => 'PIN penyetuju (6 digit)';
+
+  @override
+  String get outletApprovalConfirm => 'Setujui & pindah';
+
+  @override
+  String get errorPinRequired => 'Persetujuan Owner/Supervisor (PIN) wajib.';
+
+  @override
+  String get errorInvalidPin => 'Penyetuju atau PIN salah.';
+
+  @override
+  String get errorPinLocked =>
+      'PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti.';
 }

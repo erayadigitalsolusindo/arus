@@ -338,12 +338,6 @@ abstract class AppLocalizations {
   /// **'Keranjang'**
   String get posCartTitle;
 
-  /// No description provided for @posCartEmpty.
-  ///
-  /// In id, this message translates to:
-  /// **'Keranjang kosong. Pilih barang untuk memulai.'**
-  String get posCartEmpty;
-
   /// No description provided for @posItemsCount.
   ///
   /// In id, this message translates to:
@@ -667,6 +661,102 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Simpan'**
   String get save;
+
+  /// No description provided for @posCartEmptyTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Keranjang masih kosong'**
+  String get posCartEmptyTitle;
+
+  /// No description provided for @posCartEmptyHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih barang untuk mulai berjualan'**
+  String get posCartEmptyHint;
+
+  /// No description provided for @languageTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Bahasa'**
+  String get languageTooltip;
+
+  /// No description provided for @languageSystem.
+  ///
+  /// In id, this message translates to:
+  /// **'Ikuti HP'**
+  String get languageSystem;
+
+  /// No description provided for @outletSwitch.
+  ///
+  /// In id, this message translates to:
+  /// **'Pindah cabang'**
+  String get outletSwitch;
+
+  /// No description provided for @outletSwitchTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih cabang'**
+  String get outletSwitchTitle;
+
+  /// No description provided for @outletSwitched.
+  ///
+  /// In id, this message translates to:
+  /// **'Sekarang di cabang {name}'**
+  String outletSwitched(String name);
+
+  /// No description provided for @outletApprovalTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Persetujuan pindah cabang'**
+  String get outletApprovalTitle;
+
+  /// No description provided for @outletApprovalBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Pindah dari kasir ke {name} butuh persetujuan Owner/Supervisor. Keranjang aktif akan dikosongkan.'**
+  String outletApprovalBody(String name);
+
+  /// No description provided for @outletApprovalNone.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada penyetuju di cabang tujuan.'**
+  String get outletApprovalNone;
+
+  /// No description provided for @outletApprover.
+  ///
+  /// In id, this message translates to:
+  /// **'Penyetuju'**
+  String get outletApprover;
+
+  /// No description provided for @outletPin.
+  ///
+  /// In id, this message translates to:
+  /// **'PIN penyetuju (6 digit)'**
+  String get outletPin;
+
+  /// No description provided for @outletApprovalConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Setujui & pindah'**
+  String get outletApprovalConfirm;
+
+  /// No description provided for @errorPinRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Persetujuan Owner/Supervisor (PIN) wajib.'**
+  String get errorPinRequired;
+
+  /// No description provided for @errorInvalidPin.
+  ///
+  /// In id, this message translates to:
+  /// **'Penyetuju atau PIN salah.'**
+  String get errorInvalidPin;
+
+  /// No description provided for @errorPinLocked.
+  ///
+  /// In id, this message translates to:
+  /// **'PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti.'**
+  String get errorPinLocked;
 }
 
 class _AppLocalizationsDelegate

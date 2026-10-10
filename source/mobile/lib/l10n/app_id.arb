@@ -61,7 +61,6 @@
   "posSearchHint": "Cari nama, kode, atau barcode",
   "posSearchEmpty": "Barang tidak ditemukan.",
   "posCartTitle": "Keranjang",
-  "posCartEmpty": "Keranjang kosong. Pilih barang untuk memulai.",
   "posItemsCount": "{count} barang",
   "posSubtotal": "Subtotal",
   "posDiscount": "Potongan",
@@ -171,5 +170,35 @@
   "serverHelp": "Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.",
   "serverLabel": "Alamat server",
   "serverInvalid": "Harus diawali http:// atau https:// dan berisi alamat.",
-  "save": "Simpan"
+  "save": "Simpan",
+  "posCartEmptyTitle": "Keranjang masih kosong",
+  "posCartEmptyHint": "Pilih barang untuk mulai berjualan",
+  "languageTooltip": "Bahasa",
+  "languageSystem": "Ikuti HP",
+  "outletSwitch": "Pindah cabang",
+  "outletSwitchTitle": "Pilih cabang",
+  "outletSwitched": "Sekarang di cabang {name}",
+  "@outletSwitched": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "outletApprovalTitle": "Persetujuan pindah cabang",
+  "outletApprovalBody": "Pindah dari kasir ke {name} butuh persetujuan Owner/Supervisor. Keranjang aktif akan dikosongkan.",
+  "@outletApprovalBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "outletApprovalNone": "Belum ada penyetuju di cabang tujuan.",
+  "outletApprover": "Penyetuju",
+  "outletPin": "PIN penyetuju (6 digit)",
+  "outletApprovalConfirm": "Setujui & pindah",
+  "errorPinRequired": "Persetujuan Owner/Supervisor (PIN) wajib.",
+  "errorInvalidPin": "Penyetuju atau PIN salah.",
+  "errorPinLocked": "PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti."
 }

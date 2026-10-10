@@ -11,6 +11,9 @@ import 'package:arus_mobile/core/session/token_store.dart';
 import 'package:arus_mobile/core/widgets/ocean_background.dart';
 import 'test_helpers.dart';
 
+// PNG 1x1 transparan.
+final _png = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+
 Map<String, dynamic> quoteBody(String total) => {
       'lines': [
         {'unit_price': '12000.00', 'line_total': total}
@@ -24,7 +27,7 @@ Map<String, dynamic> quoteBody(String total) => {
     };
 
 /// Server palsu untuk alur kasir.
-FakeAdapter posServer({bool shiftOpen = true, List<RequestOptions>? sales}) {
+FakeAdapter posServer({bool shiftOpen = true, List<RequestOptions>? sales, List<RequestOptions>? switches, List<RequestOptions>? images}) {
   return FakeAdapter((o) {
     final key = '${o.method} ${o.path}';
     switch (key) {
@@ -37,10 +40,36 @@ FakeAdapter posServer({bool shiftOpen = true, List<RequestOptions>? sales}) {
       case 'GET /items/search':
         return json(200, {
           'data': [
-            {'id': 'i1', 'sku': 'A1', 'barcode': '', 'name': 'Kopi Bubuk', 'unit': 'PCS', 'price': '12000.00', 'stock': {'display': '10.000'}, 'kind': 'goods'}
+            {'id': 'i1', 'sku': 'A1', 'barcode': '', 'name': 'Kopi Bubuk', 'unit': 'PCS', 'price': '12000.00', 'stock': {'display': '10.000'}, 'kind': 'goods', 'main_image_id': 'img1'}
           ],
           'exact': [],
           'next_cursor': ''
+        });
+      case 'GET /items/i1/images/img1/file':
+        images?.add(o);
+        return ResponseBody.fromBytes(_png, 200, headers: {Headers.contentTypeHeader: ['image/jpeg']});
+      case 'GET /outlets/accessible':
+        return json(200, {
+          'outlets': [
+            {'id': 'o1', 'code': 'MAIN', 'name': 'Pusat'},
+            {'id': 'o2', 'code': 'BR2', 'name': 'Cabang Dua'}
+          ],
+          'current_id': 'o1'
+        });
+      case 'GET /approvals/approvers':
+        return json(200, {'approvers': [{'id': 'u9', 'name': 'Sari Owner'}]});
+      case 'POST /auth/switch-outlet':
+        switches?.add(o);
+        final b = o.data as Map;
+        if (b['pos'] == true && b['approval'] == null) {
+          return json(403, {'error': {'code': 'PIN_REQUIRED', 'message': 'x'}});
+        }
+        if (b['pos'] == true && (b['approval'] as Map)['pin'] != '123456') {
+          return json(403, {'error': {'code': 'INVALID_PIN', 'message': 'x'}});
+        }
+        return json(200, {
+          ...sessionBody(refresh: '', access: 'a3'),
+          'outlet': {'id': 'o2', 'name': 'Cabang Dua', 'code': 'BR2'},
         });
       case 'POST /sales/quote':
         final qty = ((o.data as Map)['lines'] as List).first['qty'];
@@ -152,6 +181,7 @@ void main() {
     await settle(tester);
     expect(find.text('Buka shift'), findsWidgets);
     expect(find.text('Modal awal (Rp)'), findsOneWidget);
+    await settle(tester, 1000);
   });
 
   testWidgets('tema gelap dan terang tersedia lewat tombol tema', (tester) async {
@@ -164,5 +194,85 @@ void main() {
     await tester.tap(find.byIcon(Icons.light_mode_outlined)); // terang → gelap
     await tester.pump();
     expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.dark);
+  });
+
+  testWidgets('katalog memuat gambar barang (thumb) dari API', (tester) async {
+    final images = <RequestOptions>[];
+    await boot(tester, posServer(images: images));
+    await tester.tap(find.text('Kasir'));
+    await settle(tester);
+    await settle(tester, 1000);
+    expect(images, isNotEmpty);
+    expect(images.first.queryParameters['size'], 'thumb');
+    expect(find.byType(Image), findsWidgets);
+  });
+
+  testWidgets('keranjang kosong menampilkan ajakan besar', (tester) async {
+    await boot(tester, posServer());
+    await tester.tap(find.text('Kasir'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
+    await settle(tester, 400);
+    expect(find.text('Keranjang masih kosong'), findsOneWidget);
+    expect(find.text('Pilih barang untuk mulai berjualan'), findsOneWidget);
+  });
+
+  testWidgets('bahasa bisa diganti ke English dan kembali', (tester) async {
+    await boot(tester, posServer());
+    expect(find.text('Kasir'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cashier'), findsOneWidget);
+    expect(find.text('Kasir'), findsNothing);
+  });
+
+  testWidgets('pindah cabang dari beranda tanpa PIN', (tester) async {
+    final switches = <RequestOptions>[];
+    await boot(tester, posServer(switches: switches));
+    await tester.tap(find.text('Pindah cabang'));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cabang Dua'));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+    expect(switches.single.data['pos'], isNull);
+    expect(switches.single.data['outlet_id'], 'o2');
+    expect(find.textContaining('Cabang Dua'), findsWidgets);
+  });
+
+  testWidgets('pindah cabang dari kasir butuh PIN penyetuju', (tester) async {
+    final switches = <RequestOptions>[];
+    await boot(tester, posServer(switches: switches));
+    await tester.tap(find.text('Kasir'));
+    await settle(tester);
+    await tester.tap(find.text('Kopi Bubuk'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.swap_horiz));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cabang Dua'));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+    expect(find.text('Persetujuan pindah cabang'), findsOneWidget);
+
+    // PIN salah → pesan galat, dialog tetap terbuka.
+    await tester.enterText(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)), '000000');
+    await tester.pump();
+    await tester.tap(find.text('Setujui & pindah'));
+    await tester.pumpAndSettle();
+    expect(find.text('Penyetuju atau PIN salah.'), findsOneWidget);
+
+    await tester.enterText(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)), '123456');
+    await tester.pump();
+    await tester.tap(find.text('Setujui & pindah'));
+    await tester.pumpAndSettle();
+    expect(find.text('Persetujuan pindah cabang'), findsNothing);
+    final last = switches.last.data as Map;
+    expect(last['pos'], true);
+    expect(last['approval'], {'user_id': 'u9', 'pin': '123456'});
+    expect(find.text('BR2'), findsWidgets); // lencana outlet di AppBar
+    expect(find.text('—'), findsOneWidget); // keranjang cabang lama dikosongkan
   });
 }
