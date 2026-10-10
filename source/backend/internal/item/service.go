@@ -54,6 +54,7 @@ var (
 	skuRe    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$`)
 	maxMoney = decimal.New(1, 12) // 1 triliun
 	maxGrams = decimal.New(1, 8)  // 100 ton
+	maxStock = decimal.New(1, 9)  // batas stok minimum
 )
 
 // Ref = master yang dirujuk item (id + nama untuk ditampilkan).
@@ -76,6 +77,7 @@ type Item struct {
 	Origin             string        `json:"origin"`
 	Name               string        `json:"name"`
 	WeightGrams        string        `json:"weight_grams"`
+	MinStock           string        `json:"min_stock"`
 	LastCost           string        `json:"last_cost"`
 	AvgCost            string        `json:"avg_cost"`
 	SellPrice          string        `json:"sell_price"`
@@ -157,6 +159,7 @@ type Input struct {
 	Origin             string
 	Name               string
 	Weight             string
+	MinStock           string
 	Cost               string
 	SellPrice          string
 	UnitID             string
@@ -187,7 +190,7 @@ type ListParams struct {
 
 type clean struct {
 	sku, name, barcode, origin, kind, desc string
-	weight, cost, sell                     decimal.Decimal
+	weight, cost, sell, minStock           decimal.Decimal
 	unit                                   uuid.UUID
 	category, brand, principal             uuid.UUID
 	supplier                               uuid.UUID
@@ -279,6 +282,9 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 	if c.weight, ok = grams(in.Weight); !ok {
 		f["weight"] = sanitize.Invalid
 	}
+	if c.minStock, ok = parseDec(in.MinStock, 3, maxStock); !ok {
+		f["min_stock"] = sanitize.Invalid
+	}
 	if c.sell, ok = money(in.SellPrice); !ok {
 		f["sell_price"] = sanitize.Invalid
 	}
@@ -369,7 +375,7 @@ func numeric(n pgtype.Numeric) (decimal.Decimal, bool) {
 func itemOf(r gen.ItemGetRow) Item {
 	return Item{
 		ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name,
-		WeightGrams: r.WeightGrams.String(), LastCost: r.LastCost.StringFixed(2), AvgCost: r.AvgCost.StringFixed(2), SellPrice: r.SellPrice.StringFixed(2),
+		WeightGrams: r.WeightGrams.String(), MinStock: r.MinStock.String(), LastCost: r.LastCost.StringFixed(2), AvgCost: r.AvgCost.StringFixed(2), SellPrice: r.SellPrice.StringFixed(2),
 		Kind: r.Kind, AllowNegativeStock: r.AllowNegativeStock, SellBelowCost: r.SellBelowCost, Description: r.Description, Active: r.Active,
 		Unit:     Ref{ID: r.UnitID, Name: r.UnitName},
 		Category: ref(r.CategoryID, r.CategoryName), Brand: ref(r.BrandID, r.BrandName),
@@ -616,7 +622,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 		}
 		id, err := q.ItemCreate(ctx, gen.ItemCreateParams{
 			TenantID: a.TenantID, Sku: sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name, Origin: c.origin,
-			WeightGrams: c.weight, Cost: c.cost, SellPrice: c.sell, UnitID: c.unit,
+			WeightGrams: c.weight, MinStock: c.minStock, Cost: c.cost, SellPrice: c.sell, UnitID: c.unit,
 			CategoryID: nz(c.category), BrandID: nz(c.brand), PrincipalID: nz(c.principal), SupplierID: nz(c.supplier),
 			Kind: c.kind, AllowNegativeStock: in.AllowNegativeStock, SellBelowCost: in.SellBelowCost, Description: c.desc,
 		})
@@ -695,7 +701,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		}
 		if err := q.ItemUpdate(ctx, gen.ItemUpdateParams{
 			TenantID: a.TenantID, ID: id, Sku: c.sku, Barcode: pgtype.Text{String: c.barcode, Valid: c.barcode != ""}, Name: c.name, Origin: c.origin,
-			WeightGrams: c.weight, SellPrice: c.sell, UnitID: c.unit,
+			WeightGrams: c.weight, MinStock: c.minStock, SellPrice: c.sell, UnitID: c.unit,
 			CategoryID: nz(c.category), BrandID: nz(c.brand), PrincipalID: nz(c.principal), SupplierID: nz(c.supplier),
 			Kind: c.kind, AllowNegativeStock: in.AllowNegativeStock, SellBelowCost: in.SellBelowCost, Description: c.desc,
 		}); err != nil {
@@ -752,6 +758,7 @@ func recordUpdate(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UUID, c
 	diff("name", cur.Name, c.name)
 	diff("origin", cur.Origin, c.origin)
 	diff("weight_grams", cur.WeightGrams.String(), c.weight.String())
+	diff("min_stock", cur.MinStock.String(), c.minStock.String())
 	diff("unit_id", cur.UnitID.String(), c.unit.String())
 	diff("category_id", uid(cur.CategoryID), nid(c.category))
 	diff("brand_id", uid(cur.BrandID), nid(c.brand))

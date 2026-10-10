@@ -43,6 +43,8 @@ export default {
     originHint: 'Opsional. Isi bila ada barang lain berbarcode sama, mis. negara asal, agar kasir bisa membedakannya.',
     name: 'Nama barang',
     weight: 'Berat (gram)',
+    minStock: 'Batas stok minimum',
+    minStockHint: 'Dasbor memberi peringatan bila stok cabang ≤ angka ini. Kosongkan bila tidak dipantau.',
     unit: 'Satuan',
     category: 'Kategori',
     brand: 'Brand',

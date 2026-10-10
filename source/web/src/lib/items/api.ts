@@ -33,6 +33,8 @@ export type Item = {
   origin: string;
   name: string;
   weight_grams: string;
+  /** Batas stok minimum (satuan dasar); 0 = tidak dipantau. */
+  min_stock: string;
   last_cost: string;
   avg_cost: string;
   sell_price: string;
@@ -87,6 +89,7 @@ export type ItemInput = {
   origin: string;
   name: string;
   weight_grams: string;
+  min_stock: string;
   /** HPP awal; hanya dipakai saat membuat. */
   cost?: string;
   sell_price: string;
@@ -139,10 +142,11 @@ function qs(p: ListQuery): string {
 const num = (s: string | undefined) => (s === undefined || s.trim() === '' ? '0' : s.trim());
 
 function body(input: ItemInput): string {
-  const { weight_grams, cost, sell_price, outlet_prices, units, ...rest } = input;
+  const { weight_grams, min_stock, cost, sell_price, outlet_prices, units, ...rest } = input;
   return JSON.stringify({
     ...rest,
     weight_grams: num(weight_grams),
+    min_stock: num(min_stock),
     sell_price: num(sell_price),
     ...(cost !== undefined ? { cost: num(cost) } : {}),
     ...(outlet_prices ? { outlet_prices: outlet_prices.map((p) => ({ outlet_id: p.outlet_id, sell_price: num(p.sell_price) })) } : {}),

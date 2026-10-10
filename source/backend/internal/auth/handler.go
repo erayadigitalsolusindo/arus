@@ -46,7 +46,7 @@ func NewHandler(d HandlerDeps) *Handler { return &Handler{HandlerDeps: d, svc: d
 // Routes mendaftarkan endpoint auth. Rate limit dipasang sebelum pekerjaan mahal (hash argon2id).
 // Endpoint ber-cookie (refresh, logout, pindah outlet) dilindungi CSRFGuard.
 func (h *Handler) Routes(r chi.Router) {
-	csrf := httpx.CSRFGuard(h.Origins)
+	csrf := nativeOr(httpx.CSRFGuard(h.Origins))
 	authed := []func(http.Handler) http.Handler{httpx.RequireAuth(h.Tokens), h.Perms.Authenticate}
 
 	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/register", h.Register)
@@ -67,6 +67,65 @@ func (h *Handler) Routes(r chi.Router) {
 // limit = rate limit per IP berjendela satu jam dengan batas dari pengaturan (app_settings `auth.rate_limits`).
 func (h *Handler) limit(name string, pick func(RateLimitPolicy) int) func(http.Handler) http.Handler {
 	return httpx.RateLimitFunc(h.Redis, name, time.Hour, func(ctx context.Context) int { return pick(h.RateLimits.Get(ctx)) })
+}
+
+// ClientHeader menandai klien native (aplikasi mobile). Klien ini tidak memakai cookie: refresh token dikirim dan
+// diterima lewat badan JSON, dan disimpan di penyimpanan aman perangkat. Karena tidak ada kredensial ambient yang
+// dikirim browser otomatis, CSRFGuard (yang melindungi cookie) tidak relevan dan dilewati; Bearer/refresh token
+// tetap wajib sah.
+const (
+	ClientHeader = "X-Client"
+	clientMobile = "mobile"
+)
+
+func isNative(r *http.Request) bool { return r.Header.Get(ClientHeader) == clientMobile }
+
+// nativeOr menjalankan guard hanya untuk klien web (cookie); klien native langsung diteruskan.
+func nativeOr(guard func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		guarded := guard(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isNative(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			guarded.ServeHTTP(w, r)
+		})
+	}
+}
+
+// nativeSession = respons sesi untuk klien native: sama dengan Session ditambah refresh token di badan.
+type nativeSession struct {
+	*Session
+	RefreshToken string `json:"refresh_token,omitempty"`
+}
+
+// writeSession: web → refresh token di cookie httpOnly; native → di badan respons, tanpa cookie.
+func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, status int, s *Session) {
+	if isNative(r) {
+		httpx.JSON(w, status, nativeSession{Session: s, RefreshToken: s.RefreshToken})
+		return
+	}
+	h.setRefreshCookie(w, s)
+	httpx.JSON(w, status, s)
+}
+
+// refreshTokenOf mengambil refresh token: native dari badan {"refresh_token"}, web dari cookie.
+func (h *Handler) refreshTokenOf(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if isNative(r) {
+		var body struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if !httpx.DecodeJSON(w, r, &body) {
+			return "", false
+		}
+		return body.RefreshToken, true
+	}
+	c, err := r.Cookie(refreshCookie)
+	if err != nil {
+		return "", true
+	}
+	return c.Value, true
 }
 
 func actor(r *http.Request) authz.Actor {
