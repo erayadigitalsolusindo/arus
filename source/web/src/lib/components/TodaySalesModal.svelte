@@ -162,7 +162,7 @@
                 </button>
               </td>
               <td class="px-3 py-1.5 text-center font-semibold whitespace-nowrap">{r.doc_no}</td>
-              <td class="px-3 py-1.5 text-end tabular-nums whitespace-nowrap">{money(r.total)}{#if Number(r.surcharge)}<span class="block text-[10.5px] text-[var(--text-tertiary)]">{t('pos.today.surchargeBadge', { amount: money(r.surcharge) })}</span>{/if}</td>
+              <td class="px-3 py-1.5 text-end tabular-nums whitespace-nowrap">{money(r.total)}{#if Number(r.surcharge)}<span class="block text-[10.5px] text-[var(--text-tertiary)]">{t('pos.today.surchargeBadge', { amount: money(r.surcharge) })}</span>{/if}{#if Number(r.returned)}<span class="block text-[10.5px] font-medium text-[var(--color-warning-600,#d97706)]">{t('pos.today.returnedBadge', { amount: money(r.returned) })}</span>{/if}</td>
               <td class="px-3 py-1.5 text-center tabular-nums whitespace-nowrap">{dt(r.created_at)}</td>
               <td class="px-3 py-1.5 text-center tabular-nums whitespace-nowrap">{dt(r.created_at)}</td>
               <td class="px-3 py-1.5 text-center">{[...r.pays.map((p) => p.name), ...(Number(r.receivable) > 0 ? [methodLabel('credit')] : [])].join(', ')}</td>
@@ -259,6 +259,16 @@
             <th scope="row" class="px-3 py-1.5 text-start">{t('pos.today.sumRow.total')}</th>
             <td class="px-3 py-1.5 text-end">{money(data?.total)}</td>
           </tr>
+          {#if data?.returns && data.returns.count > 0}
+            <tr class="text-[var(--color-warning-600,#d97706)]">
+              <th scope="row" class="px-3 py-1.5 text-start font-normal">{t('pos.today.returnsRow', { count: data.returns.count })}</th>
+              <td class="px-3 py-1.5 text-end">−{money(data.returns.total)}</td>
+            </tr>
+            <tr class="bg-[var(--surface-sunken)] font-bold">
+              <th scope="row" class="px-3 py-1.5 text-start">{t('pos.today.netTotal')}</th>
+              <td class="px-3 py-1.5 text-end">{money(data.net_total)}</td>
+            </tr>
+          {/if}
           {#if Number(data?.surcharge)}
             <tr class="text-[var(--text-secondary)]">
               <th scope="row" class="px-3 py-1.5 text-start font-normal">{t('pos.today.surcharge')}</th>

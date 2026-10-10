@@ -49,6 +49,9 @@ const pos: Messages['pos'] = {
     todayDesc: 'View receipts saved today.'
   },
   today: {
+    returnedBadge: 'Returned −{amount}',
+    returnsRow: 'Returns ({count})',
+    netTotal: 'Net sales after returns',
     title: "Today's Sales Total : {total}",
     titleRange: "Sales {from} to {to} Total : {total}",
     search: 'Enter receipt number',

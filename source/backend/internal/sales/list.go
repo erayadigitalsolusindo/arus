@@ -39,6 +39,7 @@ type ListRow struct {
 	Receivable string            `json:"receivable"` // bagian nota yang dikreditkan (piutang member); bukan uang di laci
 	Methods    map[string]string `json:"methods"`    // jenis → jumlah (tunai sudah bersih dari kembalian)
 	Pays       []MethodAmount    `json:"pays"`       // per metode (id + nama sekarang)
+	Returned   string            `json:"returned"`   // Σ nilai retur aktif nota ini (nota sendiri tidak berubah)
 }
 
 // MethodAmount = jumlah per metode pembayaran (tunai bersih dari kembalian).
@@ -61,10 +62,14 @@ type ListResult struct {
 	// deposit, dana kembali retur, bayar hutang, pencairan kredit pemasok), per sumber + metode; Amount bertanda (+ masuk).
 	Flows []Flow `json:"flows"`
 	// Drawer = uang per metode yang seharusnya ada (penjualan + Flows), tanpa saldo titipan (deposit/kredit pemasok).
-	Drawer    []MethodAmount `json:"drawer"`
-	From      string         `json:"from"`
-	To        string         `json:"to"`
-	Truncated bool           `json:"truncated"`
+	Drawer []MethodAmount `json:"drawer"`
+	// Returns = retur penjualan yang DIBUAT petugas ini di outlet & rentang yang sama dengan Flows (menurut tanggal retur);
+	// NetTotal = Total − Returns.Total. Nil saat mencari nomor nota tertentu.
+	Returns   *ListReturns `json:"returns,omitempty"`
+	NetTotal  string       `json:"net_total,omitempty"`
+	From      string       `json:"from"`
+	To        string       `json:"to"`
+	Truncated bool         `json:"truncated"`
 }
 
 // Flow = jumlah satu sumber uang lain per metode.
@@ -75,6 +80,47 @@ type Flow struct {
 	Kind     string    `json:"kind"`
 	Amount   string    `json:"amount"`
 	Count    int       `json:"count"`
+}
+
+// ListReturns = ringkasan retur penjualan aktif pada rentang popup.
+type ListReturns struct {
+	Count int    `json:"count"`
+	Total string `json:"total"`
+}
+
+// returnedBySale menjumlahkan retur aktif per nota (indeks sales_returns_sale_idx). Nota tanpa retur tidak ada di peta.
+func returnedBySale(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, ids []uuid.UUID) (map[uuid.UUID]decimal.Decimal, error) {
+	out := map[uuid.UUID]decimal.Decimal{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := tx.Query(ctx, `SELECT sale_id, sum(total) FROM sales_returns
+		WHERE tenant_id = $1 AND sale_id = ANY($2) AND status = 'completed' GROUP BY sale_id`, tenant, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id uuid.UUID
+		var v decimal.Decimal
+		if err := rows.Scan(&id, &v); err != nil {
+			return nil, err
+		}
+		out[id] = v
+	}
+	return out, rows.Err()
+}
+
+// cashierReturns = retur aktif yang dibuat petugas (atau semua petugas untuk Platform Admin) pada outlet & rentang hari.
+func cashierReturns(ctx context.Context, tx pgx.Tx, a authz.Actor, fd, td time.Time) (ListReturns, error) {
+	var count int
+	var total decimal.Decimal
+	err := tx.QueryRow(ctx, `SELECT count(*), coalesce(sum(r.total), 0)
+		FROM sales_returns r JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
+		WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND ($3::bool OR r.created_by = $4)
+		  AND r.created_at >= ($5::date)::timestamp AT TIME ZONE o.timezone AND r.created_at < ($6::date + 1)::timestamp AT TIME ZONE o.timezone`,
+		a.TenantID, a.OutletID, a.Impersonator != uuid.Nil, a.UserID, pgtype.Date{Time: fd, Valid: true}, pgtype.Date{Time: td, Valid: true}).Scan(&count, &total)
+	return ListReturns{Count: count, Total: total.StringFixed(2)}, err
 }
 
 // flowsSQL: $1 tenant, $2 outlet, $3 semua petugas?, $4 petugas, $5..$6 rentang hari (zona waktu outlet). Metode saldo titipan
@@ -254,6 +300,17 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 				Member: r.MemberName, LineCount: int(r.LineCount), Total: r.Total.StringFixed(2), Surcharge: r.Surcharge.StringFixed(2), Receivable: r.Receivable.StringFixed(2), Methods: methods, Pays: pays})
 		}
 		res.Total, res.Surcharge, res.Received = all.StringFixed(2), sur.StringFixed(2), all.Add(sur).StringFixed(2)
+		ids := make([]uuid.UUID, len(res.Data))
+		for i, r := range res.Data {
+			ids[i] = r.ID
+		}
+		returned, err := returnedBySale(ctx, tx, a.TenantID, ids)
+		if err != nil {
+			return err
+		}
+		for i := range res.Data {
+			res.Data[i].Returned = returned[res.Data[i].ID].StringFixed(2)
+		}
 		for _, id := range order {
 			m := perMethod[id]
 			m.Amount = perAmt[id].StringFixed(2)
@@ -274,6 +331,13 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		}
 		// Arus uang lain hanya relevan untuk laci, jadi tidak dihitung saat mencari nomor nota tertentu.
 		if q == "" {
+			rs, err := cashierReturns(ctx, tx, a, fd, td)
+			if err != nil {
+				return err
+			}
+			res.Returns = &rs
+			rt, _ := decimal.NewFromString(rs.Total)
+			res.NetTotal = all.Sub(rt).StringFixed(2)
 			res.Flows, res.Drawer, err = cashierFlows(ctx, tx, a, fd, td, res.ByMethod)
 			return err
 		}

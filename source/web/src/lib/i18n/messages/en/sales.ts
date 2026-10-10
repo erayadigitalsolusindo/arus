@@ -28,6 +28,8 @@ const sales: Messages['sales'] = {
     profit: 'Gross profit'
   },
   badge: {
+    returnedTip: 'This receipt has returns worth {amount}; the original receipt is unchanged.',
+    returned: 'Returned −{amount}',
     manual: 'Manual',
     line: 'Per line',
     points: 'Points',

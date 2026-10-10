@@ -116,8 +116,14 @@ export type SaleListRow = {
   receivable: string;
   methods: Partial<Record<PayMethod, string>>;
   pays: { method_id: string; name: string; kind: PayMethod; amount: string }[];
+  /** Σ nilai retur aktif nota ini (nota sendiri tidak berubah). */
+  returned: string;
 };
-export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; flows: CashFlow[]; drawer: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
+export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; flows: CashFlow[]; drawer: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean;
+  /** Retur yang dibuat kasir ini pada rentang yang sama (menurut tanggal retur); tidak ada saat mencari nomor nota. */
+  returns?: { count: number; total: string };
+  net_total?: string;
+};
 
 /** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
 export type SaleAllRow = {
@@ -131,6 +137,8 @@ export type SaleAllRow = {
   salesperson?: string;
   line_count: number;
   revision: number;
+  /** Σ nilai retur aktif nota ini. */
+  returned: string;
   subtotal: string;
   line_discount: string;
   discount: string;
