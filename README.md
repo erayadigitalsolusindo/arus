@@ -142,10 +142,10 @@ flowchart LR
 
 **Prasyarat:** Go 1.27+, Node.js 26 (npm 11), Docker + Compose, [`goose`](https://github.com/pressly/goose) (`go install github.com/pressly/goose/v3/cmd/goose@latest`). `sqlc` hanya diperlukan bila mengubah `queries.sql`.
 
-Jalankan dari root repo:
+Jalankan dari root repo (folder `arus`):
 
 ```bash
-git clone https://github.com/erayadigitalsolusindo/erp.git && cd erp
+git clone https://github.com/erayadigitalsolusindo/arus.git && cd arus
 
 # 1. PostgreSQL (127.0.0.1:5433) + Redis (127.0.0.1:6380)
 cp source/deploy/.env.example source/deploy/.env
