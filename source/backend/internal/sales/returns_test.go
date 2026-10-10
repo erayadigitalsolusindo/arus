@@ -6,11 +6,13 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
 
+	"aciraba/internal/authz"
 	"aciraba/internal/receivable"
 	"aciraba/internal/stock"
 )
@@ -235,5 +237,146 @@ func TestSaleReturnDoesNotRefundSurcharge(t *testing.T) {
 		if err != nil || r.Surcharge != "0.00" || r.Total != want || r.Refund != want {
 			t.Fatalf("retur %d: surcharge=%s total=%s refund=%s want=%s %v", i+1, r.Surcharge, r.Total, r.Refund, want, err)
 		}
+	}
+}
+
+// Detail nota tetap memuat semua baris asli, tetapi menandai qty yang diretur per baris, daftar dokumen retur
+// (termasuk yang dibatalkan), nilai bersih, dan gerakan stok retur.
+func TestSaleDetailShowsReturns(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.tenant)
+	itemA := e.item(t, "goods", "1000", "500", 10, false)
+	itemB := e.item(t, "goods", "2000", "900", 10, false)
+	itemC := e.item(t, "goods", "3000", "1500", 10, false)
+	member := e.newMember(t, 0, true)
+	sale, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(itemA, "2"), line(itemB, "1"), line(itemC, "1")}, MemberID: &member,
+		Payments: []PaymentIn{pay("cash", "7000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	method := saleRefundMethod(t, e, "cash")
+	retB, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 2, "1", &method))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deposit := e.methodID(t, "deposit") // hanya retur ke deposit yang boleh dibatalkan
+	retA, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 1, "1", &deposit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.VoidSaleReturn(ctx, a, retA.ID, "salah pilih barang"); err != nil {
+		t.Fatal(err)
+	}
+
+	withCost := a
+	withCost.Perms = authz.Permissions{Grants: map[string][]string{"sales_cost": {"view"}}}
+	d, err := e.svc.Detail(ctx, withCost, sale.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Lines) != 3 || d.Total != "7000.00" {
+		t.Fatalf("nota asal harus utuh: %d baris, total %s", len(d.Lines), d.Total)
+	}
+	if d.Lines[0].ReturnedQty != "0" || d.Lines[1].ReturnedQty != "1" || d.Lines[2].ReturnedQty != "0" {
+		t.Fatalf("qty diretur per baris: %s/%s/%s", d.Lines[0].ReturnedQty, d.Lines[1].ReturnedQty, d.Lines[2].ReturnedQty)
+	}
+	if d.ReturnedTotal != "2000.00" || d.NetTotal != "5000.00" {
+		t.Fatalf("total retur/bersih = %s/%s", d.ReturnedTotal, d.NetTotal)
+	}
+	if len(d.Returns) != 2 || d.Returns[0].ID != retA.ID || d.Returns[0].Status != "void" || d.Returns[0].VoidReason != "salah pilih barang" ||
+		d.Returns[1].ID != retB.ID || d.Returns[1].Status != "completed" || d.Returns[1].Refund != "2000.00" {
+		t.Fatalf("daftar retur: %+v", d.Returns)
+	}
+	if l := d.Returns[1].Lines; len(l) != 1 || l[0].SalePosition != 2 || l[0].Qty != "1" {
+		t.Fatalf("baris retur B: %+v", l)
+	}
+	// Laba nota: A 2×(1000−500)=1000, B 1100, C 1500 → 3600; retur B aktif membatalkan 2000−900 = 1100.
+	if d.Profit == nil || d.ProfitNet == nil || d.ReturnedCost == nil || *d.Profit != "3600.00" || *d.ReturnedCost != "900.00" || *d.ProfitNet != "2500.00" {
+		t.Fatalf("laba setelah retur: profit=%v net=%v cost=%v", d.Profit, d.ProfitNet, d.ReturnedCost)
+	}
+	returnMoves := 0
+	for _, m := range d.Stock {
+		if m.Type == "SALE_RETURN" {
+			returnMoves++
+		}
+	}
+	if returnMoves != 3 { // retur B masuk, retur A masuk lalu keluar lagi saat dibatalkan
+		t.Fatalf("gerakan stok retur di detail = %d, mau 3", returnMoves)
+	}
+
+	plain, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(itemC, "1")}, Payments: []PaymentIn{pay("cash", "3000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pd, err := e.svc.Detail(ctx, a, plain.ID)
+	if err != nil || len(pd.Returns) != 0 || pd.ReturnedTotal != "0.00" || pd.NetTotal != "3000.00" || pd.Lines[0].ReturnedQty != "0" {
+		t.Fatalf("nota tanpa retur: %+v %v", pd.Returns, err)
+	}
+}
+
+// Ringkasan Daftar Penjualan mengurangi laba dengan retur menurut TANGGAL RETUR, bukan tanggal nota.
+func TestListAllSubtractsReturnsByReturnDate(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.tenant)
+	item := e.item(t, "goods", "1000", "400", 10, false)
+	sale, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(item, "3")}, Payments: []PaymentIn{pay("cash", "3000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	method := saleRefundMethod(t, e, "cash")
+	ret, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 1, "1", &method))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Retur dianggap terjadi besok (nota tetap hari ini).
+	if _, err := e.admin.Exec(ctx, `UPDATE sales_returns SET return_date = return_date + 1 WHERE id = $1`, ret.ID); err != nil {
+		t.Fatal(err)
+	}
+	a.Perms = authz.Permissions{Grants: map[string][]string{"sales_cost": {"view"}}}
+	today, err := e.svc.ListAll(ctx, a, AllParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := today.Summary
+	if s.Returns == nil || s.Returns.Count != 0 || s.Profit == nil || *s.Profit != "1800.00" || s.ProfitNet == nil || *s.ProfitNet != "1800.00" {
+		t.Fatalf("hari nota tidak boleh terpengaruh retur besok: %+v returns=%+v", s, s.Returns)
+	}
+	day, _ := time.Parse("2006-01-02", today.From)
+	next := day.AddDate(0, 0, 1).Format("2006-01-02")
+	tomorrow, err := e.svc.ListAll(ctx, a, AllParams{From: next, To: next})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := tomorrow.Summary.Returns
+	if r == nil || r.Count != 1 || r.Total != "1000.00" || r.Value != "1000.00" || *r.Cost != "400.00" || *r.Profit != "600.00" ||
+		*tomorrow.Summary.Profit != "0.00" || *tomorrow.Summary.ProfitNet != "-600.00" {
+		t.Fatalf("retur di tanggal retur: %+v returns=%+v", tomorrow.Summary, r)
+	}
+	both, err := e.svc.ListAll(ctx, a, AllParams{From: today.From, To: next})
+	if err != nil || *both.Summary.ProfitNet != "1200.00" {
+		t.Fatalf("rentang dua hari: %v %v", both.Summary.ProfitNet, err)
+	}
+	if len(today.Data) != 1 || today.Data[0].Returned != "1000.00" {
+		t.Fatalf("baris nota harus menandai retur: %+v", today.Data)
+	}
+	// Popup Penjualan Hari Ini (per kasir): retur yang dibuat kasir ini hari ini, nota menandai retur, omzet bersih.
+	pop, err := e.svc.List(ctx, a, "", "", "")
+	if err != nil || pop.Returns == nil || pop.Returns.Count != 1 || pop.Returns.Total != "1000.00" || pop.NetTotal != "2000.00" ||
+		len(pop.Data) != 1 || pop.Data[0].Returned != "1000.00" {
+		t.Fatalf("popup penjualan hari ini: returns=%+v net=%s rows=%+v err=%v", pop.Returns, pop.NetTotal, pop.Data, err)
+	}
+	if found, err := e.svc.List(ctx, a, "", "", sale.DocNo); err != nil || found.Returns != nil || found.Data[0].Returned != "1000.00" {
+		t.Fatalf("popup dengan kata cari: %+v %v", found.Returns, err)
+	}
+	if searched, err := e.svc.ListAll(ctx, a, AllParams{From: today.From, To: next, Q: sale.DocNo}); err != nil || searched.Summary.Returns != nil || searched.Summary.ProfitNet != nil {
+		t.Fatalf("dengan kata cari, retur tidak dijumlahkan: %+v %v", searched.Summary, err)
+	}
+	other := e.actor(e.tenant)
+	other.Perms = authz.Permissions{Grants: map[string][]string{"sales_list": {"view"}}}
+	noCost, err := e.svc.ListAll(ctx, other, AllParams{From: next, To: next})
+	if err != nil || noCost.Summary.Returns == nil || noCost.Summary.Returns.Cost != nil || noCost.Summary.ProfitNet != nil {
+		t.Fatalf("tanpa izin HPP, laba retur tidak dikirim: %+v %v", noCost.Summary.Returns, err)
 	}
 }

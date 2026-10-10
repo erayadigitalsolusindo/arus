@@ -115,6 +115,10 @@ export function dailyRecapLines(list: SaleList, meta: { tenant: string; outlet: 
   b.row(t('pos.today.recap.revenue'), money(list.total), { bold: true });
   const credit = (list.totals as Record<string, string | undefined>).credit;
   if (credit && signedCents(credit) > 0n) b.row(t('pos.today.recap.receivable'), money(credit));
+  if (list.returns && list.returns.count > 0) {
+    b.row(t('pos.today.returnsRow', { count: list.returns.count }), '-' + money(list.returns.total));
+    b.row(t('pos.today.netTotal'), money(list.net_total ?? list.total), { bold: true });
+  }
   if (signedCents(list.surcharge) > 0n) b.row(t('pos.today.recap.surcharge'), money(list.surcharge));
   b.rule();
   b.push(t('pos.today.recap.byMethod'), { bold: true });
