@@ -24,18 +24,33 @@ class HomePage extends ConsumerWidget {
         title: Text(l.appName),
         actions: [
           const ThemeToggleButton(),
-          IconButton(tooltip: l.logout, icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).logout()),
+          IconButton(
+            tooltip: l.logout,
+            icon: const Icon(Icons.logout),
+            onPressed: () => ref.read(sessionProvider.notifier).logout(),
+          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(l.homeWelcome(p.user.name), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          Text(
+            l.homeWelcome(p.user.name),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 4),
-          Text('${p.tenant.name} · ${p.outlet.name}', style: TextStyle(color: pal.textTertiary)),
+          Text(
+            '${p.tenant.name} · ${p.outlet.name}',
+            style: TextStyle(color: pal.textTertiary),
+          ),
           const SizedBox(height: 20),
           if (p.permissions.can('sales_orders', 'create'))
-            _ModuleTile(icon: Icons.point_of_sale, title: l.posTitle, color: pal.primary, onTap: () => context.go('/kasir')),
+            _ModuleTile(
+              icon: Icons.point_of_sale,
+              title: l.posTitle,
+              color: pal.primary,
+              onTap: () => context.go('/kasir'),
+            ),
         ],
       ),
     );
@@ -43,7 +58,12 @@ class HomePage extends ConsumerWidget {
 }
 
 class _ModuleTile extends StatelessWidget {
-  const _ModuleTile({required this.icon, required this.title, required this.color, required this.onTap});
+  const _ModuleTile({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String title;
@@ -52,20 +72,28 @@ class _ModuleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Icon(icon, size: 32, color: color),
-                const SizedBox(width: 16),
-                Expanded(child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
-                const Icon(Icons.chevron_right),
-              ],
+    child: InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
+            const Icon(Icons.chevron_right),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

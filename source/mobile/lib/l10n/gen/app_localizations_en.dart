@@ -306,4 +306,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorEditWindow => 'Outside the edit window.';
+
+  @override
+  String get serverTitle => 'Server address';
+
+  @override
+  String get serverHelp =>
+      'ARUS API address. On a physical phone use your computer\'s IP on the same network, e.g. http://192.168.1.10:8080. Leave empty to use the default.';
+
+  @override
+  String get serverLabel => 'Server address';
+
+  @override
+  String get serverInvalid =>
+      'Must start with http:// or https:// and include a host.';
+
+  @override
+  String get save => 'Save';
 }

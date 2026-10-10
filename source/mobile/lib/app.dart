@@ -31,7 +31,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/splash', builder: (_, _) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
+      GoRoute(
+        path: '/splash',
+        builder: (_, _) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+      ),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/', builder: (_, _) => const HomePage()),
       GoRoute(path: '/kasir', builder: (_, _) => const PosPage()),
@@ -58,8 +62,10 @@ class ArusApp extends ConsumerWidget {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       // Bahasa HP; selain id/en jatuh ke Indonesia (bahasa sumber, sama dengan web).
-      localeResolutionCallback: (locale, supported) =>
-          supported.firstWhere((s) => s.languageCode == locale?.languageCode, orElse: () => const Locale('id')),
+      localeResolutionCallback: (locale, supported) => supported.firstWhere(
+        (s) => s.languageCode == locale?.languageCode,
+        orElse: () => const Locale('id'),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }

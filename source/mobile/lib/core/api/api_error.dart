@@ -52,7 +52,10 @@ class ApiError implements Exception {
         attemptsLeft: (err['attempts_left'] as num?)?.toInt() ?? 0,
       );
     }
-    return ApiError(code: res == null ? 'NETWORK' : 'UNKNOWN', status: res?.statusCode ?? 0);
+    return ApiError(
+      code: res == null ? 'NETWORK' : 'UNKNOWN',
+      status: res?.statusCode ?? 0,
+    );
   }
 
   /// Pesan untuk pengguna dalam bahasa aktif. Kode yang belum punya terjemahan jatuh ke pesan umum.
@@ -63,7 +66,9 @@ class ApiError implements Exception {
       case 'TIMEOUT':
         return l.errorTimeout;
       case 'INVALID_CREDENTIALS':
-        return attemptsLeft > 0 ? l.errorInvalidCredentialsLeft(attemptsLeft) : l.errorInvalidCredentials;
+        return attemptsLeft > 0
+            ? l.errorInvalidCredentialsLeft(attemptsLeft)
+            : l.errorInvalidCredentials;
       case 'ACCOUNT_DISABLED':
         return l.errorAccountDisabled;
       case 'NO_OUTLET':

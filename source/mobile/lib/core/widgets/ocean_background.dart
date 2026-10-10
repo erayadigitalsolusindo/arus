@@ -10,7 +10,12 @@ final oceanAnimateProvider = Provider<bool>((_) => true);
 /// dan ombak di dasar. Menyesuaikan mode terang/gelap. Animasi diam bila pengguna mematikan animasi sistem
 /// (`MediaQuery.disableAnimations`) atau [animate] false (mis. di test).
 class OceanBackground extends StatefulWidget {
-  const OceanBackground({super.key, this.child, this.animate = true, this.intensity = 1});
+  const OceanBackground({
+    super.key,
+    this.child,
+    this.animate = true,
+    this.intensity = 1,
+  });
 
   final Widget? child;
   final bool animate;
@@ -22,9 +27,13 @@ class OceanBackground extends StatefulWidget {
   State<OceanBackground> createState() => _OceanBackgroundState();
 }
 
-class _OceanBackgroundState extends State<OceanBackground> with SingleTickerProviderStateMixin {
+class _OceanBackgroundState extends State<OceanBackground>
+    with SingleTickerProviderStateMixin {
   // Satu putaran = 120 detik; semua gerak dihitung dari fase ini agar mulus saat berulang.
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 120));
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 120),
+  );
   bool _running = false;
 
   @override
@@ -53,7 +62,11 @@ class _OceanBackgroundState extends State<OceanBackground> with SingleTickerProv
       children: [
         RepaintBoundary(
           child: CustomPaint(
-            painter: _OceanPainter(_c, dark: dark, intensity: widget.intensity.clamp(0, 1).toDouble()),
+            painter: _OceanPainter(
+              _c,
+              dark: dark,
+              intensity: widget.intensity.clamp(0, 1).toDouble(),
+            ),
           ),
         ),
         if (widget.child != null) widget.child!,
@@ -63,7 +76,8 @@ class _OceanBackgroundState extends State<OceanBackground> with SingleTickerProv
 }
 
 class _OceanPainter extends CustomPainter {
-  _OceanPainter(this.t, {required this.dark, required this.intensity}) : super(repaint: t);
+  _OceanPainter(this.t, {required this.dark, required this.intensity})
+    : super(repaint: t);
 
   final Animation<double> t;
   final bool dark;
@@ -91,7 +105,11 @@ class _OceanPainter extends CustomPainter {
         ? const [Color(0xFF04141E), Color(0xFF07304A), Color(0xFF0B5568)]
         : const [Color(0xFFE6F8F7), Color(0xFFB5E4EA), Color(0xFF7CC6D6)];
     final paint = Paint()
-      ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: colors).createShader(Offset.zero & size);
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: colors,
+      ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, paint);
   }
 
@@ -100,7 +118,8 @@ class _OceanPainter extends CustomPainter {
     final base = dark ? 0.07 : 0.16;
     final color = Colors.white;
     for (var i = 0; i < 4; i++) {
-      final sway = math.sin(s * 2 * math.pi / (22 + i * 7) + i) * size.width * 0.04;
+      final sway =
+          math.sin(s * 2 * math.pi / (22 + i * 7) + i) * size.width * 0.04;
       final x = size.width * (0.12 + i * 0.26) + sway;
       final w = size.width * (0.10 + 0.03 * (i % 2));
       final path = Path()
@@ -112,7 +131,10 @@ class _OceanPainter extends CustomPainter {
       final shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [color.withValues(alpha: base * intensity), color.withValues(alpha: 0)],
+        colors: [
+          color.withValues(alpha: base * intensity),
+          color.withValues(alpha: 0),
+        ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.85));
       canvas.drawPath(path, Paint()..shader = shader);
     }
@@ -128,7 +150,9 @@ class _OceanPainter extends CustomPainter {
     final sharkW = (size.width * 0.52).clamp(150.0, 340.0);
     final span = size.width + sharkW * 2;
     final xLead = -sharkW + span * (goingRight ? p : 1 - p);
-    final y = size.height * 0.30 + math.sin(s * 2 * math.pi / 9) * size.height * 0.018;
+    final y =
+        size.height * 0.30 +
+        math.sin(s * 2 * math.pi / 9) * size.height * 0.018;
     final tilt = math.cos(s * 2 * math.pi / 9) * 0.035 * (goingRight ? 1 : -1);
 
     canvas.save();
@@ -152,7 +176,14 @@ class _OceanPainter extends CustomPainter {
       ..moveTo(w, 0)
       ..cubicTo(w * 0.86, -h * 0.55, w * 0.52, -h * 0.62, w * 0.28, -h * 0.20)
       ..cubicTo(w * 0.20, -h * 0.10, w * 0.14, tailY * 0.5, w * 0.08, tailY)
-      ..cubicTo(w * 0.14, tailY * 0.6 + h * 0.10, w * 0.22, h * 0.14, w * 0.30, h * 0.24)
+      ..cubicTo(
+        w * 0.14,
+        tailY * 0.6 + h * 0.10,
+        w * 0.22,
+        h * 0.14,
+        w * 0.30,
+        h * 0.24,
+      )
       ..cubicTo(w * 0.52, h * 0.58, w * 0.86, h * 0.50, w, 0)
       ..close();
     canvas.drawPath(bodyPath, Paint()..color = body.withValues(alpha: alpha));
@@ -163,7 +194,10 @@ class _OceanPainter extends CustomPainter {
       ..cubicTo(w * 0.80, h * 0.34, w * 0.52, h * 0.44, w * 0.32, h * 0.20)
       ..cubicTo(w * 0.52, h * 0.30, w * 0.80, h * 0.22, w * 0.95, h * 0.04)
       ..close();
-    canvas.drawPath(bellyPath, Paint()..color = belly.withValues(alpha: alpha * 0.9));
+    canvas.drawPath(
+      bellyPath,
+      Paint()..color = belly.withValues(alpha: alpha * 0.9),
+    );
 
     // Sirip punggung.
     final dorsal = Path()
@@ -177,10 +211,30 @@ class _OceanPainter extends CustomPainter {
     final tailX = w * 0.08;
     final tail = Path()
       ..moveTo(tailX + w * 0.04, tailY * 0.9)
-      ..quadraticBezierTo(-w * 0.03, tailY - h * 0.45, -w * 0.07, tailY - h * 0.85 + swish * h * 0.1)
-      ..quadraticBezierTo(w * 0.02, tailY - h * 0.15, tailX + w * 0.04, tailY * 0.9)
-      ..quadraticBezierTo(w * 0.02, tailY + h * 0.18, -w * 0.02, tailY + h * 0.55 + swish * h * 0.08)
-      ..quadraticBezierTo(tailX - w * 0.02, tailY + h * 0.10, tailX + w * 0.04, tailY * 0.9)
+      ..quadraticBezierTo(
+        -w * 0.03,
+        tailY - h * 0.45,
+        -w * 0.07,
+        tailY - h * 0.85 + swish * h * 0.1,
+      )
+      ..quadraticBezierTo(
+        w * 0.02,
+        tailY - h * 0.15,
+        tailX + w * 0.04,
+        tailY * 0.9,
+      )
+      ..quadraticBezierTo(
+        w * 0.02,
+        tailY + h * 0.18,
+        -w * 0.02,
+        tailY + h * 0.55 + swish * h * 0.08,
+      )
+      ..quadraticBezierTo(
+        tailX - w * 0.02,
+        tailY + h * 0.10,
+        tailX + w * 0.04,
+        tailY * 0.9,
+      )
       ..close();
     canvas.drawPath(tail, Paint()..color = body.withValues(alpha: alpha));
 
@@ -190,7 +244,10 @@ class _OceanPainter extends CustomPainter {
       ..quadraticBezierTo(w * 0.52, h * 0.62 + swish * 3, w * 0.42, h * 0.78)
       ..quadraticBezierTo(w * 0.52, h * 0.46, w * 0.56, h * 0.26)
       ..close();
-    canvas.drawPath(pect, Paint()..color = body.withValues(alpha: alpha * 0.95));
+    canvas.drawPath(
+      pect,
+      Paint()..color = body.withValues(alpha: alpha * 0.95),
+    );
 
     // Insang + mata.
     final gill = Paint()
@@ -200,10 +257,22 @@ class _OceanPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < 3; i++) {
       final gx = w * (0.66 - i * 0.025);
-      canvas.drawLine(Offset(gx, -h * 0.12), Offset(gx - w * 0.01, h * 0.12), gill);
+      canvas.drawLine(
+        Offset(gx, -h * 0.12),
+        Offset(gx - w * 0.01, h * 0.12),
+        gill,
+      );
     }
-    canvas.drawCircle(Offset(w * 0.86, -h * 0.07), w * 0.013, Paint()..color = Colors.white.withValues(alpha: 0.9));
-    canvas.drawCircle(Offset(w * 0.862, -h * 0.07), w * 0.0065, Paint()..color = Colors.black.withValues(alpha: 0.85));
+    canvas.drawCircle(
+      Offset(w * 0.86, -h * 0.07),
+      w * 0.013,
+      Paint()..color = Colors.white.withValues(alpha: 0.9),
+    );
+    canvas.drawCircle(
+      Offset(w * 0.862, -h * 0.07),
+      w * 0.0065,
+      Paint()..color = Colors.black.withValues(alpha: 0.85),
+    );
   }
 
   // ---- ikan kecil (gerombolan) ----
@@ -214,8 +283,12 @@ class _OceanPainter extends CustomPainter {
       final dir = i.isEven ? 1.0 : -1.0;
       final speed = 1 / (30.0 + i * 3);
       final phase = (s * speed + i * 0.17) % 1.0;
-      final x = dir > 0 ? -40 + (size.width + 80) * phase : size.width + 40 - (size.width + 80) * phase;
-      final y = size.height * (0.52 + 0.06 * (i % 3)) + math.sin(s * 0.9 + i * 1.7) * 8;
+      final x = dir > 0
+          ? -40 + (size.width + 80) * phase
+          : size.width + 40 - (size.width + 80) * phase;
+      final y =
+          size.height * (0.52 + 0.06 * (i % 3)) +
+          math.sin(s * 0.9 + i * 1.7) * 8;
       final fw = 14.0 + (i % 3) * 3;
       canvas.save();
       canvas.translate(x, y);
@@ -231,7 +304,8 @@ class _OceanPainter extends CustomPainter {
         ..lineTo(-fw * 0.42, -fw * 0.32 + wag)
         ..lineTo(-fw * 0.42, fw * 0.32 + wag)
         ..close();
-      final paint = Paint()..color = color.withValues(alpha: 0.55 * intensity + 0.1);
+      final paint = Paint()
+        ..color = color.withValues(alpha: 0.55 * intensity + 0.1);
       canvas.drawPath(f, paint);
       canvas.drawPath(tail, paint);
       canvas.restore();
@@ -253,39 +327,79 @@ class _OceanPainter extends CustomPainter {
       final rise = 1 / (14 + r2 * 22); // siklus per detik
       final phase = (s * rise + r3) % 1.0;
       final y = size.height + radius - (size.height + radius * 2) * phase;
-      final x = size.width * (0.04 + 0.92 * r) + math.sin(s * (0.6 + r2) + i) * (6 + 10 * r3);
-      final fade = phase < 0.1 ? phase / 0.1 : (phase > 0.9 ? (1 - phase) / 0.1 : 1.0);
+      final x =
+          size.width * (0.04 + 0.92 * r) +
+          math.sin(s * (0.6 + r2) + i) * (6 + 10 * r3);
+      final fade = phase < 0.1
+          ? phase / 0.1
+          : (phase > 0.9 ? (1 - phase) / 0.1 : 1.0);
       final a = (dark ? 0.5 : 0.7) * fade;
       final c = Offset(x, y);
       fill.shader = RadialGradient(
-        colors: [Colors.white.withValues(alpha: 0.02 * a * 10), Colors.white.withValues(alpha: 0.28 * a)],
+        colors: [
+          Colors.white.withValues(alpha: 0.02 * a * 10),
+          Colors.white.withValues(alpha: 0.28 * a),
+        ],
         stops: const [0.4, 1],
       ).createShader(Rect.fromCircle(center: c, radius: radius));
       canvas.drawCircle(c, radius, fill);
       stroke.color = Colors.white.withValues(alpha: 0.6 * a);
       canvas.drawCircle(c, radius, stroke);
-      canvas.drawCircle(c.translate(-radius * 0.35, -radius * 0.35), radius * 0.22, Paint()..color = Colors.white.withValues(alpha: 0.8 * a));
+      canvas.drawCircle(
+        c.translate(-radius * 0.35, -radius * 0.35),
+        radius * 0.22,
+        Paint()..color = Colors.white.withValues(alpha: 0.8 * a),
+      );
     }
   }
 
   // ---- ombak di dasar ----
   void _waves(Canvas canvas, Size size, double s) {
     final layers = [
-      (dark ? const Color(0xFF0B6B7E) : const Color(0xFF4FB3C4), 0.10, 14.0, 7.0, 0.0),
-      (dark ? const Color(0xFF0A5568) : const Color(0xFF3A9DB0), 0.075, 18.0, 9.5, 1.7),
-      (dark ? const Color(0xFF083E50) : const Color(0xFF2A8599), 0.05, 22.0, 12.0, 3.1),
+      (
+        dark ? const Color(0xFF0B6B7E) : const Color(0xFF4FB3C4),
+        0.10,
+        14.0,
+        7.0,
+        0.0,
+      ),
+      (
+        dark ? const Color(0xFF0A5568) : const Color(0xFF3A9DB0),
+        0.075,
+        18.0,
+        9.5,
+        1.7,
+      ),
+      (
+        dark ? const Color(0xFF083E50) : const Color(0xFF2A8599),
+        0.05,
+        22.0,
+        12.0,
+        3.1,
+      ),
     ];
     for (final (color, hFrac, amp, speed, off) in layers) {
       final baseY = size.height * (1 - hFrac);
       final path = Path()..moveTo(0, size.height);
       for (var x = 0.0; x <= size.width; x += 6) {
-        final y = baseY + math.sin((x / size.width) * 2 * math.pi * 1.6 + s * (2 * math.pi / speed) + off) * amp * 0.5;
+        final y =
+            baseY +
+            math.sin(
+                  (x / size.width) * 2 * math.pi * 1.6 +
+                      s * (2 * math.pi / speed) +
+                      off,
+                ) *
+                amp *
+                0.5;
         path.lineTo(x, y);
       }
       path
         ..lineTo(size.width, size.height)
         ..close();
-      canvas.drawPath(path, Paint()..color = color.withValues(alpha: 0.55 + 0.25 * intensity));
+      canvas.drawPath(
+        path,
+        Paint()..color = color.withValues(alpha: 0.55 + 0.25 * intensity),
+      );
     }
   }
 
@@ -296,5 +410,6 @@ class _OceanPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _OceanPainter old) => old.dark != dark || old.intensity != intensity;
+  bool shouldRepaint(covariant _OceanPainter old) =>
+      old.dark != dark || old.intensity != intensity;
 }
