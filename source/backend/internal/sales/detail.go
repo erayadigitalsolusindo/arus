@@ -116,6 +116,9 @@ type Detail struct {
 	NetTotal       string         `json:"net_total"`      // total nota − retur aktif
 	Cost           *string        `json:"cost,omitempty"`
 	Profit         *string        `json:"profit,omitempty"` // Subtotal − Discount − HPP (sebelum pajak & biaya lain)
+	// Laba nota ini setelah retur aktif (hanya dengan izin sales_cost): Profit − (nilai retur sebelum pajak − HPP barang kembali).
+	ReturnedCost *string `json:"returned_cost,omitempty"`
+	ProfitNet    *string `json:"profit_net,omitempty"`
 }
 
 // Detail membaca satu nota lengkap. Tenant dari token (+RLS); nota di cabang yang tidak boleh diakses pemanggil = tidak ditemukan.
@@ -158,11 +161,6 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 		}
 		out.LineDiscount, out.BaseQtyTotal = lineDisc.StringFixed(2), baseTotal.String()
 
-		returnIDs, err := loadDetailReturns(ctx, tx, a.TenantID, id, &out)
-		if err != nil {
-			return err
-		}
-
 		voucher := decimal.Zero
 		for _, v := range sale.Vouchers {
 			if d, err := decimal.NewFromString(v.Amount); err == nil {
@@ -180,6 +178,11 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 			subtotal, _ := decimal.NewFromString(sale.Subtotal)
 			c, p := cost.StringFixed(2), subtotal.Sub(discount).Sub(cost).StringFixed(2)
 			out.Cost, out.Profit = &c, &p
+		}
+
+		returnIDs, err := loadDetailReturns(ctx, tx, a.TenantID, id, &out)
+		if err != nil {
+			return err
 		}
 
 		chain, err := q.SalesRevisionChain(ctx, gen.SalesRevisionChainParams{TenantID: a.TenantID, RootID: pgtype.UUID{Bytes: sale.RootID, Valid: true}})
@@ -228,7 +231,8 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, id uuid.UUID) (Deta
 // Mengembalikan id semua dokumen retur (termasuk yang batal) untuk dicari gerakan stoknya.
 func loadDetailReturns(ctx context.Context, tx pgx.Tx, tenant, saleID uuid.UUID, out *Detail) ([]uuid.UUID, error) {
 	rows, err := tx.Query(ctx, `SELECT r.id, r.doc_no, r.return_date, r.created_at, coalesce(u.name, ''), r.status, coalesce(r.void_reason, ''),
-		r.total, r.receivable_cut, r.refund, r.refund_method_name
+		r.total, r.receivable_cut, r.refund, r.refund_method_name, r.subtotal - r.discount,
+		coalesce((SELECT sum(l.qty * l.unit_cost) FROM sales_return_lines l WHERE l.tenant_id = r.tenant_id AND l.return_id = r.id), 0)
 		FROM sales_returns r LEFT JOIN users u ON u.tenant_id = r.tenant_id AND u.id = r.created_by
 		WHERE r.tenant_id = $1 AND r.sale_id = $2 ORDER BY r.created_at DESC, r.id DESC`, tenant, saleID)
 	if err != nil {
@@ -236,19 +240,20 @@ func loadDetailReturns(ctx context.Context, tx pgx.Tx, tenant, saleID uuid.UUID,
 	}
 	var ids []uuid.UUID
 	index := map[uuid.UUID]int{}
-	returned := decimal.Zero
+	returned, returnedValue, returnedCost := decimal.Zero, decimal.Zero, decimal.Zero
 	for rows.Next() {
 		var ref ReturnRef
 		var date pgtype.Date
-		var total, cut, refund decimal.Decimal
-		if err := rows.Scan(&ref.ID, &ref.DocNo, &date, &ref.CreatedAt, &ref.CreatedBy, &ref.Status, &ref.VoidReason, &total, &cut, &refund, &ref.RefundMethod); err != nil {
+		var total, cut, refund, value, cost decimal.Decimal
+		if err := rows.Scan(&ref.ID, &ref.DocNo, &date, &ref.CreatedAt, &ref.CreatedBy, &ref.Status, &ref.VoidReason, &total, &cut, &refund, &ref.RefundMethod,
+			&value, &cost); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		ref.ReturnDate = date.Time.Format("2006-01-02")
 		ref.Total, ref.ReceivableCut, ref.Refund, ref.Lines = total.StringFixed(2), cut.StringFixed(2), refund.StringFixed(2), []ReturnRefLine{}
 		if ref.Status == "completed" {
-			returned = returned.Add(total)
+			returned, returnedValue, returnedCost = returned.Add(total), returnedValue.Add(value), returnedCost.Add(cost)
 		}
 		index[ref.ID] = len(out.Returns)
 		ids = append(ids, ref.ID)
@@ -260,6 +265,11 @@ func loadDetailReturns(ctx context.Context, tx pgx.Tx, tenant, saleID uuid.UUID,
 	}
 	saleTotal, _ := decimal.NewFromString(out.Total)
 	out.ReturnedTotal, out.NetTotal = returned.StringFixed(2), saleTotal.Sub(returned).StringFixed(2)
+	if out.Profit != nil {
+		gross, _ := decimal.NewFromString(*out.Profit)
+		rc, pn := returnedCost.StringFixed(2), gross.Sub(returnedValue.Sub(returnedCost)).StringFixed(2)
+		out.ReturnedCost, out.ProfitNet = &rc, &pn
+	}
 	for i := range out.Lines {
 		out.Lines[i].ReturnedQty = "0"
 	}

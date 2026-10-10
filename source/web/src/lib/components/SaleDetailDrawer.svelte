@@ -196,8 +196,14 @@
         {#if hasCost && d.profit !== undefined && d.cost !== undefined}
           <div class="surface-card !p-3.5">
             <div class={label}>{t('sales.detail.stat.profit')}</div>
-            <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit)}">{money(d.profit)}</div>
-            <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.stat.cost')} {money(d.cost)}{#if margin !== null} · {formatNumber(margin, { maximumFractionDigits: 1 })}%{/if}</div>
+            {#if activeReturns > 0 && d.profit_net !== undefined && d.returned_cost !== undefined}
+              <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit_net)}">{money(d.profit_net)}</div>
+              <div class="mt-0.5 text-[11.5px] font-medium text-[var(--color-warning-600,#d97706)]">{t('sales.detail.returns.profitNet')}</div>
+              <div class="text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.returns.profitBefore', { amount: money(d.profit), cost: money(d.returned_cost) })}</div>
+            {:else}
+              <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit)}">{money(d.profit)}</div>
+              <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.stat.cost')} {money(d.cost)}{#if margin !== null} · {formatNumber(margin, { maximumFractionDigits: 1 })}%{/if}</div>
+            {/if}
           </div>
         {/if}
       </div>

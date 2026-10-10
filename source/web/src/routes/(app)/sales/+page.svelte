@@ -3,7 +3,7 @@
   import Select from '#lib/components/Select.svelte';
   import SaleDetailDrawer from '#lib/components/SaleDetailDrawer.svelte';
   import { sales as api, PAY_METHODS, type SaleAllRow, type SaleAllSummary } from '#lib/sales/api.ts';
-  import { session } from '#lib/auth/session.svelte.ts';
+  import { can, session } from '#lib/auth/session.svelte.ts';
   import { outletScope, supportAllOutlets } from '#lib/outlets/store.svelte.ts';
   import { t, formatCurrency, formatDate, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -26,6 +26,8 @@
 
   const money = (v: string | number) => formatCurrency(Number(v));
   const hasCost = $derived(summary?.cost !== undefined);
+  // Retur di rentang ini menurut tanggal retur (server tidak mengirimnya saat filter cari/metode/status batal aktif).
+  const hasReturns = $derived((summary?.returns?.count ?? 0) > 0);
   const colCount = $derived(10 + (allMode ? 1 : 0) + (hasCost ? 2 : 0));
 
   const statusOptions = $derived([
@@ -123,14 +125,29 @@
     {@const gross = Number(summary.total) + Number(summary.discount)}
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 {hasCost ? 'xl:grid-cols-5' : 'xl:grid-cols-3'}">
       {@render stat('icon-receipt-text', 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]', t('sales.summary.count'), formatNumber(summary.count), summary.count > summary.completed_count ? t('sales.summary.voided', { count: summary.count - summary.completed_count }) : '')}
-      {@render stat('icon-banknote', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.total'), money(summary.total), t('sales.summary.average', { amount: money(avg) }))}
+      {@render stat('icon-banknote', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.total'), money(summary.total), hasReturns && summary.returns ? t('sales.summary.totalNet', { net: money(Number(summary.total) - Number(summary.returns.total)) }) : t('sales.summary.average', { amount: money(avg) }))}
       {@render stat('icon-percent', 'bg-[var(--color-warning-600,#d97706)]/10 text-[var(--color-warning-600,#d97706)]', t('sales.summary.discount'), money(summary.discount), gross > 0 ? t('sales.summary.discountShare', { pct: formatNumber((Number(summary.discount) / gross) * 100, { maximumFractionDigits: 1 }) }) : '')}
       {#if summary.cost !== undefined && summary.profit !== undefined}
         {@const net = Number(summary.profit) + Number(summary.cost)}
         {@render stat('icon-boxes', 'bg-[var(--surface-sunken)] text-[var(--text-secondary)]', t('sales.summary.cost'), money(summary.cost), '')}
-        {@render stat('icon-trending-up', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.profit'), money(summary.profit), net > 0 ? t('sales.summary.margin', { pct: formatNumber((Number(summary.profit) / net) * 100, { maximumFractionDigits: 1 }) }) : '', Number(summary.profit) < 0 ? lossClass : '')}
+        {#if hasReturns && summary.profit_net !== undefined}
+          {@render stat('icon-trending-up', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.profitNet'), money(summary.profit_net), t('sales.summary.profitBefore', { amount: money(summary.profit) }), Number(summary.profit_net) < 0 ? lossClass : '')}
+        {:else}
+          {@render stat('icon-trending-up', 'bg-[var(--color-success-600,#16a34a)]/10 text-[var(--color-success-600,#16a34a)]', t('sales.summary.profit'), money(summary.profit), net > 0 ? t('sales.summary.margin', { pct: formatNumber((Number(summary.profit) / net) * 100, { maximumFractionDigits: 1 }) }) : '', Number(summary.profit) < 0 ? lossClass : '')}
+        {/if}
       {/if}
     </div>
+    {#if hasReturns && summary.returns}
+      <div class="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--color-warning-500)]/10 px-3 py-2 text-[12px] text-[var(--color-warning-600)]">
+        <i class="icon-rotate-ccw text-[13px]"></i>
+        <span class="font-semibold">{t('sales.summary.returnsRow')}</span>
+        <span class="tabular-nums">{t('sales.summary.returnsCount', { count: summary.returns.count })} · −{money(summary.returns.total)}</span>
+        {#if summary.returns.cost !== undefined && summary.returns.profit !== undefined}<span class="tabular-nums">· {t('sales.summary.returnsCost', { amount: money(summary.returns.cost) })} · {t('sales.summary.returnsLost', { amount: money(summary.returns.profit) })}</span>{/if}
+        {#if can('sales_returns', 'view')}<a href="/sales-returns" class="ms-auto font-semibold hover:underline">{t('sales.detail.returns.seeReturns')}</a>{/if}
+      </div>
+    {:else if !summary.returns && hasCost}
+      <p class="text-[11.5px] text-[var(--text-tertiary)]"><i class="icon-info me-1 text-[12px]"></i>{t('sales.summary.returnsSkipped')}</p>
+    {/if}
     {#if Object.keys(summary.methods).length || Number(summary.receivable) > 0}
       <div class="flex flex-wrap items-center gap-2 text-[12px]">
         <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('sales.summary.methods')}</span>

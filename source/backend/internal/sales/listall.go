@@ -100,6 +100,20 @@ type AllSummary struct {
 	ByMethod []MethodTotal `json:"by_method"`
 	Cost     *string       `json:"cost,omitempty"`
 	Profit   *string       `json:"profit,omitempty"`
+	// Returns = retur penjualan yang TERJADI di rentang ini menurut TANGGAL RETUR (bukan tanggal nota), sehingga laporan
+	// hari yang sudah ditutup tidak berubah. Nil bila filter cari/metode/status batal aktif (retur tak bisa disaring
+	// dengan filter itu secara jujur). ProfitNet = Profit − laba yang batal karena retur (hanya dengan izin sales_cost).
+	Returns   *ReturnSummary `json:"returns,omitempty"`
+	ProfitNet *string        `json:"profit_net,omitempty"`
+}
+
+// ReturnSummary = ringkasan retur aktif dalam rentang tanggal retur.
+type ReturnSummary struct {
+	Count  int     `json:"count"`
+	Total  string  `json:"total"`            // nilai retur termasuk pajak (= potong piutang + dana kembali)
+	Value  string  `json:"value"`            // nilai retur setelah potongan, sebelum pajak (pembanding penjualan bersih)
+	Cost   *string `json:"cost,omitempty"`   // HPP barang yang kembali
+	Profit *string `json:"profit,omitempty"` // laba yang batal = Value − Cost
 }
 
 // MethodTotal = jumlah satu metode pembayaran pada ringkasan (tunai sudah bersih dari kembalian).
@@ -266,6 +280,19 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 			cost, profit := sum.Cost.StringFixed(2), sum.NetSales.Sub(sum.Cost).StringFixed(2)
 			res.Summary.Cost, res.Summary.Profit = &cost, &profit
 		}
+		if q == "" && method == "" && status != "void" {
+			rs, err := loadReturnSummary(ctx, tx, a.TenantID, outlets, fd, td, cashier, canCost)
+			if err != nil {
+				return err
+			}
+			res.Summary.Returns = &rs
+			if canCost && rs.Profit != nil {
+				gross, _ := decimal.NewFromString(*res.Summary.Profit)
+				lost, _ := decimal.NewFromString(*rs.Profit)
+				net := gross.Sub(lost).StringFixed(2)
+				res.Summary.ProfitNet = &net
+			}
+		}
 		ms, err := qr.SalesListAllMethodTotals(ctx, gen.SalesListAllMethodTotalsParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
 			CashierID: cashier, Method: method, Q: like, ByIds: byIDs, Ids: ids})
 		if err != nil {
@@ -285,6 +312,28 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 		return nil
 	})
 	return res, err
+}
+
+// loadReturnSummary menjumlahkan retur aktif di outlet & rentang TANGGAL RETUR (zona waktu outlet, kolom return_date).
+// Filter kasir mengikuti kasir nota asal. Memakai indeks sales_returns_list_idx (tenant, outlet, return_date).
+func loadReturnSummary(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, outlets []uuid.UUID, from, to time.Time, cashier uuid.UUID, canCost bool) (ReturnSummary, error) {
+	var count int
+	var total, value, cost decimal.Decimal
+	err := tx.QueryRow(ctx, `SELECT count(*), coalesce(sum(r.total), 0), coalesce(sum(r.subtotal - r.discount), 0),
+		coalesce(sum((SELECT sum(l.qty * l.unit_cost) FROM sales_return_lines l WHERE l.tenant_id = r.tenant_id AND l.return_id = r.id)), 0)
+		FROM sales_returns r JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
+		WHERE r.tenant_id = $1 AND r.outlet_id = ANY($2) AND r.return_date BETWEEN $3 AND $4 AND r.status = 'completed'
+		  AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)`,
+		tenant, outlets, pgtype.Date{Time: from, Valid: true}, pgtype.Date{Time: to, Valid: true}, cashier).Scan(&count, &total, &value, &cost)
+	if err != nil {
+		return ReturnSummary{}, err
+	}
+	out := ReturnSummary{Count: count, Total: total.StringFixed(2), Value: value.StringFixed(2)}
+	if canCost {
+		c, p := cost.StringFixed(2), value.Sub(cost).StringFixed(2)
+		out.Cost, out.Profit = &c, &p
+	}
+	return out, nil
 }
 
 func allRow(r gen.SalesListAllRow, canCost bool) AllRow {

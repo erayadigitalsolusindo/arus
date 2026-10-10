@@ -45,6 +45,14 @@ const sales: Messages['sales'] = {
   },
   credit: 'Credit',
   summary: {
+    returnsRow: 'Returns in this period (by return date)',
+    returnsCount: '{count} returns',
+    returnsCost: 'cost back {amount}',
+    returnsLost: 'profit lost −{amount}',
+    returnsSkipped: 'Returns are not counted while a search, method or voided-status filter is active.',
+    totalNet: 'Net after returns {net}',
+    profitNet: 'Gross profit after returns',
+    profitBefore: 'Before returns {amount}',
     fee: 'fee {amount}',
     surcharge: 'charged +{amount}',
     count: 'Receipts',
@@ -141,6 +149,8 @@ const sales: Messages['sales'] = {
       empty: 'This receipt did not move stock (services only).'
     },
     returns: {
+      profitNet: 'Profit after returns',
+      profitBefore: 'Before returns {amount} · cost back {cost}',
       intro: 'Returns never change the original receipt. Each return is recorded as a separate document that references this receipt.',
       banner: 'Some items on this receipt have been returned. The original receipt stays intact; returned items are marked below.',
       bannerFull: 'Every item on this receipt has been returned. The original receipt stays intact as the transaction record.',
