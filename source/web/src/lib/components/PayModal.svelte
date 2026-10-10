@@ -10,7 +10,8 @@
   import { approvals, type Approver } from '#lib/approval/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
-  import { loadReceiptSettings, printReceipt, saveReceiptSettings, type Paper } from '#lib/pos/receipt.ts';
+  import { loadReceiptSettings, printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
+  import ReceiptSettings from '#lib/components/ReceiptSettings.svelte';
 
   let {
     total,
@@ -309,16 +310,13 @@
       await printReceipt(done.id, { reprint: printed });
       printed = true;
     } catch (e) {
-      printError = t('pos.receipt.printFailed', { error: errorMessage(e) });
+      printError = printErrorMessage(e);
     } finally {
       printing = false;
     }
   }
 
-  function setReceipt(next: Partial<typeof receipt>) {
-    receipt = { ...receipt, ...next };
-    saveReceiptSettings(receipt);
-  }
+
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
@@ -361,21 +359,7 @@
       </div>
       <details class="text-start text-[12px] text-[var(--text-secondary)]">
         <summary class="cursor-pointer select-none">{t('pos.receipt.settings')}</summary>
-        <div class="mt-2 space-y-2">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="size-4 accent-[var(--color-primary-600)]" checked={receipt.auto} onchange={(e) => setReceipt({ auto: e.currentTarget.checked })} />
-            {t('pos.receipt.auto')}
-          </label>
-          <div class="flex items-center gap-2">
-            <span>{t('pos.receipt.paper')}</span>
-            {#each [58, 80] as p (p)}
-              <label class="flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="receipt-paper" class="accent-[var(--color-primary-600)]" checked={receipt.paper === p} onchange={() => setReceipt({ paper: p as Paper })} />
-                {p === 58 ? t('pos.receipt.paper58') : t('pos.receipt.paper80')}
-              </label>
-            {/each}
-          </div>
-        </div>
+        <div class="mt-2"><ReceiptSettings onchange={(v) => (receipt = v)} /></div>
       </details>
     </div>
   {:else}

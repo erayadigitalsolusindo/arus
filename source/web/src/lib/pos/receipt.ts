@@ -1,14 +1,22 @@
-// Struk kasir (FR-POS-15). Model struk datang dari server (GET /sales/{id}/receipt); di sini hanya ditata menjadi
-// baris teks berlebar tetap (32 kolom = kertas 58 mm, 48 kolom = 80 mm) — bentuk yang sama nanti bisa dikirim ke
-// print-agent ESC/POS atau kasir mobile. Cetak lewat iframe tersembunyi agar CSS aplikasi tidak ikut tercetak;
-// di PC kasir, Chrome dengan `--kiosk-printing` mencetak langsung ke printer bawaan tanpa dialog.
-import { formatNumber, t } from '#lib/i18n/index.ts';
+// Struk kasir (FR-POS-15). Model struk datang dari server (GET /sales/{id}/receipt); di sini ditata menjadi baris
+// teks berlebar tetap (32 kolom = kertas 58 mm, 48 kolom = 80 mm) — satu template untuk semua cara cetak:
+//   - "agent"  : diubah ke perintah ESC/POS (escpos.ts) dan dikirim mentah ke printer lewat print-agent di PC kasir
+//                (huruf bawaan printer → paling tajam dan cepat, kertas dipotong otomatis);
+//   - "browser": dokumen HTML dicetak lewat iframe tersembunyi (cadangan; butuh Chrome `--kiosk-printing`).
+// "auto" mencoba agent dulu dan jatuh ke browser hanya bila agent tidak berjalan.
+import { formatDateTime, formatNumber, t } from '#lib/i18n/index.ts';
+import { errorMessage } from '#lib/i18n/errors.ts';
 import { sales, type Receipt } from '#lib/sales/api.ts';
 import { toCents } from '#lib/pos/money.ts';
+import { escposReceipt, toBase64 } from '#lib/pos/escpos.ts';
 
 export type Paper = 58 | 80;
-export type ReceiptSettings = { auto: boolean; paper: Paper };
-export type ReceiptLine = { text: string; bold?: boolean; big?: boolean };
+export type PrintMethod = 'auto' | 'agent' | 'browser';
+export type ReceiptSettings = { auto: boolean; paper: Paper; method: PrintMethod; cut: boolean; agentUrl: string };
+/** title = nama toko (ESC/POS: rata tengah + ukuran ganda bila muat). */
+export type ReceiptLine = { text: string; bold?: boolean; big?: boolean; title?: boolean };
+
+export const DEFAULT_AGENT_URL = 'http://127.0.0.1:9100';
 
 const SETTINGS_KEY = 'aciraba.receipt.settings';
 const COLS: Record<Paper, number> = { 58: 32, 80: 48 };
@@ -17,9 +25,11 @@ const COLS: Record<Paper, number> = { 58: 32, 80: 48 };
 export function loadReceiptSettings(): ReceiptSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<ReceiptSettings>;
-    return { auto: raw.auto !== false, paper: raw.paper === 80 ? 80 : 58 };
+    const method: PrintMethod = raw.method === 'agent' || raw.method === 'browser' ? raw.method : 'auto';
+    const agentUrl = typeof raw.agentUrl === 'string' && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(raw.agentUrl) ? raw.agentUrl : DEFAULT_AGENT_URL;
+    return { auto: raw.auto !== false, paper: raw.paper === 80 ? 80 : 58, method, cut: raw.cut !== false, agentUrl };
   } catch {
-    return { auto: true, paper: 58 };
+    return { auto: true, paper: 58, method: 'auto', cut: true, agentUrl: DEFAULT_AGENT_URL };
   }
 }
 
@@ -88,7 +98,7 @@ export function receiptLines(rc: Receipt, paper: Paper, copy = 0): ReceiptLine[]
   const rule = () => push('-'.repeat(w));
   const centered = (text: string, o: Omit<ReceiptLine, 'text'> = {}) => wrap(text, w).forEach((l) => push(center(l, w), o));
 
-  centered(store.tenant_name, { bold: true });
+  centered(store.tenant_name, { bold: true, title: true });
   if (store.outlet_name && store.outlet_name !== store.tenant_name) centered(store.outlet_name);
   if (store.address) centered(store.address);
   if (store.phone) centered(store.phone);
@@ -203,13 +213,82 @@ function printHtml(html: string): Promise<void> {
   });
 }
 
+/** Agent tidak bisa dihubungi (tidak berjalan / diblokir browser) — satu-satunya kasus "auto" boleh pindah ke browser. */
+export class AgentUnreachable extends Error {}
+/** Agent menjawab tetapi printer gagal (mati, kertas habis, nama printer salah). */
+export class AgentPrintError extends Error {}
+
+async function agentFetch(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, mode: 'cors', credentials: 'omit', signal: AbortSignal.timeout(timeoutMs) });
+  } catch (e) {
+    // TypeError = koneksi ditolak/diblokir; TimeoutError = tidak menjawab. Keduanya: anggap agent tidak ada.
+    throw new AgentUnreachable(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** Status agent untuk panel pengaturan: printer yang dipakai, atau null bila agent tidak berjalan. */
+export async function agentStatus(url = loadReceiptSettings().agentUrl): Promise<{ version: string; printer: string } | null> {
+  try {
+    const res = await agentFetch(`${url}/status`, { method: 'GET' }, 1500);
+    return res.ok ? ((await res.json()) as { version: string; printer: string }) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendToAgent(url: string, data: Uint8Array): Promise<void> {
+  const res = await agentFetch(`${url}/print`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: toBase64(data) }) }, 20_000);
+  if (res.status === 403) throw new AgentUnreachable('origin'); // agent belum mengizinkan alamat aplikasi ini
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new AgentPrintError(body.error ?? `HTTP ${res.status}`);
+  }
+}
+
+/** Cetak baris struk dengan cara sesuai pengaturan. Mengembalikan cara yang benar-benar dipakai. */
+export async function printLines(lines: ReceiptLine[], settings = loadReceiptSettings()): Promise<'agent' | 'browser'> {
+  if (settings.method !== 'browser') {
+    try {
+      await sendToAgent(settings.agentUrl, escposReceipt(lines, { cols: COLS[settings.paper], cut: settings.cut }));
+      return 'agent';
+    } catch (e) {
+      // Printer menolak/gagal → jangan diam-diam pindah ke browser (bisa mencetak dua kali); tampilkan galatnya.
+      if (settings.method === 'agent' || !(e instanceof AgentUnreachable)) throw e;
+    }
+  }
+  await printHtml(receiptHtml(lines, settings.paper));
+  return 'browser';
+}
+
 /**
  * Cetak struk nota. `reprint` = cetak ulang: dicatat dulu di server (audit) sehingga struk menampilkan nomor salinan;
  * bila pencatatan gagal, struk tidak dicetak (galat dilempar ke pemanggil).
  */
-export async function printReceipt(saleId: string, opts: { reprint?: boolean } = {}): Promise<void> {
+export async function printReceipt(saleId: string, opts: { reprint?: boolean } = {}): Promise<'agent' | 'browser'> {
   const settings = loadReceiptSettings();
   const copy = opts.reprint ? (await sales.reprint(saleId)).copy : 0;
   const rc = await sales.receipt(saleId);
-  await printHtml(receiptHtml(receiptLines(rc, settings.paper, copy), settings.paper));
+  return printLines(receiptLines(rc, settings.paper, copy), settings);
+}
+
+/** Struk uji untuk tombol "Tes printer" di pengaturan. */
+export function testLines(paper: Paper): ReceiptLine[] {
+  const w = COLS[paper];
+  return [
+    { text: center('ARUS', w), bold: true, title: true },
+    { text: center(t('pos.receipt.testTitle'), w) },
+    { text: '-'.repeat(w) },
+    { text: '1234567890'.repeat(5).slice(0, w) },
+    { text: lr(t('pos.receipt.total'), '123.456', w), bold: true, big: true },
+    { text: '-'.repeat(w) },
+    { text: center(formatDateTime(new Date()), w) }
+  ];
+}
+
+/** Pesan galat cetak untuk kasir. */
+export function printErrorMessage(e: unknown): string {
+  if (e instanceof AgentUnreachable) return t('pos.receipt.agentOffline');
+  if (e instanceof AgentPrintError) return t('pos.receipt.printerFailed', { error: e.message });
+  return t('pos.receipt.printFailed', { error: errorMessage(e) });
 }

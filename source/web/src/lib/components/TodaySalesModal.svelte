@@ -6,7 +6,7 @@
   import { sales, type SaleList, type Sale } from '#lib/sales/api.ts';
   import { t, formatCurrency, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
-  import { printReceipt } from '#lib/pos/receipt.ts';
+  import { printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -56,7 +56,7 @@
     try {
       await printReceipt(id, { reprint: true });
     } catch (err) {
-      error = t('pos.receipt.printFailed', { error: errorMessage(err) });
+      error = printErrorMessage(err);
     } finally {
       printingId = '';
     }
