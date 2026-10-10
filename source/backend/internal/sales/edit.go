@@ -308,6 +308,8 @@ func (h *Handler) Edit(w http.ResponseWriter, r *http.Request) {
 	if replayed {
 		w.Header().Set("Idempotent-Replay", "true")
 		status = http.StatusOK
+	} else {
+		h.changed(actor(r), uuid.Nil) // nota bisa milik outlet lain yang boleh diakses
 	}
 	httpx.JSON(w, status, sale)
 }
@@ -328,6 +330,7 @@ func (h *Handler) Void(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	h.changed(actor(r), uuid.Nil)
 	httpx.JSON(w, http.StatusOK, sale)
 }
 

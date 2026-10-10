@@ -6,6 +6,7 @@
 - Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor "toko baik-baik saja?" (verdict + pemeriksaan, stok menipis, perbandingan cabang, bulan lalu) sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
 - Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
 - Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql` = `items.min_stock`, `internal/dashboard`, item). Migration 00055 sudah diterapkan ke DB dev.
+- **Penjualan Langsung (SSE)** sudah di `main` dan digabung ke branch ini (2026-10-10): menu Utama → Penjualan Langsung (`/live-sales`, izin `sales_list.view`; paket `internal/live`, komponen `LiveSalesToday`, teks `dashboard.live.*`). `/dashboard` = dasbor lengkap buatan pengguna; jangan menimpa halaman yang sudah ada, fitur baru = menu/halaman baru.
 
 ## Toko pilot: TOKO KOTAK CANTIK MAGELANG (keputusan 2026-10-10)
 - Klien legacy yang sama dengan dump `kotakcantik.sql` (±430 rb nota, ±10 jt baris kartu stok di legacy). Prioritas = apa yang menghalangi toko ini berjualan.

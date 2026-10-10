@@ -1,6 +1,7 @@
 export default {
   group: { main: 'Utama', masterData: 'Master Data', sales: 'Penjualan', purchasing: 'Pembelian', adjustments: 'Penyesuaian', system: 'Sistem' },
   dashboard: 'Dashboard',
+  liveSales: 'Penjualan Langsung',
   users: 'Pengguna',
   roles: 'Role & Hak Akses',
   outlets: 'Outlet',

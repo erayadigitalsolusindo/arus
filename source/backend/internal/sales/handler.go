@@ -25,6 +25,19 @@ type Handler struct {
 	resolver *authz.Resolver
 	tokens   *pauth.TokenIssuer
 	log      *slog.Logger
+	notify   func(tenant, outlet uuid.UUID)
+}
+
+// WithNotifier memasang penerima sinyal "penjualan berubah" (dasbor langsung); dipanggil setelah commit.
+func (h *Handler) WithNotifier(fn func(tenant, outlet uuid.UUID)) *Handler {
+	h.notify = fn
+	return h
+}
+
+func (h *Handler) changed(a authz.Actor, outlet uuid.UUID) {
+	if h.notify != nil {
+		h.notify(a.TenantID, outlet)
+	}
 }
 
 func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssuer, log *slog.Logger) *Handler {
@@ -69,6 +82,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if replayed {
 		w.Header().Set("Idempotent-Replay", "true")
 		status = http.StatusOK
+	} else {
+		h.changed(actor(r), actor(r).OutletID)
 	}
 	httpx.JSON(w, status, sale)
 }

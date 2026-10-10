@@ -74,7 +74,7 @@ func run() error {
 	jobs := background.New(log, 16, 30*time.Second)
 	defer jobs.Wait() // email yang sedang dikirim diselesaikan dulu saat shutdown
 
-	if err := mountModules(r, appDeps{Cfg: cfg, Log: log, Pool: pool, Redis: rdb, Mailer: mail, Jobs: jobs}); err != nil {
+	if err := mountModules(r, appDeps{Ctx: ctx, Cfg: cfg, Log: log, Pool: pool, Redis: rdb, Mailer: mail, Jobs: jobs}); err != nil {
 		return err
 	}
 
