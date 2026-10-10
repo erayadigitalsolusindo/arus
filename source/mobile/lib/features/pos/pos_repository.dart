@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -96,6 +98,17 @@ class PosRepository {
     final s = r.data!['shift'];
     return s is Map ? ShiftInfo.fromJson(s.cast<String, dynamic>()) : null;
   });
+
+  /// Gambar utama barang (JPEG kecil). Butuh token, jadi diunduh lewat dio.
+  Future<Uint8List> itemThumb(String itemId, String imageId) =>
+      _guard(() async {
+        final r = await _dio.get<List<int>>(
+          '/items/$itemId/images/$imageId/file',
+          queryParameters: {'size': 'thumb'},
+          options: Options(responseType: ResponseType.bytes),
+        );
+        return Uint8List.fromList(r.data!);
+      });
 
   Future<ShiftInfo> openShift(String openingCash) => _guard(() async {
     final r = await _dio.post<Map<String, dynamic>>(
