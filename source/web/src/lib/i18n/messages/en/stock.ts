@@ -17,6 +17,23 @@ const stock: Messages['stock'] = {
     range: 'Showing {from}–{to} of {total}',
     prev: 'Previous',
     next: 'Next',
+    stats: {
+      items: 'Stocked items',
+      filled: 'Filled in',
+      filledOf: 'of {total} items',
+      remaining: '{count} items have no balance yet',
+      allDone: 'Every item has a balance',
+      progress: 'Completeness',
+      qtyTotal: 'Total {bucket}',
+      qtyHint: 'sum of all items'
+    },
+    guide: {
+      title: 'How to enter opening balances',
+      s1: 'Count the physical stock, then type the quantity in the Display, Warehouse or Returns column.',
+      s2: 'Press Enter or move to another field — the quantity is saved immediately and recorded in the stock card.',
+      s3: 'Quantities can be changed until locked. After locking, corrections only go through stock count.',
+      s4: 'Use Lock & start operations once, right before the shop starts selling.'
+    },
     status: {
       open: 'Opening balances can still be entered and changed.',
       lockedOn: 'Opening balances are locked. Operations started: {date}. Further stock changes go through stock count.'
