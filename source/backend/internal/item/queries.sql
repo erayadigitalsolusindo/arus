@@ -76,7 +76,7 @@ ORDER BY lower(o.name), o.id;
 
 -- name: ItemGet :one
 -- HPP = HPP cabang (outlet_id) bila ada, selain itu HPP awal barang.
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.weight_grams, i.min_stock,
        coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost, coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, i.sell_price, i.kind,
        i.allow_negative_stock, i.sell_below_cost, i.description, i.active, i.created_at, i.updated_at,
        i.unit_id, u.name AS unit_name,
@@ -95,20 +95,20 @@ WHERE i.tenant_id = @tenant_id AND i.id = @id;
 
 -- name: ItemGetForUpdate :one
 -- Kunci baris item selama transaksi (ubah bersamaan tidak saling menimpa; audit "sebelum" selalu benar).
-SELECT id, sku, barcode, name, origin, weight_grams, sell_price, kind, allow_negative_stock, sell_below_cost, active,
+SELECT id, sku, barcode, name, origin, weight_grams, min_stock, sell_price, kind, allow_negative_stock, sell_below_cost, active,
        unit_id, category_id, brand_id, principal_id, supplier_id
 FROM items WHERE tenant_id = $1 AND id = $2 FOR UPDATE;
 
 -- name: ItemCreate :one
-INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, last_cost, avg_cost, sell_price, unit_id, category_id,
+INSERT INTO items (tenant_id, sku, barcode, name, origin, weight_grams, min_stock, last_cost, avg_cost, sell_price, unit_id, category_id,
                    brand_id, principal_id, supplier_id, kind, allow_negative_stock, sell_below_cost, description)
-VALUES (@tenant_id, @sku, @barcode, @name, @origin, @weight_grams, @cost, @cost, @sell_price, @unit_id, @category_id,
+VALUES (@tenant_id, @sku, @barcode, @name, @origin, @weight_grams, @min_stock, @cost, @cost, @sell_price, @unit_id, @category_id,
         @brand_id, @principal_id, @supplier_id, @kind, @allow_negative_stock, @sell_below_cost, @description)
 RETURNING id;
 
 -- name: ItemUpdate :exec
 -- HPP (last_cost/avg_cost) sengaja tidak ada di sini: hanya diubah transaksi pembelian/stok.
-UPDATE items SET sku = @sku, barcode = @barcode, name = @name, origin = @origin, weight_grams = @weight_grams, sell_price = @sell_price,
+UPDATE items SET sku = @sku, barcode = @barcode, name = @name, origin = @origin, weight_grams = @weight_grams, min_stock = @min_stock, sell_price = @sell_price,
        unit_id = @unit_id, category_id = @category_id, brand_id = @brand_id, principal_id = @principal_id,
        supplier_id = @supplier_id, kind = @kind, allow_negative_stock = @allow_negative_stock,
        sell_below_cost = @sell_below_cost, description = @description

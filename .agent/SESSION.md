@@ -3,13 +3,14 @@
 > **Perbarui di akhir setiap sesi** (ringkas, tanggal absolut, buang info usang; target ≤ ±80 baris). Roadmap/centang: `docs/ROADMAP.md`. Lingkungan dev: `docs/DEV-ENV.md`. Riwayat: `docs/SESSION-LOG.md` (Grep, jangan dibaca penuh).
 
 ## Posisi (2026-10-10)
-- Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
+- Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor "toko baik-baik saja?" (verdict + pemeriksaan, stok menipis, perbandingan cabang, bulan lalu) sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
 - Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
-- Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql`, `internal/dashboard`, item).
+- Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql` = `items.min_stock`, `internal/dashboard`, item). Migration 00055 sudah diterapkan ke DB dev.
 
 ## Toko pilot: TOKO KOTAK CANTIK MAGELANG (keputusan 2026-10-10)
 - Klien legacy yang sama dengan dump `kotakcantik.sql` (±430 rb nota, ±10 jt baris kartu stok di legacy). Prioritas = apa yang menghalangi toko ini berjualan.
 - Go-live **akhir bulan** (usulan: opname malam 31 Okt 2026, mulai 1 Nov 2026); 2 cabang, pilot di **pusat** dulu; printer thermal **58 mm USB** (Bluetooth/Android → Fase 10); laporan: penjualan, mutasi stok, dll.; **>100 rb jenis barang**; kontak: Bobby Kurniawan.
+- Dasbor: `GET /dashboard/overview?scope=all`; stok dicache 60 dtk di memori proses (pemindaian 150–300 rb saldo ±0,6–1 dtk). Ukur 330 rb nota + 150 rb barang × 2 cabang: hangat 75–190 ms, dingin 1,2–1,7 dtk. Belum ada: jatuh tempo 7 hari ke depan, batas minimum per cabang, peringatan backup.
 - Pencarian kasir sudah cepat (`GET /items/search`). Daftar admin `/items` masih `count(*) OVER()` + OFFSET (±0,9 dtk untuk 150 rb barang) — perlu keyset.
 - Struk: template di web (`lib/pos/receipt.ts`, `escpos.ts`), cetak `auto|agent|browser`; `source/print-agent` = kurir RAW lokal `127.0.0.1:9100`. Panduan: `source/deploy/PC-KASIR.md`.
 - Kasir mobile: Flutter di `source/mobile/` (belum dibuat; keputusan 2026-10-10, Fase 10). Jenis/model printer dan HP uji belum dijawab; refresh token native tanpa cookie perlu didesain.
