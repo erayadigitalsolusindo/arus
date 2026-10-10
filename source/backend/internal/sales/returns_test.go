@@ -6,11 +6,13 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
 
+	"aciraba/internal/authz"
 	"aciraba/internal/receivable"
 	"aciraba/internal/stock"
 )
@@ -267,7 +269,9 @@ func TestSaleDetailShowsReturns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := e.svc.Detail(ctx, a, sale.ID)
+	withCost := a
+	withCost.Perms = authz.Permissions{Grants: map[string][]string{"sales_cost": {"view"}}}
+	d, err := e.svc.Detail(ctx, withCost, sale.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,6 +291,10 @@ func TestSaleDetailShowsReturns(t *testing.T) {
 	if l := d.Returns[1].Lines; len(l) != 1 || l[0].SalePosition != 2 || l[0].Qty != "1" {
 		t.Fatalf("baris retur B: %+v", l)
 	}
+	// Laba nota: A 2×(1000−500)=1000, B 1100, C 1500 → 3600; retur B aktif membatalkan 2000−900 = 1100.
+	if d.Profit == nil || d.ProfitNet == nil || d.ReturnedCost == nil || *d.Profit != "3600.00" || *d.ReturnedCost != "900.00" || *d.ProfitNet != "2500.00" {
+		t.Fatalf("laba setelah retur: profit=%v net=%v cost=%v", d.Profit, d.ProfitNet, d.ReturnedCost)
+	}
 	returnMoves := 0
 	for _, m := range d.Stock {
 		if m.Type == "SALE_RETURN" {
@@ -304,5 +312,59 @@ func TestSaleDetailShowsReturns(t *testing.T) {
 	pd, err := e.svc.Detail(ctx, a, plain.ID)
 	if err != nil || len(pd.Returns) != 0 || pd.ReturnedTotal != "0.00" || pd.NetTotal != "3000.00" || pd.Lines[0].ReturnedQty != "0" {
 		t.Fatalf("nota tanpa retur: %+v %v", pd.Returns, err)
+	}
+}
+
+// Ringkasan Daftar Penjualan mengurangi laba dengan retur menurut TANGGAL RETUR, bukan tanggal nota.
+func TestListAllSubtractsReturnsByReturnDate(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.tenant)
+	item := e.item(t, "goods", "1000", "400", 10, false)
+	sale, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(item, "3")}, Payments: []PaymentIn{pay("cash", "3000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	method := saleRefundMethod(t, e, "cash")
+	ret, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 1, "1", &method))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Retur dianggap terjadi besok (nota tetap hari ini).
+	if _, err := e.admin.Exec(ctx, `UPDATE sales_returns SET return_date = return_date + 1 WHERE id = $1`, ret.ID); err != nil {
+		t.Fatal(err)
+	}
+	a.Perms = authz.Permissions{Grants: map[string][]string{"sales_cost": {"view"}}}
+	today, err := e.svc.ListAll(ctx, a, AllParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := today.Summary
+	if s.Returns == nil || s.Returns.Count != 0 || s.Profit == nil || *s.Profit != "1800.00" || s.ProfitNet == nil || *s.ProfitNet != "1800.00" {
+		t.Fatalf("hari nota tidak boleh terpengaruh retur besok: %+v returns=%+v", s, s.Returns)
+	}
+	day, _ := time.Parse("2006-01-02", today.From)
+	next := day.AddDate(0, 0, 1).Format("2006-01-02")
+	tomorrow, err := e.svc.ListAll(ctx, a, AllParams{From: next, To: next})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := tomorrow.Summary.Returns
+	if r == nil || r.Count != 1 || r.Total != "1000.00" || r.Value != "1000.00" || *r.Cost != "400.00" || *r.Profit != "600.00" ||
+		*tomorrow.Summary.Profit != "0.00" || *tomorrow.Summary.ProfitNet != "-600.00" {
+		t.Fatalf("retur di tanggal retur: %+v returns=%+v", tomorrow.Summary, r)
+	}
+	both, err := e.svc.ListAll(ctx, a, AllParams{From: today.From, To: next})
+	if err != nil || *both.Summary.ProfitNet != "1200.00" {
+		t.Fatalf("rentang dua hari: %v %v", both.Summary.ProfitNet, err)
+	}
+	if searched, err := e.svc.ListAll(ctx, a, AllParams{From: today.From, To: next, Q: sale.DocNo}); err != nil || searched.Summary.Returns != nil || searched.Summary.ProfitNet != nil {
+		t.Fatalf("dengan kata cari, retur tidak dijumlahkan: %+v %v", searched.Summary, err)
+	}
+	other := e.actor(e.tenant)
+	other.Perms = authz.Permissions{Grants: map[string][]string{"sales_list": {"view"}}}
+	noCost, err := e.svc.ListAll(ctx, other, AllParams{From: next, To: next})
+	if err != nil || noCost.Summary.Returns == nil || noCost.Summary.Returns.Cost != nil || noCost.Summary.ProfitNet != nil {
+		t.Fatalf("tanpa izin HPP, laba retur tidak dikirim: %+v %v", noCost.Summary.Returns, err)
 	}
 }

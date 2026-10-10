@@ -151,7 +151,12 @@ export type SaleAllRow = {
   cost?: string;
   profit?: string;
 };
-export type SaleAllSummary = { count: number; completed_count: number; total: string; receivable: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string };
+export type SaleAllSummary = { count: number; completed_count: number; total: string; receivable: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string;
+  /** Retur yang terjadi di rentang ini menurut TANGGAL RETUR; tidak ada bila filter cari/metode/status batal aktif. */
+  returns?: { count: number; total: string; value: string; cost?: string; profit?: string };
+  /** Laba kotor − laba yang batal karena retur (izin HPP). */
+  profit_net?: string;
+};
 export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
 export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
 
@@ -215,6 +220,9 @@ export type SaleDetail = Omit<Sale, 'lines'> & {
   revisions: { id: string; doc_no: string; revision: number; status: 'completed' | 'void' | 'superseded'; created_at: string; revised_at?: string; total: string; reason?: string }[];
   cost?: string;
   profit?: string;
+  /** HPP barang yang kembali lewat retur aktif, dan laba nota setelah retur (izin HPP). */
+  returned_cost?: string;
+  profit_net?: string;
 };
 
 export type Approval = { user_id: string; pin: string };

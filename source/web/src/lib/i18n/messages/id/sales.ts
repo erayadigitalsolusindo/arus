@@ -43,6 +43,14 @@ const sales = {
   },
   credit: 'Kredit',
   summary: {
+    returnsRow: 'Retur di periode ini (menurut tanggal retur)',
+    returnsCount: '{count} retur',
+    returnsCost: 'HPP kembali {amount}',
+    returnsLost: 'laba batal −{amount}',
+    returnsSkipped: 'Retur tidak dihitung saat filter cari, metode, atau status batal aktif.',
+    totalNet: 'Bersih setelah retur {net}',
+    profitNet: 'Laba kotor setelah retur',
+    profitBefore: 'Sebelum retur {amount}',
     fee: 'biaya {amount}',
     surcharge: 'tagihan +{amount}',
     count: 'Jumlah nota',
@@ -139,6 +147,8 @@ const sales = {
       empty: 'Nota ini tidak menggerakkan stok (hanya jasa).'
     },
     returns: {
+      profitNet: 'Laba setelah retur',
+      profitBefore: 'Sebelum retur {amount} · HPP kembali {cost}',
       intro: 'Nota asli tidak diubah oleh retur. Setiap retur dicatat sebagai dokumen terpisah yang merujuk nota ini.',
       banner: 'Sebagian barang nota ini sudah diretur. Nota asli tetap utuh; barang yang diretur ditandai di bawah.',
       bannerFull: 'Seluruh barang nota ini sudah diretur. Nota asli tetap utuh sebagai catatan transaksi.',
