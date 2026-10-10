@@ -170,6 +170,9 @@ export type PriceReportEvent = PriceEvent & { item_id: string; sku: string; name
 export type PriceReport = { from: string; to: string; items: PriceReportEvent[]; next_cursor: string };
 export type PriceReportQuery = { from?: string; to?: string; q?: string; outlet?: string; cursor?: string };
 
+/** Hasil cari kasir: exact = kode/barcode persis (hanya halaman pertama, boleh juga ada di data). */
+export type SearchPage = { data: Row[]; exact: Row[]; next_cursor: string };
+
 export const items = {
   priceReport: (p: PriceReportQuery = {}) => {
     const sp = new URLSearchParams({ limit: '50' });
@@ -178,6 +181,13 @@ export const items = {
   },
   priceHistory: (id: string, cursor = '') => api<PriceHistory>(`/items/${id}/price-history?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
   list: (p: ListQuery = {}) => api<Page<Row>>(`/items/${qs(p)}`),
+  /** Pencarian untuk katalog besar: barang aktif, semua kata wajib cocok (nama/kode/barcode), keyset tanpa total. */
+  search: (q: string, cursor = '', limit = 30) => {
+    const sp = new URLSearchParams({ limit: String(limit) });
+    if (q) sp.set('q', q);
+    if (cursor) sp.set('cursor', cursor);
+    return api<SearchPage>(`/items/search?${sp}`);
+  },
   get: (id: string) => api<Item>(`/items/${id}`),
   create: (input: ItemInput) => api<Item>('/items/', { method: 'POST', body: body(input) }),
   update: (id: string, input: ItemInput) => api<Item>(`/items/${id}`, { method: 'PUT', body: body(input) }),
