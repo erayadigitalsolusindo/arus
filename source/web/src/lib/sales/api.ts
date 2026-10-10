@@ -198,6 +198,10 @@ export type SaleDetail = Omit<Sale, 'lines'> & {
 
 export type Approval = { user_id: string; pin: string };
 
+/** Model struk dari server (FR-POS-15): identitas toko + nota. Klien hanya menata letak. */
+export type ReceiptStore = { tenant_name: string; outlet_code: string; outlet_name: string; address: string; phone: string; header: string; footer: string };
+export type Receipt = { store: ReceiptStore; sale: Sale; local_time: string; reprints: number };
+
 export const sales = {
   /** Edit nota = revisi baru (nomor sama + -R2…). Idempotency-Key per percobaan simpan, seperti nota baru. */
   edit: (id: string, input: SaleInput & { reason: string }, idempotencyKey: string) =>
@@ -221,7 +225,10 @@ export const sales = {
   quote: (input: Omit<SaleInput, 'payments'>) => api<Quote>('/sales/quote', { method: 'POST', body: JSON.stringify(input) }),
   create: (input: SaleInput, idempotencyKey: string) =>
     api<Sale>('/sales/', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
-  get: (id: string) => api<Sale>(`/sales/${id}`)
+  get: (id: string) => api<Sale>(`/sales/${id}`),
+  receipt: (id: string) => api<Receipt>(`/sales/${id}/receipt`),
+  /** Catat satu cetak ulang (audit) dan dapatkan nomor salinannya. */
+  reprint: (id: string) => api<{ copy: number }>(`/sales/${id}/receipt/reprint`, { method: 'POST' })
 };
 
 /** Kunci acak per percobaan bayar; sama selama modal bayar terbuka agar klik ganda/jaringan putus tidak membuat nota ganda. */

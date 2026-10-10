@@ -15,7 +15,7 @@
   const ZONES = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'] as const;
   const CODE_RE = /^[a-z0-9][a-z0-9_-]{1,19}$/;
 
-  type Field = 'code' | 'name' | 'timezone' | 'tax_store_pct' | 'tax_gov_pct';
+  type Field = 'code' | 'name' | 'timezone' | 'tax_store_pct' | 'tax_gov_pct' | 'address' | 'phone' | 'receipt_header' | 'receipt_footer';
   type Editor = {
     id: string | null;
     code: string;
@@ -24,6 +24,10 @@
     taxStore: string;
     taxGov: string;
     active: boolean;
+    address: string;
+    phone: string;
+    header: string;
+    footer: string;
     saving: boolean;
     error: string;
     errors: Partial<Record<Field, string>>;
@@ -51,11 +55,12 @@
   const canWrite = (o: Outlet | null) => (o ? can('outlets', 'update') : can('outlets', 'create'));
 
   function openNew() {
-    editor = { id: null, code: '', name: '', timezone: ZONES[0], taxStore: '0', taxGov: '0', active: true, saving: false, error: '', errors: {} };
+    editor = { id: null, code: '', name: '', timezone: ZONES[0], taxStore: '0', taxGov: '0', active: true, address: '', phone: '', header: '', footer: '', saving: false, error: '', errors: {} };
   }
 
   function openOutlet(o: Outlet) {
-    editor = { id: o.id, code: o.code, name: o.name, timezone: o.timezone, taxStore: o.tax_store_pct, taxGov: o.tax_gov_pct, active: o.active, saving: false, error: '', errors: {} };
+    editor = { id: o.id, code: o.code, name: o.name, timezone: o.timezone, taxStore: o.tax_store_pct, taxGov: o.tax_gov_pct, active: o.active,
+      address: o.address, phone: o.phone, header: o.receipt_header, footer: o.receipt_footer, saving: false, error: '', errors: {} };
   }
 
   /** Persen 0..100, maks 2 desimal; kosong dianggap 0. */
@@ -83,7 +88,10 @@
 
     ed.saving = true;
     try {
-      const body = { name: name.value, timezone: ed.timezone, tax_store_pct: store!, tax_gov_pct: gov! };
+      const body = {
+        name: name.value, timezone: ed.timezone, tax_store_pct: store!, tax_gov_pct: gov!,
+        address: ed.address, phone: ed.phone, receipt_header: ed.header, receipt_footer: ed.footer
+      };
       if (ed.id) {
         await api.update(ed.id, { ...body, active: ed.active });
         notice = t('outlets.saved');
@@ -226,6 +234,24 @@
         </div>
       </div>
       <p class="text-[11px] -mt-2 text-[var(--text-tertiary)]">{t('outlets.taxHint')}</p>
+
+      <fieldset class="space-y-3 rounded-lg border border-[var(--border-subtle)] p-3">
+        <legend class="px-1 text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"><i class="icon-receipt text-[12px] me-1"></i>{t('outlets.receipt.title')}</legend>
+        <p class="text-[11px] -mt-1 text-[var(--text-tertiary)]">{t('outlets.receipt.hint')}</p>
+        {#each [['address', 'o-addr', 200, 2], ['receipt_header', 'o-rh', 300, 2], ['receipt_footer', 'o-rf', 300, 3]] as [field, id, max, rows] (field)}
+          {@const key = field === 'address' ? 'address' : field === 'receipt_header' ? 'header' : 'footer'}
+          <div>
+            <label for={id as string} class={labelClass}>{t(`outlets.receipt.${key}`)}</label>
+            <textarea id={id as string} class="{inputClass} !h-auto py-2 font-mono text-[12px]" rows={rows as number} maxlength={max as number} bind:value={ed[key]} disabled={ro} aria-invalid={!!ed.errors[field as Field]}></textarea>
+            {#if ed.errors[field as Field]}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors[field as Field]}</p>{/if}
+          </div>
+        {/each}
+        <div>
+          <label for="o-phone" class={labelClass}>{t('outlets.receipt.phone')}</label>
+          <input id="o-phone" class={inputClass} bind:value={ed.phone} maxlength="30" disabled={ro} aria-invalid={!!ed.errors.phone} />
+          {#if ed.errors.phone}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.phone}</p>{/if}
+        </div>
+      </fieldset>
 
       {#if ed.id !== null}
         <label class="flex items-center gap-2 text-[12.5px] font-medium cursor-pointer">

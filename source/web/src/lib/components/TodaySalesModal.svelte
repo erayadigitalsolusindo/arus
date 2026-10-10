@@ -6,6 +6,7 @@
   import { sales, type SaleList, type Sale } from '#lib/sales/api.ts';
   import { t, formatCurrency, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import { printReceipt } from '#lib/pos/receipt.ts';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -44,6 +45,21 @@
   function onSearch() {
     clearTimeout(timer);
     timer = setTimeout(load, 300);
+  }
+
+  // Cetak ulang dari daftar: selalu tercatat sebagai salinan (audit sale.reprint).
+  let printingId = $state('');
+  async function reprint(id: string) {
+    if (printingId) return;
+    printingId = id;
+    error = '';
+    try {
+      await printReceipt(id, { reprint: true });
+    } catch (err) {
+      error = t('pos.receipt.printFailed', { error: errorMessage(err) });
+    } finally {
+      printingId = '';
+    }
   }
 
   async function toggle(id: string) {
@@ -118,6 +134,9 @@
               <td class="px-3 py-1.5 text-center">
                 <button type="button" class="header-icon-btn" aria-label={d ? t('pos.today.hideDetail') : t('pos.today.detail')} title={d ? t('pos.today.hideDetail') : t('pos.today.detail')} onclick={() => toggle(r.id)}>
                   <i class="{d ? 'icon-chevron-up' : 'icon-eye'} text-[15px]"></i>
+                </button>
+                <button type="button" class="header-icon-btn disabled:opacity-50" aria-label={t('pos.receipt.reprint')} title={t('pos.receipt.reprint')} disabled={!!printingId} onclick={() => reprint(r.id)}>
+                  <i class="{printingId === r.id ? 'icon-loader-circle animate-spin' : 'icon-printer'} text-[15px]"></i>
                 </button>
               </td>
               <td class="px-3 py-1.5 text-center font-semibold whitespace-nowrap">{r.doc_no}</td>

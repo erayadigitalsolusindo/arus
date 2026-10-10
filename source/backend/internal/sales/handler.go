@@ -39,6 +39,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleList, authz.ActView)).Get("/all", h.ListAll)
 		r.With(authz.Require(ModuleList, authz.ActView)).Get("/{id}/detail", h.Detail)
 		r.With(authz.Require(Module, authz.ActView)).Get("/{id}", h.Get)
+		r.With(authz.Require(Module, authz.ActView)).Get("/{id}/receipt", h.Receipt)
+		r.With(authz.Require(Module, authz.ActView)).Post("/{id}/receipt/reprint", h.Reprint)
 		r.With(authz.Require(Module, authz.ActUpdate)).Put("/{id}", h.Edit)
 		r.With(authz.Require(Module, authz.ActUpdate)).Post("/{id}/quote", h.QuoteEdit)
 		r.With(authz.Require(Module, authz.ActDelete)).Post("/{id}/void", h.Void)
@@ -96,6 +98,36 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, sale)
+}
+
+// Receipt: model struk (toko + nota) untuk dicetak klien.
+func (h *Handler) Receipt(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return
+	}
+	rc, err := h.svc.Receipt(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, rc)
+}
+
+// Reprint: catat satu cetak ulang struk (FR-POS-15) dan kembalikan nomor salinannya.
+func (h *Handler) Reprint(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return
+	}
+	n, err := h.svc.Reprint(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]int{"copy": n})
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {

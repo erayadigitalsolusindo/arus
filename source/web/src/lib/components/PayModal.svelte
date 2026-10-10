@@ -10,6 +10,7 @@
   import { approvals, type Approver } from '#lib/approval/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
+  import { loadReceiptSettings, printReceipt, saveReceiptSettings, type Paper } from '#lib/pos/receipt.ts';
 
   let {
     total,
@@ -291,6 +292,32 @@
     } finally {
       submitting = false;
     }
+    if (done && receipt.auto) void print();
+  }
+
+  // Struk: cetak pertama setelah nota tersimpan; cetakan berikutnya dari layar ini = cetak ulang (tercatat di audit).
+  let receipt = $state(loadReceiptSettings());
+  let printed = $state(false);
+  let printing = $state(false);
+  let printError = $state('');
+
+  async function print() {
+    if (!done || printing) return;
+    printing = true;
+    printError = '';
+    try {
+      await printReceipt(done.id, { reprint: printed });
+      printed = true;
+    } catch (e) {
+      printError = t('pos.receipt.printFailed', { error: errorMessage(e) });
+    } finally {
+      printing = false;
+    }
+  }
+
+  function setReceipt(next: Partial<typeof receipt>) {
+    receipt = { ...receipt, ...next };
+    saveReceiptSettings(receipt);
   }
 </script>
 
@@ -325,7 +352,31 @@
           {#if done.points_redeemed > 0}<span class="ms-1.5 font-semibold text-[var(--color-warning-600)]">{t('members.pos.redeemed', { points: done.points_redeemed })}</span>{/if}
         </p>
       {/if}
-      <button type="button" class="btn btn-primary w-full" onclick={ondone}>{t('pos.newSale')}</button>
+      {#if printError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{printError}</p>{/if}
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-outline flex-1 disabled:opacity-60" onclick={print} disabled={printing}>
+          <i class="icon-printer text-[14px]"></i>{printing ? t('pos.receipt.printing') : printed ? t('pos.receipt.reprint') : t('pos.receipt.print')}
+        </button>
+        <button type="button" class="btn btn-primary flex-1" onclick={ondone}>{t('pos.newSale')}</button>
+      </div>
+      <details class="text-start text-[12px] text-[var(--text-secondary)]">
+        <summary class="cursor-pointer select-none">{t('pos.receipt.settings')}</summary>
+        <div class="mt-2 space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="size-4 accent-[var(--color-primary-600)]" checked={receipt.auto} onchange={(e) => setReceipt({ auto: e.currentTarget.checked })} />
+            {t('pos.receipt.auto')}
+          </label>
+          <div class="flex items-center gap-2">
+            <span>{t('pos.receipt.paper')}</span>
+            {#each [58, 80] as p (p)}
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="receipt-paper" class="accent-[var(--color-primary-600)]" checked={receipt.paper === p} onchange={() => setReceipt({ paper: p as Paper })} />
+                {p === 58 ? t('pos.receipt.paper58') : t('pos.receipt.paper80')}
+              </label>
+            {/each}
+          </div>
+        </div>
+      </details>
     </div>
   {:else}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
