@@ -73,12 +73,56 @@ func TestLifecycle(t *testing.T) {
 	svc := NewService(app)
 	a, b := authz.Actor{TenantID: tenant}, authz.Actor{TenantID: other}
 
-	// Bawaan: lima metode, Tunai di urutan pertama dan bersifat sistem.
+	// Bawaan: lima metode biasa + Deposit Member + Kredit Pemasok (sistem), Tunai di urutan pertama dan bersifat sistem.
 	list, total, err := svc.List(ctx, a, ListParams{})
-	if err != nil || total != 5 || list[0].Name != "Tunai" || !list[0].System || list[0].Kind != KindCash {
+	if err != nil || total != 7 || list[0].Name != "Tunai" || !list[0].System || list[0].Kind != KindCash {
 		t.Fatalf("bawaan: %+v %d %v", list, total, err)
 	}
 	cash := list[0]
+	var deposit Method
+	for _, m := range list {
+		if m.Kind == KindDeposit {
+			deposit = m
+		}
+	}
+	if !deposit.System {
+		t.Fatalf("deposit bawaan: %+v", list)
+	}
+	// Jenis internal: tak bisa dibuat, tak bisa diganti jenisnya, tak boleh berbiaya, tak bisa diarsipkan; boleh diganti nama.
+	if _, err = svc.Create(ctx, a, Input{Name: "Deposit 2", Kind: KindDeposit}); fieldCode(err, "kind") != "INVALID" {
+		t.Fatalf("buat deposit kedua: %v", err)
+	}
+	if _, err = svc.Update(ctx, a, deposit.ID, Input{Name: "Deposit Member", Kind: KindTransfer}); fieldCode(err, "kind") != "KIND_LOCKED" {
+		t.Fatalf("ganti jenis deposit: %v", err)
+	}
+	if _, err = svc.Update(ctx, a, deposit.ID, Input{Name: "Deposit Member", FeePct: "1"}); fieldCode(err, "fee_pct") != "CASH_NO_FEE" {
+		t.Fatalf("biaya deposit: %v", err)
+	}
+	if _, err = svc.SetActive(ctx, a, deposit.ID, false); !errors.Is(err, ErrLocked) {
+		t.Fatalf("arsip deposit: %v", err)
+	}
+	if r, err := svc.Update(ctx, a, deposit.ID, Input{Name: "Saldo Titipan"}); err != nil || r.Name != "Saldo Titipan" || r.Kind != KindDeposit {
+		t.Fatalf("ganti nama deposit: %+v %v", r, err)
+	}
+	// Lookup per konteks: deposit hanya untuk kasir/piutang/retur jual, kredit pemasok hanya untuk hutang/retur beli.
+	for _, c := range []struct {
+		ctx             string
+		deposit, credit bool
+	}{{"", false, false}, {ForSale, true, false}, {ForReceivable, true, false}, {ForSaleReturn, true, false},
+		{ForPayable, false, true}, {ForPurchaseReturn, false, true}, {ForWallet, false, false}} {
+		look, err := svc.Lookup(ctx, a, c.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var dep, cr bool
+		for _, m := range look {
+			dep = dep || m.Kind == KindDeposit
+			cr = cr || m.Kind == KindSupplierCredit
+		}
+		if dep != c.deposit || cr != c.credit || look[0].Kind != KindCash {
+			t.Errorf("lookup %q: deposit=%v kredit=%v first=%s", c.ctx, dep, cr, look[0].Kind)
+		}
+	}
 
 	// Tambah metode bebas; nama unik tanpa membedakan huruf; Tunai kedua ditolak; jenis wajib & sah.
 	qris, err := svc.Create(ctx, a, Input{Name: "QRIS BCA", Kind: KindEWallet})
@@ -140,7 +184,7 @@ func TestLifecycle(t *testing.T) {
 	if r, err = svc.SetActive(ctx, a, qris.ID, false); err != nil || r.Active {
 		t.Fatalf("arsip: %+v %v", r, err)
 	}
-	look, err := svc.Lookup(ctx, a)
+	look, err := svc.Lookup(ctx, a, "")
 	if err != nil || len(look) != 5 || look[0].Kind != KindCash {
 		t.Fatalf("lookup tanpa arsip, Tunai pertama: %+v %v", look, err)
 	}
@@ -351,7 +395,7 @@ func TestBearerLifecycle(t *testing.T) {
 	if _, err = svc.Update(ctx, a, m.ID, Input{Name: "QRIS BCA", FeePct: "0.7", FeeBearer: "bank"}); fieldCode(err, "fee_bearer") != "INVALID" {
 		t.Fatalf("asing: %v", err)
 	}
-	look, err := svc.Lookup(ctx, a)
+	look, err := svc.Lookup(ctx, a, "")
 	if err != nil {
 		t.Fatal(err)
 	}

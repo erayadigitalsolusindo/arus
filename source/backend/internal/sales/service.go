@@ -39,6 +39,7 @@ import (
 	"aciraba/internal/receivable"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
+	"aciraba/internal/wallet"
 )
 
 const (
@@ -63,6 +64,7 @@ const (
 	codeBaseQtyFormat = "INVALID"
 
 	codeMemberRequired      = "MEMBER_REQUIRED"
+	codeDepositInsufficient = "DEPOSIT_INSUFFICIENT"
 	codeMemberInactive      = "MEMBER_INACTIVE"
 	codeSalespersonInactive = "SALESPERSON_INACTIVE"
 	codePointsInsufficient  = "POINTS_INSUFFICIENT"
@@ -272,6 +274,8 @@ type MemberInfo struct {
 	Code   string    `json:"code"`
 	Name   string    `json:"name"`
 	Points int       `json:"points"` // saldo poin saat quote
+	// Deposit = saldo deposit member saat quote (hanya di quote; untuk metode bayar "Deposit Member").
+	Deposit string `json:"deposit,omitempty"`
 }
 
 type Service struct {
@@ -776,6 +780,8 @@ func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm)
 			return n, FieldErrors{"payments": "INTERNAL"}
 		case !active:
 			f[k+"method_id"] = "METHOD_INACTIVE"
+		case kind == wallet.KindSupplierCredit:
+			f[k+"method_id"] = sanitize.Invalid // kredit pemasok bukan alat bayar nota
 		}
 		p.methodID, p.name, p.method = &id, name, kind
 		p.feePct, p.feeFlat, p.bearer = feePct, feeFlat, bearer
@@ -787,6 +793,20 @@ func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm)
 	}
 	n.payments = out
 	return n, nil
+}
+
+// depositPaid = Σ pembayaran berjenis deposit + kunci field pembayaran deposit pertama (untuk pesan galat).
+func depositPaid(n norm) (string, dec) {
+	key, sum := "payments", decimal.Zero
+	for i, p := range n.payments {
+		if p.method == wallet.KindDeposit {
+			if sum.IsZero() {
+				key = fmt.Sprintf("payments.%d.amount", i)
+			}
+			sum = sum.Add(p.amount)
+		}
+	}
+	return key, sum
 }
 
 // methodFee = biaya metode (MDR) atas jumlah yang dibayar: amount × pct% + flat, dibulatkan 2 desimal. Ditanggung toko.
@@ -960,6 +980,11 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	if t, fe = settle(n, t); len(fe) > 0 {
 		return fe
 	}
+	// Pembayaran dari deposit member: wajib ada member di nota; saldo dipotong setelah nota tersimpan (lihat di bawah).
+	depKey, depAmt := depositPaid(n)
+	if depAmt.IsPositive() && mc.sm == nil {
+		return FieldErrors{depKey: codeMemberRequired}
+	}
 	// Nota kredit: cek limit piutang member (member sudah terkunci FOR UPDATE di resolveMember, jadi dua kasir yang
 	// berkredit ke member yang sama antre dan yang kedua melihat piutang yang pertama).
 	var creditApprover approval.Approver
@@ -1073,6 +1098,15 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		if err := q.SalesPaymentInsert(ctx, gen.SalesPaymentInsertParams{TenantID: a.TenantID, SaleID: hdr.ID, Position: int32(i + 1),
 			Method: p.method, MethodID: *p.methodID, MethodName: p.name, Amount: p.amount, RefNo: p.refNo,
 			FeePct: p.feePct, FeeFlat: p.feeFlat, FeeAmount: p.fee, FeeBearer: p.bearer}); err != nil {
+			return err
+		}
+	}
+	if depAmt.IsPositive() {
+		if _, err := wallet.MemberDeposit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: mc.sm.ID, OutletID: a.OutletID,
+			Kind: wallet.DepSalePayment, Amount: depAmt.Neg(), RefID: hdr.ID, DocNo: docNo, ActorID: a.UserID}); err != nil {
+			if errors.Is(err, wallet.ErrInsufficient) {
+				return FieldErrors{depKey: codeDepositInsufficient}
+			}
 			return err
 		}
 	}
@@ -1411,6 +1445,11 @@ func (s *Service) quoteTx(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm,
 	out.Vouchers, out.VoucherAmount = vc.infos(), vc.total().StringFixed(2)
 	if mc.sm != nil {
 		out.Member = &MemberInfo{ID: mc.sm.ID, Code: mc.sm.Code, Name: mc.sm.Name, Points: mc.sm.Points}
+		dep, err := wallet.MemberDeposit.Balance(ctx, tx, a.TenantID, mc.sm.ID)
+		if err != nil {
+			return Quote{}, err
+		}
+		out.Member.Deposit = dep.StringFixed(2)
 		terms, err := receivable.MemberTerms(ctx, tx, a.TenantID, mc.sm.ID)
 		if err != nil {
 			return Quote{}, err

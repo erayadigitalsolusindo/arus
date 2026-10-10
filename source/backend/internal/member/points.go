@@ -24,8 +24,9 @@ const (
 	KindAdjust   = "ADJUST"
 	KindReversal = "REVERSAL"
 
-	RefSale   = "SALE"
-	RefManual = "MANUAL"
+	RefSale       = "SALE"
+	RefSaleReturn = "SALE_RETURN"
+	RefManual     = "MANUAL"
 
 	maxAdjust = 1_000_000
 )
@@ -86,6 +87,23 @@ func RedeemAmount(points int, pointValue decimal.Decimal) decimal.Decimal {
 	return pointValue.Mul(decimal.NewFromInt(int64(points)))
 }
 
+// ReturnedPoints returns the incremental point adjustment for the cumulative returned value.
+// Using a cumulative target keeps multiple partial returns exact when the final return completes a sale.
+func ReturnedPoints(total int, returnedValue, saleValue decimal.Decimal, alreadyAdjusted int) int {
+	if total <= 0 || !saleValue.IsPositive() || !returnedValue.IsPositive() || alreadyAdjusted >= total {
+		return 0
+	}
+	target := decimal.NewFromInt(int64(total)).Mul(returnedValue).Div(saleValue).Floor().IntPart()
+	if target > int64(total) {
+		target = int64(total)
+	}
+	delta := int(target) - alreadyAdjusted
+	if delta < 0 {
+		return 0
+	}
+	return delta
+}
+
 type move struct {
 	tenant, member uuid.UUID
 	kind           string
@@ -132,6 +150,37 @@ func ApplySale(ctx context.Context, tx pgx.Tx, a authz.Actor, memberID, saleID u
 		}
 	}
 	return nil
+}
+
+// ApplySaleReturn reverses earned points and restores redeemed points proportionally for a return document.
+// Spendable points may become negative; lifetime points are clamped at zero.
+func ApplySaleReturn(ctx context.Context, tx pgx.Tx, a authz.Actor, memberID, saleID, returnID uuid.UUID, docNo string, earned, redeemed int) error {
+	if memberID == uuid.Nil || (earned == 0 && redeemed == 0) {
+		return nil
+	}
+	q := gen.New(tx)
+	current, err := q.MemberGetForUpdate(ctx, gen.MemberGetForUpdateParams{TenantID: a.TenantID, ID: memberID})
+	if err != nil {
+		return err
+	}
+	lifetimeDelta := -int32(earned)
+	if lifetimeDelta < -current.LifetimePoints {
+		lifetimeDelta = -current.LifetimePoints
+	}
+	delta := int32(redeemed - earned)
+	if delta == 0 && lifetimeDelta == 0 {
+		return nil
+	}
+	updated, err := q.MemberPointsApplyReturn(ctx, gen.MemberPointsApplyReturnParams{
+		TenantID: a.TenantID, ID: memberID, Delta: delta, LifetimeDelta: lifetimeDelta,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = q.MemberPointInsert(ctx, gen.MemberPointInsertParams{TenantID: a.TenantID, MemberID: memberID,
+		Kind: KindReversal, Points: delta, LifetimeDelta: lifetimeDelta, BalanceAfter: updated.Points,
+		RefType: RefSaleReturn, RefID: pgtype.UUID{Bytes: returnID, Valid: true}, Note: docNo, ActorID: pgtype.UUID{Bytes: a.UserID, Valid: true}})
+	return err
 }
 
 // ReverseSale membalik semua poin sebuah nota (untuk void/retur/edit, Fase 5.3): poin yang ditukar dikembalikan,

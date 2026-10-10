@@ -94,7 +94,11 @@ export const salespeopleLookup = {
 
 /** Penanggung biaya: toko (dipotong dari uang masuk) atau pelanggan (ditagihkan di atas total nota). */
 export type FeeBearer = 'store' | 'customer';
-export type PaymentKind = 'cash' | 'transfer' | 'debit' | 'credit_card' | 'ewallet';
+export type PaymentKind = 'cash' | 'transfer' | 'debit' | 'credit_card' | 'ewallet' | 'deposit' | 'supplier_credit';
+/** Jenis saldo titipan: satu metode sistem per tenant, tanpa biaya, tak bisa dibuat/diganti jenisnya. */
+export const isWalletKind = (k: PaymentKind) => k === 'deposit' || k === 'supplier_credit';
+/** Konteks lookup: menentukan apakah Deposit Member / Kredit Pemasok ikut tampil (kosong = hanya metode biasa). */
+export type LookupFor = 'sale' | 'receivable' | 'sale_return' | 'payable' | 'purchase_return' | 'wallet';
 /** fee_pct (%) + fee_flat (Rp per transaksi) = biaya metode (MDR) yang ditanggung toko; "0.00" = tanpa biaya. */
 export type PaymentMethod = { id: string; name: string; kind: PaymentKind; is_system: boolean; active: boolean; fee_pct: string; fee_flat: string; fee_bearer: FeeBearer; created_at: string };
 export type PaymentMethodInput = { name: string; kind: PaymentKind; fee_pct?: string; fee_flat?: string; fee_bearer?: FeeBearer };
@@ -108,5 +112,5 @@ export const paymentMethods = {
 
 /** Metode aktif untuk layar bayar kasir (Tunai lebih dulu); cukup izin kasir, tanpa izin halaman master. */
 export const paymentMethodsLookup = {
-  all: () => api<{ data: PaymentMethod[] }>('/payment-methods/lookup').then((r) => r.data)
+  all: (forCtx?: LookupFor) => api<{ data: PaymentMethod[] }>(`/payment-methods/lookup${forCtx ? `?for=${forCtx}` : ''}`).then((r) => r.data)
 };

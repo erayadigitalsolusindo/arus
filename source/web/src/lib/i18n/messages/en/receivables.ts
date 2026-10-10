@@ -11,7 +11,7 @@ const receivables: Messages['receivables'] = {
   loadMore: 'Load more',
   status: { open: 'Unpaid', overdue: 'Overdue', paid: 'Paid', all: 'All' },
   stat: { outstanding: 'Total receivable', overdue: 'Overdue', open: 'Unpaid receipts' },
-  col: { docNo: 'Receipt No.', member: 'Member', date: 'Date', due: 'Due', amount: 'Receivable', paid: 'Paid', balance: 'Balance', status: 'Status', action: 'Action' },
+  col: { docNo: 'Receipt No.', member: 'Member', date: 'Date', due: 'Due', amount: 'Receivable', paid: 'Paid', returned: 'Return offset', balance: 'Balance', status: 'Status', action: 'Action' },
   noDue: '—',
   pay: 'Pay',
   detail: 'Details',

@@ -27,6 +27,7 @@ import (
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
+	"aciraba/internal/wallet"
 )
 
 // Edit & batal nota. Nota TIDAK pernah ditimpa:
@@ -107,6 +108,13 @@ func lockForEdit(ctx context.Context, q *gen.Queries, a authz.Actor, id uuid.UUI
 	if row.Status != "completed" {
 		return row, ErrNotEditable
 	}
+	hasReturns, err := q.SaleHasReturns(ctx, gen.SaleHasReturnsParams{TenantID: a.TenantID, SaleID: row.ID})
+	if err != nil {
+		return row, err
+	}
+	if hasReturns {
+		return row, ErrSaleHasReturns
+	}
 	// Nota kredit yang piutangnya sudah dibayar tidak boleh diubah/dibatalkan: uang yang diterima tidak boleh hilang diam-diam.
 	if paid, err := q.ReceivablePaymentCountForSale(ctx, gen.ReceivablePaymentCountForSaleParams{TenantID: a.TenantID, SaleID: row.ID}); err != nil {
 		return row, err
@@ -148,6 +156,11 @@ func reverseEffects(ctx context.Context, tx pgx.Tx, q *gen.Queries, a authz.Acto
 		}
 	}
 	if err := member.ReverseSale(ctx, tx, a, orig.ID, orig.DocNo); err != nil {
+		return err
+	}
+	// Deposit member yang dipakai membayar nota dikembalikan ke saldo member.
+	if _, err := wallet.MemberDeposit.ReverseByRef(ctx, tx, a.TenantID, orig.ID, wallet.DepSalePayment, wallet.DepSaleReversal,
+		orig.OutletID, a.UserID, orig.DocNo, ""); err != nil {
 		return err
 	}
 	vids, err := q.SalesVoucherIDs(ctx, gen.SalesVoucherIDsParams{TenantID: a.TenantID, SaleID: orig.ID})

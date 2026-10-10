@@ -57,14 +57,125 @@ type ListResult struct {
 	Received  string            `json:"received"`  // Total + Surcharge = Σ per metode (cocokkan dengan EDC/QRIS/laci)
 	Totals    map[string]string `json:"totals"`    // per jenis
 	ByMethod  []MethodAmount    `json:"by_method"` // per metode: Tunai dulu, lalu menurut nama
-	From      string            `json:"from"`
-	To        string            `json:"to"`
-	Truncated bool              `json:"truncated"`
+	// Flows = uang lain yang masuk/keluar lewat petugas ini di outlet aktif pada rentang yang sama (bayar piutang, top-up/tarik
+	// deposit, dana kembali retur, bayar hutang, pencairan kredit pemasok), per sumber + metode; Amount bertanda (+ masuk).
+	Flows []Flow `json:"flows"`
+	// Drawer = uang per metode yang seharusnya ada (penjualan + Flows), tanpa saldo titipan (deposit/kredit pemasok).
+	Drawer    []MethodAmount `json:"drawer"`
+	From      string         `json:"from"`
+	To        string         `json:"to"`
+	Truncated bool           `json:"truncated"`
+}
+
+// Flow = jumlah satu sumber uang lain per metode.
+type Flow struct {
+	Source   string    `json:"source"` // receivable_payment | deposit_topup | deposit_withdraw | sale_return | payable_payment | purchase_return | supplier_credit_cashout
+	MethodID uuid.UUID `json:"method_id"`
+	Name     string    `json:"name"`
+	Kind     string    `json:"kind"`
+	Amount   string    `json:"amount"`
+	Count    int       `json:"count"`
+}
+
+// flowsSQL: $1 tenant, $2 outlet, $3 semua petugas?, $4 petugas, $5..$6 rentang hari (zona waktu outlet). Metode saldo titipan
+// (deposit/kredit pemasok) tidak dihitung karena bukan uang di laci.
+const flowsSQL = `
+WITH b AS (
+  SELECT ($5::date)::timestamp AT TIME ZONE o.timezone AS t0, ($6::date + 1)::timestamp AT TIME ZONE o.timezone AS t1
+  FROM outlets o WHERE o.tenant_id = $1 AND o.id = $2
+), x AS (
+  SELECT 'receivable_payment' AS src, rp.method_id, rp.method AS kind,
+         rp.amount + CASE WHEN rp.fee_bearer = 'customer' THEN rp.fee_amount ELSE 0 END AS amt
+  FROM receivable_payments rp, b
+  WHERE rp.tenant_id = $1 AND rp.outlet_id = $2 AND ($3::bool OR rp.received_by = $4) AND rp.created_at >= b.t0 AND rp.created_at < b.t1
+  UNION ALL
+  SELECT CASE d.kind WHEN 'TOPUP' THEN 'deposit_topup' ELSE 'deposit_withdraw' END, d.method_id, d.method, d.amount
+  FROM member_deposit_movements d, b
+  WHERE d.tenant_id = $1 AND d.outlet_id = $2 AND d.method_id IS NOT NULL AND ($3::bool OR d.actor_id = $4) AND d.created_at >= b.t0 AND d.created_at < b.t1
+  UNION ALL
+  SELECT 'sale_return', r.refund_method_id, r.refund_method, -r.refund
+  FROM sales_returns r, b
+  WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.refund > 0 AND ($3::bool OR r.created_by = $4)
+    AND r.created_at >= b.t0 AND r.created_at < b.t1
+  UNION ALL
+  SELECT 'payable_payment', pp.method_id, pp.method, -pp.amount
+  FROM payable_payments pp, b
+  WHERE pp.tenant_id = $1 AND pp.outlet_id = $2 AND ($3::bool OR pp.paid_by = $4) AND pp.created_at >= b.t0 AND pp.created_at < b.t1
+  UNION ALL
+  SELECT 'purchase_return', r.refund_method_id, r.refund_method, r.refund
+  FROM purchase_returns r, b
+  WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.refund > 0 AND ($3::bool OR r.created_by = $4)
+    AND r.created_at >= b.t0 AND r.created_at < b.t1
+  UNION ALL
+  SELECT 'supplier_credit_cashout', c.method_id, c.method, -c.amount
+  FROM supplier_credit_movements c, b
+  WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.kind = 'CASH_OUT' AND ($3::bool OR c.actor_id = $4) AND c.created_at >= b.t0 AND c.created_at < b.t1
+)
+SELECT x.src, x.method_id, pm.name, x.kind, sum(x.amt), count(*)
+FROM x JOIN payment_methods pm ON pm.tenant_id = $1 AND pm.id = x.method_id
+WHERE x.kind NOT IN ('deposit', 'supplier_credit')
+GROUP BY x.src, x.method_id, pm.name, x.kind
+ORDER BY x.src, (x.kind <> 'cash'), pm.name`
+
+// cashierFlows menghitung Flows dan Drawer (penjualan per metode + arus lain).
+func cashierFlows(ctx context.Context, tx pgx.Tx, a authz.Actor, fd, td time.Time, byMethod []MethodAmount) ([]Flow, []MethodAmount, error) {
+	rows, err := tx.Query(ctx, flowsSQL, a.TenantID, a.OutletID, a.Impersonator != uuid.Nil, a.UserID,
+		pgtype.Date{Time: fd, Valid: true}, pgtype.Date{Time: td, Valid: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	flows := []Flow{}
+	drawer := map[uuid.UUID]*MethodAmount{}
+	amt := map[uuid.UUID]decimal.Decimal{}
+	var order []uuid.UUID
+	add := func(id uuid.UUID, name, kind string, v decimal.Decimal) {
+		if kind == "deposit" || kind == "supplier_credit" {
+			return
+		}
+		if _, ok := drawer[id]; !ok {
+			drawer[id] = &MethodAmount{MethodID: id, Name: name, Kind: kind}
+			order = append(order, id)
+		}
+		amt[id] = amt[id].Add(v)
+	}
+	for _, m := range byMethod {
+		v, _ := decimal.NewFromString(m.Amount)
+		add(m.MethodID, m.Name, m.Kind, v)
+	}
+	for rows.Next() {
+		var f Flow
+		var sum decimal.Decimal
+		var n int64
+		if err := rows.Scan(&f.Source, &f.MethodID, &f.Name, &f.Kind, &sum, &n); err != nil {
+			return nil, nil, err
+		}
+		f.Amount, f.Count = sum.StringFixed(2), int(n)
+		flows = append(flows, f)
+		add(f.MethodID, f.Name, f.Kind, sum)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	out := make([]MethodAmount, 0, len(order))
+	for _, id := range order {
+		m := drawer[id]
+		m.Amount = amt[id].StringFixed(2)
+		out = append(out, *m)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		ci, cj := out[i].Kind == "cash", out[j].Kind == "cash"
+		if ci != cj {
+			return ci
+		}
+		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+	})
+	return flows, out, nil
 }
 
 // List = nota outlet aktif milik KASIR YANG SEDANG LOGIN (untuk mencocokkan uang fisik di lacinya; kasir lain tak terlihat) pada rentang tanggal (zona waktu outlet; kosong = hari ini), terbaru dulu, opsional cari no. nota.
 func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (ListResult, error) {
-	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}, ByMethod: []MethodAmount{}}
+	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}, ByMethod: []MethodAmount{}, Flows: []Flow{}, Drawer: []MethodAmount{}}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		qr := gen.New(tx)
 		o, err := qr.SalesOutletInfo(ctx, gen.SalesOutletInfoParams{TenantID: a.TenantID, ID: a.OutletID})
@@ -161,6 +272,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		if credit.IsPositive() {
 			res.Totals["credit"] = credit.StringFixed(2) // piutang dari nota kredit (bukan metode bayar)
 		}
+		// Arus uang lain hanya relevan untuk laci, jadi tidak dihitung saat mencari nomor nota tertentu.
+		if q == "" {
+			res.Flows, res.Drawer, err = cashierFlows(ctx, tx, a, fd, td, res.ByMethod)
+			return err
+		}
+		res.Drawer = res.ByMethod
 		return nil
 	})
 	return res, err

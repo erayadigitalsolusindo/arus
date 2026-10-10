@@ -42,7 +42,7 @@ export default {
     tooBig: 'Ukuran foto melebihi 10 MB.',
     notImage: 'Pilih file gambar (JPG, PNG, atau WebP).'
   },
-  stat: { sales: 'Total Penjualan', trx: 'Total Transaksi', points: 'Poin', deposit: 'Deposit', depositSoon: 'Belum tersedia' },
+  stat: { sales: 'Total Penjualan', trx: 'Total Transaksi', points: 'Poin', deposit: 'Deposit' },
   tab: { label: 'Informasi member', bio: 'Biodata', settings: 'Pengaturan', points: 'Poin', sales: 'Transaksi' },
   section: { info: 'Informasi' },
   status: { title: 'Tentukan status anggota ini', on: 'Member Ini Aktif', off: 'Member Ini Tidak Aktif' },

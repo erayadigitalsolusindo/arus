@@ -43,7 +43,7 @@ const members: Messages['members'] = {
     tooBig: 'The photo is larger than 10 MB.',
     notImage: 'Choose an image file (JPG, PNG, or WebP).'
   },
-  stat: { sales: 'Total Sales', trx: 'Total Transactions', points: 'Points', deposit: 'Deposit', depositSoon: 'Not available yet' },
+  stat: { sales: 'Total Sales', trx: 'Total Transactions', points: 'Points', deposit: 'Deposit' },
   tab: { label: 'Member information', bio: 'Profile', settings: 'Settings', points: 'Points', sales: 'Transactions' },
   section: { info: 'Information' },
   status: { title: 'Set this member’s status', on: 'Member Is Active', off: 'Member Is Inactive' },

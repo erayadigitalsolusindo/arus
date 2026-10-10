@@ -66,6 +66,7 @@ export default {
     edit: 'Ubah Metode',
     search: 'Cari nama metode…',
     kind: 'Jenis',
+    walletHint: 'Metode saldo titipan bawaan sistem: tanpa biaya, jenis tetap, tidak dapat diarsipkan. Nama boleh diganti.',
     kindHint: 'Jenis menentukan aturan bayar. Boleh diganti antar non-tunai; nota lama tidak berubah.',
     kindCashHint: 'Hanya tunai yang menghasilkan kembalian. Non-tunai tidak boleh melebihi total belanja.',
     system: 'Bawaan',

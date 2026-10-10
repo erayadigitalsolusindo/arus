@@ -231,5 +231,37 @@
         </tfoot>
       </table>
     </div>
+
+    {#if (data?.flows ?? []).length > 0}
+      <div class="pt-1">
+        <h3 class="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('pos.today.flows.title')}</h3>
+        <table class="w-full text-[13px] tabular-nums rounded-md border border-[var(--border-subtle)] overflow-hidden">
+          <tbody class="divide-y divide-[var(--border-subtle)]">
+            {#each data?.flows ?? [] as f (f.source + f.method_id)}
+              <tr>
+                <th scope="row" class="px-3 py-1.5 text-start font-normal">{t(`pos.today.flows.${f.source}` as 'pos.today.flows.sale_return')} · {f.name} <span class="text-[var(--text-tertiary)]">({f.count})</span></th>
+                <td class="px-3 py-1.5 text-end {Number(f.amount) < 0 ? 'text-[var(--color-danger-600)]' : ''}">{money(f.amount)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+    {#if (data?.drawer ?? []).length > 0}
+      <div class="pt-1">
+        <h3 class="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('pos.today.drawer')}</h3>
+        <table class="w-full text-[13px] tabular-nums rounded-md border border-[var(--border-default)] overflow-hidden">
+          <tbody class="divide-y divide-[var(--border-subtle)]">
+            {#each data?.drawer ?? [] as m (m.method_id)}
+              <tr class="font-semibold">
+                <th scope="row" class="px-3 py-1.5 text-start">{m.name}</th>
+                <td class="px-3 py-1.5 text-end">{money(m.amount)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <p class="mt-1 text-[11.5px] text-[var(--text-tertiary)]">{t('pos.today.drawerHint')}</p>
+      </div>
+    {/if}
   </div>
 </Modal>

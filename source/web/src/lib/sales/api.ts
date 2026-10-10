@@ -2,7 +2,10 @@
 // barang, satuan, qty, potongan, dan pembayaran. Idempotency-Key dibuat per percobaan bayar (dipakai ulang saat dicoba lagi).
 import { api } from '#lib/api/client.ts';
 
-export type PayMethod = 'cash' | 'debit' | 'credit_card' | 'ewallet' | 'transfer';
+export type PayMethod = 'cash' | 'debit' | 'credit_card' | 'ewallet' | 'transfer' | 'deposit';
+/** Arus uang lain lewat kasir di outlet aktif (bertanda: + masuk, − keluar). */
+export type CashFlowSource = 'receivable_payment' | 'deposit_topup' | 'deposit_withdraw' | 'sale_return' | 'payable_payment' | 'purchase_return' | 'supplier_credit_cashout';
+export type CashFlow = { source: CashFlowSource; method_id: string; name: string; kind: PayMethod; amount: string; count: number };
 export const PAY_METHODS: PayMethod[] = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer'];
 
 export type SaleLineInput = { item_id: string; unit_id?: string; qty: string; discount?: string; note?: string; unit_price?: string };
@@ -31,7 +34,7 @@ export type SaleInput = {
 };
 
 /** Piutang yang melekat pada nota kredit (keadaan sekarang). */
-export type SaleCredit = { id: string; amount: string; paid: string; balance: string; due_date?: string; status: 'open' | 'overdue' | 'paid' };
+export type SaleCredit = { id: string; amount: string; paid: string; returned: string; balance: string; due_date?: string; status: 'open' | 'overdue' | 'paid' };
 
 export type Sale = {
   id: string;
@@ -87,7 +90,7 @@ export type Quote = {
   other_cost: string;
   total: string;
   /** Bila member dipilih: potongan dari tukar poin (sudah termasuk di discount) dan poin yang akan diperoleh. */
-  member?: { id: string; code: string; name: string; points: number };
+  member?: { id: string; code: string; name: string; points: number; deposit?: string };
   redeem_amount: string;
   points_earn: number;
   /** Kupon yang lolos (amount = potongan rupiah; sudah termasuk di discount). */
@@ -114,7 +117,7 @@ export type SaleListRow = {
   methods: Partial<Record<PayMethod, string>>;
   pays: { method_id: string; name: string; kind: PayMethod; amount: string }[];
 };
-export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
+export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; flows: CashFlow[]; drawer: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
 
 /** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
 export type SaleAllRow = {

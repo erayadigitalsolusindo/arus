@@ -2201,7 +2201,9 @@ SELECT m.id, m.code, m.name, m.gender, m.phone, m.email, m.address, m.district, 
        lv.id AS level_id, coalesce(lv.name, '')::text AS level_name, coalesce(lv.min_points, 0)::int AS level_min_points,
        coalesce(lv.spend_per_point, 0)::numeric AS level_spend_per_point, coalesce(lv.point_value, 0)::numeric AS level_point_value,
        nx.id AS next_level_id, coalesce(nx.name, '')::text AS next_level_name, coalesce(nx.min_points, 0)::int AS next_level_min_points,
-       coalesce(st.total_sales, 0)::numeric AS total_sales, coalesce(st.total_trx, 0)::bigint AS total_trx
+       coalesce(st.total_sales, 0)::numeric AS total_sales, coalesce(st.total_trx, 0)::bigint AS total_trx,
+       coalesce((SELECT d.balance_after FROM member_deposit_movements d WHERE d.tenant_id = m.tenant_id AND d.member_id = m.id
+                 ORDER BY d.id DESC LIMIT 1), 0)::numeric AS deposit
 FROM members m
 LEFT JOIN LATERAL (
     SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value FROM member_levels l
@@ -2257,6 +2259,7 @@ type MemberGetRow struct {
 	NextLevelMinPoints int32
 	TotalSales         decimal.Decimal
 	TotalTrx           int64
+	Deposit            decimal.Decimal
 }
 
 func (q *Queries) MemberGet(ctx context.Context, arg MemberGetParams) (MemberGetRow, error) {
@@ -2294,6 +2297,7 @@ func (q *Queries) MemberGet(ctx context.Context, arg MemberGetParams) (MemberGet
 		&i.NextLevelMinPoints,
 		&i.TotalSales,
 		&i.TotalTrx,
+		&i.Deposit,
 	)
 	return i, err
 }
@@ -2871,11 +2875,12 @@ func (q *Queries) MemberPointInsert(ctx context.Context, arg MemberPointInsertPa
 
 const memberPointList = `-- name: MemberPointList :many
 SELECT p.id, p.kind, p.points, p.balance_after, p.ref_type, p.ref_id, p.note, p.created_at,
-       coalesce(u.name, '')::text AS actor_name, coalesce(s.doc_no, '')::text AS doc_no,
+    coalesce(u.name, '')::text AS actor_name, coalesce(sr.doc_no, s.doc_no, '')::text AS doc_no,
        count(*) OVER () AS total
 FROM member_point_movements p
 LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.actor_id
 LEFT JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.ref_id AND p.ref_type = 'SALE'
+LEFT JOIN sales_returns sr ON sr.tenant_id = p.tenant_id AND sr.id = p.ref_id AND p.ref_type = 'SALE_RETURN'
 WHERE p.tenant_id = $1 AND p.member_id = $2
 ORDER BY p.id DESC
 LIMIT $4 OFFSET $3
@@ -2968,6 +2973,37 @@ func (q *Queries) MemberPointsApply(ctx context.Context, arg MemberPointsApplyPa
 		arg.ID,
 	)
 	var i MemberPointsApplyRow
+	err := row.Scan(&i.Points, &i.LifetimePoints)
+	return i, err
+}
+
+const memberPointsApplyReturn = `-- name: MemberPointsApplyReturn :one
+UPDATE members SET points = points + $1, lifetime_points = lifetime_points + $2
+WHERE tenant_id = $3 AND id = $4 AND lifetime_points + $2 >= 0
+RETURNING points, lifetime_points
+`
+
+type MemberPointsApplyReturnParams struct {
+	Delta         int32
+	LifetimeDelta int32
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+}
+
+type MemberPointsApplyReturnRow struct {
+	Points         int32
+	LifetimePoints int32
+}
+
+// Retur boleh membuat saldo poin spendable negatif; lifetime earned tetap dijaga tidak negatif.
+func (q *Queries) MemberPointsApplyReturn(ctx context.Context, arg MemberPointsApplyReturnParams) (MemberPointsApplyReturnRow, error) {
+	row := q.db.QueryRow(ctx, memberPointsApplyReturn,
+		arg.Delta,
+		arg.LifetimeDelta,
+		arg.TenantID,
+		arg.ID,
+	)
+	var i MemberPointsApplyReturnRow
 	err := row.Scan(&i.Points, &i.LifetimePoints)
 	return i, err
 }
@@ -3485,7 +3521,7 @@ const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
 SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
 FROM payment_methods
 WHERE tenant_id = $1 AND active
-ORDER BY is_system DESC, lower(name), id
+ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id
 `
 
 type PaymentMethodActiveListRow struct {
@@ -3636,7 +3672,7 @@ FROM payment_methods
 WHERE tenant_id = $1
   AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
   AND ($3::boolean IS NULL OR active = $3)
-ORDER BY is_system DESC, lower(name), id
+ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id
 LIMIT $5 OFFSET $4
 `
 
@@ -5167,13 +5203,18 @@ func (q *Queries) PurchaseSupplierState(ctx context.Context, arg PurchaseSupplie
 }
 
 const receivableForSale = `-- name: ReceivableForSale :one
-SELECT r.id, r.amount, r.due_date, coalesce(p.paid, 0)::numeric AS paid, (now() AT TIME ZONE o.timezone)::date AS today
+SELECT r.id, r.amount, r.due_date, coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
+       (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.sale_id = $2
 `
 
@@ -5183,11 +5224,12 @@ type ReceivableForSaleParams struct {
 }
 
 type ReceivableForSaleRow struct {
-	ID      uuid.UUID
-	Amount  decimal.Decimal
-	DueDate pgtype.Date
-	Paid    decimal.Decimal
-	Today   pgtype.Date
+	ID       uuid.UUID
+	Amount   decimal.Decimal
+	DueDate  pgtype.Date
+	Paid     decimal.Decimal
+	Returned decimal.Decimal
+	Today    pgtype.Date
 }
 
 // Piutang milik satu nota (bila nota kredit) beserta jumlah yang sudah dibayar.
@@ -5199,6 +5241,7 @@ func (q *Queries) ReceivableForSale(ctx context.Context, arg ReceivableForSalePa
 		&i.Amount,
 		&i.DueDate,
 		&i.Paid,
+		&i.Returned,
 		&i.Today,
 	)
 	return i, err
@@ -5207,7 +5250,7 @@ func (q *Queries) ReceivableForSale(ctx context.Context, arg ReceivableForSalePa
 const receivableGet = `-- name: ReceivableGet :one
 SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
        s.doc_no, s.total AS sale_total, s.created_at AS sale_at, m.code AS member_code, m.name AS member_name,
-       coalesce(p.paid, 0)::numeric AS paid,
+    coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -5217,6 +5260,10 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.id = $2
 `
 
@@ -5239,6 +5286,7 @@ type ReceivableGetRow struct {
 	MemberCode string
 	MemberName string
 	Paid       decimal.Decimal
+	Returned   decimal.Decimal
 	Today      pgtype.Date
 }
 
@@ -5259,6 +5307,7 @@ func (q *Queries) ReceivableGet(ctx context.Context, arg ReceivableGetParams) (R
 		&i.MemberCode,
 		&i.MemberName,
 		&i.Paid,
+		&i.Returned,
 		&i.Today,
 	)
 	return i, err
@@ -5293,7 +5342,7 @@ func (q *Queries) ReceivableInsert(ctx context.Context, arg ReceivableInsertPara
 const receivableList = `-- name: ReceivableList :many
 SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
        s.doc_no, s.total AS sale_total, m.code AS member_code, m.name AS member_name,
-       coalesce(p.paid, 0)::numeric AS paid,
+    coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -5303,18 +5352,22 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1
   AND r.outlet_id = ANY($2::uuid[])
   AND ($3::uuid IS NULL OR r.member_id = $3::uuid)
   AND ($4::text = '' OR s.doc_no ILIKE '%' || $4 || '%' OR m.code ILIKE '%' || $4 || '%' OR m.name ILIKE '%' || $4 || '%')
   AND (
         $5::text = 'all'
-     OR ($5::text = 'paid'    AND r.amount - coalesce(p.paid, 0) <= 0)
-     OR ($5::text = 'open'    AND r.amount - coalesce(p.paid, 0) > 0)
-     OR ($5::text = 'overdue' AND r.amount - coalesce(p.paid, 0) > 0 AND r.due_date IS NOT NULL
+    OR ($5::text = 'paid'    AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) <= 0)
+    OR ($5::text = 'open'    AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0)
+    OR ($5::text = 'overdue' AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0 AND r.due_date IS NOT NULL
                                     AND r.due_date < (now() AT TIME ZONE o.timezone)::date)
   )
-ORDER BY (r.amount - coalesce(p.paid, 0) <= 0), r.due_date NULLS LAST, r.created_at DESC, r.id
+ORDER BY (r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) <= 0), r.due_date NULLS LAST, r.created_at DESC, r.id
 LIMIT $7 OFFSET $6
 `
 
@@ -5341,6 +5394,7 @@ type ReceivableListRow struct {
 	MemberCode string
 	MemberName string
 	Paid       decimal.Decimal
+	Returned   decimal.Decimal
 	Today      pgtype.Date
 }
 
@@ -5375,6 +5429,7 @@ func (q *Queries) ReceivableList(ctx context.Context, arg ReceivableListParams) 
 			&i.MemberCode,
 			&i.MemberName,
 			&i.Paid,
+			&i.Returned,
 			&i.Today,
 		); err != nil {
 			return nil, err
@@ -5388,9 +5443,13 @@ func (q *Queries) ReceivableList(ctx context.Context, arg ReceivableListParams) 
 }
 
 const receivableLockForPay = `-- name: ReceivableLockForPay :one
-SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, s.doc_no
+SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, s.doc_no, coalesce(rr.returned, 0)::numeric AS returned
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.id = $2 AND s.status = 'completed'
 FOR UPDATE OF s
 `
@@ -5407,6 +5466,7 @@ type ReceivableLockForPayRow struct {
 	MemberID uuid.UUID
 	Amount   decimal.Decimal
 	DocNo    string
+	Returned decimal.Decimal
 }
 
 // Mengunci NOTA asal piutang (role aplikasi tak punya UPDATE pada receivables, jadi baris piutang tidak bisa dikunci; kunci nota
@@ -5422,6 +5482,7 @@ func (q *Queries) ReceivableLockForPay(ctx context.Context, arg ReceivableLockFo
 		&i.MemberID,
 		&i.Amount,
 		&i.DocNo,
+		&i.Returned,
 	)
 	return i, err
 }
@@ -5449,13 +5510,17 @@ func (q *Queries) ReceivableMemberTerms(ctx context.Context, arg ReceivableMembe
 }
 
 const receivableOutstanding = `-- name: ReceivableOutstanding :one
-SELECT coalesce(sum(r.amount - coalesce(p.paid, 0)), 0)::numeric AS outstanding
+SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))), 0)::numeric AS outstanding
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.member_id = $2 AND r.sale_id <> $3
 `
 
@@ -5720,10 +5785,10 @@ func (q *Queries) ReceivablePaymentsList(ctx context.Context, arg ReceivablePaym
 }
 
 const receivableSummary = `-- name: ReceivableSummary :one
-SELECT coalesce(sum(r.amount - coalesce(p.paid, 0)) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0), 0)::numeric AS outstanding,
-       coalesce(sum(r.amount - coalesce(p.paid, 0)) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0 AND r.due_date IS NOT NULL
+SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0), 0)::numeric AS outstanding,
+       coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0 AND r.due_date IS NOT NULL
                                                              AND r.due_date < (now() AT TIME ZONE o.timezone)::date), 0)::numeric AS overdue,
-       count(*) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0) AS open_count,
+       count(*) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0) AS open_count,
        count(*) AS total_count
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -5732,6 +5797,10 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.outlet_id = ANY($2::uuid[])
   AND ($3::uuid IS NULL OR r.member_id = $3::uuid)
 `
@@ -5760,6 +5829,22 @@ func (q *Queries) ReceivableSummary(ctx context.Context, arg ReceivableSummaryPa
 		&i.TotalCount,
 	)
 	return i, err
+}
+
+const saleHasReturns = `-- name: SaleHasReturns :one
+SELECT EXISTS (SELECT 1 FROM sales_returns WHERE tenant_id = $1 AND sale_id = $2 AND status = 'completed')
+`
+
+type SaleHasReturnsParams struct {
+	TenantID uuid.UUID
+	SaleID   uuid.UUID
+}
+
+func (q *Queries) SaleHasReturns(ctx context.Context, arg SaleHasReturnsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, saleHasReturns, arg.TenantID, arg.SaleID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const salesAltUnits = `-- name: SalesAltUnits :many

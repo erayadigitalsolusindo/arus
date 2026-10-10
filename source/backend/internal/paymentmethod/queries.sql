@@ -5,7 +5,7 @@ FROM payment_methods
 WHERE tenant_id = @tenant_id
   AND (@q::text = '' OR name ILIKE '%' || @q || '%')
   AND (sqlc.narg('active')::boolean IS NULL OR active = sqlc.narg('active'))
-ORDER BY is_system DESC, lower(name), id
+ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id
 LIMIT @page_limit OFFSET @page_offset;
 
 -- name: PaymentMethodGetForUpdate :one
@@ -34,4 +34,4 @@ RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, crea
 SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
 FROM payment_methods
 WHERE tenant_id = $1 AND active
-ORDER BY is_system DESC, lower(name), id;
+ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id;

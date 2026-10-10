@@ -4,13 +4,17 @@ SELECT credit_limit, due_days FROM members WHERE tenant_id = $1 AND id = $2;
 
 -- name: ReceivableOutstanding :one
 -- Sisa piutang member dari nota yang masih berlaku, di luar nota `exclude_sale_id` (revisi nota membuang piutang lamanya).
-SELECT coalesce(sum(r.amount - coalesce(p.paid, 0)), 0)::numeric AS outstanding
+SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))), 0)::numeric AS outstanding
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = @tenant_id AND r.member_id = @member_id AND r.sale_id <> @exclude_sale_id;
 
 -- name: ReceivableInsert :exec
@@ -26,7 +30,7 @@ WHERE r.tenant_id = $1 AND r.sale_id = $2;
 -- Daftar piutang nota yang masih berlaku (completed). Filter: member, status (open|overdue|paid|all), cari (no. nota / kode / nama member).
 SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
        s.doc_no, s.total AS sale_total, m.code AS member_code, m.name AS member_name,
-       coalesce(p.paid, 0)::numeric AS paid,
+    coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -36,26 +40,30 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = @tenant_id
   AND r.outlet_id = ANY(@outlet_ids::uuid[])
   AND (sqlc.narg('member_id')::uuid IS NULL OR r.member_id = sqlc.narg('member_id')::uuid)
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q || '%' OR m.code ILIKE '%' || @q || '%' OR m.name ILIKE '%' || @q || '%')
   AND (
         @status::text = 'all'
-     OR (@status::text = 'paid'    AND r.amount - coalesce(p.paid, 0) <= 0)
-     OR (@status::text = 'open'    AND r.amount - coalesce(p.paid, 0) > 0)
-     OR (@status::text = 'overdue' AND r.amount - coalesce(p.paid, 0) > 0 AND r.due_date IS NOT NULL
+    OR (@status::text = 'paid'    AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) <= 0)
+    OR (@status::text = 'open'    AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0)
+    OR (@status::text = 'overdue' AND r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0 AND r.due_date IS NOT NULL
                                     AND r.due_date < (now() AT TIME ZONE o.timezone)::date)
   )
-ORDER BY (r.amount - coalesce(p.paid, 0) <= 0), r.due_date NULLS LAST, r.created_at DESC, r.id
+ORDER BY (r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) <= 0), r.due_date NULLS LAST, r.created_at DESC, r.id
 LIMIT @lim OFFSET @off;
 
 -- name: ReceivableSummary :one
 -- Total sisa piutang, yang lewat jatuh tempo, dan jumlah nota yang masih terbuka (sesuai cakupan outlet + member).
-SELECT coalesce(sum(r.amount - coalesce(p.paid, 0)) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0), 0)::numeric AS outstanding,
-       coalesce(sum(r.amount - coalesce(p.paid, 0)) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0 AND r.due_date IS NOT NULL
+SELECT coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0), 0)::numeric AS outstanding,
+       coalesce(sum(greatest(0, r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0))) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0 AND r.due_date IS NOT NULL
                                                              AND r.due_date < (now() AT TIME ZONE o.timezone)::date), 0)::numeric AS overdue,
-       count(*) FILTER (WHERE r.amount - coalesce(p.paid, 0) > 0) AS open_count,
+       count(*) FILTER (WHERE r.amount - coalesce(p.paid, 0) - coalesce(rr.returned, 0) > 0) AS open_count,
        count(*) AS total_count
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -64,13 +72,17 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = @tenant_id AND r.outlet_id = ANY(@outlet_ids::uuid[])
   AND (sqlc.narg('member_id')::uuid IS NULL OR r.member_id = sqlc.narg('member_id')::uuid);
 
 -- name: ReceivableGet :one
 SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, r.due_date, r.created_at,
        s.doc_no, s.total AS sale_total, s.created_at AS sale_at, m.code AS member_code, m.name AS member_name,
-       coalesce(p.paid, 0)::numeric AS paid,
+    coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
        (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id AND s.status = 'completed'
@@ -80,6 +92,10 @@ LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.id = $2;
 
 -- name: ReceivablePaymentsList :many
@@ -94,9 +110,13 @@ ORDER BY rp.created_at, rp.id;
 -- Mengunci NOTA asal piutang (role aplikasi tak punya UPDATE pada receivables, jadi baris piutang tidak bisa dikunci; kunci nota
 -- cukup karena semua pembayaran dan edit/batal nota berbagi kunci itu). Syarat status completed dievaluasi ulang setelah
 -- menunggu kunci, jadi pembayaran vs edit/batal bersamaan tepat satu yang menang.
-SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, s.doc_no
+SELECT r.id, r.sale_id, r.outlet_id, r.member_id, r.amount, s.doc_no, coalesce(rr.returned, 0)::numeric AS returned
 FROM receivables r
 JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.id = $2 AND s.status = 'completed'
 FOR UPDATE OF s;
 
@@ -126,11 +146,16 @@ FROM outlets o WHERE o.tenant_id = $1 AND o.id = $2;
 
 -- name: ReceivableForSale :one
 -- Piutang milik satu nota (bila nota kredit) beserta jumlah yang sudah dibayar.
-SELECT r.id, r.amount, r.due_date, coalesce(p.paid, 0)::numeric AS paid, (now() AT TIME ZONE o.timezone)::date AS today
+SELECT r.id, r.amount, r.due_date, coalesce(p.paid, 0)::numeric AS paid, coalesce(rr.returned, 0)::numeric AS returned,
+       (now() AT TIME ZONE o.timezone)::date AS today
 FROM receivables r
 JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
 LEFT JOIN LATERAL (
     SELECT sum(rp.amount) AS paid FROM receivable_payments rp
     WHERE rp.tenant_id = r.tenant_id AND rp.receivable_id = r.id
 ) p ON true
+LEFT JOIN LATERAL (
+    SELECT sum(sr.receivable_cut) AS returned FROM sales_returns sr
+    WHERE sr.tenant_id = r.tenant_id AND sr.sale_id = r.sale_id AND sr.status = 'completed'
+) rr ON true
 WHERE r.tenant_id = $1 AND r.sale_id = $2;
