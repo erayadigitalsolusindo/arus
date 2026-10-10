@@ -217,3 +217,23 @@ const (
 	ActionPurchaseReturnCreate = "purchase_return.create"
 	ActionPurchaseReturnVoid   = "purchase_return.void"
 )
+
+// Akuntansi SIAK (COA, periode, jurnal).
+const (
+	EntityAccount          = "account"
+	EntityAccountingPeriod = "accounting_period"
+	EntityJournal          = "journal"
+
+	ActionAccountCreate = "account.create"
+	ActionAccountUpdate = "account.update"
+	ActionAccountDelete = "account.delete"
+	ActionAccountSeed   = "account.seed" // template COA retail
+
+	ActionPeriodClose  = "accounting_period.close"
+	ActionPeriodReopen = "accounting_period.reopen"
+
+	ActionJournalSave    = "journal.save" // buat/ubah draf
+	ActionJournalDelete  = "journal.delete"
+	ActionJournalPost    = "journal.post"
+	ActionJournalReverse = "journal.reverse"
+)
