@@ -266,7 +266,7 @@
           {/if}
           <div class="overflow-auto scroll-thin max-h-[50vh] rounded-lg border border-[var(--border-subtle)]">
             <table class="w-full text-[12px] min-w-[560px]">
-              <thead class="sticky top-0 bg-[var(--surface-sunken)]">
+              <thead class="sticky top-0 z-10 bg-[var(--surface-sunken)]">
                 <tr>
                   <th class="p-2 text-start" scope="col">{t('iam.roles.module')}</th>
                   {#each ACTIONS as a (a)}<th class="p-2 text-center" scope="col">{actionLabel(a)}</th>{/each}
