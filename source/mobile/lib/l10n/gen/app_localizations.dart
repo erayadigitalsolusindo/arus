@@ -289,6 +289,354 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Sesi berakhir. Silakan masuk kembali.'**
   String get errorSessionInvalid;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In id, this message translates to:
+  /// **'Ikut sistem'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In id, this message translates to:
+  /// **'Terang'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In id, this message translates to:
+  /// **'Gelap'**
+  String get themeDark;
+
+  /// No description provided for @themeTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilan: {mode}'**
+  String themeTooltip(String mode);
+
+  /// No description provided for @posTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Kasir'**
+  String get posTitle;
+
+  /// No description provided for @posSearchHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari nama, kode, atau barcode'**
+  String get posSearchHint;
+
+  /// No description provided for @posSearchEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang tidak ditemukan.'**
+  String get posSearchEmpty;
+
+  /// No description provided for @posCartTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Keranjang'**
+  String get posCartTitle;
+
+  /// No description provided for @posCartEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Keranjang kosong. Pilih barang untuk memulai.'**
+  String get posCartEmpty;
+
+  /// No description provided for @posItemsCount.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} barang'**
+  String posItemsCount(int count);
+
+  /// No description provided for @posSubtotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Subtotal'**
+  String get posSubtotal;
+
+  /// No description provided for @posDiscount.
+  ///
+  /// In id, this message translates to:
+  /// **'Potongan'**
+  String get posDiscount;
+
+  /// No description provided for @posTaxLine.
+  ///
+  /// In id, this message translates to:
+  /// **'Pajak'**
+  String get posTaxLine;
+
+  /// No description provided for @posOtherCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya lain'**
+  String get posOtherCost;
+
+  /// No description provided for @posTotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Total'**
+  String get posTotal;
+
+  /// No description provided for @posPay.
+  ///
+  /// In id, this message translates to:
+  /// **'Bayar'**
+  String get posPay;
+
+  /// No description provided for @posTaxToggle.
+  ///
+  /// In id, this message translates to:
+  /// **'Hitung pajak'**
+  String get posTaxToggle;
+
+  /// No description provided for @posClearCart.
+  ///
+  /// In id, this message translates to:
+  /// **'Kosongkan keranjang'**
+  String get posClearCart;
+
+  /// No description provided for @posRemoveLine.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus'**
+  String get posRemoveLine;
+
+  /// No description provided for @posStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok {qty}'**
+  String posStock(String qty);
+
+  /// No description provided for @posStockShort.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok kurang (tersedia {qty})'**
+  String posStockShort(String qty);
+
+  /// No description provided for @posBelowCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga di bawah HPP'**
+  String get posBelowCost;
+
+  /// No description provided for @posQuoteFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal menghitung total.'**
+  String get posQuoteFailed;
+
+  /// No description provided for @posPanelOutlet.
+  ///
+  /// In id, this message translates to:
+  /// **'Outlet'**
+  String get posPanelOutlet;
+
+  /// No description provided for @posPanelCashier.
+  ///
+  /// In id, this message translates to:
+  /// **'Kasir'**
+  String get posPanelCashier;
+
+  /// No description provided for @posPanelBusiness.
+  ///
+  /// In id, this message translates to:
+  /// **'Bisnis'**
+  String get posPanelBusiness;
+
+  /// No description provided for @posPanelShift.
+  ///
+  /// In id, this message translates to:
+  /// **'Shift'**
+  String get posPanelShift;
+
+  /// No description provided for @posPanelToggle.
+  ///
+  /// In id, this message translates to:
+  /// **'Info outlet'**
+  String get posPanelToggle;
+
+  /// No description provided for @posBackHome.
+  ///
+  /// In id, this message translates to:
+  /// **'Kembali ke beranda'**
+  String get posBackHome;
+
+  /// No description provided for @posShiftOpenedAt.
+  ///
+  /// In id, this message translates to:
+  /// **'Dibuka {time}'**
+  String posShiftOpenedAt(String time);
+
+  /// No description provided for @posShiftNone.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada shift'**
+  String get posShiftNone;
+
+  /// No description provided for @shiftOpenTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka shift'**
+  String get shiftOpenTitle;
+
+  /// No description provided for @shiftOpenHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Masukkan modal awal kas laci sebelum mulai berjualan.'**
+  String get shiftOpenHint;
+
+  /// No description provided for @shiftOpeningCash.
+  ///
+  /// In id, this message translates to:
+  /// **'Modal awal (Rp)'**
+  String get shiftOpeningCash;
+
+  /// No description provided for @shiftOpenSubmit.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka shift'**
+  String get shiftOpenSubmit;
+
+  /// No description provided for @payTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran'**
+  String get payTitle;
+
+  /// No description provided for @payMethod.
+  ///
+  /// In id, this message translates to:
+  /// **'Metode'**
+  String get payMethod;
+
+  /// No description provided for @payAmount.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah (Rp)'**
+  String get payAmount;
+
+  /// No description provided for @payExact.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang pas'**
+  String get payExact;
+
+  /// No description provided for @payAddMethod.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah metode'**
+  String get payAddMethod;
+
+  /// No description provided for @payRef.
+  ///
+  /// In id, this message translates to:
+  /// **'No. referensi'**
+  String get payRef;
+
+  /// No description provided for @payTotalDue.
+  ///
+  /// In id, this message translates to:
+  /// **'Total tagihan'**
+  String get payTotalDue;
+
+  /// No description provided for @payPaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Dibayar'**
+  String get payPaid;
+
+  /// No description provided for @payChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Kembalian'**
+  String get payChange;
+
+  /// No description provided for @payShortBy.
+  ///
+  /// In id, this message translates to:
+  /// **'Kurang {amount}'**
+  String payShortBy(String amount);
+
+  /// No description provided for @paySubmit.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesaikan pembayaran'**
+  String get paySubmit;
+
+  /// No description provided for @payProcessing.
+  ///
+  /// In id, this message translates to:
+  /// **'Memproses...'**
+  String get payProcessing;
+
+  /// No description provided for @paySuccessTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi berhasil'**
+  String get paySuccessTitle;
+
+  /// No description provided for @paySuccessDoc.
+  ///
+  /// In id, this message translates to:
+  /// **'Nomor nota {docNo}'**
+  String paySuccessDoc(String docNo);
+
+  /// No description provided for @payNewSale.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi baru'**
+  String get payNewSale;
+
+  /// No description provided for @payChangeDue.
+  ///
+  /// In id, this message translates to:
+  /// **'Kembalian {amount}'**
+  String payChangeDue(String amount);
+
+  /// No description provided for @errorShiftRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka shift terlebih dahulu sebelum berjualan.'**
+  String get errorShiftRequired;
+
+  /// No description provided for @errorStockInsufficient.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok tidak mencukupi untuk salah satu barang.'**
+  String get errorStockInsufficient;
+
+  /// No description provided for @errorValidation.
+  ///
+  /// In id, this message translates to:
+  /// **'Isian belum valid. Periksa kembali.'**
+  String get errorValidation;
+
+  /// No description provided for @errorForbidden.
+  ///
+  /// In id, this message translates to:
+  /// **'Anda tidak memiliki izin untuk aksi ini.'**
+  String get errorForbidden;
+
+  /// No description provided for @errorIdempotencyMismatch.
+  ///
+  /// In id, this message translates to:
+  /// **'Permintaan bentrok dengan transaksi sebelumnya. Coba lagi.'**
+  String get errorIdempotencyMismatch;
+
+  /// No description provided for @errorMethodInactive.
+  ///
+  /// In id, this message translates to:
+  /// **'Metode pembayaran tidak aktif.'**
+  String get errorMethodInactive;
+
+  /// No description provided for @errorEditWindow.
+  ///
+  /// In id, this message translates to:
+  /// **'Di luar batas waktu edit.'**
+  String get errorEditWindow;
 }
 
 class _AppLocalizationsDelegate

@@ -17,7 +17,13 @@
   "loginServer": "Server",
   "logout": "Keluar",
   "homeWelcome": "Selamat datang, {name}",
-  "@homeWelcome": {"placeholders": {"name": {"type": "String"}}},
+  "@homeWelcome": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "homeOutlet": "Outlet aktif",
   "homeTenant": "Bisnis",
   "homeComingSoon": "Layar kasir sedang disiapkan.",
@@ -26,13 +32,139 @@
   "errorUnknown": "Terjadi kesalahan. Coba lagi.",
   "errorInvalidCredentials": "Email atau password salah.",
   "errorInvalidCredentialsLeft": "Email atau password salah. Sisa {count} percobaan sebelum akun dikunci sementara.",
-  "@errorInvalidCredentialsLeft": {"placeholders": {"count": {"type": "int"}}},
+  "@errorInvalidCredentialsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "errorAccountDisabled": "Akun Anda dinonaktifkan. Hubungi administrator.",
   "errorNoOutlet": "Akun Anda belum memiliki outlet aktif. Hubungi administrator.",
   "errorAccountLocked": "Terlalu banyak percobaan gagal. Coba lagi dalam {minutes} menit.",
-  "@errorAccountLocked": {"placeholders": {"minutes": {"type": "int"}}},
+  "@errorAccountLocked": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "errorRateLimited": "Terlalu banyak percobaan. Coba lagi beberapa saat lagi.",
   "errorUnavailable": "Layanan sementara tidak tersedia. Coba lagi nanti.",
   "errorInternal": "Terjadi kesalahan pada server.",
-  "errorSessionInvalid": "Sesi berakhir. Silakan masuk kembali."
+  "errorSessionInvalid": "Sesi berakhir. Silakan masuk kembali.",
+  "themeSystem": "Ikut sistem",
+  "themeLight": "Terang",
+  "themeDark": "Gelap",
+  "themeTooltip": "Tampilan: {mode}",
+  "posTitle": "Kasir",
+  "posSearchHint": "Cari nama, kode, atau barcode",
+  "posSearchEmpty": "Barang tidak ditemukan.",
+  "posCartTitle": "Keranjang",
+  "posCartEmpty": "Keranjang kosong. Pilih barang untuk memulai.",
+  "posItemsCount": "{count} barang",
+  "posSubtotal": "Subtotal",
+  "posDiscount": "Potongan",
+  "posTaxLine": "Pajak",
+  "posOtherCost": "Biaya lain",
+  "posTotal": "Total",
+  "posPay": "Bayar",
+  "posTaxToggle": "Hitung pajak",
+  "posClearCart": "Kosongkan keranjang",
+  "posRemoveLine": "Hapus",
+  "posStock": "Stok {qty}",
+  "posStockShort": "Stok kurang (tersedia {qty})",
+  "posBelowCost": "Harga di bawah HPP",
+  "posQuoteFailed": "Gagal menghitung total.",
+  "posPanelOutlet": "Outlet",
+  "posPanelCashier": "Kasir",
+  "posPanelBusiness": "Bisnis",
+  "posPanelShift": "Shift",
+  "posPanelToggle": "Info outlet",
+  "posBackHome": "Kembali ke beranda",
+  "posShiftOpenedAt": "Dibuka {time}",
+  "posShiftNone": "Belum ada shift",
+  "shiftOpenTitle": "Buka shift",
+  "shiftOpenHint": "Masukkan modal awal kas laci sebelum mulai berjualan.",
+  "shiftOpeningCash": "Modal awal (Rp)",
+  "shiftOpenSubmit": "Buka shift",
+  "payTitle": "Pembayaran",
+  "payMethod": "Metode",
+  "payAmount": "Jumlah (Rp)",
+  "payExact": "Uang pas",
+  "payAddMethod": "Tambah metode",
+  "payRef": "No. referensi",
+  "payTotalDue": "Total tagihan",
+  "payPaid": "Dibayar",
+  "payChange": "Kembalian",
+  "payShortBy": "Kurang {amount}",
+  "paySubmit": "Selesaikan pembayaran",
+  "payProcessing": "Memproses...",
+  "paySuccessTitle": "Transaksi berhasil",
+  "paySuccessDoc": "Nomor nota {docNo}",
+  "payNewSale": "Transaksi baru",
+  "payChangeDue": "Kembalian {amount}",
+  "errorShiftRequired": "Buka shift terlebih dahulu sebelum berjualan.",
+  "errorStockInsufficient": "Stok tidak mencukupi untuk salah satu barang.",
+  "errorValidation": "Isian belum valid. Periksa kembali.",
+  "errorForbidden": "Anda tidak memiliki izin untuk aksi ini.",
+  "errorIdempotencyMismatch": "Permintaan bentrok dengan transaksi sebelumnya. Coba lagi.",
+  "errorMethodInactive": "Metode pembayaran tidak aktif.",
+  "errorEditWindow": "Di luar batas waktu edit.",
+  "@themeTooltip": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@posItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@posStock": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@posStockShort": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@posShiftOpenedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@payShortBy": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@paySuccessDoc": {
+    "placeholders": {
+      "docNo": {
+        "type": "String"
+      }
+    }
+  },
+  "@payChangeDue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }
