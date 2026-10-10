@@ -21,3 +21,6 @@ source/backend/data/
 # paket rilis aaPanel
 source/deploy/aapanel/release/
 source/deploy/aapanel/release.tar.gz
+
+# Snapshot Redis lokal (dev)
+dump.rdb
