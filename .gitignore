@@ -24,3 +24,6 @@ source/deploy/aapanel/release.tar.gz
 
 # Snapshot Redis lokal (dev)
 dump.rdb
+
+# hasil build print-agent
+source/print-agent/dist/
