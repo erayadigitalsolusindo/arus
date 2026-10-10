@@ -116,8 +116,14 @@ export type SaleListRow = {
   receivable: string;
   methods: Partial<Record<PayMethod, string>>;
   pays: { method_id: string; name: string; kind: PayMethod; amount: string }[];
+  /** Σ nilai retur aktif nota ini (nota sendiri tidak berubah). */
+  returned: string;
 };
-export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; flows: CashFlow[]; drawer: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean };
+export type SaleList = { data: SaleListRow[]; total: string; surcharge: string; received: string; totals: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string }[]; flows: CashFlow[]; drawer: { method_id: string; name: string; kind: PayMethod; amount: string }[]; from: string; to: string; truncated: boolean;
+  /** Retur yang dibuat kasir ini pada rentang yang sama (menurut tanggal retur); tidak ada saat mencari nomor nota. */
+  returns?: { count: number; total: string };
+  net_total?: string;
+};
 
 /** Satu nota di Daftar Penjualan (semua kasir). cost/profit hanya ada bila pengguna punya izin sales_cost. */
 export type SaleAllRow = {
@@ -131,6 +137,8 @@ export type SaleAllRow = {
   salesperson?: string;
   line_count: number;
   revision: number;
+  /** Σ nilai retur aktif nota ini. */
+  returned: string;
   subtotal: string;
   line_discount: string;
   discount: string;
@@ -151,7 +159,12 @@ export type SaleAllRow = {
   cost?: string;
   profit?: string;
 };
-export type SaleAllSummary = { count: number; completed_count: number; total: string; receivable: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string };
+export type SaleAllSummary = { count: number; completed_count: number; total: string; receivable: string; discount: string; methods: Partial<Record<PayMethod, string>>; by_method: { method_id: string; name: string; kind: PayMethod; amount: string; fee: string; surcharge: string }[]; cost?: string; profit?: string;
+  /** Retur yang terjadi di rentang ini menurut TANGGAL RETUR; tidak ada bila filter cari/metode/status batal aktif. */
+  returns?: { count: number; total: string; value: string; cost?: string; profit?: string };
+  /** Laba kotor − laba yang batal karena retur (izin HPP). */
+  profit_net?: string;
+};
 export type SaleAllList = { data: SaleAllRow[]; summary: SaleAllSummary; from: string; to: string; all_outlets: boolean; next_cursor?: string };
 export type SaleAllParams = { from?: string; to?: string; q?: string; status?: string; method?: string; cashier_id?: string; allOutlets?: boolean; cursor?: string | null };
 
@@ -170,12 +183,28 @@ export type SaleDetailLine = {
   discount: string;
   line_total: string;
   note: string;
+  /** Qty (satuan jual) yang sudah diretur lewat retur aktif. Baris nota sendiri tidak berubah. */
+  returned_qty: string;
   unit_cost?: string;
   line_cost?: string;
   profit?: string;
 };
 export type SaleStockMove = { id: number; at: string; type: 'SALE' | 'SALE_VOID' | 'SALE_RETURN'; bucket: 'display' | 'warehouse' | 'returns'; item_id: string; sku: string; name: string; unit: string; delta: string; balance_after: string; actor: string };
 export type SaleEvent = { action: string; actor: string; at: string; details: Record<string, unknown> | null };
+export type SaleReturnRef = {
+  id: string;
+  doc_no: string;
+  return_date: string;
+  created_at: string;
+  created_by: string;
+  status: 'completed' | 'void';
+  void_reason?: string;
+  total: string;
+  receivable_cut: string;
+  refund: string;
+  refund_method?: string;
+  lines: { sale_position: number; name: string; unit: string; qty: string }[];
+};
 /** Nota lengkap untuk panel detail: harga daftar → jual, potongan per sumber, stok, riwayat. cost/profit hanya dengan izin sales_cost. */
 export type SaleDetail = Omit<Sale, 'lines'> & {
   lines: SaleDetailLine[];
@@ -191,9 +220,17 @@ export type SaleDetail = Omit<Sale, 'lines'> & {
   stock: SaleStockMove[];
   events: SaleEvent[];
   /** Seluruh versi nota (asli + revisi), urut revisi. */
+  /** Dokumen retur yang merujuk nota ini (aktif & batal), terbaru dulu. */
+  returns: SaleReturnRef[];
+  returned_total: string;
+  /** Total nota − retur aktif. */
+  net_total: string;
   revisions: { id: string; doc_no: string; revision: number; status: 'completed' | 'void' | 'superseded'; created_at: string; revised_at?: string; total: string; reason?: string }[];
   cost?: string;
   profit?: string;
+  /** HPP barang yang kembali lewat retur aktif, dan laba nota setelah retur (izin HPP). */
+  returned_cost?: string;
+  profit_net?: string;
 };
 
 export type Approval = { user_id: string; pin: string };

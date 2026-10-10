@@ -1,9 +1,11 @@
 <script lang="ts">
   // Panel detail nota (slide-over kanan): barang yang dibeli, harga daftar → harga jual, HPP/laba (bila berizin),
-  // sumber potongan (manual/kupon/poin), pembayaran, dampak stok, dan riwayat audit. Hanya baca.
+  // sumber potongan (manual/kupon/poin), pembayaran, retur (nota asli tetap utuh; retur = dokumen terpisah), dampak stok,
+  // dan riwayat audit. Hanya baca.
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import VoidSaleModal from '#lib/components/VoidSaleModal.svelte';
+  import SaleReturnModal from '#lib/components/SaleReturnModal.svelte';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { sales as api, PAY_METHODS, type SaleDetail } from '#lib/sales/api.ts';
   import { t, tryT, formatCurrency, formatNumber, formatDate, formatDateTime } from '#lib/i18n/index.ts';
@@ -11,7 +13,7 @@
 
   let { saleId, onclose, onswitch, onchanged }: { saleId: string; onclose: () => void; onswitch?: (id: string) => void; onchanged?: () => void } = $props();
 
-  type Tab = 'items' | 'discounts' | 'payments' | 'stock' | 'history';
+  type Tab = 'items' | 'discounts' | 'payments' | 'returns' | 'stock' | 'history';
   let tab = $state<Tab>('items');
   let d = $state<SaleDetail | null>(null);
   let error = $state('');
@@ -42,8 +44,10 @@
   let voiding = $state(false);
   const isCompleted = $derived(d?.status === 'completed');
   const sameOutlet = $derived(!!d && d.outlet.id === session.outlet?.id);
-  const canEdit = $derived(isCompleted && can('sales_orders', 'update'));
-  const canVoid = $derived(isCompleted && can('sales_orders', 'delete'));
+  // Nota yang punya retur aktif tidak bisa diedit/dibatalkan (server: SALE_HAS_RETURNS); batalkan returnya dulu.
+  const lockedByReturns = $derived(!!d && d.returns.some((r) => r.status === 'completed'));
+  const canEdit = $derived(isCompleted && !lockedByReturns && can('sales_orders', 'update'));
+  const canVoid = $derived(isCompleted && !lockedByReturns && can('sales_orders', 'delete'));
   function startEdit() {
     if (!d) return;
     void goto('/kasir?edit=' + d.id);
@@ -67,10 +71,19 @@
   const surcharge = $derived(d ? Number(d.surcharge ?? 0) : 0);
   const overrides = $derived(d ? d.lines.filter((l) => l.price_override).length : 0);
 
+  // Retur: baris nota tidak pernah berubah; qty yang diretur hanya ditandai.
+  const returnedQty = (l: { returned_qty: string }) => num(l.returned_qty);
+  const anyReturned = $derived(!!d && d.lines.some((l) => returnedQty(l) > 0));
+  const allReturned = $derived(!!d && d.lines.length > 0 && d.lines.every((l) => returnedQty(l) >= num(l.qty)));
+  const activeReturns = $derived(d ? d.returns.filter((r) => r.status === 'completed').length : 0);
+  const canOpenReturn = $derived(can('sales_returns', 'view'));
+  let openReturn = $state<string | null>(null);
+
   const tabs = $derived<{ id: Tab; label: string; count?: number }[]>([
     { id: 'items', label: t('sales.detail.tabs.items'), count: d?.lines.length },
     { id: 'discounts', label: t('sales.detail.tabs.discounts'), count: d ? (num(d.line_discount) > 0 ? 1 : 0) + (num(d.manual_discount) > 0 ? 1 : 0) + d.vouchers.length + (d.points_redeemed > 0 ? 1 : 0) : undefined },
     { id: 'payments', label: t('sales.detail.tabs.payments'), count: d?.payments.length },
+    { id: 'returns', label: t('sales.detail.tabs.returns'), count: d?.returns.length },
     { id: 'stock', label: t('sales.detail.tabs.stock'), count: d?.stock.length },
     { id: 'history', label: t('sales.detail.tabs.history'), count: d?.events.length }
   ]);
@@ -84,7 +97,8 @@
   const evLines = (details: Record<string, unknown> | null): EvLine[] => (Array.isArray(details?.lines) ? (details.lines as EvLine[]) : []);
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !e.defaultPrevented) onclose();
+    // Modal di atas panel (rincian retur, batal nota) menutup dirinya sendiri; panel tetap terbuka.
+    if (e.key === 'Escape' && !e.defaultPrevented && !openReturn && !voiding) onclose();
   }
   function tabKeys(e: KeyboardEvent) {
     const i = tabs.findIndex((x) => x.id === tab);
@@ -118,6 +132,7 @@
             <h2 class="font-mono text-[17px] font-bold tracking-tight">{d?.doc_no ?? '…'}</h2>
             {#if d}<span class="badge-soft {voided ? 'badge-danger' : superseded ? 'badge-warning' : 'badge-success'}">{statusLabel(d.status)}</span>{/if}
             {#if overrides > 0}<span class="badge-soft badge-warning">{t('sales.badge.override')} ×{overrides}</span>{/if}
+            {#if anyReturned}<button type="button" class="badge-soft {allReturned ? 'badge-danger' : 'badge-warning'} inline-flex items-center gap-1" onclick={() => (tab = 'returns')}><i class="icon-rotate-ccw text-[11px]"></i>{allReturned ? t('sales.detail.returns.badgeFull') : t('sales.detail.returns.badgePartial')}</button>{/if}
           </div>
           {#if d}<div class="mt-0.5 text-[12px] text-[var(--text-tertiary)]">{formatDateTime(d.created_at)}</div>{/if}
         </div>
@@ -166,6 +181,7 @@
           <div class={label}>{t('sales.detail.stat.total')}</div>
           <div class="mt-1 font-display text-[22px] font-bold tabular-nums leading-tight {voided ? 'line-through opacity-60' : ''}">{money(d.total)}</div>
           <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.stat.items', { count: d.lines.length, qty: qty(d.base_qty_total) })}</div>
+          {#if num(d.returned_total) > 0}<div class="mt-0.5 text-[11.5px] font-medium text-[var(--color-warning-600,#d97706)]">{t('sales.detail.returns.statNet', { returned: money(d.returned_total), net: money(d.net_total) })}</div>{/if}
         </div>
         <div class="surface-card !p-3.5">
           <div class={label}>{t('sales.detail.stat.paid')}</div>
@@ -180,8 +196,14 @@
         {#if hasCost && d.profit !== undefined && d.cost !== undefined}
           <div class="surface-card !p-3.5">
             <div class={label}>{t('sales.detail.stat.profit')}</div>
-            <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit)}">{money(d.profit)}</div>
-            <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.stat.cost')} {money(d.cost)}{#if margin !== null} · {formatNumber(margin, { maximumFractionDigits: 1 })}%{/if}</div>
+            {#if activeReturns > 0 && d.profit_net !== undefined && d.returned_cost !== undefined}
+              <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit_net)}">{money(d.profit_net)}</div>
+              <div class="mt-0.5 text-[11.5px] font-medium text-[var(--color-warning-600,#d97706)]">{t('sales.detail.returns.profitNet')}</div>
+              <div class="text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.returns.profitBefore', { amount: money(d.profit), cost: money(d.returned_cost) })}</div>
+            {:else}
+              <div class="mt-1 font-display text-[17px] font-bold tabular-nums {profitClass(d.profit)}">{money(d.profit)}</div>
+              <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.stat.cost')} {money(d.cost)}{#if margin !== null} · {formatNumber(margin, { maximumFractionDigits: 1 })}%{/if}</div>
+            {/if}
           </div>
         {/if}
       </div>
@@ -206,6 +228,13 @@
 
       <div id="sd-panel" role="tabpanel" aria-labelledby="sd-tab-{tab}" class="grow overflow-y-auto p-5 scroll-thin" tabindex="0">
         {#if tab === 'items'}
+          {#if anyReturned}
+            <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[var(--color-warning-500)]/10 px-3 py-2.5 text-[12.5px] text-[var(--color-warning-600)]">
+              <i class="icon-rotate-ccw text-[14px] shrink-0"></i>
+              <span class="grow">{allReturned ? t('sales.detail.returns.bannerFull') : t('sales.detail.returns.banner')}{#if lockedByReturns && (can('sales_orders', 'update') || can('sales_orders', 'delete'))}<span class="mt-0.5 block text-[11.5px] opacity-80">{t('errors.SALE_HAS_RETURNS')}</span>{/if}</span>
+              <button type="button" class="font-semibold underline-offset-2 hover:underline" onclick={() => (tab = 'returns')}>{t('sales.detail.returns.seeReturns')} ({activeReturns})</button>
+            </div>
+          {/if}
           <div class="surface-card !p-0 overflow-hidden">
             <div class="overflow-x-auto scroll-thin">
               <table class="w-full min-w-[600px] text-[12.5px]">
@@ -213,6 +242,7 @@
                   <tr class="bg-[var(--surface-sunken)] text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">
                     <th class="px-3 py-2.5 text-start" scope="col">{t('sales.detail.items.item')}</th>
                     <th class="px-3 py-2.5 text-end" scope="col">{t('sales.detail.items.qty')}</th>
+                    {#if anyReturned}<th class="px-3 py-2.5 text-end" scope="col">{t('sales.detail.returns.col')}</th>{/if}
                     <th class="px-3 py-2.5 text-end" scope="col">{t('sales.detail.items.price')}</th>
                     <th class="px-3 py-2.5 text-end" scope="col">{t('sales.detail.items.discount')}</th>
                     <th class="px-3 py-2.5 text-end" scope="col">{t('sales.detail.items.total')}</th>
@@ -224,14 +254,24 @@
                 </thead>
                 <tbody>
                   {#each d.lines as l (l.position)}
-                    <tr class="border-t border-[var(--border-subtle)] align-top">
-                      <td class="px-3 py-3">
-                        <div class="font-semibold">{l.name}</div>
+                    {@const rq = returnedQty(l)}
+                    {@const full = rq > 0 && rq >= num(l.qty)}
+                    <tr class="border-t border-[var(--border-subtle)] align-top {full ? 'bg-[var(--surface-sunken)]/60' : ''}">
+                      <td class="px-3 py-3 {full ? 'opacity-60' : ''}">
+                        <div class="font-semibold {full ? 'line-through' : ''}">{l.name}</div>
                         <div class="font-mono text-[11px] text-[var(--text-tertiary)]">{l.sku}</div>
                         {#if Number(l.factor) !== 1}<div class="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{t('sales.detail.items.baseQty', { qty: qty(l.base_qty) })}</div>{/if}
                         {#if l.note}<div class="mt-1 rounded-md bg-[var(--surface-sunken)] px-2 py-1 text-[11.5px]"><span class="font-semibold">{t('sales.detail.items.lineNote')}:</span> {l.note}</div>{/if}
                       </td>
                       <td class="px-3 py-3 text-end whitespace-nowrap tabular-nums">{qty(l.qty)} <span class="text-[var(--text-tertiary)]">{l.unit}</span></td>
+                      {#if anyReturned}
+                        <td class="px-3 py-3 text-end whitespace-nowrap">
+                          {#if rq > 0}
+                            <span class="badge-soft {full ? 'badge-danger' : 'badge-warning'} inline-flex items-center gap-1 tabular-nums"><i class="icon-rotate-ccw text-[10px]"></i>{full ? t('sales.detail.returns.lineFull') : t('sales.detail.returns.lineSome', { qty: qty(l.returned_qty) })}</span>
+                            {#if !full}<div class="mt-1 text-[11px] text-[var(--text-tertiary)] tabular-nums">{t('sales.detail.returns.kept', { qty: qty(String(num(l.qty) - rq)), unit: l.unit })}</div>{/if}
+                          {:else}<span class="text-[var(--text-tertiary)]">—</span>{/if}
+                        </td>
+                      {/if}
                       <td class="px-3 py-3 text-end whitespace-nowrap tabular-nums">
                         {#if l.price_override || num(l.list_price) !== num(l.unit_price)}<div class="text-[11px] text-[var(--text-tertiary)] line-through">{money(l.list_price)}</div>{/if}
                         <div class="font-medium">{money(l.unit_price)}</div>
@@ -257,6 +297,10 @@
               {#if num(d.tax_store) + num(d.tax_gov) > 0}<div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.col.tax')}</dt><dd>+{money(num(d.tax_store) + num(d.tax_gov))}</dd></div>{/if}
               {#if num(d.other_cost) > 0}<div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.discounts.otherCost')}</dt><dd>+{money(d.other_cost)}</dd></div>{#each d.other_costs as c, ci (ci)}<div class="flex justify-between gap-3 text-[11.5px] text-[var(--text-tertiary)]"><dt class="ps-3">{c.name || t('sales.detail.discounts.unnamedCost')}</dt><dd>{money(c.amount)}</dd></div>{/each}{/if}
               <div class="flex items-baseline justify-between gap-3 border-t border-[var(--border-subtle)] pt-3 text-[15px] font-bold"><dt>{t('sales.detail.discounts.total')}</dt><dd>{money(d.total)}</dd></div>
+              {#if num(d.returned_total) > 0}
+                <div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.returns.returned')} ({activeReturns})</dt><dd class="text-[var(--color-warning-600,#d97706)]">−{money(d.returned_total)}</dd></div>
+                <div class="flex items-baseline justify-between gap-3 border-t border-dashed border-[var(--border-subtle)] pt-2 font-bold"><dt>{t('sales.detail.returns.net')}</dt><dd>{money(d.net_total)}</dd></div>
+              {/if}
             </dl>
           </div>
           {#if d.note}<p class="mt-3 rounded-lg bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px]"><span class={label}>{t('sales.detail.info.note')}</span><br />{d.note}</p>{/if}
@@ -371,6 +415,59 @@
               </dl>
             </div>
           {/if}
+        {:else if tab === 'returns'}
+          <p class="mb-3 text-[12px] text-[var(--text-tertiary)]">{t('sales.detail.returns.intro')}</p>
+          {#if d.returns.length === 0}
+            <p class="rounded-lg border border-dashed border-[var(--border-subtle)] p-6 text-center text-[12.5px] text-[var(--text-tertiary)]">{t('sales.detail.returns.empty')}</p>
+          {:else}
+            <ul class="space-y-3">
+              {#each d.returns as r (r.id)}
+                {@const isVoid = r.status === 'void'}
+                <li class="surface-card !p-4 {isVoid ? 'opacity-70' : ''}">
+                  <div class="flex flex-wrap items-start gap-3">
+                    <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-lg {isVoid ? 'bg-[var(--surface-sunken)] text-[var(--text-tertiary)]' : 'bg-[var(--color-warning-600,#d97706)]/10 text-[var(--color-warning-600,#d97706)]'}"><i class="icon-rotate-ccw text-[17px]"></i></span>
+                    <div class="min-w-0 grow">
+                      <div class="flex flex-wrap items-center gap-2">
+                        {#if canOpenReturn}
+                          <button type="button" class="font-mono text-[13.5px] font-bold text-[var(--color-primary)] hover:underline {isVoid ? 'line-through' : ''}" title={t('sales.detail.returns.open')} onclick={() => (openReturn = r.id)}>{r.doc_no}</button>
+                        {:else}
+                          <span class="font-mono text-[13.5px] font-bold {isVoid ? 'line-through' : ''}">{r.doc_no}</span>
+                        {/if}
+                        <span class="badge-soft {isVoid ? 'badge-danger' : 'badge-success'}">{isVoid ? t('sales.detail.returns.voided') : t('sales.status.completed')}</span>
+                      </div>
+                      <div class="mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.returns.date')} {formatDate(r.return_date)} · {t('sales.detail.returns.by', { at: formatDateTime(r.created_at), by: r.created_by || '—' })}</div>
+                      {#if isVoid && r.void_reason}<div class="mt-1 text-[11.5px] text-[var(--color-danger-600)]">{t('sales.detail.returns.voidReason', { reason: r.void_reason })}</div>{/if}
+                    </div>
+                    <div class="text-end">
+                      <div class="font-display text-[16px] font-bold tabular-nums {isVoid ? 'line-through' : ''}">−{money(r.total)}</div>
+                    </div>
+                  </div>
+                  <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <div class={label}>{t('sales.detail.returns.items')}</div>
+                      <ul class="mt-1 space-y-1 text-[12.5px]">
+                        {#each r.lines as rl, j (j)}
+                          <li class="flex justify-between gap-3"><span class="truncate"><span class="text-[var(--text-tertiary)] tabular-nums">#{rl.sale_position}</span> {rl.name}</span><span class="shrink-0 tabular-nums font-medium">{qty(rl.qty)} {rl.unit}</span></li>
+                        {/each}
+                      </ul>
+                    </div>
+                    <dl class="space-y-1 text-[12.5px] tabular-nums">
+                      {#if num(r.receivable_cut) > 0}<div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.returns.cut')}</dt><dd>{money(r.receivable_cut)}</dd></div>{/if}
+                      {#if num(r.refund) > 0}<div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.returns.refund')}{#if r.refund_method}<span class="ms-1 text-[var(--text-tertiary)]">{t('sales.detail.returns.via', { method: r.refund_method })}</span>{/if}</dt><dd>{money(r.refund)}</dd></div>{/if}
+                    </dl>
+                  </div>
+                </li>
+              {/each}
+            </ul>
+            <div class="mt-4 flex justify-end">
+              <dl class="surface-card !p-4 w-full max-w-[360px] space-y-2 text-[12.5px] tabular-nums">
+                <div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.discounts.total')}</dt><dd class="font-medium">{money(d.total)}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-[var(--text-secondary)]">{t('sales.detail.returns.returned')} ({activeReturns})</dt><dd class="text-[var(--color-warning-600,#d97706)]">−{money(d.returned_total)}</dd></div>
+                <div class="flex items-baseline justify-between gap-3 border-t border-[var(--border-subtle)] pt-3 text-[15px] font-bold"><dt>{t('sales.detail.returns.net')}</dt><dd>{money(d.net_total)}</dd></div>
+                {#if d.returns.some((r) => r.status === 'void')}<p class="pt-1 text-[11px] text-[var(--text-tertiary)]">{t('sales.detail.returns.voidedNote')}</p>{/if}
+              </dl>
+            </div>
+          {/if}
         {:else if tab === 'stock'}
           <p class="mb-3 text-[12px] text-[var(--text-tertiary)]">{t('sales.detail.stock.intro')}</p>
           {#if d.stock.length === 0}
@@ -392,7 +489,7 @@
                     {#each d.stock as m (m.id)}
                       <tr class="border-t border-[var(--border-subtle)]">
                         <td class="px-3 py-3"><div class="font-semibold">{m.name}</div><div class="font-mono text-[11px] text-[var(--text-tertiary)]">{m.sku}</div></td>
-                        <td class="px-3 py-3"><span class="badge-soft {m.type === 'SALE' ? 'badge-info' : 'badge-warning'}">{t(`sales.detail.stock.types.${m.type}`)}</span><div class="mt-1 text-[11px] text-[var(--text-tertiary)]">{formatDateTime(m.at)}</div></td>
+                        <td class="px-3 py-3"><span class="badge-soft {m.type === 'SALE' ? 'badge-info' : m.type === 'SALE_RETURN' ? 'badge-success' : 'badge-warning'}">{t(`sales.detail.stock.types.${m.type}`)}</span><div class="mt-1 text-[11px] text-[var(--text-tertiary)]">{formatDateTime(m.at)}</div></td>
                         <td class="px-3 py-3 whitespace-nowrap"><i class="{BUCKET_ICON[m.bucket]} me-1 text-[12px] text-[var(--text-tertiary)]"></i>{t(`sales.detail.stock.bucketNames.${m.bucket}`)}</td>
                         <td class="px-3 py-3 text-end whitespace-nowrap tabular-nums font-semibold {num(m.delta) < 0 ? 'text-[var(--color-danger-600,#dc2626)]' : 'text-[var(--color-success-600,#16a34a)]'}">{num(m.delta) > 0 ? '+' : ''}{qty(m.delta)} <span class="font-normal text-[var(--text-tertiary)]">{m.unit}</span></td>
                         <td class="px-3 py-3 text-end whitespace-nowrap tabular-nums {num(m.balance_after) < 0 ? 'text-[var(--color-danger-600,#dc2626)]' : ''}">{qty(m.balance_after)}</td>
@@ -433,6 +530,10 @@
     {/if}
   </div>
 </div>
+
+{#if openReturn}
+  <SaleReturnModal id={openReturn} onclose={() => (openReturn = null)} onchanged={() => { onchanged?.(); load(); }} />
+{/if}
 
 {#if voiding && d}
   <VoidSaleModal saleId={d.id} docNo={d.doc_no} onclose={() => (voiding = false)} ondone={() => { voiding = false; onchanged?.(); load(); }} />
