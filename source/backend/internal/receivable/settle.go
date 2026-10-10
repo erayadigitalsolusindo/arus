@@ -223,6 +223,34 @@ func (s *Service) plan(ctx context.Context, tx pgx.Tx, a authz.Actor, n settleNo
 	if err := rows.Err(); err != nil {
 		return Plan{}, nil, err
 	}
+	// Saldo awal (tanpa nota): baris piutangnya sendiri yang dikunci, SESUDAH kunci nota (urutan kunci sama dengan
+	// bayar/batal saldo awal yang hanya mengunci baris piutang). Tanggal FIFO = tanggal dokumen lama.
+	oq := `
+		SELECT r.id, r.amount, r.doc_no, (r.doc_date::timestamp AT TIME ZONE o.timezone), r.due_date
+		FROM receivables r JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
+		WHERE r.tenant_id = $1 AND r.member_id = $2 AND r.outlet_id = ANY($3::uuid[]) AND r.kind = 'opening' AND r.voided_at IS NULL
+		  AND ($4::uuid[] IS NULL OR r.id = ANY($4::uuid[]))
+		ORDER BY r.id`
+	if lock {
+		oq += ` FOR UPDATE OF r`
+	}
+	orows, err := tx.Query(ctx, oq, a.TenantID, n.member, outletIDs(a), ids)
+	if err != nil {
+		return Plan{}, nil, err
+	}
+	for orows.Next() {
+		c := &cand{}
+		if err := orows.Scan(&c.id, &c.amount, &c.docNo, &c.soldAt, &c.due); err != nil {
+			orows.Close()
+			return Plan{}, nil, err
+		}
+		all = append(all, c)
+		byID[c.id] = c
+	}
+	orows.Close()
+	if err := orows.Err(); err != nil {
+		return Plan{}, nil, err
+	}
 	if len(all) > 0 {
 		cids := make([]uuid.UUID, len(all))
 		for i, c := range all {
@@ -501,9 +529,10 @@ func (s *Service) GetSettlement(ctx context.Context, a authz.Actor, id uuid.UUID
 		out.Total, out.Fee = total.StringFixed(2), fee.StringFixed(2)
 		out.Allocations = []Allocation{}
 		rows, e := tx.Query(ctx, `
-			SELECT rp.receivable_id, s.doc_no, s.created_at, r.due_date, rp.amount
+			SELECT rp.receivable_id, coalesce(s.doc_no, r.doc_no), coalesce(s.created_at, r.doc_date::timestamp AT TIME ZONE o.timezone), r.due_date, rp.amount
 			FROM receivable_payments rp JOIN receivables r ON r.tenant_id = rp.tenant_id AND r.id = rp.receivable_id
-			JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
+			JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
+			LEFT JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 			WHERE rp.tenant_id = $1 AND rp.settlement_id = $2 ORDER BY rp.doc_no`, a.TenantID, id)
 		if e != nil {
 			return e

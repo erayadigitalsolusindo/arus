@@ -134,4 +134,11 @@ export default {
   FIELD_CREDIT_INSUFFICIENT: 'Saldo kredit pemasok tidak mencukupi.',
   FIELD_BALANCE_INSUFFICIENT: 'Jumlah melebihi saldo yang tersedia.',
   FIELD_SETTLED: 'Tagihan ini sudah lunas.',
+  SHIFT_REQUIRED: 'Buka shift kasir dulu sebelum menyimpan nota.',
+  SHIFT_ALREADY_OPEN: 'Shift Anda di outlet ini sudah terbuka.',
+  SHIFT_CLOSED: 'Shift ini sudah ditutup.',
+  SHIFT_RECAP_CHANGED: 'Ada transaksi baru sejak rekap ditampilkan. Muat ulang rekap lalu hitung lagi.',
+  SHIFT_DIFF_NOTE_REQUIRED: 'Ada selisih uang; isi catatan (min. 3 karakter) dan minta persetujuan penyetuju (PIN).',
+  RECEIVABLE_NOT_OPENING: 'Hanya saldo awal piutang yang bisa dibatalkan di sini; batalkan notanya untuk piutang nota.',
+  RECEIVABLE_VOIDED: 'Saldo awal ini sudah dibatalkan.',
 };

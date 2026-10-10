@@ -3,6 +3,7 @@
   import Select from '#lib/components/Select.svelte';
   import SettleModal from '#lib/components/SettleModal.svelte';
   import ReceivableModal from '#lib/components/ReceivableModal.svelte';
+  import ReceivableOpeningModal from '#lib/components/ReceivableOpeningModal.svelte';
   import { receivables as api, type Receivable, type ReceivableFilter, type ReceivableSummary } from '#lib/receivables/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, formatCurrency, formatDate, formatNumber } from '#lib/i18n/index.ts';
@@ -11,7 +12,7 @@
   const PAGE = 50;
   const money = (v: string | number) => formatCurrency(Number(v));
   const inputClass = 'h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]';
-  const statusClass = { open: 'badge-info', overdue: 'badge-danger', paid: 'badge-success' } as const;
+  const statusClass = { open: 'badge-info', overdue: 'badge-danger', paid: 'badge-success', void: 'badge-neutral' } as const;
 
   let rows = $state<Receivable[]>([]);
   let summary = $state<ReceivableSummary | null>(null);
@@ -22,6 +23,8 @@
   let status = $state<ReceivableFilter>('open');
   let openId = $state<string | null>(null);
   let settling = $state(false);
+  let opening = $state(false);
+  const canOpening = $derived(can('receivable_opening', 'create'));
 
   const statusOptions = $derived((['open', 'overdue', 'paid', 'all'] as const).map((s) => ({ value: s, label: t(`receivables.status.${s}`) })));
   const canPay = $derived(can('member_receivables', 'create'));
@@ -72,9 +75,14 @@
       <h1 class="font-display font-bold text-[19px]">{t('receivables.title')}</h1>
       <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('receivables.subtitle')}</p>
     </div>
-    {#if canPay}
-      <button type="button" class="btn btn-primary" onclick={() => (settling = true)}><i class="icon-banknote me-1"></i>{t('settle.receivable.button')}</button>
-    {/if}
+    <div class="flex flex-wrap gap-2">
+      {#if canOpening}
+        <button type="button" class="btn" onclick={() => (opening = true)}><i class="icon-book-open me-1"></i>{t('receivables.opening.button')}</button>
+      {/if}
+      {#if canPay}
+        <button type="button" class="btn btn-primary" onclick={() => (settling = true)}><i class="icon-banknote me-1"></i>{t('settle.receivable.button')}</button>
+      {/if}
+    </div>
   </div>
 
   {#if error}
@@ -119,7 +127,10 @@
         <tbody>
           {#each rows as r (r.id)}
             <tr class="border-b border-[var(--border-subtle)] align-middle last:border-0 hover:bg-[var(--color-primary)]/5">
-              <td class="px-4 py-3 font-mono text-[12px] font-bold whitespace-nowrap">{r.doc_no}</td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="font-mono text-[12px] font-bold">{r.doc_no}</div>
+                {#if r.kind === 'opening'}<span class="badge-soft badge-warning text-[10.5px]">{t('receivables.opening.badge')}</span>{#if r.ref_no}<span class="ms-1 text-[11px] text-[var(--text-tertiary)]">{r.ref_no}</span>{/if}{/if}
+              </td>
               <td class="px-3 py-3"><div class="font-medium">{r.member_name}</div><div class="font-mono text-[11px] text-[var(--text-tertiary)]">{r.member_code}</div></td>
               <td class="px-3 py-3 whitespace-nowrap">{formatDate(r.created_at)}</td>
               <td class="px-3 py-3 whitespace-nowrap">{r.due_date ? formatDate(r.due_date) : t('receivables.noDue')}</td>
@@ -153,6 +164,10 @@
 
 {#if settling}
   <SettleModal kind="receivable" onclose={() => (settling = false)} onchanged={() => load()} />
+{/if}
+
+{#if opening}
+  <ReceivableOpeningModal onclose={() => (opening = false)} onchanged={() => load()} />
 {/if}
 
 {#if openId}
