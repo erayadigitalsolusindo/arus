@@ -125,6 +125,8 @@ WHERE tenant_id = @tenant_id AND sale_id = @sale_id ORDER BY position;
 -- Daftar penjualan lintas kasir untuk pemegang sales_list.view: satu atau beberapa outlet (outlet_ids = yang boleh diakses
 -- pemanggil), semua kasir. Keyset: urut (created_at, id) menurun, @has_cursor + (cursor_at, cursor_id) = halaman berikutnya.
 -- Nilai HPP (cost) selalu dibaca; yang memutuskan dikirim ke klien adalah service (izin sales_cost).
+-- Pencarian: by_ids = kandidat dari sale_search_ids (00052, indeks trigram di bawah RLS) dan q dikosongkan; q tetap dipakai
+-- bila kandidat melebihi db.SearchCap. Berlaku sama untuk tiga query ringkasan di bawah.
 SELECT s.id, s.doc_no, s.status, s.created_at, s.revision, s.outlet_id, o.code AS outlet_code, o.name AS outlet_name,
        coalesce(u.name, '')::text AS cashier_name,
        coalesce(mb.name, '')::text AS member_name,
@@ -160,6 +162,7 @@ WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.
   AND (@method::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = @method::text))
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%' OR mb.name ILIKE '%' || @q::text || '%'
        OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%')
+  AND (NOT @by_ids::bool OR s.id = ANY(@ids::uuid[]))
   AND (NOT @has_cursor::bool OR (s.created_at, s.id) < (@cursor_at::timestamptz, @cursor_id::uuid))
 ORDER BY s.created_at DESC, s.id DESC
 LIMIT @page_limit;
@@ -188,7 +191,8 @@ WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.
   AND (@cashier_id::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = @cashier_id::uuid)
   AND (@method::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = @method::text))
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%' OR mb.name ILIKE '%' || @q::text || '%'
-       OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%');
+       OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%')
+  AND (NOT @by_ids::bool OR s.id = ANY(@ids::uuid[]));
 
 -- name: SalesListAllMethodTotals :many
 -- Jumlah per metode bayar (tunai bersih dari kembalian) untuk nota completed pada filter yang sama.
@@ -207,6 +211,7 @@ WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.
   AND (@method::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = @method::text))
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%' OR mb.name ILIKE '%' || @q::text || '%'
        OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%')
+  AND (NOT @by_ids::bool OR s.id = ANY(@ids::uuid[]))
 GROUP BY m.method
 ORDER BY m.method;
 
@@ -230,6 +235,7 @@ WHERE s.tenant_id = @tenant_id AND s.outlet_id = ANY(@outlet_ids::uuid[]) AND s.
   AND (@method::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = @method::text))
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%' OR mb.name ILIKE '%' || @q::text || '%'
        OR mb.code ILIKE '%' || @q::text || '%' OR u.name ILIKE '%' || @q::text || '%')
+  AND (NOT @by_ids::bool OR s.id = ANY(@ids::uuid[]))
 GROUP BY m.method_id, pm.name, pm.kind
 ORDER BY (pm.kind = 'cash') DESC, lower(pm.name);
 

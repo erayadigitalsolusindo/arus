@@ -654,7 +654,7 @@ func nextSKU(ctx context.Context, q *gen.Queries, tenant uuid.UUID) (string, err
 			return "", err
 		}
 		sku := fmt.Sprintf("ITM-%06d", n)
-		taken, err := q.ItemSkuExists(ctx, gen.ItemSkuExistsParams{TenantID: tenant, Lower: sku})
+		taken, err := q.ItemSkuExists(ctx, sku)
 		if err != nil {
 			return "", err
 		}

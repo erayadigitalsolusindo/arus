@@ -82,6 +82,8 @@ SELECT id, amount, due_date FROM payables WHERE tenant_id = $1 AND purchase_id =
 -- name: PurchaseList :many
 -- Keyset (bukan OFFSET): halaman berikutnya mulai setelah (tanggal, waktu input, id) terakhir. Tanpa count(*) per halaman;
 -- total diambil dari PurchaseListSummary. Pemanggil meminta limit+1 untuk tahu ada halaman berikut.
+-- Pencarian: by_ids = kandidat dari purchase_search_ids (00052, indeks trigram di bawah RLS) dan q dikosongkan; q tetap
+-- dipakai bila kandidat melebihi db.SearchCap.
 SELECT p.id, p.doc_no, p.supplier_id, s.name AS supplier_name, p.supplier_invoice_no, p.purchase_date, p.payment_type,
        p.due_date, p.status, p.total, p.created_at, coalesce(u.name, '') AS created_name,
        (SELECT count(*) FROM purchase_lines l WHERE l.tenant_id = p.tenant_id AND l.purchase_id = p.id)::bigint AS line_count
@@ -93,6 +95,7 @@ WHERE p.tenant_id = @tenant_id AND p.outlet_id = @outlet_id AND p.status <> 'sup
   AND (sqlc.narg('supplier_id')::uuid IS NULL OR p.supplier_id = sqlc.narg('supplier_id'))
   AND (@payment_type::text = '' OR p.payment_type = @payment_type)
   AND (@q::text = '' OR p.doc_no ILIKE '%' || @q || '%' OR p.supplier_invoice_no ILIKE '%' || @q || '%' OR s.name ILIKE '%' || @q || '%')
+  AND (NOT @by_ids::bool OR p.id = ANY(@ids::uuid[]))
   AND (NOT @has_cursor::bool OR (p.purchase_date, p.created_at, p.id) < (@cur_date::date, @cur_at::timestamptz, @cur_id::uuid))
 ORDER BY p.purchase_date DESC, p.created_at DESC, p.id DESC
 LIMIT @page_limit;
@@ -154,7 +157,8 @@ WHERE p.tenant_id = @tenant_id AND p.outlet_id = @outlet_id AND p.status <> 'sup
   AND p.purchase_date >= @from_date AND p.purchase_date <= @to_date
   AND (sqlc.narg('supplier_id')::uuid IS NULL OR p.supplier_id = sqlc.narg('supplier_id'))
   AND (@payment_type::text = '' OR p.payment_type = @payment_type)
-  AND (@q::text = '' OR p.doc_no ILIKE '%' || @q || '%' OR p.supplier_invoice_no ILIKE '%' || @q || '%' OR s.name ILIKE '%' || @q || '%');
+  AND (@q::text = '' OR p.doc_no ILIKE '%' || @q || '%' OR p.supplier_invoice_no ILIKE '%' || @q || '%' OR s.name ILIKE '%' || @q || '%')
+  AND (NOT @by_ids::bool OR p.id = ANY(@ids::uuid[]));
 
 -- name: PurchaseItemSearch :many
 -- Pemilih barang di form pembelian: barang berstok aktif + stok total outlet aktif + HPP cabang.

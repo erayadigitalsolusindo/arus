@@ -123,7 +123,9 @@ ON CONFLICT (tenant_id) DO UPDATE SET last_no = item_counters.last_no + 1
 RETURNING last_no;
 
 -- name: ItemSkuExists :one
-SELECT EXISTS (SELECT 1 FROM items WHERE tenant_id = $1 AND lower(sku) = lower($2));
+-- Lewat fungsi SECURITY DEFINER (00052): "lower(sku) = …" tidak leakproof sehingga di bawah RLS indeks unik
+-- (tenant_id, lower(sku)) tidak terpakai penuh. Tenant = app_tenant_id() transaksi (db.WithTenant).
+SELECT item_sku_taken(@sku::text)::boolean AS taken;
 
 -- name: ItemOutletPrices :many
 -- Harga khusus cabang untuk outlet yang boleh diakses pemanggil (satu baris per outlet; harga NULL = pakai default).
