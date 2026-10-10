@@ -49,10 +49,16 @@ type request struct {
 	TaxStorePct json.Number `json:"tax_store_pct"`
 	TaxGovPct   json.Number `json:"tax_gov_pct"`
 	Active      *bool       `json:"active"`
+	// Data struk (opsional; kosong = tidak dicetak).
+	Address       string `json:"address"`
+	Phone         string `json:"phone"`
+	ReceiptHeader string `json:"receipt_header"`
+	ReceiptFooter string `json:"receipt_footer"`
 }
 
 func (r request) input(creating bool) (Input, bool) {
-	in := Input{Code: r.Code, Name: r.Name, Timezone: r.Timezone, TaxStorePct: r.TaxStorePct.String(), TaxGovPct: r.TaxGovPct.String(), Active: true}
+	in := Input{Code: r.Code, Name: r.Name, Timezone: r.Timezone, TaxStorePct: r.TaxStorePct.String(), TaxGovPct: r.TaxGovPct.String(), Active: true,
+		Address: r.Address, Phone: r.Phone, ReceiptHeader: r.ReceiptHeader, ReceiptFooter: r.ReceiptFooter}
 	if !creating {
 		if r.Active == nil {
 			return in, false

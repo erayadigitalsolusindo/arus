@@ -119,6 +119,7 @@ const (
 	ActionSaleEdit       = "sale.edit"       // revisi nota (nota baru yang menggantikan)
 	ActionSaleSuperseded = "sale.superseded" // pada nota lama: sudah digantikan revisi
 	ActionSaleVoid       = "sale.void"
+	ActionSaleReprint    = "sale.reprint" // cetak ulang struk (detail: doc_no, copy)
 )
 
 const (

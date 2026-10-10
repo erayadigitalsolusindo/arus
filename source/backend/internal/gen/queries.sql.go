@@ -3270,29 +3270,37 @@ func (q *Queries) OutletAssignUser(ctx context.Context, arg OutletAssignUserPara
 }
 
 const outletCreate = `-- name: OutletCreate :one
-INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone, address, phone, receipt_header, receipt_footer)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
 `
 
 type OutletCreateParams struct {
-	TenantID    uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
+	TenantID      uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 type OutletCreateRow struct {
-	ID          uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
-	CreatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (OutletCreateRow, error) {
@@ -3303,6 +3311,10 @@ func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (Out
 		arg.TaxStorePct,
 		arg.TaxGovPct,
 		arg.Timezone,
+		arg.Address,
+		arg.Phone,
+		arg.ReceiptHeader,
+		arg.ReceiptFooter,
 	)
 	var i OutletCreateRow
 	err := row.Scan(
@@ -3314,12 +3326,16 @@ func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (Out
 		&i.Timezone,
 		&i.Active,
 		&i.CreatedAt,
+		&i.Address,
+		&i.Phone,
+		&i.ReceiptHeader,
+		&i.ReceiptFooter,
 	)
 	return i, err
 }
 
 const outletGet = `-- name: OutletGet :one
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
 FROM outlets WHERE tenant_id = $1 AND id = $2
 `
 
@@ -3329,14 +3345,18 @@ type OutletGetParams struct {
 }
 
 type OutletGetRow struct {
-	ID          uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
-	CreatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 func (q *Queries) OutletGet(ctx context.Context, arg OutletGetParams) (OutletGetRow, error) {
@@ -3351,24 +3371,32 @@ func (q *Queries) OutletGet(ctx context.Context, arg OutletGetParams) (OutletGet
 		&i.Timezone,
 		&i.Active,
 		&i.CreatedAt,
+		&i.Address,
+		&i.Phone,
+		&i.ReceiptHeader,
+		&i.ReceiptFooter,
 	)
 	return i, err
 }
 
 const outletList = `-- name: OutletList :many
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
 FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code
 `
 
 type OutletListRow struct {
-	ID          uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
-	CreatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletListRow, error) {
@@ -3389,6 +3417,10 @@ func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletL
 			&i.Timezone,
 			&i.Active,
 			&i.CreatedAt,
+			&i.Address,
+			&i.Phone,
+			&i.ReceiptHeader,
+			&i.ReceiptFooter,
 		); err != nil {
 			return nil, err
 		}
@@ -3426,30 +3458,39 @@ func (q *Queries) OutletLockActive(ctx context.Context, tenantID uuid.UUID) ([]u
 }
 
 const outletUpdate = `-- name: OutletUpdate :one
-UPDATE outlets SET name = $3, tax_store_pct = $4, tax_gov_pct = $5, timezone = $6, active = $7
+UPDATE outlets SET name = $3, tax_store_pct = $4, tax_gov_pct = $5, timezone = $6, active = $7,
+    address = $8, phone = $9, receipt_header = $10, receipt_footer = $11
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
 `
 
 type OutletUpdateParams struct {
-	TenantID    uuid.UUID
-	ID          uuid.UUID
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 type OutletUpdateRow struct {
-	ID          uuid.UUID
-	Code        string
-	Name        string
-	TaxStorePct decimal.Decimal
-	TaxGovPct   decimal.Decimal
-	Timezone    string
-	Active      bool
-	CreatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	Code          string
+	Name          string
+	TaxStorePct   decimal.Decimal
+	TaxGovPct     decimal.Decimal
+	Timezone      string
+	Active        bool
+	CreatedAt     pgtype.Timestamptz
+	Address       string
+	Phone         string
+	ReceiptHeader string
+	ReceiptFooter string
 }
 
 func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (OutletUpdateRow, error) {
@@ -3461,6 +3502,10 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 		arg.TaxGovPct,
 		arg.Timezone,
 		arg.Active,
+		arg.Address,
+		arg.Phone,
+		arg.ReceiptHeader,
+		arg.ReceiptFooter,
 	)
 	var i OutletUpdateRow
 	err := row.Scan(
@@ -3472,6 +3517,10 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 		&i.Timezone,
 		&i.Active,
 		&i.CreatedAt,
+		&i.Address,
+		&i.Phone,
+		&i.ReceiptHeader,
+		&i.ReceiptFooter,
 	)
 	return i, err
 }
