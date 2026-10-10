@@ -30,6 +30,32 @@ WHERE i.tenant_id = @tenant_id
 ORDER BY lower(i.name), i.id
 LIMIT @page_limit OFFSET @page_offset;
 
+-- name: ItemRowsByIDs :many
+-- Baris daftar untuk sekumpulan id hasil item_search()/item_find_exact() (00051); urutan dikembalikan pemanggil.
+-- Sama dengan ItemList tanpa count(*) OVER () sehingga biayanya sebanding jumlah id, bukan jumlah barang tenant.
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
+       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
+       u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
+       mi.id AS main_image_id,
+       coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
+       coalesce(sb.returns, 0)::numeric AS stock_returns
+FROM items i
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
+LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = @outlet_id
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = @outlet_id
+LEFT JOIN LATERAL (
+    SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
+           sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
+           sum(qty) FILTER (WHERE bucket = 'returns') AS returns
+    FROM stock_balances s
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = @outlet_id AND s.item_id = i.id
+) sb ON true
+WHERE i.tenant_id = @tenant_id AND i.id = ANY(@ids::uuid[]);
+
 -- name: ItemOutletBreakdown :many
 -- Rincian stok + harga jual efektif per outlet untuk sekumpulan item (mode "semua cabang").
 SELECT i.id AS item_id, o.id AS outlet_id, o.code AS outlet_code, o.name AS outlet_name,
@@ -97,7 +123,9 @@ ON CONFLICT (tenant_id) DO UPDATE SET last_no = item_counters.last_no + 1
 RETURNING last_no;
 
 -- name: ItemSkuExists :one
-SELECT EXISTS (SELECT 1 FROM items WHERE tenant_id = $1 AND lower(sku) = lower($2));
+-- Lewat fungsi SECURITY DEFINER (00052): "lower(sku) = …" tidak leakproof sehingga di bawah RLS indeks unik
+-- (tenant_id, lower(sku)) tidak terpakai penuh. Tenant = app_tenant_id() transaksi (db.WithTenant).
+SELECT item_sku_taken(@sku::text)::boolean AS taken;
 
 -- name: ItemOutletPrices :many
 -- Harga khusus cabang untuk outlet yang boleh diakses pemanggil (satu baris per outlet; harga NULL = pakai default).

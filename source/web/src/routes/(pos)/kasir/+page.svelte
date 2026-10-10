@@ -46,7 +46,8 @@
   // ---------- Katalog ----------
   let q = $state('');
   let rows = $state<Row[]>([]);
-  let total = $state(0);
+  let exact = $state<Row[]>([]); // kode/barcode persis dari halaman pertama (Enter langsung memasukkannya)
+  let cursor = $state(''); // kosong = tidak ada halaman berikutnya
   let loading = $state(false);
   let loadError = $state('');
   let searchEl = $state<HTMLInputElement>();
@@ -57,15 +58,22 @@
     loading = true;
     loadError = '';
     try {
-      const res = await items.list({ q: q.trim() || undefined, active: true, limit: PAGE, offset: reset ? 0 : rows.length });
+      const res = await items.search(q.trim(), reset ? '' : cursor, PAGE);
       if (mine !== seq) return;
-      rows = reset ? res.data : [...rows, ...res.data];
-      total = res.total;
+      if (reset) exact = res.exact;
+      rows = mergeRows(reset ? exact : rows, res.data);
+      cursor = res.next_cursor;
     } catch (e) {
       if (mine === seq) loadError = errorMessage(e);
     } finally {
       if (mine === seq) loading = false;
     }
+  }
+
+  /** Tambahkan baris baru tanpa duplikat (barang kode persis tampil paling atas dan bisa muncul lagi di daftar). */
+  function mergeRows(base: Row[], more: Row[]): Row[] {
+    const ids = new Set(base.map((r) => r.id));
+    return [...base, ...more.filter((r) => !ids.has(r.id))];
   }
 
   let debounce: ReturnType<typeof setTimeout>;
@@ -542,10 +550,11 @@
       } else if (matches.length > 1) {
         picks = matches;
       } else {
-        // Bukan barcode: bila pencarian nama menyisakan tepat satu barang, langsung tambahkan.
+        // Bukan barcode: kode barang persis, atau pencarian nama yang menyisakan tepat satu barang, langsung ditambahkan.
         await load(true);
-        if (rows.length === 1) {
-          addRow(rows[0], qty);
+        const only = exact.length === 1 ? exact[0] : rows.length === 1 ? rows[0] : null;
+        if (only) {
+          addRow(only, qty);
           q = '';
           qtyIn = '';
           void load(true);
@@ -636,17 +645,17 @@
   let assign = $state<number | null>(null); // indeks slot yang sedang diisi
   let quickQ = $state('');
   let quickRows = $state<Row[]>([]);
-  let quickTotal = $state(0);
+  let quickCursor = $state('');
   let quickLoading = $state(false);
   let quickSeq = 0;
   async function loadQuick(reset: boolean) {
     const mine = ++quickSeq;
     quickLoading = true;
     try {
-      const res = await items.list({ q: quickQ.trim() || undefined, active: true, limit: 24, offset: reset ? 0 : quickRows.length });
+      const res = await items.search(quickQ.trim(), reset ? '' : quickCursor, 24);
       if (mine !== quickSeq) return;
-      quickRows = reset ? res.data : [...quickRows, ...res.data];
-      quickTotal = res.total;
+      quickRows = mergeRows(reset ? res.exact : quickRows, res.data);
+      quickCursor = res.next_cursor;
     } catch (e) {
       if (mine === quickSeq) flash(errorMessage(e));
     } finally {
@@ -956,7 +965,7 @@
           {/each}
         </div>
 
-        {#if rows.length < total}
+        {#if cursor}
           <div class="text-center py-4">
             <button type="button" class="btn btn-sm" disabled={loading} onclick={() => load(false)}>{loading ? t('pos.loading') : t('pos.loadMore')}</button>
           </div>
@@ -1440,7 +1449,7 @@
         </button>
       {/each}
     </div>
-    {#if quickRows.length < quickTotal}
+    {#if quickCursor}
       <div class="text-center pt-3"><button type="button" class="btn btn-sm" disabled={quickLoading} onclick={() => loadQuick(false)}>{quickLoading ? t('pos.loading') : t('pos.loadMore')}</button></div>
     {/if}
     <div class="flex justify-end mt-4"><button type="button" class="btn btn-sm" onclick={closeAssign}>{t('pos.slots.cancel')}</button></div>

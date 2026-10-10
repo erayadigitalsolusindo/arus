@@ -39,6 +39,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/", h.List)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/by-barcode", h.ByBarcode)
+		r.With(authz.Require(ModuleID, authz.ActView)).Get("/search", h.Search)
 		r.With(authz.Require(PriceReportModuleID, authz.ActView)).Get("/price-history", h.PriceReport)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}", h.Get)
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/{id}/price-history", h.PriceHistory)
@@ -174,6 +175,19 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"data": list, "total": total})
+}
+
+// Search: GET /items/search?q=&cursor=&limit= → {data, exact, next_cursor}. Barang aktif, tanpa total (lihat search.go).
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	p := SearchParams{Q: qs.Get("q"), Cursor: qs.Get("cursor")}
+	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
+	page, err := h.svc.Search(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, page)
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
