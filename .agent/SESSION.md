@@ -2,10 +2,10 @@
 
 > **Perbarui di akhir setiap sesi** (ringkas, tanggal absolut, buang info usang; target ≤ ±80 baris). Roadmap/centang: `docs/ROADMAP.md`. Lingkungan dev: `docs/DEV-ENV.md`. Riwayat: `docs/SESSION-LOG.md` (Grep, jangan dibaca penuh).
 
-## Posisi (2026-10-10)
+## Posisi (2026-10-11)
 - Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor "toko baik-baik saja?" (verdict + pemeriksaan, stok menipis, perbandingan cabang, bulan lalu) sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
 - Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
-- Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql` = `items.min_stock`, `internal/dashboard`, item). Migration 00055 sudah diterapkan ke DB dev.
+- Git (2026-10-11): `main` bersih; PR #29 (dasbor + `items.min_stock`, migration `00055`), #30 (kasir klasik), #31 (matriks izin + halaman 404/500 bertema bawah laut) sudah ter-merge. Migration terakhir = `00055`. Tidak ada `.github/` (CI belum ada).
 - **Penjualan Langsung (SSE)** sudah di `main` dan digabung ke branch ini (2026-10-10): menu Utama → Penjualan Langsung (`/live-sales`, izin `sales_list.view`; paket `internal/live`, komponen `LiveSalesToday`, teks `dashboard.live.*`). `/dashboard` = dasbor lengkap buatan pengguna; jangan menimpa halaman yang sudah ada, fitur baru = menu/halaman baru.
 - **Kasir klasik `/kasirb` (2026-10-10):** layar kasir bergaya aplikasi desktop (isian nota di atas, tabel keranjang, tombol F di bawah, dialog saldo awal). Logikanya sama dengan `/kasir`: halaman dipindah ke komponen `lib/components/PosScreen.svelte` (prop `variant`), kedua rute hanya membungkusnya; ubah logika kasir = sekali di `PosScreen`. Pilihan tampilan disimpan di localStorage (`pos.layout`, `lib/pos/layout.ts`); `/kasir` dan `/kasirb` mengarahkan ke pilihan itu saat login berikutnya. Belum ada di klasik: T.O.P/J. Tempo (dipilih di dialog bayar), INV Website, Pisah Tumpukan, Manual (Rp).
 
