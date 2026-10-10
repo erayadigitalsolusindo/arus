@@ -14,6 +14,7 @@ import (
 
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/platform/db"
 )
 
 type Line struct {
@@ -353,9 +354,22 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		if p.SupplierID != nil {
 			sup = pgtype.UUID{Bytes: *p.SupplierID, Valid: true}
 		}
+		// Cari: kandidat ber-indeks (purchase_search_ids); q hanya dipakai bila kandidat melebihi batas (kata sangat umum).
 		qs := escapeLike(p.Q)
+		var ids []uuid.UUID
+		byIDs := false
+		if qs != "" {
+			var err error
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT purchase_search_ids($1, $2, $3, $4, $5)`,
+				a.OutletID, pgDate(from), pgDate(to), "%"+qs+"%", db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				qs = ""
+			}
+		}
 		params := gen.PurchaseListParams{TenantID: a.TenantID, OutletID: a.OutletID, FromDate: pgDate(from), ToDate: pgDate(to),
-			SupplierID: sup, PaymentType: p.PaymentType, Q: qs, PageLimit: int32(limit + 1)}
+			SupplierID: sup, PaymentType: p.PaymentType, Q: qs, ByIds: byIDs, Ids: ids, PageLimit: int32(limit + 1)}
 		if cur.on {
 			params.HasCursor, params.CurDate, params.CurAt, params.CurID = true, pgDate(cur.date),
 				pgtype.Timestamptz{Time: cur.at, Valid: true}, cur.id
@@ -380,7 +394,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 			res.NextCursor = encodeCursor(last.PurchaseDate.Time.Format("2006-01-02"), last.CreatedAt.Time, last.ID)
 		}
 		sm, err := q.PurchaseListSummary(ctx, gen.PurchaseListSummaryParams{TenantID: a.TenantID, OutletID: a.OutletID, FromDate: pgDate(from), ToDate: pgDate(to),
-			SupplierID: sup, PaymentType: p.PaymentType, Q: qs})
+			SupplierID: sup, PaymentType: p.PaymentType, Q: qs, ByIds: byIDs, Ids: ids})
 		if err != nil {
 			return err
 		}

@@ -225,9 +225,22 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 		from, to := pgtype.Date{Time: fd, Valid: true}, pgtype.Date{Time: td, Valid: true}
 		like := escapeLike(q)
 		res.From, res.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
+		// Cari: kandidat ber-indeks (sale_search_ids, 00052). Jendela created_at dilebarkan sehari ke kiri dan dua hari ke
+		// kanan (zona waktu outlet); tanggal persisnya tetap disaring query di bawah. Kata sangat umum: tetap pakai ILIKE.
+		var ids []uuid.UUID
+		byIDs := false
+		if like != "" {
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT sale_search_ids($1, $2, $3, $4, true, $5)`, outlets,
+				fd.AddDate(0, 0, -1), td.AddDate(0, 0, 2), "%"+like+"%", db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				like = ""
+			}
+		}
 
 		rows, err := qr.SalesListAll(ctx, gen.SalesListAllParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
-			Status: status, CashierID: cashier, Method: method, Q: like,
+			Status: status, CashierID: cashier, Method: method, Q: like, ByIds: byIDs, Ids: ids,
 			HasCursor: p.Cursor != "", CursorAt: pgtype.Timestamptz{Time: cursorAt, Valid: p.Cursor != ""}, CursorID: cursorID,
 			PageLimit: int32(limit + 1)})
 		if err != nil {
@@ -243,7 +256,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 		}
 
 		sum, err := qr.SalesListAllSummary(ctx, gen.SalesListAllSummaryParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
-			Status: status, CashierID: cashier, Method: method, Q: like})
+			Status: status, CashierID: cashier, Method: method, Q: like, ByIds: byIDs, Ids: ids})
 		if err != nil {
 			return err
 		}
@@ -254,7 +267,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 			res.Summary.Cost, res.Summary.Profit = &cost, &profit
 		}
 		ms, err := qr.SalesListAllMethodTotals(ctx, gen.SalesListAllMethodTotalsParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
-			CashierID: cashier, Method: method, Q: like})
+			CashierID: cashier, Method: method, Q: like, ByIds: byIDs, Ids: ids})
 		if err != nil {
 			return err
 		}
@@ -262,7 +275,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 			res.Summary.Methods[m.Method] = m.Amount.StringFixed(2)
 		}
 		bm, err := qr.SalesListAllMethodBreakdown(ctx, gen.SalesListAllMethodBreakdownParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
-			CashierID: cashier, Method: method, Q: like})
+			CashierID: cashier, Method: method, Q: like, ByIds: byIDs, Ids: ids})
 		if err != nil {
 			return err
 		}

@@ -47,7 +47,8 @@ ON CONFLICT (tenant_id) DO UPDATE SET last_no = member_counters.last_no + 1
 RETURNING last_no;
 
 -- name: MemberCodeExists :one
-SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND lower(code) = lower($2));
+-- Lewat fungsi SECURITY DEFINER (00052), alasan sama dengan ItemSkuExists. Tenant = app_tenant_id() transaksi.
+SELECT member_code_taken(@code::text)::boolean AS taken;
 
 -- name: MemberList :many
 SELECT m.id, m.code, m.name, m.phone, m.city, m.active, m.valid_until, m.points, m.lifetime_points, m.cover_image_id,
