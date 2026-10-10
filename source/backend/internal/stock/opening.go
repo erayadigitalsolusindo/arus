@@ -50,6 +50,17 @@ type OpeningStatus struct {
 	Locked    bool       `json:"locked"`
 	StartDate *string    `json:"start_date"`
 	LockedAt  *time.Time `json:"locked_at"`
+	// Stats = ringkasan isian saldo awal outlet aktif (hanya dari GET /status; kosong pada hasil kunci).
+	Stats *OpeningStats `json:"stats,omitempty"`
+}
+
+// OpeningStats = berapa barang yang sudah punya saldo dan total qty per bucket (satuan dasar, dijumlah lintas barang).
+type OpeningStats struct {
+	Items     int    `json:"items"`  // barang berstok aktif
+	Filled    int    `json:"filled"` // barang yang punya saldo di salah satu bucket
+	Display   string `json:"display"`
+	Warehouse string `json:"warehouse"`
+	Returns   string `json:"returns"`
 }
 
 // OpeningRow = satu barang beserta stok outlet aktif per bucket.
@@ -79,6 +90,20 @@ func (s *Service) Status(ctx context.Context, a authz.Actor) (OpeningStatus, err
 			return err
 		}
 		out = statusOf(st.StockLockedAt.Valid, st.StockLockedAt.Time, st.OpsStartDate.Valid, st.OpsStartDate.Time)
+		var stats OpeningStats
+		var d, w, r decimal.Decimal
+		if err := tx.QueryRow(ctx, `SELECT
+			(SELECT count(*) FROM items WHERE tenant_id = $1 AND kind = $3 AND active),
+			count(DISTINCT item_id) FILTER (WHERE qty <> 0),
+			coalesce(sum(qty) FILTER (WHERE bucket = $4), 0),
+			coalesce(sum(qty) FILTER (WHERE bucket = $5), 0),
+			coalesce(sum(qty) FILTER (WHERE bucket = $6), 0)
+			FROM stock_balances WHERE tenant_id = $1 AND outlet_id = $2`,
+			a.TenantID, a.OutletID, "goods", string(BucketDisplay), string(BucketWarehouse), string(BucketReturns)).Scan(&stats.Items, &stats.Filled, &d, &w, &r); err != nil {
+			return err
+		}
+		stats.Display, stats.Warehouse, stats.Returns = d.String(), w.String(), r.String()
+		out.Stats = &stats
 		return nil
 	})
 	return out, err

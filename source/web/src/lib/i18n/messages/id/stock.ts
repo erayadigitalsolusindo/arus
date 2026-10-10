@@ -15,6 +15,23 @@ export default {
     range: 'Menampilkan {from}–{to} dari {total}',
     prev: 'Sebelumnya',
     next: 'Berikutnya',
+    stats: {
+      items: 'Barang berstok',
+      filled: 'Sudah terisi',
+      filledOf: 'dari {total} barang',
+      remaining: '{count} barang belum punya saldo',
+      allDone: 'Semua barang sudah punya saldo',
+      progress: 'Kelengkapan',
+      qtyTotal: 'Total {bucket}',
+      qtyHint: 'jumlah semua barang'
+    },
+    guide: {
+      title: 'Cara mengisi saldo awal',
+      s1: 'Hitung fisik barang di toko/gudang, lalu ketik jumlahnya di kolom Display, Gudang, atau Retur.',
+      s2: 'Tekan Enter atau pindah kolom — jumlah langsung tersimpan dan tercatat di kartu stok.',
+      s3: 'Jumlah boleh diubah selama belum dikunci. Setelah dikunci, koreksi hanya lewat stok opname.',
+      s4: 'Tombol Kunci & mulai operasional dipakai sekali, tepat sebelum toko mulai berjualan.'
+    },
     status: {
       open: 'Saldo awal masih bisa diisi dan diubah.',
       lockedOn: 'Saldo awal dikunci. Mulai operasional: {date}. Perubahan stok selanjutnya lewat stok opname.'

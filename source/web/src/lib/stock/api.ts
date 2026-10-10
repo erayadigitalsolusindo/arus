@@ -6,7 +6,8 @@ export type Bucket = 'display' | 'warehouse' | 'returns';
 export const BUCKETS: Bucket[] = ['display', 'warehouse', 'returns'];
 
 export type OpeningRow = { id: string; sku: string; name: string; unit: string; display: string; warehouse: string; returns: string };
-export type OpeningStatus = { locked: boolean; start_date: string | null; locked_at: string | null };
+export type OpeningStats = { items: number; filled: number; display: string; warehouse: string; returns: string };
+export type OpeningStatus = { locked: boolean; start_date: string | null; locked_at: string | null; stats?: OpeningStats };
 
 export const opening = {
   status: () => api<OpeningStatus>('/stock/opening/status'),
