@@ -20,7 +20,7 @@
 ---
 
 > [!NOTE]
-> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel** (rencana mulai **1 November 2026**). Fitur kasir sudah praktis lengkap. Yang tersisa ada di luar layar kasir, yaitu import katalog, backup teruji, dan spec test. Lihat [Status & Roadmap](#-status--roadmap).
+> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel** (rencana mulai **1 November 2026**). Fitur kasir web sudah praktis lengkap, dan aplikasi **Android (Flutter)** mulai dibangun. Yang tersisa ada di luar layar kasir, yaitu import katalog, backup teruji, spec test, dan CI. Lihat [Status & Roadmap](#-status--roadmap).
 
 ## Apa itu ARUS?
 
@@ -44,6 +44,7 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 
 **🧾 Kasir (POS)**
 - Layar keyboard-first, dengan shortcut F1–F10 dan bantuan F1
+- Dua tampilan: **modern** (`/kasir`) dan **klasik** gaya desktop (`/kasirb`), pilihan diingat
 - Scan barcode, kolom QTY, 16 slot pintasan barang, nota pending
 - Pencarian cepat untuk katalog **>100 ribu barang**
 - Bayar tunai, non-tunai, split, **kredit + DP** (limit per member)
@@ -81,6 +82,8 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 - Piutang: cicilan, pelunasan kolektif, aging, saldo awal
 - Metode bayar per tenant dengan **biaya MDR** (ditanggung toko atau pelanggan)
 - Daftar penjualan semua kasir, HPP & laba (khusus pemegang izin)
+- **Dasbor** "toko baik-baik saja?": KPI, tren, terlaris, per jam, shift, stok menipis, perbandingan cabang dan bulan lalu
+- **Penjualan Langsung** hari ini secara real-time (SSE)
 
 </td></tr>
 <tr><td valign="top">
@@ -103,7 +106,9 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 </td></tr>
 </table>
 
-Antarmuka memakai tema Dreams Core (Tailwind v4), tersedia dalam **Bahasa Indonesia & Inggris**, tema terang/gelap, dan tab halaman yang menyimpan draf form.
+**📱 ARUS Mobile (Flutter, Android, dalam pengerjaan):** login, tema terang/gelap, pilih bahasa dan cabang, serta layar kasir (cari barang, keranjang dengan harga dari server, bayar tunai/split, buka shift). Belum: member, kupon, kredit, nota pending, scan kamera, struk Bluetooth. Lihat [`source/mobile/README.md`](source/mobile/README.md).
+
+Antarmuka web memakai tema Dreams Core (Tailwind v4), tersedia dalam **Bahasa Indonesia & Inggris**, tema terang/gelap, dan tab halaman yang menyimpan draf form.
 
 ## 🏗️ Arsitektur
 
@@ -133,14 +138,15 @@ flowchart LR
 | Database | PostgreSQL 16+ — RLS, FK komposit, UNIQUE; tanpa stored procedure bisnis |
 | Cache | Redis 7 — **tidak pernah** menjadi sumber kebenaran stok atau uang |
 | Frontend | SvelteKit 3 (SPA, `adapter-static`), Tailwind v4, bits-ui, TanStack Query, zod |
-| Cetak | print-agent Go tanpa dependensi (Windows spooler RAW / berkas perangkat) |
+| Mobile | Flutter (Android), Riverpod, go_router, dio; auth native lewat header `X-Client: mobile` |
+| Cetak | print-agent Go tanpa dependensi (Windows spooler RAW / berkas perangkat); mobile: Bluetooth (direncanakan) |
 | Deploy | Docker Compose (Postgres + Redis), binary Go via systemd, web statis di Apache/Nginx |
 
-**Invarian yang dijaga di semua modul:** tenant/outlet dari token · satu use-case satu transaksi · harga dihitung server · stok = ledger · idempotensi · kunci bisnis dijaga DB · uang tanpa float · aturan bisnis di service Go yang dites · tanpa secret di repo. Uraian lengkapnya ada di [`AGENTS.md` §3](AGENTS.md).
+**Invarian yang dijaga di semua modul:** tenant/outlet dari token · satu use-case satu transaksi · harga dihitung server · stok = ledger · idempotensi · kunci bisnis dijaga DB · uang tanpa float · aturan bisnis di service Go yang dites · tanpa secret di repo. Uraian lengkapnya ada di [`AGENTS.md` §3](AGENTS.md); desain data dan struktur modul di [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## 🚀 Mulai cepat
 
-**Prasyarat:** Go 1.27+, Node.js 26 (npm 11), Docker + Compose, [`goose`](https://github.com/pressly/goose) (`go install github.com/pressly/goose/v3/cmd/goose@latest`). `sqlc` hanya diperlukan bila mengubah `queries.sql`.
+**Prasyarat:** Go 1.27+, Node.js 26 (npm 11), Docker + Compose, [`goose`](https://github.com/pressly/goose) (`go install github.com/pressly/goose/v3/cmd/goose@latest`). `sqlc` hanya diperlukan bila mengubah `queries.sql`. Aplikasi mobile tambahan butuh Flutter 3.47 + JDK 17 + Android SDK (lihat [`docs/DEV-ENV.md`](docs/DEV-ENV.md)).
 
 Jalankan dari root repo (folder `arus`):
 
@@ -215,6 +221,9 @@ export TEST_REDIS_URL=...           # = REDIS_URL
 
 # Print-agent
 (cd source/print-agent && go test ./...)
+
+# Mobile (tanpa server, memakai fake HTTP)
+(cd source/mobile && flutter analyze && flutter test)
 ```
 
 Test membuat dan membersihkan tenant uji sendiri; pakai database dev, bukan produksi. Banyak test bersifat **konkuren** (mis. 25 kasir menjual stok 10 → tepat 10 berhasil), jadi jangan dilewati. CI belum ada, jadi jalankan semuanya sebelum push.
@@ -243,19 +252,22 @@ Test membuat dan membersihkan tenant uji sendiri; pakai database dev, bukan prod
 
 ```
 .
-├── AGENTS.md              # sumber tunggal: keputusan teknis, status, aturan bisnis, log sesi
+├── AGENTS.md              # pintu masuk agen: keputusan terkunci, invarian, peta dokumen
 ├── CLAUDE.md              # pointer ke AGENTS.md
-├── docs/PRD.md            # kebutuhan produk (FR/NFR, rilis, pertanyaan terbuka)
+├── .agent/SESSION.md      # status sesi terkini dan langkah berikutnya
+├── docs/                  # PRD, ROADMAP, ARCHITECTURE, DEV-ENV, LEGACY, SESSION-LOG
 ├── reference/             # acuan visual template UI (tidak ikut git)
 ├── docker/                # compose mesin dev pengembang — bukan compose ARUS
 └── source/
     ├── backend/           # Go: cmd/api, internal/<modul>, db/migrations, sqlc.yaml
     ├── web/               # SvelteKit SPA: routes (app)|(pos)|platform, lib/i18n, lib/pos
+    ├── mobile/            # Flutter (ARUS Mobile, Android)
     ├── print-agent/       # Go: kurir struk ESC/POS untuk PC kasir
+    ├── tests/spec/        # spec test perhitungan (belum terisi)
     └── deploy/            # compose dev, panduan PC kasir, deploy aapanel/ & manual/
 ```
 
-Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`, `outlet`, `catalog`, `item`, `member`, `voucher`, `wallet`, `paymentmethod`, `sales`, `shift`, `receivable`, `stock`, `purchasing`, `payable`, `approval`, `platformadmin`, dan lainnya. Setiap modul berisi `service.go` · `handler.go` · `queries.sql` · `*_test.go`.
+Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`, `outlet`, `catalog`, `item`, `member`, `voucher`, `wallet`, `paymentmethod`, `posshortcut`, `sales`, `shift`, `receivable`, `stock`, `purchasing`, `payable`, `approval`, `dashboard`, `live`, `platformadmin`, dan lainnya. Setiap modul berisi `service.go` · `handler.go` · `queries.sql` · `*_test.go`.
 
 ## 📊 Status & Roadmap
 
@@ -266,12 +278,12 @@ Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`
 | 2 | Auth, tenant, RLS, role & izin, audit | ✅ Selesai |
 | 3 | Master data, item, member, metode bayar | 🟡 Diskon item & **import Excel/CSV** belum |
 | 4 | Stok: ledger, saldo awal, opname, mutasi, pecah satuan, kartu stok | ✅ Selesai |
-| 5 | Kasir: nota, kredit, revisi, retur, piutang, shift, cetak struk | 🟡 Hampir selesai |
-| 6 | Pembelian, retur beli, hutang | 🟡 Saldo awal hutang, PO belum |
-| 7 | Laporan | ⏳ Belum |
+| 5 | Kasir: nota, kredit, revisi, retur, piutang, shift, cetak struk | 🟡 Hampir selesai (sisa catatan per baris, offline) |
+| 6 | Pembelian, retur beli, hutang | 🟡 Saldo awal hutang, pembatalan pembayaran, PO belum |
+| 7 | Laporan | 🟡 Dasbor dan Penjualan Langsung sudah; laporan rinci belum |
 | 8 | Modul opsional: resto/KDS, akuntansi, payment gateway | ⏳ Belum |
 | 9 | Wizard onboarding & go-live | ⏳ Belum |
-| 10 | Kasir mobile Android | 💭 Usulan |
+| 10 | Kasir mobile Android (Flutter) | 🟡 Berjalan: login + layar kasir; belum diuji di perangkat |
 
 **Jalur kritis go-live pilot**
 
@@ -283,7 +295,7 @@ Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`
 
 **Batasan yang perlu diketahui:** kasir belum bisa offline · teks Syarat Layanan & Kebijakan Privasi masih **draf** (harus ditinjau konsultan hukum) · email verifikasi belum memblokir login dan dikirim tanpa antrean/retry · laporan (Fase 7) belum ada.
 
-Status rinci yang selalu terbaru ada di [`AGENTS.md` §2 dan §2b](AGENTS.md). Jika README ini berbeda dengan AGENTS.md, **ikuti AGENTS.md**.
+Status rinci yang selalu terbaru ada di [`.agent/SESSION.md`](.agent/SESSION.md) dan [`docs/ROADMAP.md`](docs/ROADMAP.md). Jika README ini berbeda dengan keduanya atau dengan [`AGENTS.md`](AGENTS.md), **ikuti mereka**.
 
 ## 🌐 Deploy
 
@@ -306,18 +318,23 @@ Pokok-pokok produksi:
 
 | Dokumen | Isi |
 |---|---|
-| [`AGENTS.md`](AGENTS.md) | Keputusan terkunci, status, roadmap, invarian, aturan bisnis legacy, log setiap sesi |
+| [`AGENTS.md`](AGENTS.md) | Pintu masuk: keputusan terkunci, invarian, konvensi, peta dokumen (per folder: `source/backend`, `source/web`, `source/mobile`) |
+| [`.agent/SESSION.md`](.agent/SESSION.md) | Status terkini dan langkah berikutnya |
 | [`docs/PRD.md`](docs/PRD.md) | Kebutuhan produk: APA & MENGAPA (ID kebutuhan `FR-POS-…`, dst.) |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Fase dan kotak centang |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Desain data, struktur repo, pemetaan template UI |
+| [`docs/DEV-ENV.md`](docs/DEV-ENV.md) | Toolchain, menjalankan lokal, akun demo |
+| [`docs/LEGACY.md`](docs/LEGACY.md) · [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md) | Referensi aturan bisnis lama · arsip riwayat sesi |
 | [`source/deploy/aapanel/DEPLOY-AAPANEL.md`](source/deploy/aapanel/DEPLOY-AAPANEL.md) | Deploy produksi di aaPanel |
 | [`source/deploy/manual/DEPLOY-MANUAL.md`](source/deploy/manual/DEPLOY-MANUAL.md) | Deploy produksi tanpa panel |
 | [`source/deploy/PC-KASIR.md`](source/deploy/PC-KASIR.md) | Menyiapkan PC kasir dan printer |
 
 ## 🤝 Kontribusi
 
-- Baca `AGENTS.md` seluruhnya sebelum mengubah kode. Konteks teknis hanya ditulis di sana; kebutuhan produk di `docs/PRD.md`.
+- Baca `AGENTS.md` (dan `AGENTS.md` folder yang dikerjakan) sebelum mengubah kode. Kebutuhan produk ada di `docs/PRD.md`, status di `.agent/SESSION.md`.
 - **Tabel bertenant baru** wajib punya `tenant_id`, `ENABLE ROW LEVEL SECURITY` + policy `tenant_isolation`, dan test isolasi.
 - **Teks UI** selalu lewat kamus i18n `t('domain.kunci')` (id + en), tidak ditulis langsung di komponen.
-- **Siap big data:** daftar memakai paginasi keyset; pencarian teks di bawah RLS memakai pola fungsi `SECURITY DEFINER` (lihat AGENTS.md §6). Ukur query berat sebagai role `aciraba_app`, bukan pemilik.
+- **Siap big data:** daftar memakai paginasi keyset; pencarian teks di bawah RLS memakai pola fungsi `SECURITY DEFINER` (lihat `source/backend/AGENTS.md`). Ukur query berat sebagai role `aciraba_app`, bukan pemilik.
 - Setiap modul wajib punya test invarian (stok tidak minus, total nota, idempotensi, konkurensi).
 - Jangan mengomit `.env`, kredensial, atau dump data pelanggan.
 
