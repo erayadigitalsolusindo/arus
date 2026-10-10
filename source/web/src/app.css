@@ -156,3 +156,14 @@
     transition: none;
   }
 }
+
+/* Checkbox: outline tegas — gelap di mode terang, putih di mode gelap. */
+:root[data-theme='light'] input[type='checkbox']:not(:checked):not(:indeterminate) {
+  border: 1.5px solid #1f2937;
+}
+:root[data-theme='dark'] input[type='checkbox']:not(:checked):not(:indeterminate) {
+  border: 1.5px solid #fff;
+}
+input[type='checkbox']:disabled:not(:checked) {
+  opacity: 0.5;
+}
