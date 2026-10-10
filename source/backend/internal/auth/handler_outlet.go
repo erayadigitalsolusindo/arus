@@ -12,6 +12,8 @@ import (
 
 type switchRequest struct {
 	OutletID string `json:"outlet_id"`
+	// RefreshToken hanya dipakai klien native (X-Client: mobile); klien web memakai cookie.
+	RefreshToken string `json:"refresh_token"`
 	// POS=true: dari layar kasir → wajib persetujuan PIN Owner/Supervisor (kecuali pelaku sendiri penyetuju).
 	POS      bool        `json:"pos"`
 	Approval *ApprovalIn `json:"approval"`
@@ -28,12 +30,19 @@ func (h *Handler) SwitchOutlet(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, map[string]string{"outlet_id": "INVALID"})
 		return
 	}
-	c, err := r.Cookie(refreshCookie)
-	if err != nil || c.Value == "" {
+	token := req.RefreshToken
+	if !isNative(r) {
+		if c, cerr := r.Cookie(refreshCookie); cerr == nil {
+			token = c.Value
+		} else {
+			token = ""
+		}
+	}
+	if token == "" {
 		httpx.Error(w, http.StatusUnauthorized, "SESSION_INVALID", "Sesi tidak ditemukan.")
 		return
 	}
-	sess, err := h.svc.SwitchOutletWith(r.Context(), actor(r), c.Value, outletID, SwitchOpts{POS: req.POS, Approval: req.Approval})
+	sess, err := h.svc.SwitchOutletWith(r.Context(), actor(r), token, outletID, SwitchOpts{POS: req.POS, Approval: req.Approval})
 	if approval.Fail(w, err) {
 		return
 	}
@@ -45,6 +54,6 @@ func (h *Handler) SwitchOutlet(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		h.internal(w, r, "pindah outlet gagal", err)
 	default:
-		httpx.JSON(w, http.StatusOK, sess)
+		h.writeSession(w, r, http.StatusOK, sess)
 	}
 }

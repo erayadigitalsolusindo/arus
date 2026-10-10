@@ -13,6 +13,7 @@ import (
 	"aciraba/internal/auth"
 	"aciraba/internal/authz"
 	"aciraba/internal/catalog"
+	"aciraba/internal/dashboard"
 	"aciraba/internal/iam"
 	"aciraba/internal/item"
 	"aciraba/internal/live"
@@ -101,14 +102,17 @@ func mountModules(r chi.Router, d appDeps) error {
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
-	receivable.NewHandler(receivable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	receivableSvc := receivable.NewService(d.Pool)
+	receivable.NewHandler(receivableSvc, perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	paymentmethod.NewHandler(paymentmethod.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	purchaseH := purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log)
 	purchaseH.Routes(r)
 	purchaseH.ReturnRoutes(r)
-	payable.NewHandler(payable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	payableSvc := payable.NewService(d.Pool)
+	payable.NewHandler(payableSvc, perms, tokens, d.Log).Routes(r)
+	dashboard.NewHandler(dashboard.NewService(d.Pool, receivableSvc, payableSvc), perms, tokens, d.Log).Routes(r)
 	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	return nil

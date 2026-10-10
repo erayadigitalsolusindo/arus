@@ -95,6 +95,7 @@ type request struct {
 	Origin             string                `json:"origin"`
 	Name               string                `json:"name"`
 	WeightGrams        json.Number           `json:"weight_grams"`
+	MinStock           json.Number           `json:"min_stock"`
 	Cost               json.Number           `json:"cost"`
 	SellPrice          json.Number           `json:"sell_price"`
 	UnitID             string                `json:"unit_id"`
@@ -113,7 +114,7 @@ type request struct {
 
 func (q request) input() Input {
 	in := Input{
-		SKU: q.SKU, Barcode: q.Barcode, Origin: q.Origin, Name: q.Name, Weight: q.WeightGrams.String(), Cost: q.Cost.String(), SellPrice: q.SellPrice.String(),
+		SKU: q.SKU, Barcode: q.Barcode, Origin: q.Origin, Name: q.Name, Weight: q.WeightGrams.String(), MinStock: q.MinStock.String(), Cost: q.Cost.String(), SellPrice: q.SellPrice.String(),
 		UnitID: q.UnitID, CategoryID: q.CategoryID, BrandID: q.BrandID, PrincipalID: q.PrincipalID, SupplierID: q.SupplierID,
 		Kind: q.Kind, AllowNegativeStock: q.AllowNegativeStock, SellBelowCost: q.SellBelowCost, Description: q.Description,
 	}
