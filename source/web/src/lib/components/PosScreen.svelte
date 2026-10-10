@@ -39,6 +39,7 @@
   import { page } from '$app/state';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { initials } from '#lib/auth/initials.ts';
+  import { setPosLayout, posPath, type PosLayout } from '#lib/pos/layout.ts';
 
   // modern = tiga kolom (/kasir); classic = layar bergaya aplikasi desktop (/kasirb). Logika & dialognya sama.
   let { variant = 'modern' }: { variant?: 'modern' | 'classic' } = $props();
@@ -355,6 +356,11 @@
     if (saved === '0' || saved === '1') expanded = saved === '1';
   } catch {
     /* penyimpanan diblokir: abaikan */
+  }
+  /** Pindah tampilan kasir; pilihan diingat sehingga login berikutnya langsung ke tampilan itu. Keranjang ikut (tersimpan di peramban). */
+  function switchLayout(to: PosLayout) {
+    setPosLayout(to);
+    void goto(posPath(to));
   }
   function toggleExpanded() {
     expanded = !expanded;
@@ -1114,6 +1120,16 @@
         </span>
       </button>
 
+      {#if !editSale}
+        <button type="button" class="flex items-start gap-3 p-2.5 rounded-lg border border-[var(--border-subtle)] text-start hover:bg-[var(--surface-sunken)]" onclick={() => switchLayout('classic')}>
+          <span class="grid place-items-center size-8 shrink-0 rounded-full text-[11px] font-bold bg-[color-mix(in_oklab,var(--color-primary-500)_16%,transparent)] text-[var(--color-primary-600)]">KB</span>
+          <span class="min-w-0">
+            <span class="block text-[12px] font-semibold">{t('pos.layout.toClassic')}</span>
+            <span class="block text-[10.5px] leading-snug text-[var(--text-tertiary)]">{t('pos.layout.toClassicDesc')}</span>
+          </span>
+        </button>
+      {/if}
+
       <span class="grow"></span>
       <button type="button" class="btn btn-sm w-full" disabled title={t('pos.soon')}>{t('pos.orderStatus')}</button>
     </aside>
@@ -1560,6 +1576,9 @@
         </div>
         <button type="button" class="cl-btn cl-btn-primary" title={`${t('pos.classic.itemList')} (F2)`} onclick={() => ((suggestOpen = true), searchEl?.focus())}><i class="icon-list"></i> {t('pos.classic.itemList')}</button>
         <button type="button" class="cl-btn" style="width:2.25rem;padding-inline:0" aria-label={t('pos.slots.button')} title={t('pos.slots.button')} onclick={() => (slotsOpen = true)}><i class="icon-layout-grid"></i></button>
+        {#if !editSale}
+          <button type="button" class="cl-btn" title={t('pos.layout.toModern')} onclick={() => switchLayout('modern')}><i class="icon-layout-dashboard"></i> {t('pos.layout.toModern')}</button>
+        {/if}
       </div>
     </div>
 

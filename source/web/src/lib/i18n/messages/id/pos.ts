@@ -374,6 +374,7 @@ export default {
     unnamed: 'Lainnya'
   },
   // Layar kasir bergaya desktop (/kasirb).
+  layout: { toClassic: 'Tampilan Kasir B', toClassicDesc: 'Pindah ke tampilan klasik. Pilihan diingat untuk login berikutnya.', toModern: 'Tampilan Kasir' },
   classic: {
     loggedInAs: 'Anda Login Sebagai',
     docNo: 'No. Nota',

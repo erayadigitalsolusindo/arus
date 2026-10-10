@@ -375,6 +375,7 @@ const pos: Messages['pos'] = {
     unnamed: 'Other'
   },
   // Desktop-style cashier screen (/kasirb).
+  layout: { toClassic: 'Classic Layout', toClassicDesc: 'Switch to the classic layout. Your choice is remembered for next login.', toModern: 'Standard Layout' },
   classic: {
     loggedInAs: 'Logged in as',
     docNo: 'Receipt No.',
