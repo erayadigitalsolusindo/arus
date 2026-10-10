@@ -31,6 +31,8 @@ type SearchParams struct {
 	Q      string
 	Cursor string
 	Limit  int
+	// CategoryID (uuid, opsional): hanya barang kategori ini (filter kasir mobile).
+	CategoryID string
 }
 
 // SearchPage: Exact (hanya halaman pertama) = barang yang kode/barcode-nya persis sama dengan q; barang yang sama
@@ -96,9 +98,18 @@ func (s *Service) Search(ctx context.Context, a authz.Actor, p SearchParams) (Se
 	}
 	limit = min(limit, searchMaxLimit)
 
+	var category pgtype.UUID
+	if p.CategoryID != "" {
+		cid, err := uuid.Parse(p.CategoryID)
+		if err != nil {
+			return SearchPage{}, FieldErrors{"category_id": sanitize.Invalid}
+		}
+		category = pgtype.UUID{Bytes: cid, Valid: true}
+	}
+
 	page := SearchPage{Data: []Row{}, Exact: []Row{}}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		ids, keys, err := searchIDs(ctx, tx, pats, afterName, afterID, limit+1)
+		ids, keys, err := searchIDs(ctx, tx, pats, afterName, afterID, category, limit+1)
 		if err != nil {
 			return err
 		}
@@ -123,8 +134,8 @@ func (s *Service) Search(ctx context.Context, a authz.Actor, p SearchParams) (Se
 	return page, err
 }
 
-func searchIDs(ctx context.Context, tx pgx.Tx, pats []string, afterName pgtype.Text, afterID pgtype.UUID, limit int) ([]uuid.UUID, []string, error) {
-	rows, err := tx.Query(ctx, `SELECT id, sort_name FROM item_search($1, true, $2, $3, $4)`, pats, afterName, afterID, limit)
+func searchIDs(ctx context.Context, tx pgx.Tx, pats []string, afterName pgtype.Text, afterID pgtype.UUID, category pgtype.UUID, limit int) ([]uuid.UUID, []string, error) {
+	rows, err := tx.Query(ctx, `SELECT id, sort_name FROM item_search($1, true, $2, $3, $4, $5)`, pats, afterName, afterID, limit, category)
 	if err != nil {
 		return nil, nil, err
 	}

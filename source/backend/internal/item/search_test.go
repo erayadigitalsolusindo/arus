@@ -97,6 +97,23 @@ func TestSearch(t *testing.T) {
 		t.Errorf("barang nonaktif tidak boleh muncul sebagai kode persis")
 	}
 
+	// Filter kategori: hanya barang kategori itu (kata cari tetap berlaku); id bukan uuid ditolak.
+	cat := e.master(t, "categories", e.a.TenantID, "Lip", true)
+	if _, err := e.admin.Exec(ctx, `UPDATE items SET category_id = $1 WHERE id = $2`, cat, lip); err != nil {
+		t.Fatal(err)
+	}
+	page, err := e.svc.Search(ctx, e.a, SearchParams{CategoryID: cat.String()})
+	if err != nil || len(page.Data) != 1 || page.Data[0].ID != lip {
+		t.Fatalf("filter kategori: %v err=%v", names(page.Data), err)
+	}
+	if page, _ = e.svc.Search(ctx, e.a, SearchParams{Q: "emina", CategoryID: cat.String()}); len(page.Data) != 0 {
+		t.Errorf("kategori + kata: %v", names(page.Data))
+	}
+	var cfe FieldErrors
+	if _, err := e.svc.Search(ctx, e.a, SearchParams{CategoryID: "bukan-uuid"}); !errors.As(err, &cfe) || cfe["category_id"] == "" {
+		t.Errorf("category_id rusak: %v", err)
+	}
+
 	// Keyset: 2 + 2 tanpa duplikat, lalu habis.
 	seen := map[string]bool{}
 	cursor := ""

@@ -181,7 +181,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // Search: GET /items/search?q=&cursor=&limit= → {data, exact, next_cursor}. Barang aktif, tanpa total (lihat search.go).
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
-	p := SearchParams{Q: qs.Get("q"), Cursor: qs.Get("cursor")}
+	p := SearchParams{Q: qs.Get("q"), Cursor: qs.Get("cursor"), CategoryID: qs.Get("category_id")}
 	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
 	page, err := h.svc.Search(r.Context(), actor(r), p)
 	if err != nil {

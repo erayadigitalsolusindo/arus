@@ -409,9 +409,14 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
-| FR-ACC-01 | Bagan akun (COA) per tenant; periode akuntansi dengan tutup buku. | S | ○ |
+| FR-ACC-01 | Bagan akun (COA) per tenant; periode akuntansi dengan tutup buku. | S | ✅ |
 | FR-ACC-02 | Jurnal otomatis dari penjualan, pembelian, pembayaran piutang/hutang. Pemetaan akun dikonfigurasi per **metode bayar** (bukan per jenis). | S | ○ |
 | FR-ACC-03 | Jurnal manual, buku besar, kas/bank, neraca saldo, neraca, laba rugi. | S | ○ |
+| FR-ACC-04 | Jurnal manual: umum (JU), kas masuk/keluar (KM/KK), transfer kas (TK). Alur draf → posting; jurnal terposting tidak bisa diubah/dihapus, koreksi lewat jurnal balik. Posting ditolak bila debit ≠ kredit atau tanggal di periode tertutup. | S | ✅ |
+| FR-ACC-05 | Saldo awal akun lewat jurnal pembuka (wajib seimbang), bukan kolom di COA. Template COA retail bawaan saat tenant mengaktifkan akuntansi. | S | ✅ |
+| FR-ACC-06 | Jurnal penjualan otomatis diringkas per outlet per hari (idempoten, bisa ditelusuri ke nota); pembelian/piutang/hutang/retur per dokumen. Desain: `docs/ARCHITECTURE.md` §4b. | S | ○ |
+
+*Given* jurnal Rp 100.000 debit dan Rp 90.000 kredit, *when* diposting, *then* ditolak `JOURNAL_UNBALANCED`. *Given* periode Oktober ditutup, *when* jurnal bertanggal 15 Okt diposting, *then* ditolak `PERIOD_CLOSED`.
 
 ### 7.10 Platform & Ekstensi (PLT) — R4
 

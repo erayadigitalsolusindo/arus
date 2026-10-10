@@ -15,11 +15,21 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../core/locale/locale_controller.dart';
 import '../../core/outlet/outlet_switcher.dart';
 import 'empty_cart.dart';
+import 'costs_sheet.dart';
 import 'item_thumb.dart';
+import 'line_adjust_sheet.dart';
+import 'member_picker.dart';
 import 'pay_sheet.dart';
+import 'pending_controller.dart';
+import 'pending_sheet.dart';
 import 'pos_controller.dart';
 import 'pos_models.dart';
 import 'pos_repository.dart';
+import 'sales_today_page.dart';
+import 'salesperson_picker.dart';
+import 'shortcuts_strip.dart';
+import 'scan_page.dart';
+import 'shift_close_page.dart';
 import 'shift_dialog.dart';
 
 const _wideBreakpoint = 840.0;
@@ -42,7 +52,11 @@ class _PosPageState extends ConsumerState<PosPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureShift());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(cartProvider.notifier).restore();
+      ref.read(pendingProvider.notifier).load();
+      _ensureShift();
+    });
   }
 
   Future<void> _ensureShift() async {
@@ -55,6 +69,22 @@ class _PosPageState extends ConsumerState<PosPage> {
       // Galat dimuat ulang lewat panel info; bayar tetap menegakkan SHIFT_REQUIRED di server.
     }
   }
+
+  /// Tutup shift berjalan. Setelah ditutup, kasir bisa langsung membuka shift baru; keranjang dikosongkan.
+  Future<void> _closeShift() async {
+    final shift = ref.read(shiftProvider).asData?.value;
+    if (shift == null) {
+      await showOpenShiftDialog(context);
+      return;
+    }
+    final openNew = await showCloseShiftPage(context, shift.id);
+    if (openNew == null || !mounted) return;
+    ref.read(cartProvider.notifier).clear();
+    if (openNew) await showOpenShiftDialog(context);
+  }
+
+  // Memakai context halaman (bukan laci yang sudah ditutup).
+  void _switchOutlet() => showOutletSwitcher(context, pos: true);
 
   void _togglePanel(bool wide) {
     if (wide) {
@@ -87,6 +117,33 @@ class _PosPageState extends ConsumerState<PosPage> {
               formatMoney(r.total),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
+            if (r.receivable > Decimal.zero) ...[
+              const SizedBox(height: 6),
+              Text(
+                l.paySuccessReceivable(formatMoney(r.receivable)),
+                style: TextStyle(
+                  color: context.pal.danger,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (DateTime.tryParse(r.dueDate ?? '') != null)
+                Text(
+                  l.paySuccessDue(
+                    DateFormat('d MMM yyyy').format(DateTime.parse(r.dueDate!)),
+                  ),
+                  style: TextStyle(color: context.pal.textTertiary),
+                ),
+            ],
+            if (r.surcharge > Decimal.zero) ...[
+              const SizedBox(height: 6),
+              Text(
+                l.paySurchargeDone(
+                  formatMoney(r.surcharge),
+                  formatMoney(r.total + r.surcharge),
+                ),
+                style: TextStyle(color: context.pal.warningText),
+              ),
+            ],
             if (r.change > Decimal.zero) ...[
               const SizedBox(height: 6),
               Text(
@@ -137,17 +194,27 @@ class _PosPageState extends ConsumerState<PosPage> {
     final pal = context.pal;
     final wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
     final session = ref.watch(sessionProvider);
-    final outletCode = session is SessionSignedIn
-        ? session.profile.outlet.code
+    final tenantName = session is SessionSignedIn
+        ? session.profile.tenant.name
         : '';
-    final outletId = session is SessionSignedIn ? session.profile.outlet.id : '';
+    final outletId = session is SessionSignedIn
+        ? session.profile.outlet.id
+        : '';
 
-    // Cabang berganti: keranjang cabang lama dibuang, shift dimuat ulang, katalog dimuat ulang (ProductPane ber-key).
+    // Cabang berganti: keranjang cabang tujuan dipulihkan (yang lama tersimpan di kuncinya sendiri), shift dimuat ulang, katalog dimuat ulang (ProductPane ber-key).
     ref.listen(sessionProvider, (prev, next) {
       if (prev is SessionSignedIn &&
           next is SessionSignedIn &&
           prev.profile.outlet.id != next.profile.outlet.id) {
-        ref.read(cartProvider.notifier).clear();
+        ref
+            .read(cartProvider.notifier)
+            .restore(); // keranjang milik cabang tujuan (kosong bila tak ada)
+        ref
+            .read(pendingProvider.notifier)
+            .load(); // nota pending milik cabang tujuan
+        ref.invalidate(
+          shortcutsProvider,
+        ); // harga pintasan = harga efektif cabang aktif
         ref.invalidate(shiftProvider);
         _shiftPrompted = false;
         _ensureShift();
@@ -161,7 +228,12 @@ class _PosPageState extends ConsumerState<PosPage> {
           : Drawer(
               width: 300,
               child: SafeArea(
-                child: OutletPanel(onClose: () => Navigator.of(context).pop()),
+                child: OutletPanel(
+                  onClose: () => Navigator.of(context).pop(),
+                  onSalesToday: () => showSalesTodayPage(context),
+                  onCloseShift: _closeShift,
+                  onSwitchOutlet: _switchOutlet,
+                ),
               ),
             ),
       appBar: AppBar(
@@ -171,40 +243,13 @@ class _PosPageState extends ConsumerState<PosPage> {
           onPressed: () => _togglePanel(wide),
         ),
         titleSpacing: 0,
-        title: Row(
-          children: [
-            Text(
-              l.posTitle,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 10),
-            if (outletCode.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: pal.primarySoft,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  outletCode,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: pal.primary,
-                  ),
-                ),
-              ),
-          ],
+        // Nama usaha (PT/toko) menggantikan tulisan "Kasir" + kode cabang.
+        title: Text(
+          tenantName.isEmpty ? l.posTitle : tenantName,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        actions: [
-          IconButton(
-            tooltip: l.outletSwitch,
-            icon: const Icon(Icons.swap_horiz),
-            onPressed: () => showOutletSwitcher(context, pos: true),
-          ),
-          const LanguageButton(),
-          const ThemeToggleButton(),
-        ],
+        actions: [const LanguageButton(), const ThemeToggleButton()],
       ),
       body: wide
           ? Row(
@@ -228,6 +273,9 @@ class _PosPageState extends ConsumerState<PosPage> {
                     maxWidth: 260,
                     child: OutletPanel(
                       onClose: () => setState(() => _panelOpen = false),
+                      onSalesToday: () => showSalesTodayPage(context),
+                      onCloseShift: _closeShift,
+                      onSwitchOutlet: _switchOutlet,
                     ),
                   ),
                 ),
@@ -254,9 +302,18 @@ class _PosPageState extends ConsumerState<PosPage> {
 // ------------------------------------------------------------------ panel info outlet ("MAIN")
 
 class OutletPanel extends ConsumerWidget {
-  const OutletPanel({super.key, required this.onClose});
+  const OutletPanel({
+    super.key,
+    required this.onClose,
+    required this.onSalesToday,
+    required this.onCloseShift,
+    required this.onSwitchOutlet,
+  });
 
   final VoidCallback onClose;
+  final VoidCallback onSalesToday;
+  final VoidCallback onCloseShift;
+  final VoidCallback onSwitchOutlet;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -342,7 +399,25 @@ class OutletPanel extends ConsumerWidget {
         OutlinedButton.icon(
           onPressed: () {
             onClose();
-            showOutletSwitcher(context, pos: true);
+            onSalesToday();
+          },
+          icon: const Icon(Icons.receipt_long, size: 18),
+          label: Text(l.posSalesTodayTooltip),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () {
+            onClose();
+            onCloseShift();
+          },
+          icon: const Icon(Icons.lock_clock, size: 18),
+          label: Text(l.posShiftCloseTooltip),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () {
+            onClose();
+            onSwitchOutlet();
           },
           icon: const Icon(Icons.swap_horiz, size: 18),
           label: Text(l.outletSwitch),
@@ -384,6 +459,7 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
   void initState() {
     super.initState();
     _load('');
+    _loadCategories();
   }
 
   @override
@@ -394,6 +470,18 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
     super.dispose();
   }
 
+  String? _categoryId;
+  List<Salesperson> _categories = const [];
+
+  Future<void> _loadCategories() async {
+    try {
+      final c = await ref.read(posRepositoryProvider).categories();
+      if (mounted) setState(() => _categories = c);
+    } on ApiError {
+      // Tanpa daftar kategori, katalog tetap bisa dicari; filter saja yang tidak tampil.
+    }
+  }
+
   Future<void> _load(String q) async {
     final my = ++_seq;
     setState(() {
@@ -401,7 +489,9 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
       _error = null;
     });
     try {
-      final r = await ref.read(posRepositoryProvider).search(q);
+      final r = await ref
+          .read(posRepositoryProvider)
+          .search(q, categoryId: _categoryId);
       if (my != _seq || !mounted) return;
       setState(() => _items = r);
     } on ApiError catch (e) {
@@ -438,6 +528,30 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
     _focus.requestFocus();
   }
 
+  /// Kamera: tiap kode yang terbaca dicari persis di server; satu barang cocok → masuk keranjang.
+  Future<void> _scan() async {
+    final l = AppLocalizations.of(context);
+    await showScanPage(
+      context,
+      onCode: (code) async {
+        try {
+          final exact = await ref.read(posRepositoryProvider).exact(code);
+          if (exact.length == 1) {
+            ref.read(cartProvider.notifier).add(exact.first);
+            return ScanOutcome(ok: true, text: l.scanAdded(exact.first.name));
+          }
+          return ScanOutcome(
+            ok: false,
+            text: exact.isEmpty ? l.scanNotFound(code) : l.scanAmbiguous(code),
+          );
+        } on ApiError catch (e) {
+          return ScanOutcome(ok: false, text: e.message(l));
+        }
+      },
+    );
+    if (mounted) _focus.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
@@ -456,7 +570,11 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
               hintText: l.posSearchHint,
               prefixIcon: Icon(Icons.search, color: pal.textTertiary),
               suffixIcon: _search.text.isEmpty
-                  ? null
+                  ? IconButton(
+                      tooltip: l.posScanTooltip,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      onPressed: _scan,
+                    )
                   : IconButton(
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () {
@@ -468,6 +586,28 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
             ),
           ),
         ),
+        if (_categories.isNotEmpty)
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _categories.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final c = i == 0 ? null : _categories[i - 1];
+                return ChoiceChip(
+                  label: Text(c?.name ?? l.categoryAll),
+                  selected: _categoryId == c?.id,
+                  onSelected: (_) {
+                    setState(() => _categoryId = c?.id);
+                    _load(_search.text.trim());
+                  },
+                );
+              },
+            ),
+          ),
+        if (_search.text.isEmpty && _categoryId == null) const ShortcutsStrip(),
         Expanded(
           child: _error != null
               ? Center(
@@ -553,7 +693,7 @@ class _ProductCard extends ConsumerWidget {
                 formatMoney(item.price),
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: pal.primary,
+                  color: pal.accent,
                 ),
               ),
               const SizedBox(height: 2),
@@ -674,6 +814,7 @@ class CartPane extends ConsumerWidget {
     final cart = ref.watch(cartProvider);
     final ctrl = ref.read(cartProvider.notifier);
     final q = cart.quote;
+    final pendingCount = ref.watch(pendingProvider.select((p) => p.length));
 
     return Column(
       children: [
@@ -681,23 +822,63 @@ class CartPane extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
           child: Row(
             children: [
-              Text(
-                l.posCartTitle,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l.posCartTitle,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (!cart.isEmpty)
+                      Flexible(
+                        child: Text(
+                          l.posItemsCount(
+                            int.tryParse(formatQty(cart.itemCount)) ??
+                                cart.lines.length,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: pal.textTertiary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
               if (!cart.isEmpty)
-                Text(
-                  l.posItemsCount(
-                    int.tryParse(formatQty(cart.itemCount)) ??
-                        cart.lines.length,
-                  ),
-                  style: TextStyle(color: pal.textTertiary, fontSize: 12.5),
+                IconButton(
+                  tooltip: l.pendingHoldTooltip,
+                  icon: const Icon(Icons.pause_circle_outline),
+                  onPressed: () async {
+                    final held = await showHoldDialog(context, ref);
+                    if (held && scrollController != null && context.mounted) {
+                      Navigator.of(context)
+                          .pop(); // tutup lembar keranjang di HP
+                    }
+                  },
                 ),
-              const Spacer(),
+              IconButton(
+                tooltip: l.pendingListTooltip,
+                icon: Badge(
+                  isLabelVisible: pendingCount > 0,
+                  label: Text('$pendingCount'),
+                  child: const Icon(Icons.pending_actions_outlined),
+                ),
+                onPressed: () async {
+                  final opened = await showPendingSheet(context);
+                  if (opened && scrollController != null && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
               if (!cart.isEmpty)
                 IconButton(
                   tooltip: l.posClearCart,
@@ -707,6 +888,7 @@ class CartPane extends ConsumerWidget {
             ],
           ),
         ),
+        const _MemberBar(),
         Expanded(
           child: cart.isEmpty
               ? const EmptyCart()
@@ -748,12 +930,55 @@ class CartPane extends ConsumerWidget {
                     value: cart.applyTax,
                     onChanged: ctrl.setTax,
                   ),
+                  if (!cart.isEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 36),
+                          padding: EdgeInsets.zero,
+                        ),
+                        onPressed: () => showCostsSheet(context),
+                        icon: Icon(
+                          cart.costs.isNotEmpty || cart.note.isNotEmpty
+                              ? Icons.edit_note
+                              : Icons.add_circle_outline,
+                          size: 18,
+                        ),
+                        label: Text(
+                          cart.costs.isNotEmpty || cart.note.isNotEmpty
+                              ? [
+                                  if (cart.note.isNotEmpty) cart.note,
+                                  if (cart.costs.isNotEmpty)
+                                    '${l.posOtherCost} ${formatMoney(cart.costsTotal)}',
+                                ].join(' · ')
+                              : l.posCostsButton,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
                   if (q != null) ...[
                     _sum(l.posSubtotal, formatMoney(q.subtotal), pal),
                     if (q.discount > Decimal.zero)
                       _sum(l.posDiscount, '- ${formatMoney(q.discount)}', pal),
-                    if (q.tax > Decimal.zero)
-                      _sum(l.posTaxLine, formatMoney(q.tax), pal),
+                    if (q.redeemAmount > Decimal.zero)
+                      _sum(
+                        l.memberRedeemTitle,
+                        '- ${formatMoney(q.redeemAmount)}',
+                        pal,
+                      ),
+                    if (q.taxStore > Decimal.zero)
+                      _sum(
+                        l.posTaxStore(formatQty(q.taxStorePct)),
+                        formatMoney(q.taxStore),
+                        pal,
+                      ),
+                    if (q.taxGov > Decimal.zero)
+                      _sum(
+                        l.posTaxGov(formatQty(q.taxGovPct)),
+                        formatMoney(q.taxGov),
+                        pal,
+                      ),
                     if (q.otherCost > Decimal.zero)
                       _sum(l.posOtherCost, formatMoney(q.otherCost), pal),
                   ],
@@ -761,7 +986,9 @@ class CartPane extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        cart.quoteError!.message(l),
+                        cart.quoteError!.fields.containsKey('redeem_points')
+                            ? l.errorRedeemInvalid
+                            : cart.quoteError!.message(l),
                         style: TextStyle(color: pal.danger, fontSize: 12.5),
                       ),
                     ),
@@ -818,6 +1045,148 @@ class CartPane extends ConsumerWidget {
   );
 }
 
+/// Baris member di atas keranjang: pelanggan umum / member terpilih (poin, deposit, poin yang akan didapat) + tombol tukar poin.
+class _MemberBar extends ConsumerWidget {
+  const _MemberBar();
+
+  Widget _salesperson(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final sp = ref.watch(cartProvider.select((c) => c.salesperson));
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => showSalespersonPicker(context),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+        child: Row(
+          children: [
+            Icon(Icons.badge_outlined, size: 16, color: pal.textTertiary),
+            const SizedBox(width: 6),
+            Text(
+              '${l.salespersonLabel}: ',
+              style: TextStyle(fontSize: 12, color: pal.textTertiary),
+            ),
+            Flexible(
+              child: Text(
+                sp?.name ?? l.salespersonNone,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: sp == null ? FontWeight.w400 : FontWeight.w700,
+                  color: sp == null ? pal.textTertiary : pal.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final cart = ref.watch(cartProvider);
+    final m = cart.member;
+    final qm = cart.quote?.member;
+    final earn = cart.quote?.pointsEarn ?? 0;
+
+    String detail() {
+      if (m == null) return '';
+      final parts = <String>[
+        if (m.level.isNotEmpty) m.level,
+        if (qm != null)
+          l.memberPointsAndDeposit(qm.points, formatMoney(qm.deposit)),
+        if (earn > 0) l.memberEarn(earn),
+      ];
+      return parts.join(' · ');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: m == null ? pal.sunken : pal.primarySoft,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => showMemberPicker(context),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      m == null ? Icons.person_outline : Icons.person,
+                      color: m == null ? pal.textTertiary : pal.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m == null
+                                ? l.memberGeneral
+                                : '${m.name} [${m.code}]',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
+                              color: m == null ? pal.textTertiary : null,
+                            ),
+                          ),
+                          if (m != null)
+                            Text(
+                              detail(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: pal.textTertiary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (m != null && !cart.isEmpty)
+                      IconButton(
+                        tooltip: l.memberRedeemTitle,
+                        onPressed: () => showRedeemDialog(context),
+                        icon: Badge(
+                          isLabelVisible: cart.redeemPoints > 0,
+                          label: Text('-${cart.redeemPoints}'),
+                          child: const Icon(Icons.loyalty_outlined),
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          m == null ? l.memberChoose : l.memberChange,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: pal.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _salesperson(context, ref),
+        ],
+      ),
+    );
+  }
+}
+
 class _CartRow extends ConsumerWidget {
   const _CartRow({required this.line, required this.quote});
 
@@ -864,6 +1233,7 @@ class _CartRow extends ConsumerWidget {
     final ctrl = ref.read(cartProvider.notifier);
     final issue = quote?.issue;
     final unit = quote?.unitPrice ?? line.item.price;
+    final approval = ref.watch(cartProvider.select((c) => c.approval));
     final total = quote?.lineTotal ?? (line.item.price * line.qty);
 
     return Dismissible(
@@ -905,9 +1275,29 @@ class _CartRow extends ConsumerWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                Text(
-                  '${formatMoney(unit)} / ${line.item.unit}',
-                  style: TextStyle(fontSize: 12, color: pal.textTertiary),
+                Flexible(
+                  child: Text(
+                    '${formatMoney(unit)} / ${line.item.unit}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: pal.textTertiary),
+                  ),
+                ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => showLineAdjustSheet(
+                    context,
+                    line: line,
+                    listPrice: quote?.listPrice ?? line.item.price,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      size: 17,
+                      semanticLabel: l.adjustEditTooltip,
+                      color: line.adjusted ? pal.warningText : pal.textTertiary,
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 _QtyBtn(
@@ -941,6 +1331,25 @@ class _CartRow extends ConsumerWidget {
                 ),
               ],
             ),
+            if (line.adjusted)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  [
+                    if (line.overridePrice != null) l.adjustBadgePrice,
+                    if (line.discountForServer != null)
+                      l.adjustBadgeDiscount(
+                        formatMoney(line.discountForServer!),
+                      ),
+                    if (approval != null) l.adjustApprovedBy(approval.name),
+                  ].join(' · '),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: pal.warningText,
+                  ),
+                ),
+              ),
             if (issue == 'STOCK_INSUFFICIENT')
               _Issue(
                 text: l.posStockShort(

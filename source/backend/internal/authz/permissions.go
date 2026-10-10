@@ -32,6 +32,10 @@ var (
 // baris di sini (+ kamus i18n `perm.module.<id>`); role lama otomatis tidak punya izinnya (default tertutup).
 var Modules = []Module{
 	{"siak", viewing},
+	{"accounts", crud}, // bagan akun SIAK
+	{"journals", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}}, // jurnal manual; approve = posting, jurnal balik, saldo awal
+	{"accounting_periods", []string{ActView, ActUpdate, ActApprove}},             // update = tutup buku; approve = buka kembali periode tertutup
+	{"general_ledger", viewing}, // buku besar
 	{"items", crud},
 	{"stock_card", viewing},
 	{"coupons", crud},

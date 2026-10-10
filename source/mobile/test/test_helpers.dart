@@ -14,7 +14,11 @@ class FakeAdapter implements HttpClientAdapter {
   final List<RequestOptions> calls = [];
 
   @override
-  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? body, Future<void>? cancel) async {
+  Future<ResponseBody> fetch(
+    RequestOptions o,
+    Stream<Uint8List>? body,
+    Future<void>? cancel,
+  ) async {
     calls.add(o);
     return handler(o);
   }
@@ -23,29 +27,42 @@ class FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-ResponseBody json(int status, Map<String, dynamic> body) => ResponseBody.fromString(
+ResponseBody json(int status, Map<String, dynamic> body) =>
+    ResponseBody.fromString(
       jsonEncode(body),
       status,
-      headers: {Headers.contentTypeHeader: ['application/json']},
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
     );
 
-Map<String, dynamic> sessionBody({String refresh = 'r1', String access = 'a1'}) => {
-      'access_token': access,
-      'expires_in': 900,
-      if (refresh.isNotEmpty) 'refresh_token': refresh,
-      'permissions': {'sales_orders': ['view', 'create']},
-      'email_verified': true,
-      'user': {'id': 'u1', 'name': 'Budi', 'email': 'budi@toko.test'},
-      'tenant': {'id': 't1', 'name': 'Toko Maju', 'code': 'maju'},
-      'outlet': {'id': 'o1', 'name': 'Pusat', 'code': 'MAIN'},
-    };
+Map<String, dynamic> sessionBody({
+  String refresh = 'r1',
+  String access = 'a1',
+}) => {
+  'access_token': access,
+  'expires_in': 900,
+  if (refresh.isNotEmpty) 'refresh_token': refresh,
+  'permissions': {
+    'sales_orders': ['view', 'create'],
+  },
+  'email_verified': true,
+  'user': {'id': 'u1', 'name': 'Budi', 'email': 'budi@toko.test'},
+  'tenant': {'id': 't1', 'name': 'Toko Maju', 'code': 'maju'},
+  'outlet': {'id': 'o1', 'name': 'Pusat', 'code': 'MAIN'},
+};
 
-ApiClient clientWith(FakeAdapter raw, {FakeAdapter? authed, TokenStore? tokens, void Function()? onExpired}) {
+ApiClient clientWith(
+  FakeAdapter raw, {
+  FakeAdapter? authed,
+  TokenStore? tokens,
+  void Function()? onExpired,
+}) {
   return ApiClient(
     tokens: tokens ?? MemoryTokenStore(),
     onSessionExpired: onExpired ?? () {},
     raw: Dio(BaseOptions(baseUrl: 'http://x'))..httpClientAdapter = raw,
-    authed: Dio(BaseOptions(baseUrl: 'http://x'))..httpClientAdapter = authed ?? raw,
+    authed: Dio(BaseOptions(baseUrl: 'http://x'))
+      ..httpClientAdapter = authed ?? raw,
   );
 }
-

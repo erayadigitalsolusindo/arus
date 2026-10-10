@@ -13,6 +13,356 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const accountCount = `-- name: AccountCount :one
+SELECT count(*) FROM accounts WHERE tenant_id = $1
+`
+
+func (q *Queries) AccountCount(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, accountCount, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const accountCreate = `-- name: AccountCreate :one
+INSERT INTO accounts (tenant_id, parent_id, code, name, kind, class, normal_side, is_cash_bank, is_system)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
+`
+
+type AccountCreateParams struct {
+	TenantID   uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	IsSystem   bool
+}
+
+type AccountCreateRow struct {
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	IsSystem   bool
+}
+
+func (q *Queries) AccountCreate(ctx context.Context, arg AccountCreateParams) (AccountCreateRow, error) {
+	row := q.db.QueryRow(ctx, accountCreate,
+		arg.TenantID,
+		arg.ParentID,
+		arg.Code,
+		arg.Name,
+		arg.Kind,
+		arg.Class,
+		arg.NormalSide,
+		arg.IsCashBank,
+		arg.IsSystem,
+	)
+	var i AccountCreateRow
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Class,
+		&i.NormalSide,
+		&i.IsCashBank,
+		&i.Active,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const accountDelete = `-- name: AccountDelete :execrows
+DELETE FROM accounts WHERE tenant_id = $1 AND id = $2
+`
+
+type AccountDeleteParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) AccountDelete(ctx context.Context, arg AccountDeleteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, accountDelete, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const accountGet = `-- name: AccountGet :one
+SELECT id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
+FROM accounts WHERE tenant_id = $1 AND id = $2
+`
+
+type AccountGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type AccountGetRow struct {
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	IsSystem   bool
+}
+
+func (q *Queries) AccountGet(ctx context.Context, arg AccountGetParams) (AccountGetRow, error) {
+	row := q.db.QueryRow(ctx, accountGet, arg.TenantID, arg.ID)
+	var i AccountGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Class,
+		&i.NormalSide,
+		&i.IsCashBank,
+		&i.Active,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const accountGetByCode = `-- name: AccountGetByCode :one
+SELECT id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
+FROM accounts WHERE tenant_id = $1 AND code = $2
+`
+
+type AccountGetByCodeParams struct {
+	TenantID uuid.UUID
+	Code     string
+}
+
+type AccountGetByCodeRow struct {
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	IsSystem   bool
+}
+
+func (q *Queries) AccountGetByCode(ctx context.Context, arg AccountGetByCodeParams) (AccountGetByCodeRow, error) {
+	row := q.db.QueryRow(ctx, accountGetByCode, arg.TenantID, arg.Code)
+	var i AccountGetByCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Class,
+		&i.NormalSide,
+		&i.IsCashBank,
+		&i.Active,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const accountHasChildren = `-- name: AccountHasChildren :one
+SELECT EXISTS (SELECT 1 FROM accounts WHERE tenant_id = $1 AND parent_id = $2)
+`
+
+type AccountHasChildrenParams struct {
+	TenantID uuid.UUID
+	ParentID pgtype.UUID
+}
+
+func (q *Queries) AccountHasChildren(ctx context.Context, arg AccountHasChildrenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, accountHasChildren, arg.TenantID, arg.ParentID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const accountHasLines = `-- name: AccountHasLines :one
+SELECT EXISTS (SELECT 1 FROM journal_lines WHERE tenant_id = $1 AND account_id = $2)
+`
+
+type AccountHasLinesParams struct {
+	TenantID  uuid.UUID
+	AccountID uuid.UUID
+}
+
+func (q *Queries) AccountHasLines(ctx context.Context, arg AccountHasLinesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, accountHasLines, arg.TenantID, arg.AccountID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const accountList = `-- name: AccountList :many
+SELECT id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
+FROM accounts WHERE tenant_id = $1 ORDER BY code
+`
+
+type AccountListRow struct {
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	IsSystem   bool
+}
+
+func (q *Queries) AccountList(ctx context.Context, tenantID uuid.UUID) ([]AccountListRow, error) {
+	rows, err := q.db.Query(ctx, accountList, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccountListRow
+	for rows.Next() {
+		var i AccountListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentID,
+			&i.Code,
+			&i.Name,
+			&i.Kind,
+			&i.Class,
+			&i.NormalSide,
+			&i.IsCashBank,
+			&i.Active,
+			&i.IsSystem,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const accountUpdate = `-- name: AccountUpdate :one
+UPDATE accounts SET parent_id = $3, code = $4, name = $5, class = $6, normal_side = $7, is_cash_bank = $8, active = $9
+WHERE tenant_id = $1 AND id = $2
+RETURNING id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
+`
+
+type AccountUpdateParams struct {
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+}
+
+type AccountUpdateRow struct {
+	ID         uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	IsSystem   bool
+}
+
+func (q *Queries) AccountUpdate(ctx context.Context, arg AccountUpdateParams) (AccountUpdateRow, error) {
+	row := q.db.QueryRow(ctx, accountUpdate,
+		arg.TenantID,
+		arg.ID,
+		arg.ParentID,
+		arg.Code,
+		arg.Name,
+		arg.Class,
+		arg.NormalSide,
+		arg.IsCashBank,
+		arg.Active,
+	)
+	var i AccountUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.Code,
+		&i.Name,
+		&i.Kind,
+		&i.Class,
+		&i.NormalSide,
+		&i.IsCashBank,
+		&i.Active,
+		&i.IsSystem,
+	)
+	return i, err
+}
+
+const accountsByIDs = `-- name: AccountsByIDs :many
+SELECT id, kind, active, is_cash_bank FROM accounts WHERE tenant_id = $1 AND id = ANY($2::uuid[])
+`
+
+type AccountsByIDsParams struct {
+	TenantID uuid.UUID
+	Column2  []uuid.UUID
+}
+
+type AccountsByIDsRow struct {
+	ID         uuid.UUID
+	Kind       string
+	Active     bool
+	IsCashBank bool
+}
+
+func (q *Queries) AccountsByIDs(ctx context.Context, arg AccountsByIDsParams) ([]AccountsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, accountsByIDs, arg.TenantID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccountsByIDsRow
+	for rows.Next() {
+		var i AccountsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Active,
+			&i.IsCashBank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const approvalSelf = `-- name: ApprovalSelf :one
 SELECT u.password_hash, (u.pin_hash IS NOT NULL)::boolean AS has_pin, r.permissions
 FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
@@ -359,6 +709,78 @@ func (q *Queries) AuthzListAccessibleOutlets(ctx context.Context, arg AuthzListA
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const balanceAdd = `-- name: BalanceAdd :exec
+INSERT INTO account_period_balances (tenant_id, outlet_id, account_id, period_month, debit, credit)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (tenant_id, outlet_id, account_id, period_month)
+DO UPDATE SET debit = account_period_balances.debit + EXCLUDED.debit, credit = account_period_balances.credit + EXCLUDED.credit
+`
+
+type BalanceAddParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	AccountID   uuid.UUID
+	PeriodMonth pgtype.Date
+	Debit       decimal.Decimal
+	Credit      decimal.Decimal
+}
+
+func (q *Queries) BalanceAdd(ctx context.Context, arg BalanceAddParams) error {
+	_, err := q.db.Exec(ctx, balanceAdd,
+		arg.TenantID,
+		arg.OutletID,
+		arg.AccountID,
+		arg.PeriodMonth,
+		arg.Debit,
+		arg.Credit,
+	)
+	return err
+}
+
+const balanceList = `-- name: BalanceList :many
+SELECT outlet_id, account_id, period_month, debit, credit FROM account_period_balances
+WHERE tenant_id = $1 AND account_id = $2 ORDER BY period_month, outlet_id
+`
+
+type BalanceListParams struct {
+	TenantID  uuid.UUID
+	AccountID uuid.UUID
+}
+
+type BalanceListRow struct {
+	OutletID    uuid.UUID
+	AccountID   uuid.UUID
+	PeriodMonth pgtype.Date
+	Debit       decimal.Decimal
+	Credit      decimal.Decimal
+}
+
+func (q *Queries) BalanceList(ctx context.Context, arg BalanceListParams) ([]BalanceListRow, error) {
+	rows, err := q.db.Query(ctx, balanceList, arg.TenantID, arg.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BalanceListRow
+	for rows.Next() {
+		var i BalanceListRow
+		if err := rows.Scan(
+			&i.OutletID,
+			&i.AccountID,
+			&i.PeriodMonth,
+			&i.Debit,
+			&i.Credit,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -2209,6 +2631,341 @@ func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
 	return err
 }
 
+const journalDeleteDraft = `-- name: JournalDeleteDraft :execrows
+DELETE FROM journal_entries WHERE tenant_id = $1 AND id = $2 AND status = 'draft'
+`
+
+type JournalDeleteDraftParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) JournalDeleteDraft(ctx context.Context, arg JournalDeleteDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, journalDeleteDraft, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const journalGet = `-- name: JournalGet :one
+SELECT id, outlet_id, doc_no, entry_date, type, status, narration, reverses_id, created_by, created_at, posted_by, posted_at
+FROM journal_entries WHERE tenant_id = $1 AND id = $2
+`
+
+type JournalGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type JournalGetRow struct {
+	ID         uuid.UUID
+	OutletID   uuid.UUID
+	DocNo      pgtype.Text
+	EntryDate  pgtype.Date
+	Type       string
+	Status     string
+	Narration  string
+	ReversesID pgtype.UUID
+	CreatedBy  uuid.UUID
+	CreatedAt  pgtype.Timestamptz
+	PostedBy   pgtype.UUID
+	PostedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) JournalGet(ctx context.Context, arg JournalGetParams) (JournalGetRow, error) {
+	row := q.db.QueryRow(ctx, journalGet, arg.TenantID, arg.ID)
+	var i JournalGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.EntryDate,
+		&i.Type,
+		&i.Status,
+		&i.Narration,
+		&i.ReversesID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.PostedBy,
+		&i.PostedAt,
+	)
+	return i, err
+}
+
+const journalInsert = `-- name: JournalInsert :one
+INSERT INTO journal_entries (tenant_id, outlet_id, entry_date, type, narration, source_type, source_ref, reverses_id, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id
+`
+
+type JournalInsertParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	EntryDate  pgtype.Date
+	Type       string
+	Narration  string
+	SourceType pgtype.Text
+	SourceRef  pgtype.Text
+	ReversesID pgtype.UUID
+	CreatedBy  uuid.UUID
+}
+
+func (q *Queries) JournalInsert(ctx context.Context, arg JournalInsertParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, journalInsert,
+		arg.TenantID,
+		arg.OutletID,
+		arg.EntryDate,
+		arg.Type,
+		arg.Narration,
+		arg.SourceType,
+		arg.SourceRef,
+		arg.ReversesID,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const journalLineInsert = `-- name: JournalLineInsert :exec
+INSERT INTO journal_lines (tenant_id, entry_id, entry_date, line_no, account_id, debit, credit, memo)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type JournalLineInsertParams struct {
+	TenantID  uuid.UUID
+	EntryID   uuid.UUID
+	EntryDate pgtype.Date
+	LineNo    int32
+	AccountID uuid.UUID
+	Debit     decimal.Decimal
+	Credit    decimal.Decimal
+	Memo      string
+}
+
+func (q *Queries) JournalLineInsert(ctx context.Context, arg JournalLineInsertParams) error {
+	_, err := q.db.Exec(ctx, journalLineInsert,
+		arg.TenantID,
+		arg.EntryID,
+		arg.EntryDate,
+		arg.LineNo,
+		arg.AccountID,
+		arg.Debit,
+		arg.Credit,
+		arg.Memo,
+	)
+	return err
+}
+
+const journalLines = `-- name: JournalLines :many
+SELECT l.line_no, l.account_id, a.code AS account_code, a.name AS account_name, l.debit, l.credit, l.memo
+FROM journal_lines l JOIN accounts a ON a.tenant_id = l.tenant_id AND a.id = l.account_id
+WHERE l.tenant_id = $1 AND l.entry_id = $2 ORDER BY l.line_no
+`
+
+type JournalLinesParams struct {
+	TenantID uuid.UUID
+	EntryID  uuid.UUID
+}
+
+type JournalLinesRow struct {
+	LineNo      int32
+	AccountID   uuid.UUID
+	AccountCode string
+	AccountName string
+	Debit       decimal.Decimal
+	Credit      decimal.Decimal
+	Memo        string
+}
+
+func (q *Queries) JournalLines(ctx context.Context, arg JournalLinesParams) ([]JournalLinesRow, error) {
+	rows, err := q.db.Query(ctx, journalLines, arg.TenantID, arg.EntryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []JournalLinesRow
+	for rows.Next() {
+		var i JournalLinesRow
+		if err := rows.Scan(
+			&i.LineNo,
+			&i.AccountID,
+			&i.AccountCode,
+			&i.AccountName,
+			&i.Debit,
+			&i.Credit,
+			&i.Memo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const journalLinesDelete = `-- name: JournalLinesDelete :exec
+DELETE FROM journal_lines WHERE tenant_id = $1 AND entry_id = $2
+`
+
+type JournalLinesDeleteParams struct {
+	TenantID uuid.UUID
+	EntryID  uuid.UUID
+}
+
+func (q *Queries) JournalLinesDelete(ctx context.Context, arg JournalLinesDeleteParams) error {
+	_, err := q.db.Exec(ctx, journalLinesDelete, arg.TenantID, arg.EntryID)
+	return err
+}
+
+const journalLockGet = `-- name: JournalLockGet :one
+SELECT id, outlet_id, doc_no, entry_date, type, status, narration, reverses_id, created_by, created_at, posted_by, posted_at
+FROM journal_entries WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type JournalLockGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type JournalLockGetRow struct {
+	ID         uuid.UUID
+	OutletID   uuid.UUID
+	DocNo      pgtype.Text
+	EntryDate  pgtype.Date
+	Type       string
+	Status     string
+	Narration  string
+	ReversesID pgtype.UUID
+	CreatedBy  uuid.UUID
+	CreatedAt  pgtype.Timestamptz
+	PostedBy   pgtype.UUID
+	PostedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) JournalLockGet(ctx context.Context, arg JournalLockGetParams) (JournalLockGetRow, error) {
+	row := q.db.QueryRow(ctx, journalLockGet, arg.TenantID, arg.ID)
+	var i JournalLockGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.OutletID,
+		&i.DocNo,
+		&i.EntryDate,
+		&i.Type,
+		&i.Status,
+		&i.Narration,
+		&i.ReversesID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.PostedBy,
+		&i.PostedAt,
+	)
+	return i, err
+}
+
+const journalMarkPosted = `-- name: JournalMarkPosted :execrows
+UPDATE journal_entries SET status = 'posted', doc_no = $3, posted_by = $4, posted_at = now()
+WHERE tenant_id = $1 AND id = $2 AND status = 'draft'
+`
+
+type JournalMarkPostedParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	DocNo    pgtype.Text
+	PostedBy pgtype.UUID
+}
+
+func (q *Queries) JournalMarkPosted(ctx context.Context, arg JournalMarkPostedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, journalMarkPosted,
+		arg.TenantID,
+		arg.ID,
+		arg.DocNo,
+		arg.PostedBy,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const journalNextNo = `-- name: JournalNextNo :one
+INSERT INTO journal_counters (tenant_id, type, year, last_no) VALUES ($1, $2, $3, 1)
+ON CONFLICT (tenant_id, type, year) DO UPDATE SET last_no = journal_counters.last_no + 1
+RETURNING last_no
+`
+
+type JournalNextNoParams struct {
+	TenantID uuid.UUID
+	Type     string
+	Year     int32
+}
+
+func (q *Queries) JournalNextNo(ctx context.Context, arg JournalNextNoParams) (int64, error) {
+	row := q.db.QueryRow(ctx, journalNextNo, arg.TenantID, arg.Type, arg.Year)
+	var last_no int64
+	err := row.Scan(&last_no)
+	return last_no, err
+}
+
+const journalOpeningExists = `-- name: JournalOpeningExists :one
+SELECT EXISTS (
+    SELECT 1 FROM journal_entries o WHERE o.tenant_id = $1 AND o.type = 'OPENING' AND o.reverses_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM journal_entries r WHERE r.tenant_id = o.tenant_id AND r.reverses_id = o.id))
+`
+
+func (q *Queries) JournalOpeningExists(ctx context.Context, tenantID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, journalOpeningExists, tenantID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const journalReversalExists = `-- name: JournalReversalExists :one
+SELECT EXISTS (SELECT 1 FROM journal_entries WHERE tenant_id = $1 AND reverses_id = $2)
+`
+
+type JournalReversalExistsParams struct {
+	TenantID   uuid.UUID
+	ReversesID pgtype.UUID
+}
+
+func (q *Queries) JournalReversalExists(ctx context.Context, arg JournalReversalExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, journalReversalExists, arg.TenantID, arg.ReversesID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const journalUpdateDraft = `-- name: JournalUpdateDraft :execrows
+UPDATE journal_entries SET outlet_id = $3, entry_date = $4, narration = $5
+WHERE tenant_id = $1 AND id = $2 AND status = 'draft'
+`
+
+type JournalUpdateDraftParams struct {
+	TenantID  uuid.UUID
+	ID        uuid.UUID
+	OutletID  uuid.UUID
+	EntryDate pgtype.Date
+	Narration string
+}
+
+func (q *Queries) JournalUpdateDraft(ctx context.Context, arg JournalUpdateDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, journalUpdateDraft,
+		arg.TenantID,
+		arg.ID,
+		arg.OutletID,
+		arg.EntryDate,
+		arg.Narration,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const memberCodeExists = `-- name: MemberCodeExists :one
 SELECT member_code_taken($1::text)::boolean AS taken
 `
@@ -3969,6 +4726,171 @@ func (q *Queries) PaymentMethodUpdate(ctx context.Context, arg PaymentMethodUpda
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const periodDraftCount = `-- name: PeriodDraftCount :one
+SELECT count(*) FROM journal_entries
+WHERE tenant_id = $1 AND status = 'draft' AND entry_date >= $2 AND entry_date <= $3
+`
+
+type PeriodDraftCountParams struct {
+	TenantID    uuid.UUID
+	EntryDate   pgtype.Date
+	EntryDate_2 pgtype.Date
+}
+
+func (q *Queries) PeriodDraftCount(ctx context.Context, arg PeriodDraftCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, periodDraftCount, arg.TenantID, arg.EntryDate, arg.EntryDate_2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const periodEnsure = `-- name: PeriodEnsure :exec
+INSERT INTO accounting_periods (tenant_id, start_date, end_date)
+VALUES ($1, $2, ($2::date + interval '1 month' - interval '1 day')::date)
+ON CONFLICT (tenant_id, start_date) DO NOTHING
+`
+
+type PeriodEnsureParams struct {
+	TenantID  uuid.UUID
+	StartDate pgtype.Date
+}
+
+func (q *Queries) PeriodEnsure(ctx context.Context, arg PeriodEnsureParams) error {
+	_, err := q.db.Exec(ctx, periodEnsure, arg.TenantID, arg.StartDate)
+	return err
+}
+
+const periodList = `-- name: PeriodList :many
+SELECT id, start_date, end_date, status, closed_at, closed_by FROM accounting_periods
+WHERE tenant_id = $1 ORDER BY start_date DESC LIMIT 240
+`
+
+type PeriodListRow struct {
+	ID        uuid.UUID
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+	Status    string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+}
+
+func (q *Queries) PeriodList(ctx context.Context, tenantID uuid.UUID) ([]PeriodListRow, error) {
+	rows, err := q.db.Query(ctx, periodList, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PeriodListRow
+	for rows.Next() {
+		var i PeriodListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Status,
+			&i.ClosedAt,
+			&i.ClosedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const periodLockShare = `-- name: PeriodLockShare :one
+SELECT id, start_date, end_date, status, closed_at, closed_by FROM accounting_periods
+WHERE tenant_id = $1 AND start_date = $2 FOR SHARE
+`
+
+type PeriodLockShareParams struct {
+	TenantID  uuid.UUID
+	StartDate pgtype.Date
+}
+
+type PeriodLockShareRow struct {
+	ID        uuid.UUID
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+	Status    string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+}
+
+// Posting menahan periode FOR SHARE; tutup buku (FOR UPDATE) menunggu posting yang sedang berjalan.
+func (q *Queries) PeriodLockShare(ctx context.Context, arg PeriodLockShareParams) (PeriodLockShareRow, error) {
+	row := q.db.QueryRow(ctx, periodLockShare, arg.TenantID, arg.StartDate)
+	var i PeriodLockShareRow
+	err := row.Scan(
+		&i.ID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Status,
+		&i.ClosedAt,
+		&i.ClosedBy,
+	)
+	return i, err
+}
+
+const periodLockUpdate = `-- name: PeriodLockUpdate :one
+SELECT id, start_date, end_date, status, closed_at, closed_by FROM accounting_periods
+WHERE tenant_id = $1 AND start_date = $2 FOR UPDATE
+`
+
+type PeriodLockUpdateParams struct {
+	TenantID  uuid.UUID
+	StartDate pgtype.Date
+}
+
+type PeriodLockUpdateRow struct {
+	ID        uuid.UUID
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+	Status    string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+}
+
+func (q *Queries) PeriodLockUpdate(ctx context.Context, arg PeriodLockUpdateParams) (PeriodLockUpdateRow, error) {
+	row := q.db.QueryRow(ctx, periodLockUpdate, arg.TenantID, arg.StartDate)
+	var i PeriodLockUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Status,
+		&i.ClosedAt,
+		&i.ClosedBy,
+	)
+	return i, err
+}
+
+const periodSetStatus = `-- name: PeriodSetStatus :exec
+UPDATE accounting_periods SET status = $3, closed_at = $4, closed_by = $5 WHERE tenant_id = $1 AND id = $2
+`
+
+type PeriodSetStatusParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Status   string
+	ClosedAt pgtype.Timestamptz
+	ClosedBy pgtype.UUID
+}
+
+func (q *Queries) PeriodSetStatus(ctx context.Context, arg PeriodSetStatusParams) error {
+	_, err := q.db.Exec(ctx, periodSetStatus,
+		arg.TenantID,
+		arg.ID,
+		arg.Status,
+		arg.ClosedAt,
+		arg.ClosedBy,
+	)
+	return err
 }
 
 const platformAdminByEmail = `-- name: PlatformAdminByEmail :one

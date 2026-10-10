@@ -10,6 +10,41 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type Account struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	ParentID   pgtype.UUID
+	Code       string
+	Name       string
+	Kind       string
+	Class      string
+	NormalSide string
+	IsCashBank bool
+	Active     bool
+	CreatedAt  pgtype.Timestamptz
+	IsSystem   bool
+}
+
+type AccountPeriodBalance struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	AccountID   uuid.UUID
+	PeriodMonth pgtype.Date
+	Debit       decimal.Decimal
+	Credit      decimal.Decimal
+}
+
+type AccountingPeriod struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+	Status    string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type AppSetting struct {
 	Key         string
 	Value       []byte
@@ -189,6 +224,44 @@ type ItemWholesaleTier struct {
 	OutletID pgtype.UUID
 	MinQty   decimal.Decimal
 	Price    decimal.Decimal
+}
+
+type JournalCounter struct {
+	TenantID uuid.UUID
+	Type     string
+	Year     int32
+	LastNo   int64
+}
+
+type JournalEntry struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	DocNo      pgtype.Text
+	EntryDate  pgtype.Date
+	Type       string
+	Status     string
+	Narration  string
+	SourceType pgtype.Text
+	SourceRef  pgtype.Text
+	ReversesID pgtype.UUID
+	CreatedBy  uuid.UUID
+	CreatedAt  pgtype.Timestamptz
+	PostedBy   pgtype.UUID
+	PostedAt   pgtype.Timestamptz
+}
+
+type JournalLine struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	EntryID   uuid.UUID
+	Seq       pgtype.Int8
+	EntryDate pgtype.Date
+	LineNo    int32
+	AccountID uuid.UUID
+	Debit     decimal.Decimal
+	Credit    decimal.Decimal
+	Memo      string
 }
 
 type Member struct {

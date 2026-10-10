@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"aciraba/internal/accounting"
 	"aciraba/internal/approval"
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
@@ -115,5 +116,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	dashboard.NewHandler(dashboard.NewService(d.Pool, receivableSvc, payableSvc), perms, tokens, d.Log).Routes(r)
 	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
+	accounting.NewHandler(accounting.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

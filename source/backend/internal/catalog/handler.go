@@ -49,7 +49,12 @@ func (h *Handler) Routes(r chi.Router) {
 		// itu atau izin lihat item — pegawai yang mengelola item tidak otomatis boleh membuka halaman masternya.
 		r.Route("/lookup", func(r chi.Router) {
 			for _, k := range Kinds {
-				r.With(authz.RequireAny([2]string{k.Path, authz.ActView}, [2]string{ItemsModule, authz.ActView}, [2]string{"stock_opname", authz.ActCreate})).Get("/"+k.Path+"/", h.listSimple(k))
+				perms := [][2]string{{k.Path, authz.ActView}, {ItemsModule, authz.ActView}, {"stock_opname", authz.ActCreate}}
+				if k.Path == "categories" {
+					// Kasir memfilter katalog per kategori tanpa izin halaman master.
+					perms = append(perms, [2]string{"sales_orders", authz.ActCreate})
+				}
+				r.With(authz.RequireAny(perms...)).Get("/"+k.Path+"/", h.listSimple(k))
 			}
 			r.With(authz.RequireAny([2]string{SupplierModule, authz.ActView}, [2]string{ItemsModule, authz.ActView}, [2]string{"purchase_invoices", authz.ActCreate})).Get("/suppliers/", h.lookupSuppliers)
 			// Kasir memilih salesman di nota tanpa izin halaman master.

@@ -28,6 +28,35 @@ audit_log(id, tenant_id, actor_id, entity, entity_id, field, old, new, at)   -- 
 ```
 Catatan: legacy menyimpan stok per outlet dalam **3 bucket**: `DISPLAY`, `GUDANG`, `RETUR`. Penjualan hanya mengurangi `DISPLAY`. Mutasi bisa memindah antar bucket dan antar outlet.
 
+## 4b. Akuntansi SIAK (draf rancangan 2026-10-11 — disetujui pengguna: dokumen dulu)
+
+Padanan legacy (`SiakData.js`, `01_siak_*`) hanya untuk memahami aturan; **tidak dimigrasikan**. Legacy = akuntansi **manual** (JU/KM/KK/TK); jurnal otomatis dari penjualan/pembelian tidak pernah ada → itu fitur baru. Kelemahan yang tidak disalin: edit/hapus jurnal via DELETE+INSERT, saldo `SUM` mentah, `double`, `DATE(waktu)` mematikan indeks, tanpa FK/UNIQUE/cek debit=kredit, neraca separuh jadi.
+
+```
+accounts(id, tenant_id, parent_id fk null, code, name, kind enum(group, ledger), normal_side enum(debit, credit),
+         class enum(asset, liability, equity, revenue, cogs, expense), is_cash_bank bool, active, unique(tenant_id, code))
+accounting_periods(id, tenant_id, start_date, end_date, status enum(open, closed), closed_at, closed_by)  -- 1 baris = 1 bulan kalender (CHECK), unique(tenant_id, start_date), dibuat otomatis saat pertama dipakai
+journal_entries(id, tenant_id, outlet_id, doc_no /*null selama draf; diberikan saat posting, mis. JU/2026/000001*/, entry_date date, type enum(JU, KM, KK, TK, SALES, PURCHASE, AR, AP, OPENING),
+                status enum(draft, posted), narration, source_type, source_ref, reverses_id fk null, created_by, posted_by, posted_at,
+                unique(tenant_id, doc_no), unique(tenant_id, source_type, source_ref) /*idempotensi jurnal otomatis*/)
+journal_lines(id, entry_id fk, tenant_id, account_id fk, debit numeric(18,2), credit numeric(18,2), line_no, memo,
+              check ((debit = 0) <> (credit = 0)), index (tenant_id, account_id, entry_date, seq))
+account_period_balances(tenant_id, outlet_id, account_id, period_month date, debit, credit, pk(...))   -- agregat, diupdate di transaksi posting
+account_mappings(tenant_id, key text /*sales_revenue, cash, receivable, cogs, inventory, tax_out, payment_method:<id>, fee:<id> ...*/, account_id)
+```
+
+Aturan (diuji di service Go, bukan trigger):
+1. Entri `posted` **immutable**; koreksi = jurnal balik (`reverses_id`, satu per jurnal). Draf boleh diedit/dihapus. Dijaga juga di DB: policy RLS RESTRICTIVE (UPDATE/DELETE header hanya `draft`; baris jurnal hanya bisa ditambah/dihapus saat header draf, tanpa hak UPDATE).
+2. Posting wajib Σdebit = Σkredit, ≥ 2 baris, semua akun `ledger` & aktif, tanggal jatuh di periode `open`.
+3. Akun tak bisa dihapus bila punya anak atau baris jurnal (nonaktifkan saja). Kode akun unik per tenant; saldo normal diturunkan dari `class`.
+4. Tutup buku mengunci periode (tak ada posting/balik ke tanggal itu); buka kembali hanya izin khusus + audit. Tutup tahun: jurnal penutup pendapatan/beban → laba ditahan.
+5. Saldo awal = jurnal `OPENING` di tanggal awal periode pertama (bukan kolom di COA seperti legacy); wajib seimbang.
+6. Pemetaan akun per **metode bayar** (`account_mappings`), bukan per jenis (PRD FR-ACC-02).
+7. **Jurnal otomatis (fase C):** penjualan **diringkas per outlet per hari** (bukan per nota → hindari jutaan baris): satu entri `SALES` berkunci `(source_type, source_ref = outlet+tanggal)`, dibuat/diperbarui idempoten dari agregat nota pada tanggal itu; bisa ditelusuri ke nota sumber lewat laporan penjualan. Pembelian, pembayaran piutang/hutang, dan retur terjurnal per dokumen di transaksi yang sama dengan sumbernya (prinsip §3.2). Penjualan hari yang periodenya sudah ditutup tidak diubah (selisih masuk periode terbuka berikutnya).
+8. Big data: buku besar keyset `(account_id, entry_date, seq)`; saldo dari `account_period_balances` + mutasi periode berjalan; neraca/laba rugi = agregat per akun, tanpa memindai `journal_lines`.
+
+Fase: **A** COA (+template retail) + periode + jurnal manual (JU/KM/KK/TK) + buku besar → **B** neraca saldo, laba rugi, neraca (baca-saja) → **C** jurnal otomatis + pemetaan akun.
+
 ## 5. Struktur Repo Target
 
 ```

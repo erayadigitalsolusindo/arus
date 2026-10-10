@@ -8,10 +8,12 @@ import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
+import 'approver_fields.dart';
 import 'pos_controller.dart';
 import 'pos_models.dart';
 import 'pos_repository.dart';
 import 'shift_dialog.dart';
+import 'shift_models.dart';
 
 /// Layar bayar: satu atau beberapa baris (metode + jumlah) → split bayar. Server menentukan total, kembalian,
 /// dan menegakkan aturan (non-tunai tak boleh melebihi total, shift wajib). Hasil: nota tersimpan atau null (ditutup).
@@ -52,6 +54,14 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
   bool _busy = false;
   ApiError? _error;
 
+  // Kredit: sisa yang belum dibayar menjadi piutang member; baris bayar = DP (boleh kosong).
+  bool _credit = false;
+  bool _serverOver =
+      false; // server menolak karena limit walau pratinjau belum tahu
+  Approver? _creditApprover;
+  String _creditPin = '';
+  final _creditKey = GlobalKey<ApproverFieldsState>();
+
   @override
   void dispose() {
     for (final r in _rows) {
@@ -76,6 +86,23 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     return over <= _cashPaid ? over : _cashPaid;
   }
 
+  /// Biaya metode yang ditagihkan ke pelanggan (di luar total nota). Pratinjau; server yang menentukan.
+  Decimal get _surcharge => _rows.fold(
+    Decimal.zero,
+    (a, r) => r.method.feeByCustomer
+        ? a + r.method.feeOf(parseInput(r.amount.text))
+        : a,
+  );
+
+  /// Sisa yang harus dibayar baris [r] (total dikurangi baris lain); dasar uang pas dan nominal cepat.
+  Decimal _needFor(_PayRow r) {
+    final others = _rows
+        .where((x) => x != r)
+        .fold(Decimal.zero, (a, x) => a + parseInput(x.amount.text));
+    final need = _total - others;
+    return need > Decimal.zero ? need : Decimal.zero;
+  }
+
   Decimal get _short => _total > _paid ? _total - _paid : Decimal.zero;
 
   void _edited() {
@@ -83,8 +110,42 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     setState(() {});
   }
 
+  void _setCredit(bool on) {
+    if (_credit == on) return;
+    for (final r in _rows) {
+      r.dispose();
+    }
+    _rows.clear();
+    _credit = on;
+    _serverOver = false;
+    _error = null;
+    _edited();
+  }
+
+  Decimal get _receivable =>
+      _credit && _paid < _total ? _total - _paid : Decimal.zero;
+
+  /// Pratinjau; server yang menentukan dan memeriksa limit.
+  bool get _overLimit {
+    final q = ref.read(cartProvider).quote;
+    final c = q?.member == null ? null : q?.credit;
+    final r = _receivable;
+    if (!_credit || r <= Decimal.zero) return false;
+    final preview =
+        c != null && c.limit > Decimal.zero && c.outstanding + r > c.limit;
+    return preview || _serverOver;
+  }
+
+  /// Penyetuju limit kredit hanya diminta bila belum ada penyetuju ubah harga/potongan (dipakai bersama, seperti web).
+  bool get _needCreditApproval =>
+      _overLimit && ref.read(cartProvider).draft(forPay: true).approval == null;
+
+  bool get _creditApprovalOk =>
+      !_needCreditApproval ||
+      (_creditApprover != null && RegExp(r'^\d{6}$').hasMatch(_creditPin));
+
   void _ensureDefaults(List<PayMethodInfo> methods) {
-    if (_rows.isNotEmpty || methods.isEmpty) return;
+    if (_credit || _rows.isNotEmpty || methods.isEmpty) return;
     final cash = methods.firstWhere(
       (m) => m.isCash,
       orElse: () => methods.first,
@@ -115,8 +176,19 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
           result = await ref
               .read(posRepositoryProvider)
               .createSale(
-                cart.lines,
-                applyTax: cart.applyTax,
+                _credit
+                    ? cart
+                          .draft(forPay: true)
+                          .asCredit(
+                            _needCreditApproval
+                                ? ApprovalGrant(
+                                    userId: _creditApprover!.id,
+                                    name: _creditApprover!.name,
+                                    pin: _creditPin,
+                                  )
+                                : cart.draft(forPay: true).approval,
+                          )
+                    : cart.draft(forPay: true),
                 payments: payments,
                 idempotencyKey: _key!,
               );
@@ -135,7 +207,17 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       ref.read(cartProvider.notifier).clear();
       Navigator.of(context).pop(result);
     } on ApiError catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() {
+          _error = e;
+          // Melewati limit: minta persetujuan penyetuju; PIN yang ditolak dikosongkan.
+          if (e.code == 'CREDIT_LIMIT_EXCEEDED') _serverOver = true;
+          if (e.code == 'INVALID_PIN' || e.code == 'CREDIT_LIMIT_EXCEEDED') {
+            _creditPin = '';
+            _creditKey.currentState?.clearPin();
+          }
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -162,10 +244,28 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
             child: Text(e is ApiError ? e.message(l) : l.errorUnknown),
           ),
         ),
-        data: (methods) {
+        data: (allMethods) {
+          // Deposit hanya bisa dipakai bila nota punya member.
+          final hasMember = quote?.member != null;
+          final methods = [
+            for (final m in allMethods)
+              if (!m.isDeposit || hasMember) m,
+          ];
           _ensureDefaults(methods);
-          final enough =
-              _paid >= total && total > Decimal.zero && _rows.isNotEmpty;
+          final deposit = quote?.member?.deposit ?? Decimal.zero;
+          final depositUsed = _rows
+              .where((r) => r.method.isDeposit)
+              .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
+          final depositOver = depositUsed > deposit;
+          final enough = _credit
+              ? hasMember &&
+                    _receivable > Decimal.zero &&
+                    _creditApprovalOk &&
+                    !depositOver
+              : _paid >= total &&
+                    total > Decimal.zero &&
+                    _rows.isNotEmpty &&
+                    !depositOver;
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -215,6 +315,46 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                           ],
                         ),
                       ),
+                      if (quote?.member != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '${ref.watch(cartProvider.select((c) => c.member?.name)) ?? ''} · ${l.memberPointsAndDeposit(quote!.member!.points, formatMoney(deposit))}',
+                          style: TextStyle(
+                            color: pal.textTertiary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      SegmentedButton<bool>(
+                        segments: [
+                          ButtonSegment(
+                            value: false,
+                            label: Text(l.payModePay),
+                          ),
+                          ButtonSegment(
+                            value: true,
+                            enabled: hasMember,
+                            label: Text(l.payModeCredit),
+                          ),
+                        ],
+                        selected: {_credit},
+                        onSelectionChanged: _busy
+                            ? null
+                            : (s) => _setCredit(s.first),
+                      ),
+                      if (!hasMember)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            l.payCreditNoMember,
+                            style: TextStyle(
+                              color: pal.textTertiary,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                      if (_credit) ..._creditPanel(context, quote),
                       const SizedBox(height: 14),
                       for (var i = 0; i < _rows.length; i++) ...[
                         _row(context, i, methods),
@@ -243,12 +383,44 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                                     _edited();
                                   },
                             icon: const Icon(Icons.add, size: 18),
-                            label: Text(l.payAddMethod),
+                            label: Text(
+                              _credit ? l.payCreditDpAdd : l.payAddMethod,
+                            ),
+                          ),
+                        ),
+                      if (depositOver)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            l.payDepositOver(formatMoney(deposit)),
+                            style: TextStyle(
+                              color: pal.danger,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.5,
+                            ),
                           ),
                         ),
                       const Divider(height: 24),
                       _kv(l.payPaid, formatMoney(_paid), pal),
-                      if (_short > Decimal.zero)
+                      if (_surcharge > Decimal.zero) ...[
+                        _kv(l.paySurcharge, '+${formatMoney(_surcharge)}', pal),
+                        _kv(
+                          l.payCharged,
+                          formatMoney(total + _surcharge),
+                          pal,
+                          color: pal.danger,
+                          bold: true,
+                        ),
+                      ],
+                      if (_credit)
+                        _kv(
+                          l.payCreditReceivable,
+                          formatMoney(_receivable),
+                          pal,
+                          color: pal.danger,
+                          bold: true,
+                        )
+                      else if (_short > Decimal.zero)
                         _kv(
                           l.payShortBy(formatMoney(_short)),
                           '',
@@ -272,7 +444,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            _error!.message(l),
+                            _errorText(l),
                             style: TextStyle(
                               color: pal.dangerText,
                               fontSize: 13,
@@ -298,6 +470,119 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     );
   }
 
+  String _errorText(AppLocalizations l) {
+    final e = _error!;
+    if (e.code == 'VALIDATION') {
+      final c = e.fields['credit'];
+      if (c == 'CREDIT_NOT_NEEDED') return l.payCreditNotNeeded;
+      if (c == 'MEMBER_REQUIRED') return l.payCreditNoMember;
+    }
+    return e.message(l);
+  }
+
+  /// Ringkasan syarat kredit member + persetujuan bila melewati limit.
+  List<Widget> _creditPanel(BuildContext context, Quote? quote) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final c = quote?.credit;
+    final r = _receivable;
+    Widget kv(String k, String v, {bool bold = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Text(
+              k,
+              style: TextStyle(color: pal.textTertiary, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            v,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+    return [
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: pal.sunken,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            kv(
+              l.payCreditDue,
+              c != null && c.dueDays > 0
+                  ? l.payCreditDueDays(c.dueDays)
+                  : l.payCreditNoDue,
+            ),
+            if (c != null) ...[
+              kv(
+                l.payCreditLimit,
+                c.limit > Decimal.zero
+                    ? formatMoney(c.limit)
+                    : l.payCreditNoLimit,
+              ),
+              kv(l.payCreditOutstanding, formatMoney(c.outstanding)),
+              kv(l.payCreditAfter, formatMoney(c.outstanding + r), bold: true),
+            ],
+          ],
+        ),
+      ),
+      // Tetap terpasang (disembunyikan) selama mode kredit, supaya PIN yang diketik tidak hilang saat DP diubah.
+      Visibility(
+        visible: _overLimit,
+        maintainState: true,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: pal.warningSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l.payCreditOverLimit,
+                  style: TextStyle(
+                    color: pal.warningText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (ref.read(cartProvider).draft(forPay: true).approval != null)
+                  Text(
+                    l.payCreditSameApprover,
+                    style: const TextStyle(fontSize: 12.5),
+                  )
+                else
+                  ApproverFields(
+                    key: _creditKey,
+                    purpose: 'credit_limit',
+                    enabled: !_busy,
+                    onChanged: (a, p) => setState(() {
+                      _creditApprover = a;
+                      _creditPin = p;
+                    }),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   Widget _kv(
     String k,
     String v,
@@ -309,7 +594,10 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(k, style: TextStyle(color: color ?? pal.textTertiary)),
+        Flexible(
+          child: Text(k, style: TextStyle(color: color ?? pal.textTertiary)),
+        ),
+        const SizedBox(width: 8),
         Text(
           v,
           style: TextStyle(
@@ -339,7 +627,12 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                   for (final m in methods)
                     DropdownMenuItem(
                       value: m.id,
-                      child: Text(m.name, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        m.hasFee
+                            ? '${m.name} (${m.feeLabel}${m.feeByCustomer ? ' ↗' : ''})'
+                            : m.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: _busy
@@ -366,7 +659,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                 onChanged: (_) => _edited(),
               ),
             ),
-            if (_rows.length > 1)
+            if (_rows.length > 1 || _credit)
               IconButton(
                 onPressed: _busy
                     ? null
@@ -378,6 +671,26 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               ),
           ],
         ),
+        if (r.method.hasFee && parseInput(r.amount.text) > Decimal.zero)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              r.method.feeByCustomer
+                  ? l.payFeeCustomer(
+                      r.method.feeLabel,
+                      formatMoney(r.method.feeOf(parseInput(r.amount.text))),
+                      formatMoney(
+                        parseInput(r.amount.text) +
+                            r.method.feeOf(parseInput(r.amount.text)),
+                      ),
+                    )
+                  : l.payFeeStore(
+                      r.method.feeLabel,
+                      formatMoney(r.method.feeOf(parseInput(r.amount.text))),
+                    ),
+              style: TextStyle(color: context.pal.warningText, fontSize: 12),
+            ),
+          ),
         if (r.method.isCash)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -403,20 +716,20 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                           _edited();
                         },
                 ),
-                for (final v in const [50000, 100000])
+                for (final v in quickCashAmounts(_needFor(r)))
                   ActionChip(
-                    label: Text(formatMoney(Decimal.fromInt(v), symbol: false)),
+                    label: Text(formatMoney(v, symbol: false)),
                     onPressed: _busy
                         ? null
                         : () {
-                            r.amount.text = '$v';
+                            r.amount.text = decToApi(v, scale: 2);
                             _edited();
                           },
                   ),
               ],
             ),
           )
-        else
+        else if (!r.method.isDeposit)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: TextField(
@@ -429,4 +742,23 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       ],
     );
   }
+}
+
+/// Nominal tunai cepat di atas [need]: 50rb dan 100rb ditambah pecahan pembulatan ke atas (5rb, 10rb, 20rb, 50rb,
+/// 100rb) yang paling dekat; paling banyak 4 pilihan, naik. Uang pas ditawarkan terpisah.
+List<Decimal> quickCashAmounts(Decimal need) {
+  if (need <= Decimal.zero) return const [];
+  final out = <Decimal>{};
+  for (final d in const [5000, 10000, 20000, 50000, 100000]) {
+    final unit = Decimal.fromInt(d);
+    final up =
+        (need / unit).toDecimal(scaleOnInfinitePrecision: 6).ceil() * unit;
+    if (up > need) out.add(up);
+  }
+  for (final fixed in const [50000, 100000]) {
+    final v = Decimal.fromInt(fixed);
+    if (v > need) out.add(v);
+  }
+  final sorted = out.toList()..sort();
+  return sorted.take(4).toList();
 }

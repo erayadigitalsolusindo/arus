@@ -123,5 +123,481 @@
   "outletApprovalConfirm": "Approve & switch",
   "errorPinRequired": "Owner/Supervisor approval (PIN) is required.",
   "errorInvalidPin": "Wrong approver or PIN.",
-  "errorPinLocked": "PIN is temporarily locked after too many attempts. Try again later."
+  "errorPinLocked": "PIN is temporarily locked after too many attempts. Try again later.",
+  "posShiftCloseTooltip": "Close shift",
+  "posSalesTodayTooltip": "Today's sales",
+  "shiftCloseTitle": "Close shift {doc}",
+  "@shiftCloseTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseBody": "Count the physical money for each method and enter it below. Any difference needs a note and Owner/Supervisor approval.",
+  "shiftCloseOpened": "Opened {time}",
+  "@shiftCloseOpened": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseSales": "{count} sales, {total}",
+  "@shiftCloseSales": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseVoid": "{count} voided",
+  "@shiftCloseVoid": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseReceivable": "Receivable {amount}",
+  "@shiftCloseReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftColExpected": "Expected",
+  "shiftColCounted": "Counted (Rp)",
+  "shiftColDiff": "Difference",
+  "shiftFillExpected": "Fill with expected",
+  "shiftTotalDiff": "Total difference",
+  "shiftNote": "Difference note",
+  "shiftNoteHint": "Explain the difference (min. 3 characters)",
+  "shiftNeedApproval": "There is a difference: Owner/Supervisor approval is required.",
+  "shiftApprovalNone": "No approver at this outlet.",
+  "shiftCloseSubmit": "Close shift",
+  "shiftChangedNotice": "New sales came in since the recap was shown. It has been reloaded; check your count again.",
+  "shiftClosedTitle": "Shift {doc} closed",
+  "@shiftClosedTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftClosedBody": "The recap is frozen and saved on the server.",
+  "shiftTotalExpected": "Expected",
+  "shiftTotalCounted": "Counted",
+  "shiftOpenNew": "Open new shift",
+  "shiftDone": "Done",
+  "errorShiftRecapChanged": "New sales came in since the recap was shown. Reload the recap and count again.",
+  "errorShiftDiffNote": "A difference requires a note and approval.",
+  "errorShiftClosed": "This shift is already closed.",
+  "errorShiftAlreadyOpen": "Your shift at this outlet is already open.",
+  "salesTodayTitle": "Today's sales",
+  "salesTodaySummary": "{count} sales, {total}",
+  "@salesTodaySummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTodaySearch": "Search receipt number",
+  "salesTodayEmpty": "No sales yet.",
+  "salesTodayTruncated": "List truncated; narrow it with search.",
+  "saleVoidBadge": "VOID",
+  "saleReturnedBadge": "Returned {amount}",
+  "@saleReturnedBadge": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saleCreditBadge": "Credit",
+  "saleDetailCashier": "Cashier {name}",
+  "@saleDetailCashier": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleDetailMember": "Member {name}",
+  "@saleDetailMember": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReason": "Void reason: {reason}",
+  "@saleVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "saleSubtotal": "Subtotal",
+  "saleDiscount": "Discount",
+  "saleTax": "Tax",
+  "saleOtherCost": "Other charges",
+  "saleTotal": "Total",
+  "salePaid": "Paid",
+  "saleChange": "Change",
+  "saleReceivable": "Receivable",
+  "posScanTooltip": "Scan barcode with camera",
+  "scanTitle": "Scan items",
+  "scanTorch": "Torch",
+  "scanSwitchCamera": "Switch camera",
+  "scanHint": "Point the camera at an item barcode",
+  "scanDone": "Done",
+  "scanPermissionDenied": "Camera permission denied. Allow camera access for ARUS in phone settings.",
+  "scanCameraError": "The camera could not be opened.",
+  "scanAdded": "{name} added to cart",
+  "@scanAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scanNotFound": "Code {code} not found",
+  "@scanNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "scanAmbiguous": "Code {code} matches several items; search manually",
+  "@scanAmbiguous": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "memberChoose": "Choose member",
+  "memberChange": "Change member",
+  "memberGeneral": "Walk-in customer",
+  "memberSearchHint": "Search name, code, or phone",
+  "memberSearchEmpty": "No member found.",
+  "memberRemove": "Remove member",
+  "memberPoints": "{points} points",
+  "@memberPoints": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberPointsAndDeposit": "{points} points · deposit {deposit}",
+  "@memberPointsAndDeposit": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "deposit": {
+        "type": "String"
+      }
+    }
+  },
+  "memberEarn": "+{points} points",
+  "@memberEarn": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberRedeemTitle": "Redeem points",
+  "memberRedeemAvailable": "Up to {points} points can be redeemed (worth {value})",
+  "@memberRedeemAvailable": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "memberRedeemField": "Points to redeem",
+  "memberRedeemAll": "All",
+  "memberRedeemNone": "This member's points can't be redeemed on this sale yet.",
+  "memberRedeemReset": "Cancel redemption",
+  "memberRedeemDone": "Apply",
+  "memberRedeemValue": "Discount {amount}",
+  "@memberRedeemValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "errorRedeemInvalid": "Redeemed points exceed the limit. Lower the amount.",
+  "payDepositOver": "Deposit exceeds balance ({amount})",
+  "@payDepositOver": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustTitle": "Change price / discount",
+  "adjustBody": "Needs approval from an approver (Owner/Supervisor) with their PIN.",
+  "adjustItem": "Item",
+  "adjustListPrice": "List price",
+  "adjustTabPrice": "Change price",
+  "adjustTabDiscount": "Discount",
+  "adjustNewPrice": "New unit price (Rp)",
+  "adjustDiscountRp": "Discount (Rp)",
+  "adjustDiscountPct": "Discount (%)",
+  "adjustUnitTotal": "Line total",
+  "adjustUnitPerUnit": "Per unit",
+  "adjustPercentPreview": "Discount {amount} per unit",
+  "@adjustPercentPreview": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustChecking": "Checking PIN...",
+  "adjustApply": "Apply",
+  "adjustReset": "Reset to list price",
+  "adjustEditTooltip": "Change price / discount",
+  "adjustBadgePrice": "Price changed",
+  "adjustBadgeDiscount": "Discount {amount}",
+  "@adjustBadgeDiscount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustApprovedBy": "approved by {name}",
+  "@adjustApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurcharge": "Payment method fee",
+  "payCharged": "Charged to customer",
+  "payFeeCustomer": "Fee {rate} = {fee}, charged to the customer (customer pays {amount})",
+  "@payFeeCustomer": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "payFeeStore": "Fee {rate} = {fee}, borne by the store",
+  "@payFeeStore": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurchargeDone": "Method fee {surcharge} · charged {charged}",
+  "@paySurchargeDone": {
+    "placeholders": {
+      "surcharge": {
+        "type": "String"
+      },
+      "charged": {
+        "type": "String"
+      }
+    }
+  },
+  "costsTitle": "Note & other costs",
+  "costsHint": "Itemised other costs (max 20), e.g. shipping or packing.",
+  "costsName": "Cost name",
+  "costsAmount": "Amount (Rp)",
+  "costsRemove": "Remove",
+  "costsAdd": "Add cost",
+  "costsTotal": "Other costs total",
+  "costsDone": "Apply",
+  "costsClear": "Clear all",
+  "posCostsButton": "Note & other costs",
+  "posTaxStore": "Store tax ({pct}%)",
+  "@posTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posTaxGov": "Government tax ({pct}%)",
+  "@posTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posCostUnnamed": "Other cost",
+  "payModePay": "Pay",
+  "payModeCredit": "Credit",
+  "payCreditNoMember": "Credit is for members only. Choose a member in the cart first.",
+  "payCreditNotNeeded": "The down payment already covers the total; use Pay mode.",
+  "payCreditDpAdd": "Add down payment (DP)",
+  "payCreditReceivable": "Receivable (unpaid balance)",
+  "payCreditDue": "Due",
+  "payCreditDueDays": "{days} days after the sale",
+  "@payCreditDueDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "payCreditNoDue": "No due date",
+  "payCreditLimit": "Credit limit",
+  "payCreditNoLimit": "Unlimited",
+  "payCreditOutstanding": "Current receivable",
+  "payCreditAfter": "Receivable after this sale",
+  "payCreditOverLimit": "Over the member's credit limit. Needs an approver and their PIN.",
+  "payCreditSameApprover": "The same approver (price/discount change) is used for the credit limit.",
+  "errorCreditLimit": "Member's receivable exceeds the credit limit. Needs approver (PIN) approval.",
+  "paySuccessReceivable": "Receivable {amount}",
+  "@paySuccessReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paySuccessDue": "Due {date}",
+  "@paySuccessDue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingHoldTitle": "Hold sale",
+  "pendingLabel": "Label (optional)",
+  "pendingLabelHint": "Customer name or a description",
+  "pendingHold": "Hold",
+  "pendingHoldTooltip": "Hold sale",
+  "pendingListTooltip": "Pending sales",
+  "pendingFull": "Pending list is full (max {max}). Open or delete one first.",
+  "@pendingFull": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingSaved": "Sale held as Pending {no}",
+  "@pendingSaved": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpened": "Pending {no} opened",
+  "@pendingOpened": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpenedSwapped": "Pending {no} opened; previous items saved as Pending {saved}",
+  "@pendingOpenedSwapped": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingTitle": "Pending sales ({count}/{max})",
+  "@pendingTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingHint": "Stored on this phone, expires after 24 hours. Prices and stock are recalculated when opened.",
+  "pendingEmpty": "No pending sales.",
+  "pendingNo": "Pending {no}",
+  "@pendingNo": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingLines": "{count} lines",
+  "@pendingLines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingDelete": "Delete",
+  "pendingDeleteAsk": "Delete Pending {no}?",
+  "@pendingDeleteAsk": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "shortcutsEmpty": "No shortcuts yet. Tap the icon on the right to set them up.",
+  "shortcutsManage": "Manage item shortcuts",
+  "shortcutsTitle": "Item shortcuts",
+  "shortcutsHint": "Your 16 slots, the same as on the web cashier. Tap a slot to assign an item.",
+  "shortcutsSlotEmpty": "Empty — tap to assign an item",
+  "shortcutsInactive": "Item inactive",
+  "shortcutsClear": "Clear slot",
+  "salespersonLabel": "Salesperson",
+  "salespersonNone": "General (no salesperson)",
+  "salespersonSearch": "Search salesperson",
+  "salespersonEmpty": "No salesperson found.",
+  "payQuickAmounts": "Cash received",
+  "categoryAll": "All",
+  "noteLabel": "Sale note",
+  "noteHint": "E.g. customer name, hold, delivery address",
+  "homeGreetMorning": "Good morning, {name}",
+  "homeGreetNoon": "Good afternoon, {name}",
+  "homeGreetAfternoon": "Good evening, {name}",
+  "homeGreetNight": "Good night, {name}",
+  "homeTodayTitle": "Today's sales",
+  "homeTodayNotes": "Receipts",
+  "homeShiftLabel": "Shift",
+  "homeStallHint": "Tap to start selling"
 }

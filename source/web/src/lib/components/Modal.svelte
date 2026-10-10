@@ -6,8 +6,9 @@
     title,
     onclose,
     wide = false,
+    xl = false,
     children
-  }: { title: string; onclose: () => void; wide?: boolean; children: Snippet } = $props();
+  }: { title: string; onclose: () => void; wide?: boolean; xl?: boolean; children: Snippet } = $props();
 
   let dialog = $state<HTMLElement>();
 
@@ -29,7 +30,7 @@
 <div class="ui-modal is-open" role="presentation" onmousedown={(e) => e.target === e.currentTarget && onclose()}>
   <div
     bind:this={dialog}
-    class="ui-modal-dialog p-5 max-h-[92vh] overflow-y-auto scroll-thin {wide ? '!max-w-[860px]' : '!max-w-[460px]'}"
+    class="ui-modal-dialog p-5 max-h-[92vh] overflow-y-auto scroll-thin {xl ? '!max-w-[1040px]' : wide ? '!max-w-[860px]' : '!max-w-[460px]'}"
     role="dialog"
     aria-modal="true"
     aria-label={title}

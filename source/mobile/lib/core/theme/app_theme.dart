@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Warna merek (sama di terang dan gelap).
+/// Warna merek (sama di terang dan gelap): biru logo ARUS (sama dengan web) + oranye sebagai aksen.
 class AppColors {
   const AppColors._();
 
-  static const primary500 = Color(0xFF24997C);
-  static const primary600 = Color(0xFF187F65);
-  static const primary700 = Color(0xFF146653);
-  static const primary400 = Color(0xFF48B594);
+  static const primary500 = Color(0xFF1A63C9);
+  static const primary600 = Color(0xFF0445AB);
+  static const primary700 = Color(0xFF094996);
+  static const primary400 = Color(0xFF4A8BE0);
+  static const accent = Color(0xFFE8730C);
+  static const accentDark = Color(0xFFFFA24D);
 }
 
 /// Palet yang mengikuti mode terang/gelap. Akses lewat `context.pal`.
@@ -23,6 +25,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.textTertiary,
     required this.primary,
     required this.primarySoft,
+    required this.accent,
+    required this.accentSoft,
     required this.dangerSoft,
     required this.dangerText,
     required this.danger,
@@ -39,6 +43,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color textTertiary;
   final Color primary;
   final Color primarySoft;
+
+  /// Aksen oranye: harga, lencana, sorotan. Biru tetap warna aksi utama.
+  final Color accent;
+  final Color accentSoft;
   final Color dangerSoft;
   final Color dangerText;
   final Color danger;
@@ -54,7 +62,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     text: Color(0xFF1B2430),
     textTertiary: Color(0xFF6B7686),
     primary: AppColors.primary600,
-    primarySoft: Color(0xFFD7F2E7),
+    primarySoft: Color(0xFFDBE8FB),
+    accent: AppColors.accent,
+    accentSoft: Color(0xFFFFE8D1),
     dangerSoft: Color(0xFFF9D9D8),
     dangerText: Color(0xFF8E2A20),
     danger: Color(0xFFC0392B),
@@ -71,7 +81,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     text: Color(0xFFE6EEF3),
     textTertiary: Color(0xFF8CA0AF),
     primary: AppColors.primary400,
-    primarySoft: Color(0xFF16352D),
+    primarySoft: Color(0xFF15233A),
+    accent: AppColors.accentDark,
+    accentSoft: Color(0xFF3F2A12),
     dangerSoft: Color(0xFF47201C),
     dangerText: Color(0xFFFFB4AB),
     danger: Color(0xFFE5645A),
@@ -96,6 +108,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
       textTertiary: l(textTertiary, other.textTertiary),
       primary: l(primary, other.primary),
       primarySoft: l(primarySoft, other.primarySoft),
+      accent: l(accent, other.accent),
+      accentSoft: l(accentSoft, other.accentSoft),
       dangerSoft: l(dangerSoft, other.dangerSoft),
       dangerText: l(dangerText, other.dangerText),
       danger: l(danger, other.danger),
@@ -151,6 +165,10 @@ ThemeData buildTheme(Brightness brightness) {
       ),
     ),
     dialogTheme: DialogThemeData(backgroundColor: p.surface),
+    badgeTheme: BadgeThemeData(
+      backgroundColor: p.accent,
+      textColor: brightness == Brightness.dark ? Colors.black : Colors.white,
+    ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
       surfaceTintColor: Colors.transparent,
