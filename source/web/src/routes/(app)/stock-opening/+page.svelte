@@ -3,13 +3,19 @@
   import { onMount } from 'svelte';
   import { opening, BUCKETS, type Bucket, type OpeningRow, type OpeningStatus } from '#lib/stock/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
-  import { t, formatDate } from '#lib/i18n/index.ts';
+  import { t, formatDate, formatNumber, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
   import Modal from '#lib/components/Modal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
 
   const PAGE = 20;
+  const BUCKET_STATS: [Bucket, string][] = [
+    ['display', 'icon-store'],
+    ['warehouse', 'icon-warehouse'],
+    ['returns', 'icon-rotate-ccw']
+  ];
+  const GUIDE = ['stock.opening.guide.s1', 'stock.opening.guide.s2', 'stock.opening.guide.s3', 'stock.opening.guide.s4'] as const;
 
   type Cell = { draft: string; state: '' | 'saving' | 'saved' | 'error'; error: string };
 
@@ -25,7 +31,15 @@
   let locking = $state<{ date: string; busy: boolean; error: string } | null>(null);
 
   const key = (id: string, b: Bucket) => `${id}:${b}`;
+  const stats = $derived(status?.stats);
+  const pct = $derived(stats && stats.items > 0 ? Math.min(100, Math.round((stats.filled / stats.items) * 100)) : 0);
   const editable = $derived(!!status && !status.locked && can('stock_opening', 'create'));
+
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleStatus() {
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => void loadStatus(), 700);
+  }
 
   async function loadStatus() {
     try {
@@ -64,7 +78,10 @@
     return () => clearTimeout(h);
   });
 
-  onMount(loadStatus);
+  onMount(() => {
+    void loadStatus();
+    return () => clearTimeout(statusTimer);
+  });
 
   function go(next: number) {
     offset = Math.max(0, next);
@@ -86,6 +103,7 @@
       row[b] = res.qty;
       c.draft = res.qty;
       c.state = 'saved';
+      scheduleStatus();
     } catch (err) {
       c.state = 'error';
       c.error = err instanceof ApiError && err.code === 'VALIDATION' && err.fields.qty ? (fieldMessage(err.fields.qty) ?? errorMessage(err)) : errorMessage(err);
@@ -104,7 +122,8 @@
     locking.busy = true;
     locking.error = '';
     try {
-      status = await opening.lock(locking.date);
+      await opening.lock(locking.date);
+      await loadStatus();
       locking = null;
       notice = t('stock.opening.lock.done');
     } catch (err) {
@@ -155,6 +174,36 @@
     </div>
   {/if}
 
+  <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="grid gap-3 grid-cols-2 xl:grid-cols-4">
+      <div class="surface-card !p-3.5 col-span-2 xl:col-span-1">
+        <div class="flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"><i class="icon-package text-[13px]"></i>{t('stock.opening.stats.filled')}</div>
+        <div class="mt-1.5 font-display font-bold text-[22px] leading-none">{stats ? formatNumber(stats.filled) : '–'}<span class="text-[12px] font-medium text-[var(--text-tertiary)]"> {stats ? t('stock.opening.stats.filledOf', { total: formatNumber(stats.items) }) : ''}</span></div>
+        <div class="mt-2.5 h-1.5 rounded-full bg-[var(--surface-sunken)] overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100" aria-label={t('stock.opening.stats.progress')}>
+          <div class="h-full rounded-full bg-[var(--color-primary-600)] transition-[width] duration-500" style="width:{pct}%"></div>
+        </div>
+        <div class="mt-1.5 text-[11.5px] text-[var(--text-tertiary)]">
+          {#if stats}{stats.filled >= stats.items && stats.items > 0 ? t('stock.opening.stats.allDone') : t('stock.opening.stats.remaining', { count: formatNumber(Math.max(0, stats.items - stats.filled)) })}{:else}&nbsp;{/if}
+        </div>
+      </div>
+      {#each BUCKET_STATS as [b, ic] (b)}
+        <div class="surface-card !p-3.5">
+          <div class="flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"><i class="{ic} text-[13px]"></i>{t('stock.opening.stats.qtyTotal', { bucket: t(`stock.opening.bucket.${b}` as MessageKey) })}</div>
+          <div class="mt-1.5 font-display font-bold text-[22px] leading-none">{stats ? formatNumber(Number(stats[b])) : '–'}</div>
+          <div class="mt-2.5 text-[11.5px] text-[var(--text-tertiary)]">{t('stock.opening.stats.qtyHint')}</div>
+        </div>
+      {/each}
+    </div>
+    <div class="surface-card !p-3.5">
+      <div class="flex items-center gap-2 font-semibold text-[12.5px]"><i class="icon-lightbulb text-[14px] text-[var(--color-primary-600)]"></i>{t('stock.opening.guide.title')}</div>
+      <ol class="mt-2 space-y-1.5 text-[12px] text-[var(--text-secondary)]">
+        {#each GUIDE as k, i (k)}
+          <li class="flex gap-2"><span class="shrink-0 w-4 h-4 mt-px rounded-full bg-[var(--surface-sunken)] text-[10px] font-bold grid place-items-center">{i + 1}</span><span>{t(k)}</span></li>
+        {/each}
+      </ol>
+    </div>
+  </div>
+
   {#if notice}
     <div role="status" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-success">
       <i class="icon-circle-check text-[14px] shrink-0"></i><span>{notice}</span>
@@ -179,26 +228,26 @@
       <table class="w-full text-[12.5px] min-w-[760px]">
         <thead>
           <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
-            <th class="p-3 text-start" scope="col">{t('stock.opening.col.code')}</th>
-            <th class="p-3 text-start" scope="col">{t('stock.opening.col.name')}</th>
-            <th class="p-3 text-start" scope="col">{t('stock.opening.col.unit')}</th>
+            <th class="px-3 py-2 text-start" scope="col">{t('stock.opening.col.code')}</th>
+            <th class="px-3 py-2 text-start" scope="col">{t('stock.opening.col.name')}</th>
+            <th class="px-3 py-2 text-start" scope="col">{t('stock.opening.col.unit')}</th>
             {#each BUCKETS as b (b)}
-              <th class="p-3 text-end w-36" scope="col">{t(`stock.opening.bucket.${b}`)}</th>
+              <th class="px-3 py-2 text-end w-36" scope="col">{t(`stock.opening.bucket.${b}`)}</th>
             {/each}
           </tr>
         </thead>
         <tbody>
           {#each rows as r (r.id)}
-            <tr class="border-t border-[var(--border-subtle)] align-top">
-              <td class="p-3 font-mono text-[12px]">{r.sku}</td>
-              <td class="p-3 font-semibold">{r.name}</td>
-              <td class="p-3">{r.unit}</td>
+            <tr class="border-t border-[var(--border-subtle)] align-middle hover:bg-[var(--surface-sunken)]">
+              <td class="px-3 py-1 font-mono text-[12px]">{r.sku}</td>
+              <td class="px-3 py-1 font-semibold">{r.name}</td>
+              <td class="px-3 py-1">{r.unit}</td>
               {#each BUCKETS as b (b)}
                 {@const c = cells[key(r.id, b)]}
-                <td class="p-2 text-end">
+                <td class="px-2 py-1 text-end">
                   {#if c}
                     <MoneyInput
-                      class="field-control !text-end w-28 {c.state === 'error' ? '!border-[var(--color-danger-600)]' : ''}"
+                      class="field-control !text-end !py-1 w-28 {c.state === 'error' ? '!border-[var(--color-danger-600)]' : ''}"
                       decimals={3}
                       pad={false}
                       aria-label="{r.name} – {t(`stock.opening.bucket.${b}`)}"
@@ -209,11 +258,9 @@
                       onblur={() => commit(r, b)}
                       onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                     />
-                    <div class="h-4 text-[11px] leading-4 mt-0.5">
-                      {#if c.state === 'saving'}<span class="text-[var(--text-tertiary)]">{t('stock.opening.saving')}</span>
-                      {:else if c.state === 'saved'}<span class="text-[var(--color-success-600,#16a34a)]"><i class="icon-check text-[11px]"></i> {t('stock.opening.saved')}</span>
-                      {:else if c.state === 'error'}<span class="text-[var(--color-danger-600)]">{c.error}</span>{/if}
-                    </div>
+                    {#if c.state === 'saving'}<div class="text-[10.5px] leading-3 text-[var(--text-tertiary)]">{t('stock.opening.saving')}</div>
+                    {:else if c.state === 'saved'}<div class="text-[10.5px] leading-3 text-[var(--color-success-600,#16a34a)]"><i class="icon-check text-[10px]"></i> {t('stock.opening.saved')}</div>
+                    {:else if c.state === 'error'}<div class="text-[10.5px] leading-3 text-[var(--color-danger-600)]">{c.error}</div>{/if}
                   {/if}
                 </td>
               {/each}
