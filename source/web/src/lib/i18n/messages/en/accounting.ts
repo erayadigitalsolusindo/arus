@@ -112,6 +112,13 @@ const accounting: Messages['accounting'] = {
     tplTitle: 'Quick templates',
     tplHint: 'Pre-fills accounts and type; just type the amount.',
     tplApplied: 'Template applied. Type the amount; the opposite side follows.',
+    tplSave: 'Save as template',
+    tplName: 'Template name',
+    tplSaved: 'Template "{name}" saved.',
+    tplDelete: 'Delete template',
+    tplDeleteConfirm: 'Delete template "{name}"? Journals already created are not affected.',
+    tplNeedSides: 'A template needs at least two account rows, each with an amount, covering both debit and credit.',
+    tplMine: 'My templates',
     tpl: {
       capital: 'Owner capital deposit',
       toBank: 'Deposit cash to bank',
