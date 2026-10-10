@@ -457,7 +457,7 @@ func nextCode(ctx context.Context, q *gen.Queries, tenant uuid.UUID) (string, er
 			return "", err
 		}
 		code := fmt.Sprintf("MBR-%06d", n)
-		taken, err := q.MemberCodeExists(ctx, gen.MemberCodeExistsParams{TenantID: tenant, Lower: code})
+		taken, err := q.MemberCodeExists(ctx, code)
 		if err != nil {
 			return "", err
 		}

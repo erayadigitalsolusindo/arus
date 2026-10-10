@@ -1920,19 +1920,16 @@ func (q *Queries) ItemSetActive(ctx context.Context, arg ItemSetActiveParams) (I
 }
 
 const itemSkuExists = `-- name: ItemSkuExists :one
-SELECT EXISTS (SELECT 1 FROM items WHERE tenant_id = $1 AND lower(sku) = lower($2))
+SELECT item_sku_taken($1::text)::boolean AS taken
 `
 
-type ItemSkuExistsParams struct {
-	TenantID uuid.UUID
-	Lower    string
-}
-
-func (q *Queries) ItemSkuExists(ctx context.Context, arg ItemSkuExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, itemSkuExists, arg.TenantID, arg.Lower)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+// Lewat fungsi SECURITY DEFINER (00052): "lower(sku) = …" tidak leakproof sehingga di bawah RLS indeks unik
+// (tenant_id, lower(sku)) tidak terpakai penuh. Tenant = app_tenant_id() transaksi (db.WithTenant).
+func (q *Queries) ItemSkuExists(ctx context.Context, sku string) (bool, error) {
+	row := q.db.QueryRow(ctx, itemSkuExists, sku)
+	var taken bool
+	err := row.Scan(&taken)
+	return taken, err
 }
 
 const itemTierDeleteDefault = `-- name: ItemTierDeleteDefault :exec
@@ -2205,19 +2202,15 @@ func (q *Queries) ItemUpdate(ctx context.Context, arg ItemUpdateParams) error {
 }
 
 const memberCodeExists = `-- name: MemberCodeExists :one
-SELECT EXISTS (SELECT 1 FROM members WHERE tenant_id = $1 AND lower(code) = lower($2))
+SELECT member_code_taken($1::text)::boolean AS taken
 `
 
-type MemberCodeExistsParams struct {
-	TenantID uuid.UUID
-	Lower    string
-}
-
-func (q *Queries) MemberCodeExists(ctx context.Context, arg MemberCodeExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, memberCodeExists, arg.TenantID, arg.Lower)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+// Lewat fungsi SECURITY DEFINER (00052), alasan sama dengan ItemSkuExists. Tenant = app_tenant_id() transaksi.
+func (q *Queries) MemberCodeExists(ctx context.Context, code string) (bool, error) {
+	row := q.db.QueryRow(ctx, memberCodeExists, code)
+	var taken bool
+	err := row.Scan(&taken)
+	return taken, err
 }
 
 const memberCreate = `-- name: MemberCreate :one
@@ -5018,9 +5011,10 @@ WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status <> 'superseded'
   AND ($5::uuid IS NULL OR p.supplier_id = $5)
   AND ($6::text = '' OR p.payment_type = $6)
   AND ($7::text = '' OR p.doc_no ILIKE '%' || $7 || '%' OR p.supplier_invoice_no ILIKE '%' || $7 || '%' OR s.name ILIKE '%' || $7 || '%')
-  AND (NOT $8::bool OR (p.purchase_date, p.created_at, p.id) < ($9::date, $10::timestamptz, $11::uuid))
+  AND (NOT $8::bool OR p.id = ANY($9::uuid[]))
+  AND (NOT $10::bool OR (p.purchase_date, p.created_at, p.id) < ($11::date, $12::timestamptz, $13::uuid))
 ORDER BY p.purchase_date DESC, p.created_at DESC, p.id DESC
-LIMIT $12
+LIMIT $14
 `
 
 type PurchaseListParams struct {
@@ -5031,6 +5025,8 @@ type PurchaseListParams struct {
 	SupplierID  pgtype.UUID
 	PaymentType string
 	Q           string
+	ByIds       bool
+	Ids         []uuid.UUID
 	HasCursor   bool
 	CurDate     pgtype.Date
 	CurAt       pgtype.Timestamptz
@@ -5056,6 +5052,8 @@ type PurchaseListRow struct {
 
 // Keyset (bukan OFFSET): halaman berikutnya mulai setelah (tanggal, waktu input, id) terakhir. Tanpa count(*) per halaman;
 // total diambil dari PurchaseListSummary. Pemanggil meminta limit+1 untuk tahu ada halaman berikut.
+// Pencarian: by_ids = kandidat dari purchase_search_ids (00052, indeks trigram di bawah RLS) dan q dikosongkan; q tetap
+// dipakai bila kandidat melebihi db.SearchCap.
 func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]PurchaseListRow, error) {
 	rows, err := q.db.Query(ctx, purchaseList,
 		arg.TenantID,
@@ -5065,6 +5063,8 @@ func (q *Queries) PurchaseList(ctx context.Context, arg PurchaseListParams) ([]P
 		arg.SupplierID,
 		arg.PaymentType,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 		arg.HasCursor,
 		arg.CurDate,
 		arg.CurAt,
@@ -5114,6 +5114,7 @@ WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status <> 'superseded'
   AND ($5::uuid IS NULL OR p.supplier_id = $5)
   AND ($6::text = '' OR p.payment_type = $6)
   AND ($7::text = '' OR p.doc_no ILIKE '%' || $7 || '%' OR p.supplier_invoice_no ILIKE '%' || $7 || '%' OR s.name ILIKE '%' || $7 || '%')
+  AND (NOT $8::bool OR p.id = ANY($9::uuid[]))
 `
 
 type PurchaseListSummaryParams struct {
@@ -5124,6 +5125,8 @@ type PurchaseListSummaryParams struct {
 	SupplierID  pgtype.UUID
 	PaymentType string
 	Q           string
+	ByIds       bool
+	Ids         []uuid.UUID
 }
 
 type PurchaseListSummaryRow struct {
@@ -5141,6 +5144,8 @@ func (q *Queries) PurchaseListSummary(ctx context.Context, arg PurchaseListSumma
 		arg.SupplierID,
 		arg.PaymentType,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 	)
 	var i PurchaseListSummaryRow
 	err := row.Scan(&i.Cnt, &i.Total, &i.CreditTotal)
@@ -6782,9 +6787,10 @@ WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'supers
   AND ($7::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $7::text))
   AND ($8::text = '' OR s.doc_no ILIKE '%' || $8::text || '%' OR mb.name ILIKE '%' || $8::text || '%'
        OR mb.code ILIKE '%' || $8::text || '%' OR u.name ILIKE '%' || $8::text || '%')
-  AND (NOT $9::bool OR (s.created_at, s.id) < ($10::timestamptz, $11::uuid))
+  AND (NOT $9::bool OR s.id = ANY($10::uuid[]))
+  AND (NOT $11::bool OR (s.created_at, s.id) < ($12::timestamptz, $13::uuid))
 ORDER BY s.created_at DESC, s.id DESC
-LIMIT $12
+LIMIT $14
 `
 
 type SalesListAllParams struct {
@@ -6796,6 +6802,8 @@ type SalesListAllParams struct {
 	CashierID uuid.UUID
 	Method    string
 	Q         string
+	ByIds     bool
+	Ids       []uuid.UUID
 	HasCursor bool
 	CursorAt  pgtype.Timestamptz
 	CursorID  uuid.UUID
@@ -6837,6 +6845,8 @@ type SalesListAllRow struct {
 // Daftar penjualan lintas kasir untuk pemegang sales_list.view: satu atau beberapa outlet (outlet_ids = yang boleh diakses
 // pemanggil), semua kasir. Keyset: urut (created_at, id) menurun, @has_cursor + (cursor_at, cursor_id) = halaman berikutnya.
 // Nilai HPP (cost) selalu dibaca; yang memutuskan dikirim ke klien adalah service (izin sales_cost).
+// Pencarian: by_ids = kandidat dari sale_search_ids (00052, indeks trigram di bawah RLS) dan q dikosongkan; q tetap dipakai
+// bila kandidat melebihi db.SearchCap. Berlaku sama untuk tiga query ringkasan di bawah.
 func (q *Queries) SalesListAll(ctx context.Context, arg SalesListAllParams) ([]SalesListAllRow, error) {
 	rows, err := q.db.Query(ctx, salesListAll,
 		arg.TenantID,
@@ -6847,6 +6857,8 @@ func (q *Queries) SalesListAll(ctx context.Context, arg SalesListAllParams) ([]S
 		arg.CashierID,
 		arg.Method,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 		arg.HasCursor,
 		arg.CursorAt,
 		arg.CursorID,
@@ -6918,6 +6930,7 @@ WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status = 'complet
   AND ($6::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $6::text))
   AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%' OR mb.name ILIKE '%' || $7::text || '%'
        OR mb.code ILIKE '%' || $7::text || '%' OR u.name ILIKE '%' || $7::text || '%')
+  AND (NOT $8::bool OR s.id = ANY($9::uuid[]))
 GROUP BY m.method_id, pm.name, pm.kind
 ORDER BY (pm.kind = 'cash') DESC, lower(pm.name)
 `
@@ -6930,6 +6943,8 @@ type SalesListAllMethodBreakdownParams struct {
 	CashierID uuid.UUID
 	Method    string
 	Q         string
+	ByIds     bool
+	Ids       []uuid.UUID
 }
 
 type SalesListAllMethodBreakdownRow struct {
@@ -6952,6 +6967,8 @@ func (q *Queries) SalesListAllMethodBreakdown(ctx context.Context, arg SalesList
 		arg.CashierID,
 		arg.Method,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 	)
 	if err != nil {
 		return nil, err
@@ -6994,6 +7011,7 @@ WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status = 'complet
   AND ($6::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $6::text))
   AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%' OR mb.name ILIKE '%' || $7::text || '%'
        OR mb.code ILIKE '%' || $7::text || '%' OR u.name ILIKE '%' || $7::text || '%')
+  AND (NOT $8::bool OR s.id = ANY($9::uuid[]))
 GROUP BY m.method
 ORDER BY m.method
 `
@@ -7006,6 +7024,8 @@ type SalesListAllMethodTotalsParams struct {
 	CashierID uuid.UUID
 	Method    string
 	Q         string
+	ByIds     bool
+	Ids       []uuid.UUID
 }
 
 type SalesListAllMethodTotalsRow struct {
@@ -7023,6 +7043,8 @@ func (q *Queries) SalesListAllMethodTotals(ctx context.Context, arg SalesListAll
 		arg.CashierID,
 		arg.Method,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 	)
 	if err != nil {
 		return nil, err
@@ -7066,6 +7088,7 @@ WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'supers
   AND ($7::text = '' OR EXISTS (SELECT 1 FROM sale_payments p WHERE p.tenant_id = s.tenant_id AND p.sale_id = s.id AND p.method = $7::text))
   AND ($8::text = '' OR s.doc_no ILIKE '%' || $8::text || '%' OR mb.name ILIKE '%' || $8::text || '%'
        OR mb.code ILIKE '%' || $8::text || '%' OR u.name ILIKE '%' || $8::text || '%')
+  AND (NOT $9::bool OR s.id = ANY($10::uuid[]))
 `
 
 type SalesListAllSummaryParams struct {
@@ -7077,6 +7100,8 @@ type SalesListAllSummaryParams struct {
 	CashierID uuid.UUID
 	Method    string
 	Q         string
+	ByIds     bool
+	Ids       []uuid.UUID
 }
 
 type SalesListAllSummaryRow struct {
@@ -7100,6 +7125,8 @@ func (q *Queries) SalesListAllSummary(ctx context.Context, arg SalesListAllSumma
 		arg.CashierID,
 		arg.Method,
 		arg.Q,
+		arg.ByIds,
+		arg.Ids,
 	)
 	var i SalesListAllSummaryRow
 	err := row.Scan(

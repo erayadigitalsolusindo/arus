@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"aciraba/internal/authz"
+	"aciraba/internal/platform/db"
 )
 
 type ReturnLine struct {
@@ -156,14 +157,16 @@ type ReturnListResult struct {
 	Summary    ReturnSummary `json:"summary"` // hanya retur aktif (completed)
 }
 
-// returnFilter: $1 tenant, $2 outlet, $3 dari, $4 sampai, $5 status, $6 pola cari (sudah di-escape, ” = semua).
+// returnFilter: $1 tenant, $2 outlet, $3 dari, $4 sampai, $5 status, $6 pola cari (sudah di-escape, ” = semua),
+// $7 pakai kandidat, $8 kandidat dari purchase_return_search_ids (00052; bila dipakai, $6 dikosongkan).
 const returnFilter = `
 	FROM purchase_returns r
 	JOIN purchases p ON p.tenant_id = r.tenant_id AND p.id = r.purchase_id
 	JOIN suppliers s ON s.tenant_id = r.tenant_id AND s.id = r.supplier_id
 	WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.return_date BETWEEN $3 AND $4
 	  AND ($5::text = '' OR r.status = $5)
-	  AND ($6::text = '' OR r.doc_no ILIKE $6 OR p.doc_no ILIKE $6 OR p.supplier_invoice_no ILIKE $6 OR s.name ILIKE $6)`
+	  AND ($6::text = '' OR r.doc_no ILIKE $6 OR p.doc_no ILIKE $6 OR p.supplier_invoice_no ILIKE $6 OR s.name ILIKE $6)
+	  AND (NOT $7::bool OR r.id = ANY($8::uuid[]))`
 
 // ListReturns = retur pembelian di cabang aktif (keyset: tanggal retur, waktu input, id — terbaru dulu).
 func (s *Service) ListReturns(ctx context.Context, a authz.Actor, p ReturnListParams) (ReturnListResult, error) {
@@ -215,16 +218,28 @@ func (s *Service) ListReturns(ctx context.Context, a authz.Actor, p ReturnListPa
 	}
 	res := ReturnListResult{Data: []ReturnRow{}}
 	err := s.tx(ctx, a, func(tx pgx.Tx) error {
-		args := []any{a.TenantID, a.OutletID, pgDate(from), pgDate(to), p.Status, pattern, cur.on, pgDate(cur.date),
-			pgtype.Timestamptz{Time: cur.at, Valid: cur.on}, cur.id, limit + 1}
+		var ids []uuid.UUID
+		byIDs := false
+		if pattern != "" {
+			var err error
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT purchase_return_search_ids($1, $2, $3, $4, $5)`,
+				a.OutletID, pgDate(from), pgDate(to), pattern, db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				pattern = ""
+			}
+		}
+		filter := []any{a.TenantID, a.OutletID, pgDate(from), pgDate(to), p.Status, pattern, byIDs, ids}
+		args := append(append([]any{}, filter...), cur.on, pgDate(cur.date), pgtype.Timestamptz{Time: cur.at, Valid: cur.on}, cur.id, limit+1)
 		rows, err := tx.Query(ctx, `
 			SELECT r.id, r.doc_no, r.purchase_id, p.doc_no, s.name, r.return_date, r.status, r.total, r.payable_cut, r.refund,
 			       (SELECT count(*) FROM purchase_return_lines rl WHERE rl.tenant_id = r.tenant_id AND rl.return_id = r.id),
 			       r.created_at, coalesce((SELECT u.name FROM users u WHERE u.tenant_id = r.tenant_id AND u.id = r.created_by), '')
 			`+returnFilter+`
-			  AND (NOT $7::bool OR (r.return_date, r.created_at, r.id) < ($8::date, $9::timestamptz, $10::uuid))
+			  AND (NOT $9::bool OR (r.return_date, r.created_at, r.id) < ($10::date, $11::timestamptz, $12::uuid))
 			ORDER BY r.return_date DESC, r.created_at DESC, r.id DESC
-			LIMIT $11`, args...)
+			LIMIT $13`, args...)
 		if err != nil {
 			return err
 		}
@@ -256,7 +271,7 @@ func (s *Service) ListReturns(ctx context.Context, a authz.Actor, p ReturnListPa
 		var cnt int64
 		var total, cut, refund dec
 		if err := tx.QueryRow(ctx, `SELECT count(*), coalesce(sum(r.total), 0), coalesce(sum(r.payable_cut), 0), coalesce(sum(r.refund), 0)
-			`+returnFilter+` AND r.status = 'completed'`, a.TenantID, a.OutletID, pgDate(from), pgDate(to), p.Status, pattern).
+			`+returnFilter+` AND r.status = 'completed'`, filter...).
 			Scan(&cnt, &total, &cut, &refund); err != nil {
 			return err
 		}
@@ -287,6 +302,18 @@ func (s *Service) ReturnablePurchases(ctx context.Context, a authz.Actor, q stri
 	}
 	out := []ReturnablePurchase{}
 	err := s.tx(ctx, a, func(tx pgx.Tx) error {
+		var ids []uuid.UUID
+		byIDs := false
+		if pattern != "" {
+			var err error
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT purchase_search_ids($1, NULL, NULL, $2, $3)`,
+				a.OutletID, pattern, db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				pattern = ""
+			}
+		}
 		rows, err := tx.Query(ctx, `
 			SELECT p.id, p.doc_no, s.name, p.supplier_invoice_no, p.purchase_date, p.payment_type, p.total,
 			       pb.amount - (SELECT coalesce(sum(x.amount), 0) FROM payable_payments x WHERE x.tenant_id = pb.tenant_id AND x.payable_id = pb.id)
@@ -295,6 +322,7 @@ func (s *Service) ReturnablePurchases(ctx context.Context, a authz.Actor, q stri
 			LEFT JOIN payables pb ON pb.tenant_id = p.tenant_id AND pb.purchase_id = p.id AND pb.voided_at IS NULL
 			WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.status = 'completed'
 			  AND ($3::text = '' OR p.doc_no ILIKE $3 OR p.supplier_invoice_no ILIKE $3 OR s.name ILIKE $3)
+			  AND (NOT $4::bool OR p.id = ANY($5::uuid[]))
 			  AND EXISTS (
 			    SELECT 1 FROM purchase_lines l
 			    WHERE l.tenant_id = p.tenant_id AND l.purchase_id = p.id
@@ -302,7 +330,7 @@ func (s *Service) ReturnablePurchases(ctx context.Context, a authz.Actor, q stri
 			        JOIN purchase_returns r ON r.tenant_id = rl.tenant_id AND r.id = rl.return_id
 			        WHERE rl.tenant_id = l.tenant_id AND r.purchase_id = p.id AND rl.purchase_position = l.position AND r.status = 'completed'), 0))
 			ORDER BY p.purchase_date DESC, p.created_at DESC, p.id DESC
-			LIMIT 20`, a.TenantID, a.OutletID, pattern)
+			LIMIT 20`, a.TenantID, a.OutletID, pattern, byIDs, ids)
 		if err != nil {
 			return err
 		}

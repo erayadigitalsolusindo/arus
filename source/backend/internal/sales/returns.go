@@ -783,6 +783,19 @@ func (s *Service) SalesReturnChoices(ctx context.Context, a authz.Actor, query s
 	}
 	out := []SaleReturnChoice{}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		// Kandidat ber-indeks (sale_search_ids, 00052); pola ILIKE hanya dipakai bila kandidat melebihi batas.
+		var ids []uuid.UUID
+		byIDs := false
+		if pattern != "" {
+			var err error
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT sale_search_ids(ARRAY[$1::uuid], NULL, NULL, $2, false, $3)`,
+				a.OutletID, pattern, db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				pattern = ""
+			}
+		}
 		rows, err := tx.Query(ctx, `SELECT s.id, s.doc_no, s.created_at, s.total, coalesce(m.name, ''),
 			coalesce(r.balance, 0), coalesce(r.has_receivable, false)
 			FROM sales s LEFT JOIN members m ON m.tenant_id = s.tenant_id AND m.id = s.member_id
@@ -794,7 +807,8 @@ func (s *Service) SalesReturnChoices(ctx context.Context, a authz.Actor, query s
 				AND l.qty > coalesce((SELECT sum(rl.qty) FROM sales_return_lines rl JOIN sales_returns sr ON sr.tenant_id=rl.tenant_id AND sr.id=rl.return_id
 					WHERE rl.tenant_id=s.tenant_id AND sr.sale_id=s.id AND rl.sale_position=l.position AND sr.status='completed'),0))
 			AND ($3::text='' OR s.doc_no ILIKE $3 OR m.name ILIKE $3 OR EXISTS (SELECT 1 FROM users u WHERE u.tenant_id=s.tenant_id AND u.id=s.cashier_id AND u.name ILIKE $3))
-			ORDER BY s.created_at DESC, s.id DESC LIMIT 20`, a.TenantID, a.OutletID, pattern)
+			AND (NOT $4::bool OR s.id = ANY($5::uuid[]))
+			ORDER BY s.created_at DESC, s.id DESC LIMIT 20`, a.TenantID, a.OutletID, pattern, byIDs, ids)
 		if err != nil {
 			return err
 		}
@@ -928,6 +942,18 @@ func (s *Service) ListSaleReturns(ctx context.Context, a authz.Actor, p SaleRetu
 	}
 	result := SaleReturnListResult{Data: []SaleReturnRow{}}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		var ids []uuid.UUID
+		byIDs := false
+		if pattern != "" {
+			var err error
+			if ids, byIDs, err = db.SearchCandidates(ctx, tx, `SELECT sales_return_search_ids($1, $2, $3, $4, $5)`,
+				a.OutletID, saleReturnPGDate(from), saleReturnPGDate(to), pattern, db.SearchCap+1); err != nil {
+				return err
+			}
+			if byIDs {
+				pattern = ""
+			}
+		}
 		rows, err := tx.Query(ctx, `SELECT r.id, r.doc_no, r.sale_id, s.doc_no, coalesce(m.name,''), r.return_date, r.status, r.total,
 			r.refund, r.receivable_cut, (SELECT count(*) FROM sales_return_lines l WHERE l.tenant_id=r.tenant_id AND l.return_id=r.id),
 			r.created_at, coalesce(u.name,'')
@@ -938,8 +964,9 @@ func (s *Service) ListSaleReturns(ctx context.Context, a authz.Actor, p SaleRetu
 			AND ($5::text='' OR r.doc_no ILIKE $5 OR s.doc_no ILIKE $5 OR m.name ILIKE $5)
 			AND (NOT $6::bool OR (r.return_date,r.created_at,r.id) < ($7::date,$8::timestamptz,$9::uuid))
 			AND ($11::text = '' OR r.status = $11)
+			AND (NOT $12::bool OR r.id = ANY($13::uuid[]))
 			ORDER BY r.return_date DESC,r.created_at DESC,r.id DESC LIMIT $10`, a.TenantID, a.OutletID, saleReturnPGDate(from), saleReturnPGDate(to), pattern,
-			cursorOn, saleReturnPGDate(cursorDate), pgtype.Timestamptz{Time: cursorAt, Valid: cursorOn}, cursorID, limit+1, p.Status)
+			cursorOn, saleReturnPGDate(cursorDate), pgtype.Timestamptz{Time: cursorAt, Valid: cursorOn}, cursorID, limit+1, p.Status, byIDs, ids)
 		if err != nil {
 			return err
 		}
