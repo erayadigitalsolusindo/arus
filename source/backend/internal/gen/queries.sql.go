@@ -1797,6 +1797,99 @@ func (q *Queries) ItemRefState(ctx context.Context, arg ItemRefStateParams) (Ite
 	return i, err
 }
 
+const itemRowsByIDs = `-- name: ItemRowsByIDs :many
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
+       i.sell_price AS default_price, op.sell_price AS outlet_price,
+       coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
+       u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
+       mi.id AS main_image_id,
+       coalesce(sb.display, 0)::numeric AS stock_display, coalesce(sb.warehouse, 0)::numeric AS stock_warehouse,
+       coalesce(sb.returns, 0)::numeric AS stock_returns
+FROM items i
+LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
+JOIN units u ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
+LEFT JOIN categories c ON c.tenant_id = i.tenant_id AND c.id = i.category_id
+LEFT JOIN brands b ON b.tenant_id = i.tenant_id AND b.id = i.brand_id
+LEFT JOIN item_outlet_prices op ON op.tenant_id = i.tenant_id AND op.item_id = i.id AND op.outlet_id = $1
+LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $1
+LEFT JOIN LATERAL (
+    SELECT sum(qty) FILTER (WHERE bucket = 'display') AS display,
+           sum(qty) FILTER (WHERE bucket = 'warehouse') AS warehouse,
+           sum(qty) FILTER (WHERE bucket = 'returns') AS returns
+    FROM stock_balances s
+    WHERE s.tenant_id = i.tenant_id AND s.outlet_id = $1 AND s.item_id = i.id
+) sb ON true
+WHERE i.tenant_id = $2 AND i.id = ANY($3::uuid[])
+`
+
+type ItemRowsByIDsParams struct {
+	OutletID uuid.UUID
+	TenantID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type ItemRowsByIDsRow struct {
+	ID             uuid.UUID
+	Sku            string
+	Barcode        pgtype.Text
+	Name           string
+	Origin         string
+	Kind           string
+	Active         bool
+	DefaultPrice   decimal.Decimal
+	OutletPrice    pgtype.Numeric
+	AvgCost        decimal.Decimal
+	LastCost       decimal.Decimal
+	UnitName       string
+	CategoryName   pgtype.Text
+	BrandName      pgtype.Text
+	MainImageID    pgtype.UUID
+	StockDisplay   decimal.Decimal
+	StockWarehouse decimal.Decimal
+	StockReturns   decimal.Decimal
+}
+
+// Baris daftar untuk sekumpulan id hasil item_search()/item_find_exact() (00051); urutan dikembalikan pemanggil.
+// Sama dengan ItemList tanpa count(*) OVER () sehingga biayanya sebanding jumlah id, bukan jumlah barang tenant.
+func (q *Queries) ItemRowsByIDs(ctx context.Context, arg ItemRowsByIDsParams) ([]ItemRowsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, itemRowsByIDs, arg.OutletID, arg.TenantID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemRowsByIDsRow
+	for rows.Next() {
+		var i ItemRowsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Sku,
+			&i.Barcode,
+			&i.Name,
+			&i.Origin,
+			&i.Kind,
+			&i.Active,
+			&i.DefaultPrice,
+			&i.OutletPrice,
+			&i.AvgCost,
+			&i.LastCost,
+			&i.UnitName,
+			&i.CategoryName,
+			&i.BrandName,
+			&i.MainImageID,
+			&i.StockDisplay,
+			&i.StockWarehouse,
+			&i.StockReturns,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const itemSetActive = `-- name: ItemSetActive :one
 UPDATE items SET active = $3 WHERE tenant_id = $1 AND id = $2 RETURNING id, sku, name, active
 `
