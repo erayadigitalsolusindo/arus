@@ -1,6 +1,7 @@
 # AGENTS.md — web (SvelteKit)
 
 > Berlaku untuk `source/web/`. Aturan global ada di `/AGENTS.md`; pemetaan template di `docs/ARCHITECTURE.md` (§5b).
+> Kasir: `/kasir` dan `/kasirb` hanya membungkus `lib/components/PosScreen.svelte` (prop `variant`); ubah logika di sana, bukan di rute. `/dashboard` dan `/live-sales` adalah halaman terpisah; fitur baru = menu/halaman baru, jangan menimpa yang ada.
 
 - **Catatan SvelteKit 3 (terpasang 3.0.1, bukan 2):** konfigurasi adapter ada di `vite.config.ts` (tidak ada `svelte.config.js`); alias `$lib` dihapus → pakai `#lib/...` **dengan ekstensi** (`#lib/nav.ts`, `#lib/components/X.svelte`) lewat `imports` di `source/web/package.json`; butuh `typescript@6`.
 - **UI:** `source/web/src/lib/styles/dreams/dreams-core.css` = salinan build CSS template (token, komponen `.btn`/`.surface-card`/`.app-sidebar`, ikon lucide `icon-*` & phosphor `ph-*`) + font; 6 URL gambar demo diganti GIF 1px. Template menyembunyikan `<html>` sampai `data-theme` terpasang → di-set sinkron di `web/src/app.html`. Tailwind v4 (`@tailwindcss/vite`) hanya menambah utilitas baru. Logo ACIRABA = placeholder SVG di `web/static/`.

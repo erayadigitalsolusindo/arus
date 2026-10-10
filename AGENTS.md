@@ -33,7 +33,8 @@
 | `source/web/AGENTS.md` | SvelteKit 3, i18n, DateRange | Bekerja di web |
 | `source/mobile/AGENTS.md` | Flutter (ARUS Mobile): struktur, stack, auth native, l10n | Bekerja di mobile |
 
-`CLAUDE.md` dan `.cursor/rules/aciraba.mdc` hanya pointer ke berkas ini.
+`README.md` = halaman depan GitHub (fitur, mulai cepat, deploy); bukan sumber kebenaran, bila beda **ikuti berkas ini dan `docs/`**. `CLAUDE.md` dan `.cursor/rules/aciraba.mdc` hanya pointer ke berkas ini.
+Penomoran bagian berlompat (§0, §1, §3, §6) karena §2/§4/§5/§7–§10 dipindah ke `docs/`; jangan dirapikan, banyak dokumen merujuknya.
 
 ---
 
@@ -47,7 +48,9 @@
 | Cache/Realtime | **Redis**: session/refresh token, rate limit, cache master barang/harga, Pub/Sub realtime (KDS/dashboard), idempotency key, job queue (`asynq`). **Tidak pernah** menjadi sumber kebenaran stok/uang. |
 | Frontend | **SvelteKit mode SPA** (`adapter-static`) memanggil API Go langsung. TanStack Query (svelte), **Tailwind v4**, bits-ui (headless) untuk komponen interaktif, zod. **Tidak ada lapisan CI4/PHP lagi.** |
 | UI/Visual | Template berbayar **Dreams Core** (Tailwind v4) di `reference/template/` = **acuan visual saja**. Yang ada adalah hasil build (HTML + asset ber-hash), bukan source. Porting ke komponen Svelte: ambil markup/class Tailwind & token warna (CSS variable `--sidebar-*` dll. di `assets/script-*.css`); **jangan** memakai JS bawaan template (vanilla/DOM manipulation). Lihat `docs/ARCHITECTURE.md` (§5b). |
-| Printer | Satu **print-agent Go** (binary lokal di PC kasir, ESC/POS). Menggantikan `aciraba_printlocal` (Node) dan `aciraba_printer` (Python). |
+| Printer | Satu **print-agent Go** (binary lokal di PC kasir, ESC/POS). Menggantikan `aciraba_printlocal` (Node) dan `aciraba_printer` (Python). Template struk ada di web (`lib/pos/receipt.ts`, `escpos.ts`); agent hanya kurir RAW. Mobile: printer Bluetooth (Fase 10). |
+| Mobile | **ARUS Mobile = Flutter** di `source/mobile/` (monorepo, Android; diputuskan 2026-10-10, menggantikan usulan Capacitor). Memakai API Go yang sama; auth native lewat header `X-Client: mobile`. Aturan: `source/mobile/AGENTS.md`. |
+| Layar kasir web | `/kasir` (modern) dan `/kasirb` (klasik) berbagi satu logika di `lib/components/PosScreen.svelte` (prop `variant`). Ubah logika kasir **sekali di `PosScreen`**; rute hanya pembungkus. |
 | Data | **Aplikasi baru, data baru (diputuskan 2026-10-07).** Data legacy **tidak dimigrasikan**: tidak ada ETL, tidak ada sistem paralel, tidak ada kompatibilitas akun/password/format nota/skema dengan legacy. Toko mulai lewat **onboarding**: import barang (Excel/CSV), saldo awal stok (movement `OPENING`), saldo awal piutang/hutang (PRD §7.5b, §12). Legacy dipakai **hanya untuk memahami aturan bisnis**. |
 | Verifikasi | **Spec test**: contoh kasus perhitungan yang ditulis manual (input → total, pajak, kembalian, stok, poin, piutang) dan disetujui pengguna, disimpan di `source/tests/spec/`. Aturan mengikuti PRD (urutan hitung nota PRD §7.4), **bukan** meniru legacy — termasuk tidak meniru bug di `docs/LEGACY.md` (§8). |
 
