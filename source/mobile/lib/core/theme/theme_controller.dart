@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/gen/app_localizations.dart';
 
 /// Pilihan tampilan per perangkat: ikut sistem (bawaan), terang, atau gelap. Disimpan di SharedPreferences.
-final themeModeProvider = NotifierProvider<ThemeController, ThemeMode>(ThemeController.new);
+final themeModeProvider = NotifierProvider<ThemeController, ThemeMode>(
+  ThemeController.new,
+);
 
 class ThemeController extends Notifier<ThemeMode> {
   static const _key = 'arus.theme_mode';
@@ -19,7 +21,10 @@ class ThemeController extends Notifier<ThemeMode> {
   Future<void> _load() async {
     try {
       final v = (await SharedPreferences.getInstance()).getString(_key);
-      state = ThemeMode.values.firstWhere((m) => m.name == v, orElse: () => ThemeMode.system);
+      state = ThemeMode.values.firstWhere(
+        (m) => m.name == v,
+        orElse: () => ThemeMode.system,
+      );
     } catch (_) {
       // Penyimpanan tidak tersedia: tetap ikut sistem.
     }
@@ -34,10 +39,10 @@ class ThemeController extends Notifier<ThemeMode> {
 
   /// Urutan putar tombol: sistem → terang → gelap → sistem.
   Future<void> cycle() => set(switch (state) {
-        ThemeMode.system => ThemeMode.light,
-        ThemeMode.light => ThemeMode.dark,
-        ThemeMode.dark => ThemeMode.system,
-      });
+    ThemeMode.system => ThemeMode.light,
+    ThemeMode.light => ThemeMode.dark,
+    ThemeMode.dark => ThemeMode.system,
+  });
 }
 
 /// Tombol ikon pengganti tema; ikon menunjukkan pilihan sekarang.

@@ -166,5 +166,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "serverTitle": "Alamat server",
+  "serverHelp": "Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.",
+  "serverLabel": "Alamat server",
+  "serverInvalid": "Harus diawali http:// atau https:// dan berisi alamat.",
+  "save": "Simpan"
 }

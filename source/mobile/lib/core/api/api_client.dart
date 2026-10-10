@@ -13,10 +13,17 @@ import 'api_error.dart';
 /// - 401 `TOKEN_EXPIRED` → refresh satu kali (single-flight), lalu ulang permintaan;
 /// - semua galat dilempar sebagai [ApiError].
 class ApiClient {
-  ApiClient({required this.tokens, required this.onSessionExpired, Dio? raw, Dio? authed})
-      : _raw = raw ?? _newDio(),
-        dio = authed ?? _newDio() {
-    dio.interceptors.add(InterceptorsWrapper(onRequest: _attach, onError: _retryOnExpired));
+  ApiClient({
+    required this.tokens,
+    required this.onSessionExpired,
+    String? baseUrl,
+    Dio? raw,
+    Dio? authed,
+  }) : _raw = raw ?? _newDio(baseUrl ?? AppConfig.apiUrl),
+       dio = authed ?? _newDio(baseUrl ?? AppConfig.apiUrl) {
+    dio.interceptors.add(
+      InterceptorsWrapper(onRequest: _attach, onError: _retryOnExpired),
+    );
   }
 
   final TokenStore tokens;
@@ -33,13 +40,24 @@ class ApiClient {
   String? _accessToken;
   Future<AuthSession>? _refreshing;
 
-  static Dio _newDio() => Dio(BaseOptions(
-        baseUrl: AppConfig.apiUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 20),
-        sendTimeout: const Duration(seconds: 20),
-        headers: {AppConfig.clientHeader: AppConfig.clientValue, 'Accept': 'application/json'},
-      ));
+  /// Ganti alamat server (pengaturan pengguna). Sesi lama tidak berlaku di server lain, jadi pemanggil melakukan logout lokal.
+  void setBaseUrl(String url) {
+    _raw.options.baseUrl = url;
+    dio.options.baseUrl = url;
+  }
+
+  static Dio _newDio(String baseUrl) => Dio(
+    BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
+      sendTimeout: const Duration(seconds: 20),
+      headers: {
+        AppConfig.clientHeader: AppConfig.clientValue,
+        'Accept': 'application/json',
+      },
+    ),
+  );
 
   /// Bahasa untuk email/pesan server (Accept-Language).
   void setLanguage(String code) {
@@ -49,8 +67,17 @@ class ApiClient {
 
   // ---- auth ----
 
-  Future<AuthSession> login({required String email, required String password, required bool remember}) async {
-    final s = await _call(() => _raw.post<Map<String, dynamic>>('/auth/login', data: {'email': email, 'password': password, 'remember': remember}));
+  Future<AuthSession> login({
+    required String email,
+    required String password,
+    required bool remember,
+  }) async {
+    final s = await _call(
+      () => _raw.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: {'email': email, 'password': password, 'remember': remember},
+      ),
+    );
     await _adopt(s);
     return s;
   }
@@ -71,12 +98,20 @@ class ApiClient {
   }
 
   /// Satu refresh pada satu waktu: panggilan bersamaan menunggu hasil yang sama (token dirotasi, tidak boleh dipakai dua kali).
-  Future<AuthSession> refresh() => _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
+  Future<AuthSession> refresh() =>
+      _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
 
   Future<AuthSession> _doRefresh() async {
     final token = await tokens.readRefreshToken();
-    if (token == null || token.isEmpty) throw ApiError(code: 'SESSION_INVALID', status: 401);
-    final s = await _call(() => _raw.post<Map<String, dynamic>>('/auth/refresh', data: {'refresh_token': token}));
+    if (token == null || token.isEmpty) {
+      throw ApiError(code: 'SESSION_INVALID', status: 401);
+    }
+    final s = await _call(
+      () => _raw.post<Map<String, dynamic>>(
+        '/auth/refresh',
+        data: {'refresh_token': token},
+      ),
+    );
     await _adopt(s);
     return s;
   }
@@ -101,7 +136,9 @@ class ApiClient {
 
   Future<void> _adopt(AuthSession s) async {
     _accessToken = s.accessToken;
-    if (s.refreshToken.isNotEmpty) await tokens.writeRefreshToken(s.refreshToken);
+    if (s.refreshToken.isNotEmpty) {
+      await tokens.writeRefreshToken(s.refreshToken);
+    }
   }
 
   // ---- interceptor ----
@@ -112,10 +149,17 @@ class ApiClient {
     h.next(o);
   }
 
-  Future<void> _retryOnExpired(DioException e, ErrorInterceptorHandler h) async {
+  Future<void> _retryOnExpired(
+    DioException e,
+    ErrorInterceptorHandler h,
+  ) async {
     final err = ApiError.fromDio(e);
     final retried = e.requestOptions.extra['retried'] == true;
-    if (e.response?.statusCode != 401 || err.code != 'TOKEN_EXPIRED' || retried) return h.next(e);
+    if (e.response?.statusCode != 401 ||
+        err.code != 'TOKEN_EXPIRED' ||
+        retried) {
+      return h.next(e);
+    }
     try {
       await refresh();
     } on ApiError catch (re) {
@@ -136,7 +180,9 @@ class ApiClient {
 
   // ---- util ----
 
-  Future<AuthSession> _call(Future<Response<Map<String, dynamic>>> Function() fn) async {
+  Future<AuthSession> _call(
+    Future<Response<Map<String, dynamic>>> Function() fn,
+  ) async {
     try {
       final r = await fn();
       return AuthSession.fromJson(r.data!);

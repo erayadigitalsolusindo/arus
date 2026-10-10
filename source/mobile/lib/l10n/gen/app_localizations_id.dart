@@ -308,4 +308,21 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get errorEditWindow => 'Di luar batas waktu edit.';
+
+  @override
+  String get serverTitle => 'Alamat server';
+
+  @override
+  String get serverHelp =>
+      'Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.';
+
+  @override
+  String get serverLabel => 'Alamat server';
+
+  @override
+  String get serverInvalid =>
+      'Harus diawali http:// atau https:// dan berisi alamat.';
+
+  @override
+  String get save => 'Simpan';
 }

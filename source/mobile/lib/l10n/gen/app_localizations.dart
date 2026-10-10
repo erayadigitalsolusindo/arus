@@ -637,6 +637,36 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Di luar batas waktu edit.'**
   String get errorEditWindow;
+
+  /// No description provided for @serverTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Alamat server'**
+  String get serverTitle;
+
+  /// No description provided for @serverHelp.
+  ///
+  /// In id, this message translates to:
+  /// **'Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.'**
+  String get serverHelp;
+
+  /// No description provided for @serverLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Alamat server'**
+  String get serverLabel;
+
+  /// No description provided for @serverInvalid.
+  ///
+  /// In id, this message translates to:
+  /// **'Harus diawali http:// atau https:// dan berisi alamat.'**
+  String get serverInvalid;
+
+  /// No description provided for @save.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan'**
+  String get save;
 }
 
 class _AppLocalizationsDelegate

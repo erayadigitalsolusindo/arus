@@ -9,7 +9,11 @@ import 'pos_controller.dart';
 
 /// Dialog buka shift (modal awal kas). Mengembalikan true bila shift berhasil dibuka.
 Future<bool> showOpenShiftDialog(BuildContext context) async {
-  final ok = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => const _OpenShiftDialog());
+  final ok = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const _OpenShiftDialog(),
+  );
   return ok ?? false;
 }
 
@@ -37,7 +41,9 @@ class _OpenShiftDialogState extends ConsumerState<_OpenShiftDialog> {
       _error = null;
     });
     try {
-      await ref.read(shiftProvider.notifier).open(decToApi(parseInput(_cash.text), scale: 2));
+      await ref
+          .read(shiftProvider.notifier)
+          .open(decToApi(parseInput(_cash.text), scale: 2));
       if (mounted) Navigator.of(context).pop(true);
     } on ApiError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -61,18 +67,26 @@ class _OpenShiftDialogState extends ConsumerState<_OpenShiftDialog> {
             controller: _cash,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
             decoration: InputDecoration(labelText: l.shiftOpeningCash),
             onSubmitted: (_) => _busy ? null : _submit(),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!.message(l), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!.message(l),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),
       actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(false), child: Text(MaterialLocalizations.of(context).cancelButtonLabel)),
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
           onPressed: _busy ? null : _submit,

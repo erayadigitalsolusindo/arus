@@ -113,7 +113,10 @@ extension PaletteContext on BuildContext {
 ThemeData buildTheme(Brightness brightness) {
   final p = brightness == Brightness.dark ? AppPalette.dark : AppPalette.light;
   const radius = BorderRadius.all(Radius.circular(10));
-  OutlineInputBorder border(Color c) => OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: c));
+  OutlineInputBorder border(Color c) => OutlineInputBorder(
+    borderRadius: radius,
+    borderSide: BorderSide(color: c),
+  );
 
   final scheme = ColorScheme.fromSeed(
     seedColor: AppColors.primary600,
@@ -122,7 +125,9 @@ ThemeData buildTheme(Brightness brightness) {
     surface: p.surface,
     error: p.danger,
   );
-  final base = brightness == Brightness.dark ? ThemeData.dark() : ThemeData.light();
+  final base = brightness == Brightness.dark
+      ? ThemeData.dark()
+      : ThemeData.light();
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -131,10 +136,25 @@ ThemeData buildTheme(Brightness brightness) {
     extensions: [p],
     textTheme: base.textTheme.apply(bodyColor: p.text, displayColor: p.text),
     dividerColor: p.border,
-    appBarTheme: AppBarTheme(backgroundColor: p.surface, foregroundColor: p.text, elevation: 0, scrolledUnderElevation: 0),
-    cardTheme: CardThemeData(color: p.surface, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: p.border))),
+    appBarTheme: AppBarTheme(
+      backgroundColor: p.surface,
+      foregroundColor: p.text,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ),
+    cardTheme: CardThemeData(
+      color: p.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: p.border),
+      ),
+    ),
     dialogTheme: DialogThemeData(backgroundColor: p.surface),
-    bottomSheetTheme: BottomSheetThemeData(backgroundColor: p.surface, surfaceTintColor: Colors.transparent),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: p.sunken,
