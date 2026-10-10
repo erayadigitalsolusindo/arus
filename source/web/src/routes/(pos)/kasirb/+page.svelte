@@ -2,4 +2,4 @@
   import PosScreen from '#lib/components/PosScreen.svelte';
 </script>
 
-<PosScreen />
+<PosScreen variant="classic" />

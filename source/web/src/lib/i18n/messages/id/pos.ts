@@ -372,5 +372,29 @@ export default {
     clear: 'Hapus semua rincian',
     prefix: 'Biaya lain',
     unnamed: 'Lainnya'
+  },
+  // Layar kasir bergaya desktop (/kasirb).
+  layout: { toClassic: 'Tampilan Kasir B', toClassicDesc: 'Pindah ke tampilan klasik. Pilihan diingat untuk login berikutnya.', toModern: 'Tampilan Kasir' },
+  classic: {
+    loggedInAs: 'Anda Login Sebagai',
+    docNo: 'No. Nota',
+    outlet: 'Lokasi',
+    itemList: 'Daftar Barang',
+    code: 'Kode Barang',
+    name: 'Nama Barang',
+    unit: 'Sat',
+    price: 'Harga',
+    discount: 'Diskon',
+    subTotal: 'Sub Total',
+    total: 'Total',
+    save: 'Simpan',
+    refresh: 'Segarkan',
+    exit: 'Keluar',
+    pointsEarned: 'Poin Didapat',
+    itemCount: 'Jumlah Item',
+    qtyCount: 'Jumlah QTY',
+    empty: 'Keranjang kosong. Ketik kode item atau pindai barcode.',
+    expand: 'Perluas',
+    collapse: 'Ciutkan'
   }
 };

@@ -10,6 +10,7 @@
   import { approvals, type Approver } from '#lib/approval/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
+  import { focusOnMount } from '#lib/focus.ts';
   import { loadReceiptSettings, printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
   import ReceiptSettings from '#lib/components/ReceiptSettings.svelte';
 
@@ -351,11 +352,23 @@
         </p>
       {/if}
       {#if printError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{printError}</p>{/if}
-      <div class="flex gap-2">
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="flex gap-2"
+        role="group"
+        onkeydown={(e) => {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+          const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+          const i = btns.indexOf(document.activeElement as HTMLButtonElement);
+          const next = btns[i + (e.key === 'ArrowRight' ? 1 : -1)];
+          if (next) (e.preventDefault(), next.focus());
+        }}
+      >
+        <!-- Fokus awal di "Transaksi baru" (Enter = lanjut); cetak ada di kanannya (→ lalu Enter). -->
+        <button type="button" class="btn btn-primary flex-1" onclick={ondone} use:focusOnMount>{t('pos.newSale')}</button>
         <button type="button" class="btn btn-outline flex-1 disabled:opacity-60" onclick={print} disabled={printing}>
           <i class="icon-printer text-[14px]"></i>{printing ? t('pos.receipt.printing') : printed ? t('pos.receipt.reprint') : t('pos.receipt.print')}
         </button>
-        <button type="button" class="btn btn-primary flex-1" onclick={ondone}>{t('pos.newSale')}</button>
       </div>
       <details class="text-start text-[12px] text-[var(--text-secondary)]">
         <summary class="cursor-pointer select-none">{t('pos.receipt.settings')}</summary>
