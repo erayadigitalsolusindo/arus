@@ -31,6 +31,7 @@
 | `docs/SESSION-LOG.md` | Arsip riwayat per sesi | Hanya bila perlu riwayat (Grep) |
 | `source/backend/AGENTS.md` | Aturan tabel bertenant, tata letak modul, big data | Bekerja di backend |
 | `source/web/AGENTS.md` | SvelteKit 3, i18n, DateRange | Bekerja di web |
+| `source/mobile/AGENTS.md` | Flutter (ARUS Mobile): struktur, stack, auth native, l10n | Bekerja di mobile |
 
 `CLAUDE.md` dan `.cursor/rules/aciraba.mdc` hanya pointer ke berkas ini.
 

@@ -1,0 +1,12 @@
+# AGENTS.md — mobile (Flutter, ARUS Mobile)
+
+> Berlaku untuk `source/mobile/` (paket `arus_mobile`, Android). Aturan global ada di `/AGENTS.md`; toolchain dan cara menjalankan di `docs/DEV-ENV.md`.
+
+- **Satu aplikasi, banyak modul.** `lib/core/` (api, session, theme, widget bersama) · `lib/features/<modul>/` (auth, pos; opname/mutasi menyusul) · `lib/shell/` (beranda/menu). Modul tidak saling impor; yang dipakai bersama pindah ke `core/`. Menu beranda disaring dari `Profile.permissions` (sama seperti web); server tetap yang menegakkan izin.
+- **Cakupan v1 (keputusan pengguna 2026-10-10):** seluruh fitur kasir web kecuali retur penjualan. **Printer: Bluetooth** (jenis Classic/BLE dan merek/model belum diketahui). Struk ESC/POS ditulis ulang di Dart.
+- **Stack:** Riverpod (state), go_router, dio, `decimal` (uang/qty — jangan `double`; API mengirim string desimal), flutter_secure_storage (refresh token), gen-l10n.
+- **Teks UI:** dilarang menulis teks langsung di widget. Tambah kunci di `lib/l10n/app_id.arb` (sumber + fallback) dan `app_en.arb`, lalu `flutter gen-l10n`. Kode galat API (`ApiError.code`) diterjemahkan di `ApiError.message(l)`.
+- **Server yang menghitung.** Harga/total/pajak dari `POST /sales/quote`; klien hanya menampilkan. Transaksi memakai `Idempotency-Key` yang sama saat retry.
+- **Auth native:** header `X-Client: mobile` → refresh token dikirim/diterima lewat badan JSON (bukan cookie) pada `/auth/login|refresh|logout|switch-outlet`. Access token hanya di memori; refresh token di Keystore dan dirotasi tiap refresh. `ApiClient` melakukan refresh single-flight dan mengulang permintaan pada 401 `TOKEN_EXPIRED`. Pencabutan per perangkat belum ada (Fase 10.1).
+- **Alamat API:** `--dart-define=API_URL=http://<IP-LAN>:8080` (bawaan `10.0.2.2:8080` untuk emulator). Cleartext http hanya di manifest debug; rilis wajib https.
+- **Verifikasi:** `flutter analyze`, `flutter test` (fake HTTP adapter, tanpa server), `flutter build apk --debug`. Jalankan dari `source/mobile/`.

@@ -47,7 +47,7 @@ aciraba_newgen/
       sqlc.yaml
     web/                     SvelteKit SPA — src/routes/(auth)|(kasir)|(admin)|(laporan), src/lib/api, src/lib/stores
     print-agent/             Go — ESC/POS lokal
-    mobile/                  Flutter — aplikasi kasir Android (Fase 10; belum dibuat)
+    mobile/                  Flutter — ARUS Mobile (paket arus_mobile, Android): lib/core · lib/features/<modul> · lib/shell; aturan di source/mobile/AGENTS.md
     tools/                   skrip bantu dev (seed data demo, generator template import)
     tests/spec/              contoh kasus perhitungan (YAML: input → expected) yang disetujui pengguna
     deploy/                  docker-compose.yml (postgres, redis, api, web), .env.example
