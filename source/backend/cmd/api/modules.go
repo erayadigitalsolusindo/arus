@@ -30,6 +30,7 @@ import (
 	"aciraba/internal/sales"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
+	"aciraba/internal/wallet"
 )
 
 // appDeps = infrastruktur bersama yang dirakit main() lalu diteruskan ke semua modul.
@@ -89,7 +90,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
-	sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
+	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc), perms, tokens, d.Log)
+	salesH.Routes(r)
+	salesH.ReturnRoutes(r)
 	receivable.NewHandler(receivable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
@@ -98,5 +101,6 @@ func mountModules(r chi.Router, d appDeps) error {
 	purchaseH.Routes(r)
 	purchaseH.ReturnRoutes(r)
 	payable.NewHandler(payable.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	return nil
 }

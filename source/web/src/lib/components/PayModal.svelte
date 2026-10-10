@@ -33,7 +33,7 @@
     /** Mode edit nota: simpan sebagai revisi nota `id` (alasan sudah diisi di layar kasir; penyetuju ikut di build()). */
     edit?: { id: string; reason: string };
     /** Member yang dipilih di kasir (kredit hanya untuk member) dan syarat kreditnya dari quote. */
-    member?: { id: string; name: string } | null;
+    member?: { id: string; name: string; deposit?: string } | null;
     credit?: Quote['credit'] | null;
   } = $props();
 
@@ -60,7 +60,7 @@
         return [];
     }
   };
-  const hasRef = (m: PaymentMethod) => m.kind !== 'cash';
+  const hasRef = (m: PaymentMethod) => m.kind !== 'cash' && m.kind !== 'deposit';
 
   /** sen → string desimal untuk input/API ("12500" atau "12500.50"), tanpa float. */
   const dec = (c: bigint) => (c % 100n === 0n ? String(c / 100n) : `${c / 100n}.${String(c % 100n).padStart(2, '0')}`);
@@ -82,7 +82,7 @@
 
   let pickedId = $state('');
   const nonCashMethods = $derived(methods.filter((m) => m.kind !== 'cash'));
-  const KIND_ORDER = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer'];
+  const KIND_ORDER = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer', 'deposit'];
   const kindName = (k: string) => t(`sales.method.${k}` as 'sales.method.cash');
   /** Jenis yang punya metode aktif, urut tetap (Tunai dulu). */
   const kindsOf = (list: PaymentMethod[]) => KIND_ORDER.filter((k) => list.some((m) => m.kind === k));
@@ -180,8 +180,12 @@
     }
   });
   const approvalOk = $derived(!overLimit || !!baseApproval || (creditApproverId !== '' && /^d{6}$/.test(creditPin)));
+  /** Saldo deposit member (dari quote); pemakaian deposit tidak boleh melebihinya (server tetap memeriksa saat simpan). */
+  const depositC = $derived(toCents(member?.deposit ?? '0'));
+  const depositUsed = $derived(entered.filter((m) => m.kind === 'deposit').reduce((s, m) => s + amountOf(m), 0n));
+  const depositOver = $derived(depositUsed > depositC);
   const canSubmit = $derived(
-    methodsReady && !submitting && !nonCashOver && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
+    methodsReady && !submitting && !nonCashOver && !depositOver && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
   );
 
   function focusFirst() {
@@ -212,9 +216,10 @@
 
   onMount(() => {
     void paymentMethodsLookup
-      .all()
+      .all('sale')
       .then(async (list) => {
-        methods = list;
+        // Deposit member hanya bisa dipakai bila nota punya member.
+        methods = list.filter((m) => m.kind !== 'deposit' || !!member);
         pickedId = list.find((m) => m.kind !== 'cash')?.id ?? '';
         fields = blank(list, true);
         methodsReady = true;
@@ -415,6 +420,9 @@
               class="w-full h-11 px-3 text-end text-[22px] tabular-nums rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]"
             />
             {#if feeLine(m)}<p class="text-[12px] text-[var(--color-warning-600)]">{feeLine(m)}</p>{/if}
+            {#if m.kind === 'deposit'}
+              <p class="text-[12px] {depositOver ? 'text-[var(--color-danger-600)] font-semibold' : 'text-[var(--text-tertiary)]'}">{t('pos.depositBalance', { amount: money(depositC) })}{#if depositOver} · {t('pos.depositOver')}{/if}</p>
+            {/if}
             {#if hasRef(m)}
               <input data-pay bind:value={fields[m.id].ref} maxlength="100" autocomplete="off" placeholder={t(('pos.payRefFor.' + (m.kind === 'cash' ? 'transfer' : m.kind)) as 'pos.payRefFor.transfer')} aria-label={t('pos.payRef')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
             {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { session, logout, can } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
-  import { visibleNav } from '#lib/nav.ts';
+  import { visibleNav, type NavItem } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
   import OutletSwitcher from '#lib/components/OutletSwitcher.svelte';
 
@@ -17,6 +17,30 @@
 
   // Semua submenu tertutup saat halaman dimuat/di-reload.
   let open = $state<Record<string, boolean>>({});
+  let bubbleItem = $state<NavItem | null>(null);
+  let bubbleTop = $state(12);
+  let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function showBubble(item: NavItem, target: HTMLElement) {
+    if (!collapsed) return;
+    if (bubbleTimer) clearTimeout(bubbleTimer);
+    bubbleItem = item;
+    const top = target.getBoundingClientRect().top;
+    bubbleTop = Math.max(12, Math.min(top, window.innerHeight - 290));
+  }
+
+  function hideBubble() {
+    if (bubbleTimer) clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => (bubbleItem = null), 180);
+  }
+
+  function keepBubble() {
+    if (bubbleTimer) clearTimeout(bubbleTimer);
+  }
+
+  $effect(() => {
+    if (!collapsed) bubbleItem = null;
+  });
 </script>
 
 {#if mobileOpen}
@@ -52,7 +76,17 @@
                 type="button"
                 class="sidebar-link w-full"
                 aria-expanded={!!open[item.id]}
-                onclick={() => (open[item.id] = !open[item.id])}
+                aria-label={t(item.labelKey)}
+                onmouseenter={(event) => showBubble(item, event.currentTarget)}
+                onmouseleave={hideBubble}
+                onfocus={(event) => showBubble(item, event.currentTarget)}
+                onclick={(event) => {
+                  open[item.id] = !open[item.id];
+                  if (collapsed) {
+                    if (open[item.id]) showBubble(item, event.currentTarget);
+                    else bubbleItem = null;
+                  }
+                }}
               >
                 <i class="icon-{item.icon} text-[16px]"></i>
                 <span class="sidebar-label">{t(item.labelKey)}</span>
@@ -75,6 +109,10 @@
                 class="sidebar-link"
                 class:is-active={item.href && page.url.pathname === item.href}
                 aria-current={item.href && page.url.pathname === item.href ? 'page' : undefined}
+                aria-label={t(item.labelKey)}
+                onmouseenter={(event) => showBubble(item, event.currentTarget)}
+                onmouseleave={hideBubble}
+                onfocus={(event) => showBubble(item, event.currentTarget)}
               >
                 <i class="icon-{item.icon} text-[16px]"></i>
                 <span class="sidebar-label">{t(item.labelKey)}</span>
@@ -85,6 +123,36 @@
       {/each}
     </ul>
   </nav>
+
+  {#if collapsed && bubbleItem}
+    <div
+      class="sidebar-nav-bubble"
+      style:top="{bubbleTop}px"
+      onmouseenter={keepBubble}
+      onmouseleave={hideBubble}
+      onfocusin={keepBubble}
+      onfocusout={hideBubble}
+    >
+      <div class="sidebar-nav-bubble-title">{t(bubbleItem.labelKey)}</div>
+      {#if bubbleItem.children?.length}
+        <ul>
+          {#each bubbleItem.children as child (child.labelKey)}
+            <li>
+              <a
+                href={child.href ?? '#'}
+                class:is-active={child.href && page.url.pathname === child.href}
+                aria-current={child.href && page.url.pathname === child.href ? 'page' : undefined}
+                onclick={() => (bubbleItem = null)}
+              >
+                {t(child.labelKey)}
+                <i class="icon-chevron-right sidebar-bubble-arrow" aria-hidden="true"></i>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  {/if}
 
   <div class="p-3 border-t shrink-0 border-[var(--sidebar-border)]">
     <div class="w-full flex items-center gap-2.5 rounded-lg p-2 bg-[rgb(255_255_255_/_0.04)]">
@@ -111,5 +179,109 @@
   /* Outline putih mengikuti kontur logo (logo biru tua di atas sidebar gelap). */
   .logo-outline {
     filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff);
+  }
+
+  .sidebar-nav-bubble {
+    position: fixed;
+    inset-inline-start: 92px;
+    z-index: 60;
+    width: 224px;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 14px;
+    background: var(--sidebar-bg);
+    box-shadow: 0 14px 36px rgb(0 0 0 / 28%);
+    color: var(--sidebar-text-active);
+    animation: nav-bubble-in 140ms ease-out;
+  }
+
+  .sidebar-nav-bubble::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: -8px;
+    top: 14px;
+    width: 10px;
+    height: 18px;
+    clip-path: polygon(100% 0, 100% 100%, 0 50%);
+    background: var(--sidebar-bg);
+    filter: drop-shadow(-1px 0 0 rgb(255 255 255 / 20%));
+  }
+
+  .sidebar-nav-bubble:dir(rtl)::before {
+    clip-path: polygon(0 0, 0 100%, 100% 50%);
+    filter: drop-shadow(1px 0 0 rgb(255 255 255 / 20%));
+  }
+
+  .sidebar-nav-bubble-title {
+    padding: 5px 8px 4px;
+    color: rgb(255 255 255 / 58%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .sidebar-nav-bubble ul {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .sidebar-nav-bubble li {
+    margin: 0 !important;
+    padding: 0;
+  }
+
+  .sidebar-nav-bubble a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border-radius: 9px;
+    color: var(--sidebar-text-active);
+    font-size: 12px;
+    line-height: 1.25;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .sidebar-nav-bubble a:hover,
+  .sidebar-nav-bubble a:focus-visible {
+    outline: none;
+    background: rgb(255 255 255 / 10%);
+    color: white;
+  }
+
+  .sidebar-nav-bubble a.is-active {
+    background: rgb(255 255 255 / 10%);
+    color: white;
+  }
+
+  .sidebar-bubble-arrow {
+    flex: none;
+    opacity: 0;
+    transform: translateX(-3px);
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+
+  .sidebar-nav-bubble a:hover .sidebar-bubble-arrow,
+  .sidebar-nav-bubble a:focus-visible .sidebar-bubble-arrow,
+  .sidebar-nav-bubble a.is-active .sidebar-bubble-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @keyframes nav-bubble-in {
+    from { opacity: 0; transform: translateX(-4px) scale(.98); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-nav-bubble { animation: none; }
   }
 </style>

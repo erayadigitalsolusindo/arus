@@ -55,12 +55,14 @@ var Modules = []Module{
 	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
 	{"sell_price_history", viewing},
 	{"member_receivables", []string{ActView, ActCreate}},
+	{"member_deposits", []string{ActView, ActCreate}}, // saldo deposit member: lihat; create = top-up & tarik tunai
 	{"order_list", crud},
 	{"purchase_invoices", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}},
 	{"purchase_returns", []string{ActView, ActCreate, ActApprove}},
 	{"purchase_list", viewing},
 	{"buy_price_history", viewing},
 	{"supplier_payables", []string{ActView, ActCreate}},
+	{"supplier_credits", []string{ActView, ActCreate}}, // kredit pemasok: lihat; create = pencairan kredit oleh pemasok
 	{"stock_opening", []string{ActView, ActCreate, ActApprove}},
 	{"stock_conversion", []string{ActView, ActCreate}},
 	{"stock_opname", []string{ActView, ActCreate, ActApprove}},

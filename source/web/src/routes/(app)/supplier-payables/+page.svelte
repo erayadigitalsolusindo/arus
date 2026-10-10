@@ -18,6 +18,7 @@
   let hasMore = $state(false);
   let loading = $state(true);
   let error = $state('');
+  let nextCursor = ''; // paginasi keyset (big data): kursor dari halaman sebelumnya
   let q = $state('');
   let status = $state<PayableFilter>('open');
   let openId = $state<string | null>(null);
@@ -32,11 +33,12 @@
     loading = true;
     error = '';
     try {
-      const res = await api.list({ status, q: q.trim(), limit: PAGE, offset: more ? rows.length : 0 });
+      const res = await api.list({ status, q: q.trim(), limit: PAGE, cursor: more ? nextCursor : '' });
       if (mine !== seq) return;
       rows = more ? [...rows, ...res.data] : res.data;
       summary = res.summary;
       hasMore = res.has_more;
+      nextCursor = res.next_cursor;
     } catch (e) {
       if (mine === seq) error = errorMessage(e);
     } finally {

@@ -13,6 +13,7 @@ import (
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/stock"
+	"aciraba/internal/wallet"
 )
 
 // Module = modul izin penjualan (authz.Modules): view = lihat nota, create = simpan nota.
@@ -121,6 +122,20 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusForbidden, "CREDIT_LIMIT_EXCEEDED", "Piutang member melewati limit kredit. Butuh persetujuan Owner/Supervisor (PIN).")
 	case errors.Is(err, ErrReceivablePaid):
 		httpx.Error(w, http.StatusConflict, "RECEIVABLE_PAID", "Piutang nota ini sudah dibayar sebagian atau seluruhnya, sehingga nota tidak dapat diubah atau dibatalkan.")
+	case errors.Is(err, ErrSaleHasReturns):
+		httpx.Error(w, http.StatusConflict, "SALE_HAS_RETURNS", "Nota ini sudah memiliki retur aktif sehingga tidak dapat diubah atau dibatalkan.")
+	case errors.Is(err, ErrSaleReturnInactive):
+		httpx.Error(w, http.StatusConflict, "RETURN_NOT_ACTIVE", "Retur ini sudah dibatalkan.")
+	case errors.Is(err, ErrSaleReturnRefunded):
+		httpx.Error(w, http.StatusConflict, "SALE_RETURN_REFUNDED", "Dana kembali retur ini sudah diserahkan ke pelanggan; retur tidak dapat dibatalkan.")
+	case errors.Is(err, ErrSaleReturnLocked):
+		httpx.Error(w, http.StatusConflict, "SALE_RETURN_LOCKED", "Piutang nota sudah dibayar setelah retur dibuat; retur tidak dapat dibatalkan.")
+	case errors.Is(err, wallet.ErrInsufficient):
+		httpx.Error(w, http.StatusConflict, "DEPOSIT_INSUFFICIENT", "Saldo deposit member tidak mencukupi.")
+	case errors.Is(err, stock.ErrInsufficient):
+		httpx.Error(w, http.StatusConflict, "RETURN_STOCK_INSUFFICIENT", "Stok di bucket Retur tidak cukup.")
+	case errors.Is(err, ErrSaleNotReturnable):
+		httpx.Error(w, http.StatusConflict, "SALE_NOT_RETURNABLE", "Nota ini tidak dapat diretur karena sudah dibatalkan atau diganti revisi.")
 	case errors.Is(err, ErrNotEditable):
 		httpx.Error(w, http.StatusConflict, "SALE_NOT_EDITABLE", "Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).")
 	case errors.Is(err, ErrEditWindow):

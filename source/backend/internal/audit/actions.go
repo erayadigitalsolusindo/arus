@@ -121,6 +121,12 @@ const (
 	ActionSaleVoid       = "sale.void"
 )
 
+const (
+	EntitySaleReturn       = "sale_return"
+	ActionSaleReturnCreate = "sale_return.create"
+	ActionSaleReturnVoid   = "sale_return.void"
+)
+
 // Piutang member (penjualan kredit).
 const (
 	ActionReceivablePay    = "receivable.pay"
@@ -132,6 +138,14 @@ const (
 	EntityPayable       = "payable"
 	ActionPayablePay    = "payable.pay"
 	ActionPayableSettle = "payable.settle" // pelunasan kolektif per pemasok
+)
+
+// Saldo titipan: deposit member (top-up / tarik) dan kredit pemasok (pencairan).
+const (
+	EntityMemberDeposit         = "member_deposit"
+	EntitySupplierCredit        = "supplier_credit"
+	ActionDepositCash           = "member_deposit.cash"
+	ActionSupplierCreditCashOut = "supplier_credit.cash_out"
 )
 
 // Persetujuan (PIN) — ubah harga di kasir.

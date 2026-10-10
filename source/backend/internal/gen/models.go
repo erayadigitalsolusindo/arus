@@ -160,6 +160,27 @@ type MemberCounter struct {
 	LastNo   int64
 }
 
+type MemberDepositMovement struct {
+	ID             int64
+	TenantID       uuid.UUID
+	MemberID       uuid.UUID
+	OutletID       uuid.UUID
+	Kind           string
+	Amount         decimal.Decimal
+	BalanceAfter   decimal.Decimal
+	RefID          pgtype.UUID
+	DocNo          string
+	Method         pgtype.Text
+	MethodID       pgtype.UUID
+	MethodName     string
+	RefNo          string
+	Note           string
+	IdempotencyKey pgtype.Text
+	RequestHash    pgtype.Text
+	ActorID        pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
 type MemberLevel struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -397,6 +418,55 @@ type PurchaseLine struct {
 	AvgAfter     decimal.Decimal
 }
 
+type PurchaseReturn struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	OutletID         uuid.UUID
+	PurchaseID       uuid.UUID
+	SupplierID       uuid.UUID
+	DocNo            string
+	IdempotencyKey   string
+	RequestHash      string
+	ReturnDate       pgtype.Date
+	Status           string
+	Note             string
+	Subtotal         decimal.Decimal
+	TaxAmount        decimal.Decimal
+	Total            decimal.Decimal
+	PayableCut       decimal.Decimal
+	Refund           decimal.Decimal
+	RefundMethod     pgtype.Text
+	RefundMethodID   pgtype.UUID
+	RefundMethodName string
+	RefundRef        string
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	VoidReason       string
+	VoidedAt         pgtype.Timestamptz
+	VoidedBy         pgtype.UUID
+}
+
+type PurchaseReturnCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type PurchaseReturnLine struct {
+	TenantID         uuid.UUID
+	ReturnID         uuid.UUID
+	Position         int32
+	PurchasePosition int32
+	ItemID           uuid.UUID
+	ItemSku          string
+	ItemName         string
+	UnitName         string
+	Qty              decimal.Decimal
+	Value            decimal.Decimal
+	UnitCost         decimal.Decimal
+}
+
 type Receivable struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -573,6 +643,63 @@ type SaleVoucher struct {
 	Amount    decimal.Decimal
 }
 
+type SalesReturn struct {
+	ID                     uuid.UUID
+	TenantID               uuid.UUID
+	OutletID               uuid.UUID
+	SaleID                 uuid.UUID
+	MemberID               pgtype.UUID
+	DocNo                  string
+	IdempotencyKey         string
+	RequestHash            string
+	ReturnDate             pgtype.Date
+	Note                   string
+	Subtotal               decimal.Decimal
+	Discount               decimal.Decimal
+	TaxAmount              decimal.Decimal
+	Surcharge              decimal.Decimal
+	Total                  decimal.Decimal
+	ReceivableCut          decimal.Decimal
+	Refund                 decimal.Decimal
+	RefundMethod           pgtype.Text
+	RefundMethodID         pgtype.UUID
+	RefundMethodName       string
+	RefundRef              string
+	PointsEarnedReversed   int32
+	PointsRedeemedRestored int32
+	CreatedBy              pgtype.UUID
+	CreatedAt              pgtype.Timestamptz
+	Status                 string
+	VoidReason             string
+	VoidedAt               pgtype.Timestamptz
+	VoidedBy               pgtype.UUID
+}
+
+type SalesReturnCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Day      pgtype.Date
+	LastNo   int64
+}
+
+type SalesReturnLine struct {
+	TenantID     uuid.UUID
+	ReturnID     uuid.UUID
+	Position     int32
+	SalePosition int32
+	ItemID       uuid.UUID
+	ItemSku      string
+	ItemName     string
+	UnitName     string
+	Factor       decimal.Decimal
+	Qty          decimal.Decimal
+	BaseQty      decimal.Decimal
+	Value        decimal.Decimal
+	Discount     decimal.Decimal
+	TaxAmount    decimal.Decimal
+	UnitCost     decimal.Decimal
+}
+
 type Salesperson struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -725,6 +852,27 @@ type Supplier struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type SupplierCreditMovement struct {
+	ID             int64
+	TenantID       uuid.UUID
+	SupplierID     uuid.UUID
+	OutletID       uuid.UUID
+	Kind           string
+	Amount         decimal.Decimal
+	BalanceAfter   decimal.Decimal
+	RefID          pgtype.UUID
+	DocNo          string
+	Method         pgtype.Text
+	MethodID       pgtype.UUID
+	MethodName     string
+	RefNo          string
+	Note           string
+	IdempotencyKey pgtype.Text
+	RequestHash    pgtype.Text
+	ActorID        pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Tenant struct {
 	ID                    uuid.UUID
 	Code                  string
@@ -764,6 +912,13 @@ type User struct {
 	TokensValidAfter pgtype.Timestamptz
 }
 
+type UserFeatureShortcut struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	Shortcuts []byte
+	UpdatedAt pgtype.Timestamptz
+}
+
 type UserOutlet struct {
 	TenantID uuid.UUID
 	UserID   uuid.UUID
@@ -786,4 +941,12 @@ type Voucher struct {
 	Active      bool
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+}
+
+type WalletDocCounter struct {
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+	Prefix   string
+	Day      pgtype.Date
+	LastNo   int64
 }

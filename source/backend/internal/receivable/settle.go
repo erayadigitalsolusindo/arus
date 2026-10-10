@@ -28,6 +28,7 @@ import (
 	"aciraba/internal/authz"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/wallet"
 )
 
 const maxAllocations = 200
@@ -173,6 +174,7 @@ type cand struct {
 	id        uuid.UUID
 	amount    dec
 	paid      dec
+	returned  dec
 	docNo     string
 	soldAt    time.Time
 	due       pgtype.Date
@@ -189,7 +191,8 @@ func (s *Service) plan(ctx context.Context, tx pgx.Tx, a authz.Actor, n settleNo
 		}
 	}
 	q := `
-		SELECT r.id, r.amount, s.doc_no, s.created_at, r.due_date, s.status
+		SELECT r.id, r.amount, s.doc_no, s.created_at, r.due_date, s.status,
+		       coalesce((SELECT sum(sr.receivable_cut) FROM sales_returns sr WHERE sr.tenant_id=r.tenant_id AND sr.sale_id=r.sale_id AND sr.status='completed'),0)::numeric AS returned
 		FROM receivables r JOIN sales s ON s.tenant_id = r.tenant_id AND s.id = r.sale_id
 		WHERE r.tenant_id = $1 AND r.member_id = $2 AND r.outlet_id = ANY($3::uuid[])
 		  AND ($4::uuid[] IS NULL OR r.id = ANY($4::uuid[]))
@@ -206,7 +209,7 @@ func (s *Service) plan(ctx context.Context, tx pgx.Tx, a authz.Actor, n settleNo
 	for rows.Next() {
 		c := &cand{}
 		var status string
-		if err := rows.Scan(&c.id, &c.amount, &c.docNo, &c.soldAt, &c.due, &status); err != nil {
+		if err := rows.Scan(&c.id, &c.amount, &c.docNo, &c.soldAt, &c.due, &status, &c.returned); err != nil {
 			rows.Close()
 			return Plan{}, nil, err
 		}
@@ -244,7 +247,7 @@ func (s *Service) plan(ctx context.Context, tx pgx.Tx, a authz.Actor, n settleNo
 		}
 	}
 	for _, c := range all {
-		c.balance = c.amount.Sub(c.paid)
+		c.balance = c.amount.Sub(c.paid).Sub(c.returned)
 	}
 
 	plan := Plan{Mode: n.mode, MemberID: n.member, Allocations: []Allocation{}}
@@ -402,6 +405,8 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 			return e
 		case !mActive:
 			return FieldErrors{"method_id": "METHOD_INACTIVE"}
+		case mKind == wallet.KindSupplierCredit:
+			return FieldErrors{"method_id": sanitize.Invalid}
 		}
 		var (
 			code   string
@@ -448,6 +453,16 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 			}
 			allocs = append(allocs, map[string]string{"receivable_id": c.id.String(), "sale_doc_no": c.docNo, "amount": c.allocated.String(),
 				"balance_after": c.balance.Sub(c.allocated).String()})
+		}
+		// Dibayar dari deposit member: saldo deposit berkurang sebesar total pelunasan (ditolak bila tidak cukup).
+		if mKind == wallet.KindDeposit {
+			if _, e := wallet.MemberDeposit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: n.member, OutletID: a.OutletID,
+				Kind: wallet.DepReceivablePayment, Amount: total.Neg(), RefID: setID, DocNo: docNo, ActorID: a.UserID}); e != nil {
+				if errors.Is(e, wallet.ErrInsufficient) {
+					return FieldErrors{"amount": "DEPOSIT_INSUFFICIENT"}
+				}
+				return e
+			}
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionReceivableSettle, Entity: audit.EntityReceivable, EntityID: setID.String(),
 			Details: map[string]any{"doc_no": docNo, "member": memberName, "member_id": n.member.String(), "mode": n.mode, "method": mName, "total": total.String(),

@@ -67,6 +67,7 @@ const catalog: Messages['catalog'] = {
     edit: 'Edit Method',
     search: 'Search method name…',
     kind: 'Type',
+    walletHint: 'Built-in stored-balance method: no fee, fixed type, cannot be archived. The name can be changed.',
     kindHint: 'The type sets the payment rules. It can be changed between non-cash types; past receipts are unaffected.',
     kindCashHint: 'Only cash gives change. Non-cash cannot exceed the receipt total.',
     system: 'Built-in',

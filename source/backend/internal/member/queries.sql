@@ -72,7 +72,9 @@ SELECT m.id, m.code, m.name, m.gender, m.phone, m.email, m.address, m.district, 
        lv.id AS level_id, coalesce(lv.name, '')::text AS level_name, coalesce(lv.min_points, 0)::int AS level_min_points,
        coalesce(lv.spend_per_point, 0)::numeric AS level_spend_per_point, coalesce(lv.point_value, 0)::numeric AS level_point_value,
        nx.id AS next_level_id, coalesce(nx.name, '')::text AS next_level_name, coalesce(nx.min_points, 0)::int AS next_level_min_points,
-       coalesce(st.total_sales, 0)::numeric AS total_sales, coalesce(st.total_trx, 0)::bigint AS total_trx
+       coalesce(st.total_sales, 0)::numeric AS total_sales, coalesce(st.total_trx, 0)::bigint AS total_trx,
+       coalesce((SELECT d.balance_after FROM member_deposit_movements d WHERE d.tenant_id = m.tenant_id AND d.member_id = m.id
+                 ORDER BY d.id DESC LIMIT 1), 0)::numeric AS deposit
 FROM members m
 LEFT JOIN LATERAL (
     SELECT l.id, l.name, l.min_points, l.spend_per_point, l.point_value FROM member_levels l
@@ -149,6 +151,12 @@ UPDATE members SET points = points + @delta, lifetime_points = lifetime_points +
 WHERE tenant_id = @tenant_id AND id = @id AND points + @delta >= 0 AND lifetime_points + @lifetime_delta >= 0
 RETURNING points, lifetime_points;
 
+-- name: MemberPointsApplyReturn :one
+-- Retur boleh membuat saldo poin spendable negatif; lifetime earned tetap dijaga tidak negatif.
+UPDATE members SET points = points + @delta, lifetime_points = lifetime_points + @lifetime_delta
+WHERE tenant_id = @tenant_id AND id = @id AND lifetime_points + @lifetime_delta >= 0
+RETURNING points, lifetime_points;
+
 -- name: MemberPointInsert :one
 INSERT INTO member_point_movements (tenant_id, member_id, kind, points, lifetime_delta, balance_after, ref_type, ref_id, note, actor_id)
 VALUES (@tenant_id, @member_id, @kind, @points, @lifetime_delta, @balance_after, @ref_type, sqlc.narg('ref_id'), @note, sqlc.narg('actor_id'))
@@ -156,11 +164,12 @@ RETURNING id, created_at;
 
 -- name: MemberPointList :many
 SELECT p.id, p.kind, p.points, p.balance_after, p.ref_type, p.ref_id, p.note, p.created_at,
-       coalesce(u.name, '')::text AS actor_name, coalesce(s.doc_no, '')::text AS doc_no,
+    coalesce(u.name, '')::text AS actor_name, coalesce(sr.doc_no, s.doc_no, '')::text AS doc_no,
        count(*) OVER () AS total
 FROM member_point_movements p
 LEFT JOIN users u ON u.tenant_id = p.tenant_id AND u.id = p.actor_id
 LEFT JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.ref_id AND p.ref_type = 'SALE'
+LEFT JOIN sales_returns sr ON sr.tenant_id = p.tenant_id AND sr.id = p.ref_id AND p.ref_type = 'SALE_RETURN'
 WHERE p.tenant_id = @tenant_id AND p.member_id = @member_id
 ORDER BY p.id DESC
 LIMIT @page_limit OFFSET @page_offset;

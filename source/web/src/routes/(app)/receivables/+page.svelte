@@ -110,6 +110,7 @@
             <th class="px-3 py-3 text-start" scope="col">{t('receivables.col.due')}</th>
             <th class="px-3 py-3 text-end" scope="col">{t('receivables.col.amount')}</th>
             <th class="px-3 py-3 text-end" scope="col">{t('receivables.col.paid')}</th>
+            <th class="px-3 py-3 text-end" scope="col">{t('receivables.col.returned')}</th>
             <th class="px-3 py-3 text-end" scope="col">{t('receivables.col.balance')}</th>
             <th class="px-3 py-3 text-start" scope="col">{t('receivables.col.status')}</th>
             <th class="px-3 py-3 text-end" scope="col"><span class="sr-only">{t('receivables.col.action')}</span></th>
@@ -124,6 +125,7 @@
               <td class="px-3 py-3 whitespace-nowrap">{r.due_date ? formatDate(r.due_date) : t('receivables.noDue')}</td>
               <td class="px-3 py-3 text-end tabular-nums whitespace-nowrap">{money(r.amount)}</td>
               <td class="px-3 py-3 text-end tabular-nums whitespace-nowrap">{money(r.paid)}</td>
+              <td class="px-3 py-3 text-end tabular-nums whitespace-nowrap">{Number(r.returned) > 0 ? money(r.returned) : '—'}</td>
               <td class="px-3 py-3 text-end tabular-nums whitespace-nowrap font-bold {r.status === 'paid' ? '' : 'text-[var(--color-danger-600)]'}">{money(r.balance)}</td>
               <td class="px-3 py-3"><span class="badge-soft {statusClass[r.status]}">{t(`receivables.status.${r.status}`)}</span></td>
               <td class="px-3 py-3 text-end whitespace-nowrap">
@@ -132,7 +134,7 @@
             </tr>
           {:else}
             <tr>
-              <td colspan="9" class="px-4 py-16 text-center text-[var(--text-tertiary)]">
+              <td colspan="10" class="px-4 py-16 text-center text-[var(--text-tertiary)]">
                 {#if loading}…{:else if q || status !== 'open'}{t('receivables.emptySearch')}{:else}{t('receivables.empty')}{/if}
               </td>
             </tr>

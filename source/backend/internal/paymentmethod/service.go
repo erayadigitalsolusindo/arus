@@ -36,6 +36,9 @@ const (
 	KindCreditCard = "credit_card"
 	KindEWallet    = "ewallet"
 	KindTransfer   = "transfer"
+	// Jenis internal (satu metode sistem per tenant, tanpa biaya, tak bisa dibuat/diganti jenisnya lewat API):
+	KindDeposit        = "deposit"         // Deposit Member: bayar nota/piutang member, tujuan dana kembali retur penjualan
+	KindSupplierCredit = "supplier_credit" // Kredit Pemasok: bayar hutang pemasok, tujuan dana kembali retur pembelian
 
 	maxName  = 60
 	maxLimit = 100
@@ -52,6 +55,30 @@ var (
 
 // Kinds = jenis dasar yang sah (urutan tampil).
 var Kinds = []string{KindCash, KindTransfer, KindDebit, KindCreditCard, KindEWallet}
+
+// IsInternal: jenis saldo titipan (deposit member / kredit pemasok).
+func IsInternal(k string) bool { return k == KindDeposit || k == KindSupplierCredit }
+
+// Konteks lookup: menentukan jenis internal mana yang ikut tampil. Kosong = hanya jenis dasar.
+const (
+	ForSale           = "sale"            // kasir (bayar nota) — + deposit
+	ForReceivable     = "receivable"      // bayar piutang member — + deposit
+	ForSaleReturn     = "sale_return"     // dana kembali retur penjualan — + deposit
+	ForPayable        = "payable"         // bayar hutang pemasok — + kredit pemasok
+	ForPurchaseReturn = "purchase_return" // dana kembali retur pembelian — + kredit pemasok
+	ForWallet         = "wallet"          // top-up/tarik deposit, pencairan kredit: hanya jenis dasar
+)
+
+// LookupFor: apakah metode berjenis kind tampil untuk konteks ctx.
+func LookupFor(ctx, kind string) bool {
+	switch kind {
+	case KindDeposit:
+		return ctx == ForSale || ctx == ForReceivable || ctx == ForSaleReturn
+	case KindSupplierCredit:
+		return ctx == ForPayable || ctx == ForPurchaseReturn
+	}
+	return true
+}
 
 // IsKind: apakah k jenis dasar yang sah.
 func IsKind(k string) bool {
@@ -128,7 +155,7 @@ func bearer(in Input, kind, def string, f FieldErrors) string {
 	switch {
 	case b != BearerStore && b != BearerCustomer:
 		f["fee_bearer"] = sanitize.Invalid
-	case kind == KindCash && b != BearerStore:
+	case (kind == KindCash || IsInternal(kind)) && b != BearerStore:
 		f["fee_bearer"] = "CASH_NO_FEE"
 	}
 	return b
@@ -149,7 +176,7 @@ func fees(in Input, kind string, f FieldErrors) (pct, flat decimal.Decimal) {
 	}
 	pct = parse(in.FeePct, "fee_pct", decimal.NewFromInt(100))
 	flat = parse(in.FeeFlat, "fee_flat", maxFlat)
-	if kind == KindCash && (pct.IsPositive() || flat.IsPositive()) {
+	if (kind == KindCash || IsInternal(kind)) && (pct.IsPositive() || flat.IsPositive()) {
 		f["fee_pct"] = "CASH_NO_FEE"
 	}
 	return pct, flat
@@ -157,13 +184,14 @@ func fees(in Input, kind string, f FieldErrors) (pct, flat decimal.Decimal) {
 
 var defaults = []struct{ name, kind string }{
 	{"Tunai", KindCash}, {"Transfer", KindTransfer}, {"Debit", KindDebit}, {"Kartu Kredit", KindCreditCard}, {"E-Wallet", KindEWallet},
+	{"Deposit Member", KindDeposit}, {"Kredit Pemasok", KindSupplierCredit},
 }
 
 // SeedDefaults mengisi metode bawaan; dipanggil Register di dalam transaksi pembuatan tenant.
 func SeedDefaults(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
 	q := gen.New(tx)
 	for _, d := range defaults {
-		if _, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: tenant, Name: d.name, Kind: d.kind, IsSystem: d.kind == KindCash,
+		if _, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: tenant, Name: d.name, Kind: d.kind, IsSystem: d.kind == KindCash || IsInternal(d.kind),
 			FeePct: decimal.Zero, FeeFlat: decimal.Zero, FeeBearer: BearerStore}); err != nil {
 			return err
 		}
@@ -227,12 +255,15 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Meth
 	return out, total, err
 }
 
-// Lookup = metode aktif (urut tampil di kasir: Tunai dulu, lalu menurut nama).
-func (s *Service) Lookup(ctx context.Context, a authz.Actor) ([]Method, error) {
+// Lookup = metode aktif (urut tampil di kasir: Tunai dulu, lalu menurut nama) untuk konteks forCtx (lihat LookupFor).
+func (s *Service) Lookup(ctx context.Context, a authz.Actor, forCtx string) ([]Method, error) {
 	out := []Method{}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		rows, err := gen.New(tx).PaymentMethodActiveList(ctx, a.TenantID)
 		for _, r := range rows {
+			if !LookupFor(forCtx, r.Kind) {
+				continue
+			}
 			out = append(out, Method{ID: r.ID, Name: r.Name, Kind: r.Kind, System: r.IsSystem, Active: true,
 				FeePct: r.FeePct.StringFixed(2), FeeFlat: r.FeeFlat.StringFixed(2), FeeBearer: r.FeeBearer})
 		}
@@ -310,7 +341,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			switch {
 			case !IsKind(in.Kind):
 				f["kind"] = sanitize.Invalid
-			case in.Kind == KindCash || cur.Kind == KindCash:
+			case in.Kind == KindCash || cur.Kind == KindCash || IsInternal(in.Kind) || IsInternal(cur.Kind):
 				f["kind"] = "KIND_LOCKED"
 			default:
 				kind = in.Kind

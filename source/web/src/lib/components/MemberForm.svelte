@@ -20,6 +20,9 @@
   import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
   import Modal from '#lib/components/Modal.svelte';
   import { focusOnMount } from '#lib/focus.ts';
+  import WalletHistory from '#lib/components/WalletHistory.svelte';
+  import WalletCashModal from '#lib/components/WalletCashModal.svelte';
+  import { memberDeposits, type WalletEntry } from '#lib/wallet/api.ts';
 
   let { member }: { member: Member | null } = $props();
 
@@ -44,7 +47,9 @@
   const canWrite = init ? can('members', 'update') : can('members', 'create');
   const canAdjust = can('members', 'approve');
 
-  let tab = $state<'bio' | 'settings' | 'points' | 'sales'>('bio');
+  let tab = $state<'bio' | 'settings' | 'points' | 'sales' | 'deposit'>('bio');
+  const canDepositView = can('member_deposits', 'view');
+  const canDepositCash = can('member_deposits', 'create');
   let active = $state(init?.active ?? true);
   let code = $state(init?.code ?? '');
   let name = $state(init?.name ?? '');
@@ -289,6 +294,40 @@
     if (tab === 'sales' && !salesLoaded) void loadSales(true);
   });
 
+  // ---- deposit member (ledger saldo titipan) ----
+  let depEntries = $state<WalletEntry[]>([]);
+  let depBalance = $state('0.00');
+  let depMore = $state(false);
+  let depNext = 0;
+  let depLoading = $state(false);
+  let depError = $state('');
+  let depLoaded = false;
+  let depForm = $state<'topup' | 'withdraw' | null>(null);
+  let depSaved = $state('');
+
+  async function loadDeposit(reset: boolean) {
+    if (!init) return;
+    depLoading = true;
+    depError = '';
+    try {
+      const acc = await memberDeposits.account(init.id, reset ? 0 : depNext);
+      depBalance = acc.balance;
+      depEntries = reset ? acc.entries : [...depEntries, ...acc.entries];
+      depMore = acc.has_more;
+      depNext = acc.next_before;
+      depLoaded = true;
+      if (m) m.stats.deposit = acc.balance;
+    } catch (err) {
+      depError = errorMessage(err);
+    } finally {
+      depLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (tab === 'deposit' && !depLoaded) void loadDeposit(true);
+  });
+
   let adjusting = $state(false);
   let adjPoints = $state('');
   let adjNote = $state('');
@@ -411,7 +450,7 @@
       { label: t('members.stat.sales'), value: formatCurrency(Number(m.stats.total_sales)), icon: 'trending-up', tone: 'text-[var(--color-info-600)] bg-[color-mix(in_oklab,var(--color-info-500)_14%,transparent)]' },
       { label: t('members.stat.trx'), value: formatNumber(m.stats.total_trx), icon: 'receipt', tone: 'text-[var(--color-primary-600)] bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)]' },
       { label: t('members.stat.points'), value: formatNumber(m.points), icon: 'star', tone: 'text-[var(--color-success-600)] bg-[color-mix(in_oklab,var(--color-success-500)_14%,transparent)]' },
-      { label: t('members.stat.deposit'), value: formatCurrency(Number(m.stats.deposit)), icon: 'wallet', tone: 'text-[var(--color-danger-600)] bg-[color-mix(in_oklab,var(--color-danger-500)_14%,transparent)]', sub: t('members.stat.depositSoon') }
+      { label: t('members.stat.deposit'), value: formatCurrency(Number(m.stats.deposit)), icon: 'wallet', tone: 'text-[var(--color-danger-600)] bg-[color-mix(in_oklab,var(--color-danger-500)_14%,transparent)]', sub: '' }
     ]}
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {#each stats as s (s.label)}
@@ -435,6 +474,7 @@
         <button type="button" role="tab" aria-selected={tab === 'settings'} class={tabClass(tab === 'settings')} onclick={() => (tab = 'settings')}>{t('members.tab.settings')}</button>
         {#if init}<button type="button" role="tab" aria-selected={tab === 'sales'} class={tabClass(tab === 'sales')} onclick={() => (tab = 'sales')}>{t('members.tab.sales')}</button>{/if}
         {#if init}<button type="button" role="tab" aria-selected={tab === 'points'} class={tabClass(tab === 'points')} onclick={() => (tab = 'points')}>{t('members.tab.points')}</button>{/if}
+        {#if init && canDepositView}<button type="button" role="tab" aria-selected={tab === 'deposit'} class={tabClass(tab === 'deposit')} onclick={() => (tab = 'deposit')}>{t('deposits.title')}</button>{/if}
       </div>
     </div>
 
@@ -543,6 +583,23 @@
             </div>
           {/if}
         </div>
+      {:else if tab === 'deposit'}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-[12px] text-[var(--text-tertiary)]">{t('deposits.balance')}</p>
+            <p class="font-display font-bold text-[22px] tabular-nums">{formatCurrency(Number(depBalance))}</p>
+          </div>
+          {#if canDepositCash}
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-primary !text-[12.5px]" onclick={() => { depSaved = ''; depForm = 'topup'; }}><i class="icon-plus text-[13px]"></i>{t('deposits.topup')}</button>
+              <button type="button" class="btn !text-[12.5px]" disabled={Number(depBalance) <= 0} onclick={() => { depSaved = ''; depForm = 'withdraw'; }}><i class="icon-minus text-[13px]"></i>{t('deposits.withdraw')}</button>
+            </div>
+          {/if}
+        </div>
+        <p class={hintClass}>{t('deposits.hint')}</p>
+        {#if depSaved}<p role="status" class="text-[12.5px] text-[var(--color-success-600)]"><i class="icon-check me-1"></i>{depSaved}</p>{/if}
+        {#if depError}<p class={errClass}>{depError}</p>{/if}
+        <WalletHistory entries={depEntries} hasMore={depMore} loading={depLoading} onmore={() => loadDeposit(false)} />
       {:else if tab === 'sales'}
         <h4 class="font-display font-bold text-[14px] flex items-center gap-2"><i class="icon-receipt text-[15px]"></i>{t('members.sales.title')}</h4>
         {#if salesError}<p class={errClass}>{t('members.sales.loadFailed')} {salesError}</p>{/if}
@@ -644,7 +701,27 @@
       {/if}
     </div>
 
-    {#if tab !== 'points' && tab !== 'sales'}
+    {#if init && depForm}
+      <WalletCashModal
+        title={t(depForm === 'topup' ? 'deposits.form.topupTitle' : 'deposits.form.withdrawTitle')}
+        hint={t(depForm === 'topup' ? 'deposits.form.topupHint' : 'deposits.form.withdrawHint')}
+        balance={depBalance}
+        max={depForm === 'withdraw' ? depBalance : null}
+        onsubmit={(input, key) => (depForm === 'topup' ? memberDeposits.topup(init.id, input, key) : memberDeposits.withdraw(init.id, input, key))}
+        onclose={() => (depForm = null)}
+        ondone={(acc, doc) => {
+          depForm = null;
+          depSaved = t('deposits.form.saved', { doc });
+          depBalance = acc.balance;
+          depEntries = acc.entries;
+          depMore = acc.has_more;
+          depNext = acc.next_before;
+          if (m) m.stats.deposit = acc.balance;
+        }}
+      />
+    {/if}
+
+    {#if tab !== 'points' && tab !== 'sales' && tab !== 'deposit'}
       <div class="flex justify-end gap-2 border-t border-[var(--border-subtle)] p-4">
         <a href="/members" class="btn !text-[12.5px]">{canWrite ? t('members.cancel') : t('members.back')}</a>
         {#if canWrite}

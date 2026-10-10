@@ -13,6 +13,7 @@ import (
 	"aciraba/internal/payable"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/stock"
+	"aciraba/internal/wallet"
 )
 
 // toReturns memindahkan qty barang dari Display ke bucket Retur di outlet utama (seperti mutasi antar bucket).
@@ -100,23 +101,15 @@ func TestReturnCashRefundStockAndCost(t *testing.T) {
 		t.Errorf("batal nota beretur: %v", err)
 	}
 
-	// Batal retur: stok kembali ke Retur, HPP maju dengan HPP baris → (17×1123,53 + 3×1300) ÷ 20 = 1.150,00.
-	v, err := e.svc.VoidReturn(ctx, a, r.ID, "barang tidak jadi diretur")
-	if err != nil || v.Status != "void" || v.VoidReason == "" {
-		t.Fatalf("batal retur: %+v %v", v, err)
+	// Retur yang sudah menerima dana kembali tidak bisa dibatalkan; stok & HPP tidak berubah.
+	if _, err := e.svc.VoidReturn(ctx, a, r.ID, "barang tidak jadi diretur"); !errors.Is(err, ErrReturnRefunded) {
+		t.Fatalf("batal retur ber-refund: %v", err)
 	}
-	if e.bal(t, it, stock.BucketReturns) != "4" {
-		t.Errorf("stok retur setelah batal %s", e.bal(t, it, stock.BucketReturns))
+	if e.bal(t, it, stock.BucketReturns) != "1" {
+		t.Errorf("stok retur setelah batal ditolak %s", e.bal(t, it, stock.BucketReturns))
 	}
-	if avg, _ := e.cost(t, e.outlet, it); avg != "1150.00" {
-		t.Errorf("HPP setelah batal retur %s", avg)
-	}
-	if _, err := e.svc.VoidReturn(ctx, a, r.ID, "dua kali"); !errors.Is(err, ErrReturnNotActive) {
-		t.Errorf("batal dua kali: %v", err)
-	}
-	// Setelah retur dibatalkan, nota boleh dibatalkan lagi (stok di Display + Retur cukup).
-	if src, _ := e.svc.ReturnSource(ctx, a, p.ID); src.Lines[0].Returnable != "10" {
-		t.Errorf("sisa setelah batal retur %s", src.Lines[0].Returnable)
+	if avg, _ := e.cost(t, e.outlet, it); avg != "1123.53" {
+		t.Errorf("HPP setelah batal ditolak %s", avg)
 	}
 	if n := e.count(t, "audit_log"); n == 0 {
 		t.Error("audit kosong")
@@ -129,8 +122,8 @@ func TestReturnCutsPayableThenRefund(t *testing.T) {
 	a := e.actor(e.outlet)
 	m := e.method(t)
 	svc := payable.NewService(e.app)
-	it := e.item(t, "goods", "1000", 0)
-	p, _, err := e.svc.Create(ctx, a, key(), e.creditReq(line(it, "10", "0", "1000"))) // hutang 10.000
+	it := e.item(t, "goods", "1000", 10)                                               // stok 10 @1.000
+	p, _, err := e.svc.Create(ctx, a, key(), e.creditReq(line(it, "10", "0", "1300"))) // hutang 13.000, HPP 1.150
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,52 +132,98 @@ func TestReturnCutsPayableThenRefund(t *testing.T) {
 	}
 	e.toReturns(t, it, "10")
 
-	// Retur 5 = 5.000: memotong sisa hutang 3.000, kelebihan 2.000 dikembalikan pemasok.
-	req := retReq(p.ID, rl(0, "5"))
-	req.RefundMethodID = &m
-	r1, _, err := e.svc.CreateReturn(ctx, a, key(), req)
-	if err != nil || r1.PayableCut != "3000.00" || r1.Refund != "2000.00" {
-		t.Fatalf("retur 1: %+v %v", r1, err)
+	// Retur A = 2 × 1.300 = 2.600, seluruhnya memotong hutang. HPP mundur: (20×1150 − 2×1300) ÷ 18 = 1.133,33.
+	rA, _, err := e.svc.CreateReturn(ctx, a, key(), retReq(p.ID, rl(0, "2")))
+	if err != nil || rA.PayableCut != "2600.00" || rA.Refund != "0.00" {
+		t.Fatalf("retur A: %+v %v", rA, err)
 	}
-	d, err := svc.Get(ctx, a, p.Payable.ID)
-	if err != nil || d.Balance != "0.00" || d.Returned != "3000.00" || d.Status != "paid" {
-		t.Fatalf("hutang setelah retur: %+v %v", d, err)
+	if avg, _ := e.cost(t, e.outlet, it); avg != "1133.33" {
+		t.Errorf("HPP setelah retur A %s", avg)
+	}
+	// Pembayaran terjadi SEBELUM retur dan tanpa dana kembali → retur boleh dibatalkan; potongan hutang & HPP kembali.
+	if _, err := e.svc.VoidReturn(ctx, a, rA.ID, "batal"); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := svc.Get(ctx, a, p.Payable.ID); d.Balance != "6000.00" || d.Returned != "0.00" {
+		t.Errorf("hutang setelah batal retur: %+v", d)
+	}
+	if avg, _ := e.cost(t, e.outlet, it); avg != "1150.00" {
+		t.Errorf("HPP setelah batal retur A %s", avg)
+	}
+
+	// Retur B = 1.300 memotong hutang, lalu dibayar → retur tak bisa dibatalkan lagi.
+	rB, _, err := e.svc.CreateReturn(ctx, a, key(), retReq(p.ID, rl(0, "1")))
+	if err != nil || rB.PayableCut != "1300.00" || rB.Refund != "0.00" {
+		t.Fatalf("retur B: %+v %v", rB, err)
 	}
 	var fe payable.FieldErrors
+	if _, _, err := svc.Pay(ctx, a, p.Payable.ID, key(), payable.PayInput{MethodID: m, Amount: num("4700.01")}); !errors.As(err, &fe) || fe["amount"] != "OVERPAID" {
+		t.Errorf("lebih bayar setelah retur: %v", err)
+	}
+	if _, _, err := svc.Pay(ctx, a, p.Payable.ID, key(), payable.PayInput{MethodID: m, Amount: num("500")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.VoidReturn(ctx, a, rB.ID, "batal"); !errors.Is(err, ErrReturnLocked) {
+		t.Errorf("batal retur setelah dibayar: %v", err)
+	}
+
+	// Retur C = 5 × 1.300 = 6.500: memotong sisa hutang 4.200, kelebihan 2.300 dikembalikan pemasok.
+	req := retReq(p.ID, rl(0, "5"))
+	req.RefundMethodID = &m
+	rC, _, err := e.svc.CreateReturn(ctx, a, key(), req)
+	if err != nil || rC.PayableCut != "4200.00" || rC.Refund != "2300.00" {
+		t.Fatalf("retur C: %+v %v", rC, err)
+	}
+	d, err := svc.Get(ctx, a, p.Payable.ID)
+	if err != nil || d.Balance != "0.00" || d.Returned != "5500.00" || d.Status != "paid" {
+		t.Fatalf("hutang setelah retur C: %+v %v", d, err)
+	}
+	// Pemilih nota menandai nota kredit yang sudah lunas (sisa 0) agar petugas tak mengira masih ada hutang.
+	if list, err := e.svc.ReturnablePurchases(ctx, a, ""); err != nil || len(list) != 1 || list[0].PayableBalance == nil || *list[0].PayableBalance != "0.00" {
+		t.Errorf("pemilih nota lunas: %+v %v", list, err)
+	}
 	if _, _, err := svc.Pay(ctx, a, p.Payable.ID, key(), payable.PayInput{MethodID: m, Amount: num("1")}); !errors.As(err, &fe) || fe["amount"] != "SETTLED" {
 		t.Errorf("bayar setelah lunas oleh retur: %v", err)
 	}
 	pp, err := e.svc.Get(ctx, a, p.ID)
-	if err != nil || pp.Payable.Balance != "0.00" || pp.Payable.Returned != "3000.00" || len(pp.Returns) != 1 {
+	if err != nil || pp.Payable.Balance != "0.00" || pp.Payable.Returned != "5500.00" {
 		t.Errorf("detail nota: %+v %v", pp.Payable, err)
 	}
-
-	// Pembayaran terjadi SEBELUM retur → retur boleh dibatalkan; potongan hutang kembali.
-	if _, err := e.svc.VoidReturn(ctx, a, r1.ID, "batal"); err != nil {
-		t.Fatal(err)
-	}
-	if d, _ := svc.Get(ctx, a, p.Payable.ID); d.Balance != "3000.00" || d.Returned != "0.00" {
-		t.Errorf("hutang setelah batal retur: %+v", d)
-	}
-
-	// Retur 2 = 2.000 (seluruhnya memotong hutang), lalu dibayar 1.000 → retur tak bisa dibatalkan lagi.
-	r2, _, err := e.svc.CreateReturn(ctx, a, key(), retReq(p.ID, rl(0, "2")))
-	if err != nil || r2.PayableCut != "2000.00" || r2.Refund != "0.00" {
-		t.Fatalf("retur 2: %+v %v", r2, err)
-	}
-	if _, _, err := svc.Pay(ctx, a, p.Payable.ID, key(), payable.PayInput{MethodID: m, Amount: num("1000.01")}); !errors.As(err, &fe) || fe["amount"] != "OVERPAID" {
-		t.Errorf("lebih bayar setelah retur: %v", err)
-	}
-	if _, _, err := svc.Pay(ctx, a, p.Payable.ID, key(), payable.PayInput{MethodID: m, Amount: num("1000")}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.svc.VoidReturn(ctx, a, r2.ID, "batal"); !errors.Is(err, ErrReturnLocked) {
-		t.Errorf("batal retur setelah dibayar: %v", err)
+	// Retur C menerima dana kembali → tidak bisa dibatalkan.
+	if _, err := e.svc.VoidReturn(ctx, a, rC.ID, "batal"); !errors.Is(err, ErrReturnRefunded) {
+		t.Errorf("batal retur ber-refund: %v", err)
 	}
 	// Ringkasan daftar hutang memperhitungkan retur.
 	lst, err := svc.List(ctx, a, payable.ListParams{Status: "all"})
-	if err != nil || lst.Summary.Outstanding != "0.00" || len(lst.Data) != 1 || lst.Data[0].Returned != "2000.00" {
+	if err != nil || lst.Summary.Outstanding != "0.00" || len(lst.Data) != 1 || lst.Data[0].Returned != "5500.00" {
 		t.Errorf("daftar hutang: %+v %v", lst, err)
+	}
+}
+
+// Dana kembali lewat metode non-tunai wajib memakai referensi (nomor transfer/bukti).
+func TestReturnNonCashRefundNeedsReference(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.outlet)
+	tr := uuid.New()
+	if _, err := e.admin.Exec(ctx, `INSERT INTO payment_methods (id, tenant_id, name, kind) VALUES ($1, $2, 'Transfer', 'transfer')`, tr, e.tenant); err != nil {
+		t.Fatal(err)
+	}
+	it := e.item(t, "goods", "1000", 0)
+	p, _, err := e.svc.Create(ctx, a, key(), e.req(line(it, "4", "0", "1000")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.toReturns(t, it, "1")
+	req := retReq(p.ID, rl(0, "1"))
+	req.RefundMethodID = &tr
+	var fe FieldErrors
+	if _, _, err := e.svc.CreateReturn(ctx, a, key(), req); !errors.As(err, &fe) || fe["refund_ref"] != "REQUIRED" {
+		t.Fatalf("transfer tanpa referensi: %v", err)
+	}
+	req.RefundRef = "TRF-123"
+	if r, _, err := e.svc.CreateReturn(ctx, a, key(), req); err != nil || r.RefundRef != "TRF-123" || r.RefundMethodName != "Transfer" {
+		t.Fatalf("transfer dengan referensi: %+v %v", r, err)
 	}
 }
 
@@ -196,7 +235,7 @@ func TestReturnFullyInPartsSumsExactly(t *testing.T) {
 	m := e.method(t)
 	it := e.item(t, "goods", "0", 0)
 	in := e.req(line(it, "3", "0", "333.3333")) // nilai baris 1.000,00
-	in.TaxPct = num("11")                         // PPN 110,00
+	in.TaxPct = num("11")                       // PPN 110,00
 	p, _, err := e.svc.Create(ctx, a, key(), in)
 	if err != nil || p.Subtotal != "1000.00" || p.TaxAmount != "110.00" {
 		t.Fatalf("nota: %+v %v", p, err)
@@ -368,5 +407,125 @@ func TestReturnAccessRules(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("UPDATE total retur diizinkan")
+	}
+}
+
+func (e *env) internalMethod(t *testing.T, kind, name string) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	if _, err := e.admin.Exec(context.Background(), `INSERT INTO payment_methods (id, tenant_id, name, kind, is_system) VALUES ($1, $2, $3, $4, true)`, id, e.tenant, name, kind); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func (e *env) credit(t *testing.T) string {
+	t.Helper()
+	acc, err := wallet.NewService(e.app).Account(context.Background(), e.actor(e.outlet), wallet.SupplierCredit, e.supplier, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return acc.Balance
+}
+
+// Dana kembali retur → kredit pemasok; kredit dipakai bayar hutang (per nota & kolektif), dicairkan, dan batal retur menarik
+// kreditnya lagi (ditolak bila sudah terpakai).
+func TestReturnToSupplierCredit(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.outlet)
+	cash := e.method(t)
+	cr := e.internalMethod(t, "supplier_credit", "Kredit Pemasok")
+	dep := e.internalMethod(t, "deposit", "Deposit Member")
+	ps := payable.NewService(e.app)
+	ws := wallet.NewService(e.app)
+	it := e.item(t, "goods", "1000", 0)
+	p, _, err := e.svc.Create(ctx, a, key(), e.req(line(it, "10", "0", "1000"))) // tunai
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.toReturns(t, it, "6")
+
+	// Retur 2 → kredit 2.000 (tanpa referensi). Deposit member ditolak sebagai tujuan.
+	req := retReq(p.ID, rl(0, "2"))
+	req.RefundMethodID = &dep
+	var fe FieldErrors
+	if _, _, err := e.svc.CreateReturn(ctx, a, key(), req); !errors.As(err, &fe) || fe["refund_method_id"] != "INVALID" {
+		t.Fatalf("retur ke deposit member: %v", err)
+	}
+	req.RefundMethodID = &cr
+	r1, _, err := e.svc.CreateReturn(ctx, a, key(), req)
+	if err != nil || r1.Refund != "2000.00" || r1.RefundMethod != "supplier_credit" {
+		t.Fatalf("retur ke kredit: %+v %v", r1, err)
+	}
+	if c := e.credit(t); c != "2000.00" {
+		t.Fatalf("kredit %s", c)
+	}
+
+	// Hutang 5.000 dibayar 1.500 dari kredit; kredit kurang ditolak; deposit ditolak.
+	cp, _, err := e.svc.Create(ctx, a, key(), e.creditReq(line(it, "5", "0", "1000")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pf payable.FieldErrors
+	if _, _, err := ps.Pay(ctx, a, cp.Payable.ID, key(), payable.PayInput{MethodID: dep, Amount: num("1")}); !errors.As(err, &pf) || pf["method_id"] != "INVALID" {
+		t.Fatalf("bayar hutang dengan deposit: %v", err)
+	}
+	if _, _, err := ps.Pay(ctx, a, cp.Payable.ID, key(), payable.PayInput{MethodID: cr, Amount: num("1500")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ps.Pay(ctx, a, cp.Payable.ID, key(), payable.PayInput{MethodID: cr, Amount: num("1000")}); !errors.As(err, &pf) || pf["amount"] != "CREDIT_INSUFFICIENT" {
+		t.Fatalf("kredit kurang: %v", err)
+	}
+	if c := e.credit(t); c != "500.00" {
+		t.Fatalf("kredit setelah bayar %s", c)
+	}
+	// Kredit sudah terpakai → batal retur ditolak, stok tidak berubah.
+	if _, err := e.svc.VoidReturn(ctx, a, r1.ID, "batal"); !errors.Is(err, wallet.ErrInsufficient) {
+		t.Fatalf("batal retur kredit terpakai: %v", err)
+	}
+	if e.bal(t, it, stock.BucketReturns) != "4" {
+		t.Fatalf("stok retur %s", e.bal(t, it, stock.BucketReturns))
+	}
+	// Retur kedua ke kredit lalu dibatalkan: kredit ditarik, barang kembali ke Retur.
+	req2 := retReq(p.ID, rl(0, "1"))
+	req2.RefundMethodID = &cr
+	r2, _, err := e.svc.CreateReturn(ctx, a, key(), req2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, err := e.svc.VoidReturn(ctx, a, r2.ID, "batal"); err != nil || v.Status != "void" {
+		t.Fatalf("batal retur kredit: %+v %v", v, err)
+	}
+	if c := e.credit(t); c != "500.00" || e.bal(t, it, stock.BucketReturns) != "4" {
+		t.Fatalf("setelah batal: kredit %s stok %s", c, e.bal(t, it, stock.BucketReturns))
+	}
+	// Pelunasan kolektif dari kredit (retur 1 lagi = +1.000 → kredit 1.500).
+	req3 := retReq(p.ID, rl(0, "1"))
+	req3.RefundMethodID = &cr
+	if _, _, err := e.svc.CreateReturn(ctx, a, key(), req3); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ps.Settle(ctx, a, key(), payable.SettleInput{SupplierID: e.supplier, Mode: "auto", MethodID: cr, Amount: num("1000")}); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := ps.Get(ctx, a, cp.Payable.ID); d.Balance != "2500.00" {
+		t.Fatalf("hutang setelah pelunasan %s", d.Balance)
+	}
+	// Pencairan kredit: pemasok membayar sisa kredit ke toko.
+	var wf wallet.FieldErrors
+	if _, _, err := ws.Cash(ctx, a, wallet.SupplierCredit, wallet.CrCashOut, e.supplier, key(), wallet.CashInput{Amount: num("501"), MethodID: cash}); !errors.As(err, &wf) || wf["amount"] != "BALANCE_INSUFFICIENT" {
+		t.Fatalf("pencairan melebihi kredit: %v", err)
+	}
+	acc, _, err := ws.Cash(ctx, a, wallet.SupplierCredit, wallet.CrCashOut, e.supplier, key(), wallet.CashInput{Amount: num("500"), MethodID: cash})
+	if err != nil || acc.Balance != "0.00" || acc.Entries[0].Kind != wallet.CrCashOut {
+		t.Fatalf("pencairan: %+v %v", acc, err)
+	}
+	list, _, err := ws.CreditList(ctx, a, "", false, "", 10)
+	if err != nil || len(list) != 1 || list[0].Balance != "0.00" {
+		t.Fatalf("daftar kredit: %+v %v", list, err)
+	}
+	if list, _, _ := ws.CreditList(ctx, a, "", true, "", 10); len(list) != 0 {
+		t.Fatalf("daftar kredit > 0: %+v", list)
 	}
 }
