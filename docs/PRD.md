@@ -8,7 +8,7 @@
 | Tanggal | 10 Oktober 2026 |
 | Pemilik produk | Pemilik ACIRABA (Erayadigital) |
 | Penyusun | Tim pengembang (dibantu AI) |
-| Dokumen terkait | `AGENTS.md` (BAGAIMANA: keputusan teknis, status, roadmap), `reference/template/` (acuan UI) |
+| Dokumen terkait | `AGENTS.md` (BAGAIMANA: keputusan teknis), `docs/ROADMAP.md` (roadmap), `.agent/SESSION.md` (status), `reference/template/` (acuan UI) |
 
 ### Riwayat Revisi
 
@@ -24,7 +24,7 @@
 - **[KONFIRMASI]**: asumsi yang belum diverifikasi ke pemilik produk atau klien. Wajib dijawab sebelum fase terkait dimulai.
 - **[USULAN]**: rancangan baru yang belum disetujui pemilik produk. Belum boleh dikerjakan.
 - **Prioritas (MoSCoW):** **M** = Must (wajib di rilis), **S** = Should, **C** = Could, **W** = Won't (tidak di rilis ini).
-- **Status implementasi** (ringkas; sumber kebenaran tetap `AGENTS.md` §2b): ✅ selesai · ◐ sebagian · ○ belum · ⏸ ditunda atas keputusan.
+- **Status implementasi** (ringkas; sumber kebenaran tetap `docs/ROADMAP.md`): ✅ selesai · ◐ sebagian · ○ belum · ⏸ ditunda atas keputusan.
 - ID kebutuhan: `FR-<MODUL>-<NN>` (fungsional), `NFR-<KATEGORI>-<NN>` (non-fungsional). ID yang sudah ada **tidak dinomori ulang**. Kebutuhan baru ditambahkan di akhir tabel.
 - "Keputusan YYYY-MM-DD" = aturan yang sudah dipilih pemilik produk dan **tidak diperdebatkan ulang** tanpa persetujuannya.
 
@@ -158,7 +158,7 @@ ARUS adalah **aplikasi baru dengan data baru**. Data transaksi legacy **tidak di
 | **R4** | Keuangan & Ekstensi | Akuntansi SIAK, Acipay/PPOB, payment gateway, notifikasi WhatsApp | **[KONFIRMASI Q1]** modul mana yang masih dipakai |
 | **R5** | Peluncuran Luas | Onboarding toko lain bertahap; legacy toko yang sudah pindah menjadi baca-saja | Semua toko aktif beroperasi di ARUS |
 
-Pemetaan ke roadmap teknis ada di `AGENTS.md` §2b.
+Pemetaan ke roadmap teknis ada di `docs/ROADMAP.md`.
 
 **Posisi saat ini (10 Okt 2026):** R0 selesai. Fitur kasir web R1 praktis lengkap (FR-POS 20 dari 22 selesai; sisa catatan per baris dan offline yang masih [KONFIRMASI]). Cetak struk, shift kasir, retur penjualan, saldo awal piutang, deposit member sudah ada. Sebagian besar R2 juga sudah dibangun (pembelian, retur beli, hutang, opname, mutasi). Toko pilot: **Kotak Cantik Magelang**, target mulai 1 Nov 2026. Yang masih menghalangi go-live kini **bukan layar kasir**, melainkan: import barang (FR-ONB-01, katalog > 100 ribu barang), spec test yang disetujui (M4), backup + uji restore (NFR-OPS), dan uji coba di toko. Lihat §6.3.
 
@@ -209,9 +209,9 @@ Urutan yang disarankan agar R1 benar-benar selesai sebelum fitur baru ditambah (
 3. ~~Saldo awal piutang manual (FR-ONB-04)~~ — selesai 2026-10-10. ~~Shift kasir (FR-POS-16)~~ — selesai 2026-10-10.
 4. **Import barang + saldo awal stok dari Excel/CSV (FR-ONB-01, FR-ONB-03 import)** — penghalang utama; sumber awal = ekspor master barang legacy toko pilot.
 5. **Backup terjadwal di luar server + satu kali uji restore** (NFR-OPS).
-6. **Spec test penjualan** yang disetujui pemilik produk (M4, `AGENTS.md` Fase 1.3).
+6. **Spec test penjualan** yang disetujui pemilik produk (M4, `docs/ROADMAP.md` Fase 1.3).
 7. CI otomatis (test + check setiap PR).
-8. Uji coba satu hari di PC kasir toko (buka/tutup shift, cetak, retur, piutang), lalu go-live toko pilot (`AGENTS.md` Fase 9).
+8. Uji coba satu hari di PC kasir toko (buka/tutup shift, cetak, retur, piutang), lalu go-live toko pilot (`docs/ROADMAP.md` Fase 9).
 
 Tidak menghalangi go-live, boleh menyusul: pembatalan pembayaran piutang/hutang (FR-AR-07, FR-PUR-09), saldo awal hutang (FR-ONB-05), catatan per baris (FR-POS-02), laporan lanjutan (FR-RPT).
 
@@ -598,7 +598,7 @@ Detail keputusan teknis (library, struktur folder, konvensi) ada di `AGENTS.md` 
 | Device [USULAN] | Perangkat Kasir Mobile terdaftar | (tidak ada) |
 | Audit log, Platform audit log | Jejak perubahan | `01_log_*` |
 
-Rancangan kolom: `AGENTS.md` §4 dan migration di `source/backend/db/migrations/`.
+Rancangan kolom: `docs/ARCHITECTURE.md` (§4) dan migration di `source/backend/db/migrations/`.
 
 ---
 
@@ -640,7 +640,7 @@ Rancangan kolom: `AGENTS.md` §4 dan migration di `source/backend/db/migrations/
 
 | Risiko | Kemungkinan | Dampak | Mitigasi |
 |---|---|---|---|
-| Aturan bisnis legacy terlewat | Sedang | Tinggi | Inventaris SP/trigger (`AGENTS.md` §8); spec test disetujui pemilik produk sebelum modul dibangun |
+| Aturan bisnis legacy terlewat | Sedang | Tinggi | Inventaris SP/trigger (`docs/LEGACY.md` (§8)); spec test disetujui pemilik produk sebelum modul dibangun |
 | Proyek berlarut, legacy terus dipakai dengan risiko keamanan | Sedang | Tinggi | Tambal kritis legacy dulu; **jalur kritis go-live pilot (§6.3) didahulukan dari fitur baru** |
 | Fitur terus bertambah tanpa toko pilot yang benar-benar berjalan | **Tinggi** | Tinggi | Gerbang: Kasir Mobile M1 tidak dimulai sebelum go-live pilot web, kecuali disetujui eksplisit |
 | Klien keberatan kehilangan histori di aplikasi baru | Sedang | Sedang | Ekspor laporan sebelum mulai; legacy baca-saja selama masa retensi |

@@ -1,0 +1,28 @@
+# Status Sesi
+
+> **Perbarui di akhir setiap sesi** (ringkas, tanggal absolut, buang info usang; target ≤ ±80 baris). Roadmap/centang: `docs/ROADMAP.md`. Lingkungan dev: `docs/DEV-ENV.md`. Riwayat: `docs/SESSION-LOG.md` (Grep, jangan dibaca penuh).
+
+## Posisi (2026-10-10)
+- Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
+- Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
+- Branch kerja saat ini: `feat/saldo-awal-jalan-pintas`; ada perubahan belum di-commit (dasbor, `00055_item_min_stock.sql`, `internal/dashboard`, item).
+
+## Toko pilot: TOKO KOTAK CANTIK MAGELANG (keputusan 2026-10-10)
+- Klien legacy yang sama dengan dump `kotakcantik.sql` (±430 rb nota, ±10 jt baris kartu stok di legacy). Prioritas = apa yang menghalangi toko ini berjualan.
+- Go-live **akhir bulan** (usulan: opname malam 31 Okt 2026, mulai 1 Nov 2026); 2 cabang, pilot di **pusat** dulu; printer thermal **58 mm USB** (Bluetooth/Android → Fase 10); laporan: penjualan, mutasi stok, dll.; **>100 rb jenis barang**; kontak: Bobby Kurniawan.
+- Pencarian kasir sudah cepat (`GET /items/search`). Daftar admin `/items` masih `count(*) OVER()` + OFFSET (±0,9 dtk untuk 150 rb barang) — perlu keyset.
+- Struk: template di web (`lib/pos/receipt.ts`, `escpos.ts`), cetak `auto|agent|browser`; `source/print-agent` = kurir RAW lokal `127.0.0.1:9100`. Panduan: `source/deploy/PC-KASIR.md`.
+- Kasir mobile: Flutter di `source/mobile/` (belum dibuat; keputusan 2026-10-10, Fase 10). Jenis/model printer dan HP uji belum dijawab; refresh token native tanpa cookie perlu didesain.
+
+## Langkah berikutnya (urutan go-live, sama dengan PRD §6.3)
+1. **Import barang + saldo awal stok dari Excel/CSV (3.4, FR-ONB-01/03)** — penghalang utama. Sumber = ekspor master barang legacy toko pilot; cek kebersihan data (barcode, satuan, harga per cabang). Setelah itu ukur kasir dengan katalog asli.
+2. **Backup terjadwal ke luar server + sekali uji restore** (belum ada).
+3. **Spec test penjualan (1.3)**: 10–15 kasus tersering → `source/tests/spec/`, disetujui pengguna.
+4. **CI GitHub Actions** (`go test`, `npm run check`); `.github/` belum ada.
+5. **Gladi bersih** ±25 Okt di PC kasir: shift, struk/tutup shift/rekap di printer asli, retur, piutang.
+6. Boleh menyusul: pembatalan pembayaran piutang/hutang (FR-AR-07, FR-PUR-09), saldo awal hutang (FR-ONB-05), catatan per baris kasir, edit/batal tutup shift, laporan Fase 7.
+
+## Sisa kecil / belum diputuskan
+- Trial/paket (register langsung aktif); email verifikasi tidak memblokir login (putuskan fitur yang butuh email terverifikasi); ganti password saat sudah masuk (endpoint belum; audit `auth.password_change` siap).
+- Syarat Layanan/Privasi (`legal.ts`) masih draf, perlu tinjauan hukum sebelum rilis publik. Email produksi butuh SMTP; email via `background.Runner` tanpa retry (pindah ke antrean bila perlu jaminan).
+- Belum ada: daftar fitur IN/OUT scope, `docs/business-rules.md`, spec test, import Excel/CSV, CI, backup di luar server.
