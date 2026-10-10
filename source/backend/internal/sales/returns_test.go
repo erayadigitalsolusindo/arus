@@ -237,3 +237,72 @@ func TestSaleReturnDoesNotRefundSurcharge(t *testing.T) {
 		}
 	}
 }
+
+// Detail nota tetap memuat semua baris asli, tetapi menandai qty yang diretur per baris, daftar dokumen retur
+// (termasuk yang dibatalkan), nilai bersih, dan gerakan stok retur.
+func TestSaleDetailShowsReturns(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	a := e.actor(e.tenant)
+	itemA := e.item(t, "goods", "1000", "500", 10, false)
+	itemB := e.item(t, "goods", "2000", "900", 10, false)
+	itemC := e.item(t, "goods", "3000", "1500", 10, false)
+	member := e.newMember(t, 0, true)
+	sale, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(itemA, "2"), line(itemB, "1"), line(itemC, "1")}, MemberID: &member,
+		Payments: []PaymentIn{pay("cash", "7000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	method := saleRefundMethod(t, e, "cash")
+	retB, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 2, "1", &method))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deposit := e.methodID(t, "deposit") // hanya retur ke deposit yang boleh dibatalkan
+	retA, _, err := e.svc.CreateSaleReturn(ctx, a, key(), saleReturnRequest(sale.ID, 1, "1", &deposit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.VoidSaleReturn(ctx, a, retA.ID, "salah pilih barang"); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := e.svc.Detail(ctx, a, sale.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Lines) != 3 || d.Total != "7000.00" {
+		t.Fatalf("nota asal harus utuh: %d baris, total %s", len(d.Lines), d.Total)
+	}
+	if d.Lines[0].ReturnedQty != "0" || d.Lines[1].ReturnedQty != "1" || d.Lines[2].ReturnedQty != "0" {
+		t.Fatalf("qty diretur per baris: %s/%s/%s", d.Lines[0].ReturnedQty, d.Lines[1].ReturnedQty, d.Lines[2].ReturnedQty)
+	}
+	if d.ReturnedTotal != "2000.00" || d.NetTotal != "5000.00" {
+		t.Fatalf("total retur/bersih = %s/%s", d.ReturnedTotal, d.NetTotal)
+	}
+	if len(d.Returns) != 2 || d.Returns[0].ID != retA.ID || d.Returns[0].Status != "void" || d.Returns[0].VoidReason != "salah pilih barang" ||
+		d.Returns[1].ID != retB.ID || d.Returns[1].Status != "completed" || d.Returns[1].Refund != "2000.00" {
+		t.Fatalf("daftar retur: %+v", d.Returns)
+	}
+	if l := d.Returns[1].Lines; len(l) != 1 || l[0].SalePosition != 2 || l[0].Qty != "1" {
+		t.Fatalf("baris retur B: %+v", l)
+	}
+	returnMoves := 0
+	for _, m := range d.Stock {
+		if m.Type == "SALE_RETURN" {
+			returnMoves++
+		}
+	}
+	if returnMoves != 3 { // retur B masuk, retur A masuk lalu keluar lagi saat dibatalkan
+		t.Fatalf("gerakan stok retur di detail = %d, mau 3", returnMoves)
+	}
+
+	plain, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(itemC, "1")}, Payments: []PaymentIn{pay("cash", "3000")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pd, err := e.svc.Detail(ctx, a, plain.ID)
+	if err != nil || len(pd.Returns) != 0 || pd.ReturnedTotal != "0.00" || pd.NetTotal != "3000.00" || pd.Lines[0].ReturnedQty != "0" {
+		t.Fatalf("nota tanpa retur: %+v %v", pd.Returns, err)
+	}
+}
