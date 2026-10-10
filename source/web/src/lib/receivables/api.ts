@@ -13,6 +13,7 @@ export type Receivable = {
   member_name: string;
   amount: string;
   paid: string;
+  returned: string;
   balance: string;
   /** YYYY-MM-DD; kosong = tanpa jatuh tempo. */
   due_date?: string;

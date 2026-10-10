@@ -2,7 +2,7 @@
   import Select from '#lib/components/Select.svelte';
   import Modal from '#lib/components/Modal.svelte';
   import { ApiError } from '#lib/api/client.ts';
-  import { paymentMethods as api, type FeeBearer, type PaymentKind, type PaymentMethod } from '#lib/catalog/api.ts';
+  import { paymentMethods as api, type FeeBearer, type PaymentKind, type PaymentMethod, isWalletKind } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, formatCurrency, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
@@ -267,9 +267,9 @@
       </div>
       <div>
         <label for="pm-kind" class={labelClass}>{t('catalog.paymentMethods.kind')}</label>
-        {#if ed.id && ed.kind === 'cash'}
+        {#if ed.id && (ed.kind === 'cash' || isWalletKind(ed.kind))}
           <input id="pm-kind" class={inputClass} value={kindLabel(ed.kind)} disabled />
-          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.systemHint')}</p>
+          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t(isWalletKind(ed.kind) ? 'catalog.paymentMethods.walletHint' : 'catalog.paymentMethods.systemHint')}</p>
         {:else}
           <Select id="pm-kind" ariaLabel={t('catalog.paymentMethods.kind')} bind:value={ed.kind} options={NEW_KINDS.map((k) => ({ value: k, label: kindLabel(k) }))} />
           <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.kindHint')} {t('catalog.paymentMethods.kindCashHint')}</p>
@@ -277,7 +277,7 @@
         {#if ed.errors.kind}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.kind}</p>{/if}
       </div>
 
-      {#if ed.kind !== 'cash'}
+      {#if ed.kind !== 'cash' && !isWalletKind(ed.kind)}
         <div>
           <span class={labelClass}>{t('catalog.paymentMethods.fee')}</span>
           <div class="grid gap-3 sm:grid-cols-2">

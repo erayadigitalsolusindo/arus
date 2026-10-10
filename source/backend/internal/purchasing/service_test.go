@@ -73,7 +73,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "purchase_return_lines", "purchase_returns", "purchase_return_counters", "payable_payments", "payable_settlements", "payable_payment_counters", "payables", "payment_methods", "purchase_costs", "purchase_lines", "purchases", "purchase_counters", "stock_movements", "stock_balances",
+			for _, tbl := range []string{"audit_log", "supplier_credit_movements", "member_deposit_movements", "wallet_doc_counters", "purchase_return_lines", "purchase_returns", "purchase_return_counters", "payable_payments", "payable_settlements", "payable_payment_counters", "payables", "payment_methods", "purchase_costs", "purchase_lines", "purchases", "purchase_counters", "stock_movements", "stock_balances",
 				"item_outlet_costs", "items", "suppliers", "units", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}

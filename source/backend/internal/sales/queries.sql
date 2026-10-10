@@ -272,6 +272,9 @@ JOIN tenants t ON t.id = s.tenant_id
 WHERE s.tenant_id = @tenant_id AND s.id = @id
 FOR UPDATE OF s;
 
+-- name: SaleHasReturns :one
+SELECT EXISTS (SELECT 1 FROM sales_returns WHERE tenant_id = @tenant_id AND sale_id = @sale_id AND status = 'completed');
+
 -- name: SalesLinesForReverse :many
 -- Baris nota + jenis barang, untuk membalik stok (hanya barang berstok yang menggerakkan stok).
 SELECT l.item_id, l.factor, l.qty, i.kind

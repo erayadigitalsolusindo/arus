@@ -5,6 +5,7 @@ package payable
 
 import (
 	"context"
+	"encoding/base64"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +26,7 @@ import (
 	"aciraba/internal/authz"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/wallet"
 )
 
 // Module = modul izin Hutang Pemasok: view = lihat, create = bayar hutang.
@@ -136,9 +138,10 @@ type Aging struct {
 }
 
 type ListResult struct {
-	Data    []Row   `json:"data"`
-	Summary Summary `json:"summary"`
-	HasMore bool    `json:"has_more"`
+	Data       []Row   `json:"data"`
+	Summary    Summary `json:"summary"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor string  `json:"next_cursor"` // kirim sebagai cursor untuk halaman berikutnya
 }
 
 type Payment struct {
@@ -165,7 +168,48 @@ type ListParams struct {
 	Status     string // open (bawaan) | overdue | paid | all
 	Q          string
 	Limit      int
-	Offset     int
+	Cursor     string // dari next_cursor halaman sebelumnya; kosong = halaman pertama
+}
+
+// listCursor = posisi baris terakhir menurut urutan daftar: (lunas?, jatuh tempo [kosong = 9999-12-31], tanggal beli DESC, id).
+type listCursor struct {
+	settled bool
+	due     time.Time
+	pdate   time.Time
+	id      uuid.UUID
+}
+
+var noDue = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+
+func (c listCursor) encode() string {
+	s := "0"
+	if c.settled {
+		s = "1"
+	}
+	raw := s + "|" + c.due.Format("2006-01-02") + "|" + c.pdate.Format("2006-01-02") + "|" + c.id.String()
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+}
+
+func decodeListCursor(s string) (listCursor, bool) {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return listCursor{}, false
+	}
+	p := strings.Split(string(b), "|")
+	if len(p) != 4 || (p[0] != "0" && p[0] != "1") {
+		return listCursor{}, false
+	}
+	c := listCursor{settled: p[0] == "1"}
+	if c.due, err = time.Parse("2006-01-02", p[1]); err != nil {
+		return listCursor{}, false
+	}
+	if c.pdate, err = time.Parse("2006-01-02", p[2]); err != nil {
+		return listCursor{}, false
+	}
+	if c.id, err = uuid.Parse(p[3]); err != nil {
+		return listCursor{}, false
+	}
+	return c, true
 }
 
 func statusOf(balance dec, due pgtype.Date, today pgtype.Date) string {
@@ -252,8 +296,14 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		p.Limit = pageSize
 	}
 	p.Limit = min(p.Limit, maxPage)
-	if p.Offset < 0 {
-		p.Offset = 0
+	var cur listCursor
+	hasCur := false
+	if p.Cursor != "" {
+		c, ok := decodeListCursor(p.Cursor)
+		if !ok {
+			return ListResult{}, FieldErrors{"cursor": sanitize.Invalid}
+		}
+		cur, hasCur = c, true
 	}
 	q := strings.TrimSpace(p.Q)
 	if utf8.RuneCountInString(q) > 100 {
@@ -269,6 +319,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 	}
 	ids := outletIDs(a)
 	res := ListResult{Data: []Row{}}
+	var lastCursor listCursor
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, baseCTE+` SELECT `+rowCols+` FROM base
 			WHERE ($4::text = '' OR doc_no ILIKE $4 OR supplier_invoice_no ILIKE $4 OR supplier_name ILIKE $4 OR supplier_code ILIKE $4)
@@ -276,8 +327,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 			        WHEN 'paid' THEN settled >= amount
 			        WHEN 'overdue' THEN settled < amount AND due_date IS NOT NULL AND due_date < today
 			        ELSE settled < amount END
+			  AND (NOT $6::bool OR (settled >= amount) > $7::bool OR ((settled >= amount) = $7::bool AND (
+			        coalesce(due_date, DATE '9999-12-31') > $8::date OR (coalesce(due_date, DATE '9999-12-31') = $8::date AND (
+			          purchase_date < $9::date OR (purchase_date = $9::date AND id > $10::uuid))))))
 			ORDER BY (settled >= amount), coalesce(due_date, DATE '9999-12-31'), purchase_date DESC, id
-			LIMIT $6 OFFSET $7`, a.TenantID, ids, supplier, pattern, p.Status, p.Limit+1, p.Offset)
+			LIMIT $11`, a.TenantID, ids, supplier, pattern, p.Status, hasCur, cur.settled, pgtype.Date{Time: cur.due, Valid: true},
+			pgtype.Date{Time: cur.pdate, Valid: true}, cur.id, p.Limit+1)
 		if err != nil {
 			return err
 		}
@@ -286,6 +341,13 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 			r, err := scanRow(rows)
 			if err != nil {
 				return err
+			}
+			if len(res.Data) < p.Limit {
+				due := noDue
+				if r.due.Valid {
+					due = r.due.Time
+				}
+				lastCursor = listCursor{settled: r.Status == "paid", due: due, pdate: r.pdate.Time, id: r.ID}
 			}
 			res.Data = append(res.Data, r.Row)
 		}
@@ -296,6 +358,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 		if len(res.Data) > p.Limit {
 			res.HasMore = true
 			res.Data = res.Data[:p.Limit]
+			res.NextCursor = lastCursor.encode()
 		}
 		var out, over, cur, d1, d2, d3 dec
 		err = tx.QueryRow(ctx, baseCTE+` SELECT
@@ -445,16 +508,17 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 		// Kunci NOTA pembelian (sama dengan yang dikunci edit/batal) → edit/batal dan pembayaran saling menunggu, tidak berpapasan.
 		var (
 			outletID uuid.UUID
+			supplier uuid.UUID
 			amount   dec
 			status   string
 			docNo    string
 			voided   pgtype.Timestamptz
 		)
 		e := tx.QueryRow(ctx, `
-			SELECT pb.outlet_id, pb.amount, pb.voided_at, pu.status, pu.doc_no
+			SELECT pb.outlet_id, pb.supplier_id, pb.amount, pb.voided_at, pu.status, pu.doc_no
 			FROM payables pb JOIN purchases pu ON pu.tenant_id = pb.tenant_id AND pu.id = pb.purchase_id
 			WHERE pb.tenant_id = $1 AND pb.id = $2
-			FOR UPDATE OF pu`, a.TenantID, id).Scan(&outletID, &amount, &voided, &status, &docNo)
+			FOR UPDATE OF pu`, a.TenantID, id).Scan(&outletID, &supplier, &amount, &voided, &status, &docNo)
 		if errors.Is(e, pgx.ErrNoRows) || (e == nil && !a.Outlets[outletID]) {
 			return ErrNotFound
 		}
@@ -495,6 +559,8 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 			return e
 		case !mActive:
 			return FieldErrors{"method_id": "METHOD_INACTIVE"}
+		case mKind == wallet.KindDeposit:
+			return FieldErrors{"method_id": sanitize.Invalid} // deposit member bukan alat bayar hutang pemasok
 		}
 		var (
 			code   string
@@ -522,6 +588,16 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 			a.TenantID, id, a.OutletID, payNo, key, h, mKind, n.method, mName, n.amount, n.ref, n.note,
 			pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}); e != nil {
 			return e
+		}
+		// Dibayar dari kredit pemasok: saldo kredit pemasok nota ini berkurang (ditolak bila tidak cukup).
+		if mKind == wallet.KindSupplierCredit {
+			if _, e := wallet.SupplierCredit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: supplier, OutletID: a.OutletID,
+				Kind: wallet.CrPayablePayment, Amount: n.amount.Neg(), RefID: id, DocNo: payNo, ActorID: a.UserID}); e != nil {
+				if errors.Is(e, wallet.ErrInsufficient) {
+					return FieldErrors{"amount": "CREDIT_INSUFFICIENT"}
+				}
+				return e
+			}
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionPayablePay, Entity: audit.EntityPayable, EntityID: id.String(),
 			Details: map[string]any{"doc_no": payNo, "purchase_doc_no": docNo, "method": mName, "amount": n.amount.String(),

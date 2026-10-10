@@ -25,6 +25,7 @@ import (
 	"aciraba/internal/payable"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/stock"
+	"aciraba/internal/wallet"
 )
 
 // Retur pembelian (Fase 6.6, keputusan pengguna 2026-10-09):
@@ -32,10 +33,13 @@ import (
 //   - barang keluar HANYA dari bucket Retur (tanpa jalan pintas dari Display/Gudang: mutasi dulu ke Retur);
 //   - nilai = nilai baris nota setelah diskon × qty retur ÷ qty beli (retur yang menghabiskan baris mengambil sisa nilainya)
 //     + PPN dengan tarif nota; biaya lain nota tidak dikembalikan;
-//   - nilai memotong sisa hutang nota dulu; kelebihannya = dana dikembalikan pemasok (wajib metode bayar);
+//   - nilai memotong sisa hutang nota dulu; kelebihannya = dana dikembalikan pemasok (wajib metode bayar; referensi wajib
+//     untuk metode non-tunai, sama dengan retur penjualan);
 //   - HPP rata-rata cabang dihitung mundur dengan HPP baris nota (rumus sama dengan batal nota);
 //   - batal retur: barang kembali ke bucket Retur, potongan hutang hilang; ditolak bila hutang nota sudah dibayar
-//     sesudah retur dibuat. Nota yang punya retur aktif tidak boleh diedit/dibatalkan (lihat reverse).
+//     sesudah retur dibuat, atau bila retur menerima dana kembali tunai/non-tunai (keputusan pengguna 2026-10-10: uang yang
+//     sudah diterima dari pemasok tidak boleh hilang dari catatan tanpa jejak). Dana kembali berupa KREDIT PEMASOK boleh
+//     dibatalkan: kreditnya ditarik lagi (ditolak bila kredit sudah terpakai). Nota yang punya retur aktif tidak boleh diedit/dibatalkan (lihat reverse).
 
 const ModuleReturns = "purchase_returns"
 
@@ -631,6 +635,10 @@ func (s *Service) CreateReturn(ctx context.Context, a authz.Actor, key string, i
 				return e
 			case !active:
 				return FieldErrors{"refund_method_id": "METHOD_INACTIVE"}
+			case kind == wallet.KindDeposit:
+				return FieldErrors{"refund_method_id": sanitize.Invalid} // deposit member bukan untuk pemasok
+			case kind != "cash" && kind != wallet.KindSupplierCredit && n.ref == "":
+				return FieldErrors{"refund_ref": sanitize.Required}
 			}
 			mID = pgtype.UUID{Bytes: n.method, Valid: true}
 			mKind = pgtype.Text{String: kind, Valid: true}
@@ -666,6 +674,13 @@ func (s *Service) CreateReturn(ctx context.Context, a authz.Actor, key string, i
 		if err := moveReturns(ctx, tx, a, nota.outletID, newID, docNo, c.lines, true); err != nil {
 			return err
 		}
+		// Dana kembali dijadikan kredit pemasok: saldo kredit pemasok bertambah (bisa dipakai bayar hutang / dicairkan).
+		if mKind.String == wallet.KindSupplierCredit {
+			if _, err := wallet.SupplierCredit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: nota.supplierID, OutletID: nota.outletID,
+				Kind: wallet.CrPurchaseReturn, Amount: c.refund, RefID: newID, DocNo: docNo, ActorID: a.UserID}); err != nil {
+				return err
+			}
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionPurchaseReturnCreate, Entity: audit.EntityPurchaseReturn, EntityID: newID.String(),
 			Details: map[string]any{"doc_no": docNo, "purchase_id": nota.id.String(), "purchase_doc_no": nota.docNo,
@@ -685,7 +700,8 @@ func (s *Service) CreateReturn(ctx context.Context, a authz.Actor, key string, i
 }
 
 // VoidReturn membatalkan retur: barang kembali ke bucket Retur outlet retur, HPP dihitung maju dengan HPP baris,
-// potongan hutang hilang (saldo hutang dihitung dari retur berstatus completed saja).
+// potongan hutang hilang (saldo hutang dihitung dari retur berstatus completed saja). Retur yang menerima dana kembali
+// (refund > 0) tidak bisa dibatalkan.
 func (s *Service) VoidReturn(ctx context.Context, a authz.Actor, id uuid.UUID, reason string) (PurchaseReturn, error) {
 	reason, f := checkReason(reason)
 	if len(f) > 0 {
@@ -709,9 +725,13 @@ func (s *Service) VoidReturn(ctx context.Context, a authz.Actor, id uuid.UUID, r
 			status    string
 			docNo     string
 			createdAt time.Time
+			refund    dec
+			rKind     string
+			supplier  uuid.UUID
 		)
-		if err := tx.QueryRow(ctx, `SELECT outlet_id, status, doc_no, created_at FROM purchase_returns WHERE tenant_id = $1 AND id = $2 FOR UPDATE`,
-			a.TenantID, id).Scan(&outlet, &status, &docNo, &createdAt); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT outlet_id, status, doc_no, created_at, refund, coalesce(refund_method, ''), supplier_id
+			FROM purchase_returns WHERE tenant_id = $1 AND id = $2 FOR UPDATE`,
+			a.TenantID, id).Scan(&outlet, &status, &docNo, &createdAt, &refund, &rKind, &supplier); err != nil {
 			return err
 		}
 		if !canAccessOutlet(a, outlet) {
@@ -719,6 +739,9 @@ func (s *Service) VoidReturn(ctx context.Context, a authz.Actor, id uuid.UUID, r
 		}
 		if status != "completed" {
 			return ErrReturnNotActive
+		}
+		if refund.IsPositive() && rKind != wallet.KindSupplierCredit {
+			return ErrReturnRefunded
 		}
 		if paid, err := payable.HasPaymentsSince(ctx, tx, a.TenantID, purchaseID, createdAt); err != nil {
 			return err
@@ -744,6 +767,13 @@ func (s *Service) VoidReturn(ctx context.Context, a authz.Actor, id uuid.UUID, r
 		}
 		if err := moveReturns(ctx, tx, a, outlet, id, docNo+" (batal)", lines, false); err != nil {
 			return err
+		}
+		// Dana kembali berupa kredit pemasok: kredit ditarik lagi (ditolak bila sudah terpakai/dicairkan).
+		if refund.IsPositive() {
+			if _, err := wallet.SupplierCredit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: supplier, OutletID: outlet,
+				Kind: wallet.CrPurchaseReturnVoid, Amount: refund.Neg(), RefID: id, DocNo: docNo, Note: "batal retur", ActorID: a.UserID}); err != nil {
+				return err
+			}
 		}
 		tag, err := tx.Exec(ctx, `UPDATE purchase_returns SET status = 'void', void_reason = $3, voided_at = now(), voided_by = $4
 			WHERE tenant_id = $1 AND id = $2 AND status = 'completed'`, a.TenantID, id, reason, nullUUID(a.UserID))

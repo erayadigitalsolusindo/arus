@@ -83,7 +83,7 @@ type Stats struct {
 	TotalSales string `json:"total_sales"`
 	TotalTrx   int64  `json:"total_trx"`
 	Points     int    `json:"points"`
-	Deposit    string `json:"deposit"` // belum ada fitur deposit (menyusul bersama piutang/kas); selalu 0
+	Deposit    string `json:"deposit"` // saldo deposit member (ledger member_deposit_movements, paket wallet)
 }
 
 type Member struct {
@@ -303,7 +303,7 @@ func memberOf(r gen.MemberGetRow) Member {
 		Points: int(r.Points), LifetimePoints: int(r.LifetimePoints), CreatedAt: r.CreatedAt.Time, UpdatedAt: r.UpdatedAt.Time,
 		Level: LevelRef{ID: nilUUID(r.LevelID), Name: r.LevelName, MinPoints: int(r.LevelMinPoints),
 			SpendPerPoint: r.LevelSpendPerPoint.StringFixed(2), PointValue: r.LevelPointValue.StringFixed(2)},
-		Stats: Stats{TotalSales: r.TotalSales.StringFixed(2), TotalTrx: r.TotalTrx, Points: int(r.Points), Deposit: "0.00"},
+		Stats: Stats{TotalSales: r.TotalSales.StringFixed(2), TotalTrx: r.TotalTrx, Points: int(r.Points), Deposit: r.Deposit.StringFixed(2)},
 	}
 	if r.NextLevelID != uuid.Nil {
 		m.NextLevel = &NextLevel{Name: r.NextLevelName, MinPoints: int(r.NextLevelMinPoints),

@@ -74,7 +74,7 @@ export const nav: NavGroup[] = [
         labelKey: 'nav.salesOrdersReturns',
         icon: 'shopping-cart',
         module: 'sales_orders',
-        children: [{ labelKey: 'nav.salesReturns', module: 'sales_returns' }]
+        children: [{ labelKey: 'nav.salesReturns', module: 'sales_returns', href: '/sales-returns' }]
       },
       {
         id: 'salesData',
@@ -107,7 +107,8 @@ export const nav: NavGroup[] = [
         children: [
           { labelKey: 'nav.purchaseList', module: 'purchase_list', href: '/purchases' },
           { labelKey: 'nav.buyPriceHistory', module: 'buy_price_history', href: '/buy-price-history' },
-          { labelKey: 'nav.supplierPayables', module: 'supplier_payables', href: '/supplier-payables' }
+          { labelKey: 'nav.supplierPayables', module: 'supplier_payables', href: '/supplier-payables' },
+          { labelKey: 'nav.supplierCredits', module: 'supplier_credits', href: '/supplier-credits' }
         ]
       }
     ]

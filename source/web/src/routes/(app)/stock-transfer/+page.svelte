@@ -11,6 +11,7 @@
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Select from '#lib/components/Select.svelte';
   import Modal from '#lib/components/Modal.svelte';
+  import TruckAnimation from '#lib/components/TruckAnimation.svelte';
   import { clearDraft, draftKey, loadDraft, saveDraft, type TransferDraft } from '#lib/stock/transfer-draft.ts';
 
   const PAGE = 20;
@@ -317,8 +318,8 @@
         <div class="flex items-center gap-3">
           <span class="tr-hero-icon grid place-items-center size-11 rounded-xl"><i class="icon-arrow-right-left text-[21px]"></i></span>
           <div class="min-w-0">
-            <h1 class="font-display font-bold text-[20px] leading-tight">{t('stock.transfer.title')}</h1>
-            {#if session.outlet}<p class="text-[12px] opacity-80 inline-flex items-center gap-1.5"><i class="icon-map-pin text-[12px]"></i>{session.outlet.name}</p>{/if}
+            <h1 class="tr-hero-title font-display font-bold text-[20px] leading-tight">{t('stock.transfer.title')}</h1>
+            {#if session.outlet}<p class="tr-hero-outlet text-[12px] opacity-80 inline-flex items-center gap-1.5"><i class="icon-map-pin text-[12px]"></i>{session.outlet.name}</p>{/if}
           </div>
         </div>
         <p class="text-[12.5px] leading-relaxed opacity-85 max-w-[560px]">{t('stock.transfer.subtitle')}</p>
@@ -346,16 +347,7 @@
         </div>
       </div>
 
-      <!-- Adegan animasi: dua cabang dan truk yang bolak-balik -->
-      <div class="tr-scene hidden sm:block" aria-hidden="true">
-        <div class="tr-node"><i class="icon-store text-[22px]"></i></div>
-        <div class="tr-track">
-          <span class="tr-truck"><i class="icon-truck text-[17px]"></i></span>
-          <span class="tr-pkg tr-pkg-1"><i class="icon-package text-[12px]"></i></span>
-          <span class="tr-pkg tr-pkg-2"><i class="icon-package text-[12px]"></i></span>
-        </div>
-        <div class="tr-node"><i class="icon-store text-[22px]"></i></div>
-      </div>
+      <TruckAnimation class="hidden sm:block w-full max-w-[420px] justify-self-center" />
     </div>
     <span class="tr-orb tr-orb-1"></span><span class="tr-orb tr-orb-2"></span>
   </section>
@@ -741,39 +733,13 @@
     background: linear-gradient(125deg, #1d4ed8 0%, #4338ca 55%, #6d28d9 100%);
     box-shadow: 0 10px 30px -12px rgb(67 56 202 / 0.55);
   }
+  .tr-hero .tr-hero-title, .tr-hero .tr-hero-outlet { color: #fff; }
   .tr-hero-icon { background: rgb(255 255 255 / 0.16); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22); }
   .tr-glass { background: rgb(255 255 255 / 0.12); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18); backdrop-filter: blur(6px); }
   .tr-orb { position: absolute; border-radius: 9999px; background: radial-gradient(circle, rgb(255 255 255 / 0.18), transparent 70%); pointer-events: none; }
   .tr-orb-1 { width: 260px; height: 260px; top: -90px; inset-inline-end: -60px; animation: tr-drift 9s ease-in-out infinite; }
   .tr-orb-2 { width: 180px; height: 180px; bottom: -80px; inset-inline-start: 30%; animation: tr-drift 11s ease-in-out infinite reverse; }
 
-  /* Adegan truk: dua cabang + jalur bergaris yang bergerak + truk yang bolak-balik */
-  .tr-scene { display: flex; align-items: center; gap: 0.6rem; }
-  .tr-node {
-    flex: none; display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: 0.9rem;
-    background: rgb(255 255 255 / 0.16); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
-  }
-  .tr-track {
-    position: relative; flex: 1; height: 2.4rem;
-    background-image: linear-gradient(90deg, rgb(255 255 255 / 0.5) 50%, transparent 0);
-    background-size: 14px 2px; background-repeat: repeat-x; background-position: 0 50%;
-    animation: tr-dash 1.2s linear infinite;
-  }
-  .tr-truck {
-    position: absolute; top: 50%; left: 0; width: 2rem; height: 2rem; margin-top: -1rem; border-radius: 0.6rem;
-    display: grid; place-items: center; color: #1e3a8a; background: #fff;
-    box-shadow: 0 6px 14px -4px rgb(0 0 0 / 0.4); animation: tr-drive 3.6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
-  }
-  .tr-pkg {
-    position: absolute; top: 50%; margin-top: -1.9rem; display: grid; place-items: center; width: 1.2rem; height: 1.2rem;
-    border-radius: 0.35rem; background: rgb(251 191 36); color: #78350f; opacity: 0; animation: tr-pop 3.6s ease-in-out infinite;
-  }
-  .tr-pkg-1 { left: 28%; }
-  .tr-pkg-2 { left: 62%; animation-delay: 0.5s; }
-
-  @keyframes tr-drive { 0% { left: 0; } 45%, 55% { left: calc(100% - 2rem); } 100% { left: 0; } }
-  @keyframes tr-dash { to { background-position: -14px 50%; } }
-  @keyframes tr-pop { 0%, 100% { opacity: 0; transform: translateY(6px) scale(0.6); } 30%, 70% { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes tr-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-14px, 10px); } }
   @keyframes tr-ping { 0% { box-shadow: 0 0 0 0 currentColor; } 80%, 100% { box-shadow: 0 0 0 7px transparent; } }
   @keyframes tr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
@@ -848,8 +814,7 @@
   .tr-timeline li.is-bad .tr-tl-dot { background: #6b7280; }
 
   @media (prefers-reduced-motion: reduce) {
-    .tr-orb, .tr-track, .tr-truck, .tr-pkg, .tr-ping, .tr-float, .tr-spin, .tr-arrow, .tr-dot, .tr-skel, .tr-timeline li.is-now .tr-tl-dot { animation: none !important; }
-    .tr-pkg { opacity: 1; }
+    .tr-orb, .tr-ping, .tr-float, .tr-spin, .tr-arrow, .tr-dot, .tr-skel, .tr-timeline li.is-now .tr-tl-dot { animation: none !important; }
     .tr-tabs-pill, .tr-bar > span, .tr-timeline::after, .tr-tl-dot, .tr-send-icon { transition: none !important; }
   }
 </style>

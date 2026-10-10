@@ -45,12 +45,13 @@ export type PayableSummary = {
   total_count: number;
   aging: { current: string; d1_30: string; d31_60: string; d60_plus: string };
 };
-export type PayableList = { data: Payable[]; summary: PayableSummary; has_more: boolean };
+/** Paginasi keyset: kirim next_cursor sebagai cursor untuk halaman berikutnya. */
+export type PayableList = { data: Payable[]; summary: PayableSummary; has_more: boolean; next_cursor: string };
 
 export type PayablePayInput = { method_id: string; amount: string; ref_no?: string; note?: string };
 
 export const payables = {
-  list: (p: { status?: PayableFilter; q?: string; supplier_id?: string; limit?: number; offset?: number }) => {
+  list: (p: { status?: PayableFilter; q?: string; supplier_id?: string; limit?: number; cursor?: string }) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '' && v !== 0) qs.set(k, String(v));
     return api<PayableList>(`/payables/?${qs}`);

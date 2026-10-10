@@ -77,7 +77,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "receivable_payments", "receivable_settlements", "receivable_payment_counters", "receivables", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances", "item_outlet_costs",
+			for _, tbl := range []string{"audit_log", "member_deposit_movements", "supplier_credit_movements", "wallet_doc_counters", "receivable_payments", "receivable_settlements", "receivable_payment_counters", "receivables", "sales_return_lines", "sales_returns", "sales_return_counters", "sale_payments", "payment_methods", "sale_lines", "sale_vouchers", "sale_costs", "sales", "vouchers", "sale_counters", "salespeople", "member_point_movements", "members", "member_counters", "member_levels", "stock_movements", "stock_balances", "item_outlet_costs",
 				"items", "units", "users", "roles", "outlets"} {
 				if tbl == "sales" {
 					// Rantai revisi saling merujuk (RESTRICT): putus tautan nota lama, lalu hapus revisi dari yang terbaru.
@@ -97,7 +97,8 @@ func newEnv(t *testing.T) *env {
 // defaultMethodsSQL = metode bawaan seperti yang diisi paymentmethod.SeedDefaults saat register.
 const defaultMethodsSQL = `INSERT INTO payment_methods (tenant_id, name, kind, is_system)
 	VALUES ($1, 'Tunai', 'cash', true), ($1, 'Transfer', 'transfer', false), ($1, 'Debit', 'debit', false),
-	       ($1, 'Kartu Kredit', 'credit_card', false), ($1, 'E-Wallet', 'ewallet', false)`
+	       ($1, 'Kartu Kredit', 'credit_card', false), ($1, 'E-Wallet', 'ewallet', false),
+	       ($1, 'Deposit Member', 'deposit', true), ($1, 'Kredit Pemasok', 'supplier_credit', true)`
 
 // item membuat barang berharga `price`, HPP `cost`, dan stok display `qty`.
 func (e *env) item(t *testing.T, kind, price, cost string, qty int, allowNeg bool) uuid.UUID {

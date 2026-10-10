@@ -42,7 +42,7 @@ func actor(r *http.Request) authz.Actor {
 	return a
 }
 
-// List: GET /payables?supplier_id=&status=open|overdue|paid|all&q=&limit=&offset=
+// List: GET /payables?supplier_id=&status=open|overdue|paid|all&q=&limit=&cursor=  (paginasi keyset)
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	p := ListParams{Status: qs.Get("status"), Q: qs.Get("q")}
@@ -55,7 +55,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		p.SupplierID = &id
 	}
 	p.Limit, _ = strconv.Atoi(qs.Get("limit"))
-	p.Offset, _ = strconv.Atoi(qs.Get("offset"))
+	p.Cursor = qs.Get("cursor")
 	res, err := h.svc.List(r.Context(), actor(r), p)
 	if err != nil {
 		h.fail(w, r, err)

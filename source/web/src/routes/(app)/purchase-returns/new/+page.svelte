@@ -26,6 +26,9 @@
     return /^\d*\.?\d{0,3}$/.test(v) && toMilli(v) > 0n ? v : '';
   };
 
+  /** Nota kredit yang hutangnya sudah lunas (sisa ≤ 0): retur seluruhnya jadi dana dikembalikan pemasok. */
+  const settled = (bal: string | null, type: string) => type === 'credit' && bal !== null && Number(bal) <= 0;
+
   // ---- Pilih nota ----
   let search = $state('');
   let choices = $state<ReturnablePurchase[]>([]);
@@ -110,8 +113,13 @@
   const issues = $derived(new Map((quote?.lines ?? []).filter((l) => l.issue).map((l) => [l.position, l.return_stock])));
   const values = $derived(new Map((quote?.lines ?? []).map((l) => [l.position, l.value])));
   const needsMethod = $derived(!!quote && Number(quote.refund) > 0);
+  /** Referensi wajib untuk dana kembali lewat metode non-tunai (sama dengan aturan server). */
+  const pickedKind = $derived(methods.find((m) => m.id === methodId)?.kind);
+  const toCredit = $derived(pickedKind === 'supplier_credit');
+  const needsRef = $derived(needsMethod && !!pickedKind && pickedKind !== 'cash' && !toCredit);
   const canSave = $derived(
-    !!input && input.lines.length > 0 && Object.keys(localErrors).length === 0 && issues.size === 0 && !!quote && !quoting && (!needsMethod || methodId !== '')
+    !!input && input.lines.length > 0 && Object.keys(localErrors).length === 0 && issues.size === 0 && !!quote && !quoting &&
+      (!needsMethod || methodId !== '') && (!needsRef || refundRef.trim() !== '')
   );
 
   let quoteSeq = 0;
@@ -188,7 +196,7 @@
     const body: ReturnInput = {
       ...input,
       ...(note.trim() ? { note: note.trim() } : {}),
-      ...(needsMethod ? { refund_method_id: methodId, ...(refundRef.trim() ? { refund_ref: refundRef.trim() } : {}) } : {})
+      ...(needsMethod ? { refund_method_id: methodId, ...(!toCredit && refundRef.trim() ? { refund_ref: refundRef.trim() } : {}) } : {})
     };
     try {
       saved = await api.create(body, keyFor(JSON.stringify(body)));
@@ -210,7 +218,7 @@
     const id = new URLSearchParams(location.search).get('purchase');
     if (id) void pick(id);
     try {
-      methods = await paymentMethodsLookup.all();
+      methods = await paymentMethodsLookup.all('purchase_return');
       methodId = methods[0]?.id ?? '';
     } catch {
       /* metode hanya dibutuhkan bila ada dana kembali; galat ditampilkan saat simpan */
@@ -225,9 +233,14 @@
       <h1 class="mt-1 font-display font-bold text-[19px]">{t('purchaseReturns.form.title')}</h1>
       <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('purchaseReturns.form.subtitle')}</p>
     </div>
-    {#if can('stock_transfer', 'create')}
-      <a href="/stock-transfer" class="btn btn-sm"><i class="icon-arrow-left-right text-[13px]"></i>{t('purchaseReturns.form.stockLink')}</a>
-    {/if}
+    <div class="flex flex-wrap items-center gap-2">
+      {#if src}
+        <button type="button" class="btn btn-sm" onclick={reset}><i class="icon-receipt-text text-[13px]"></i>{t('purchaseReturns.form.change')}</button>
+      {/if}
+      {#if can('stock_transfer', 'create')}
+        <a href="/stock-transfer" class="btn btn-sm"><i class="icon-arrow-left-right text-[13px]"></i>{t('purchaseReturns.form.stockLink')}</a>
+      {/if}
+    </div>
   </div>
 
   {#if saved}
@@ -264,6 +277,7 @@
               {#if c.supplier_invoice_no}<span class="font-mono text-[11.5px] text-[var(--text-tertiary)]">{c.supplier_invoice_no}</span>{/if}
               <span class="text-[12px] text-[var(--text-tertiary)]">{formatDate(c.purchase_date)}</span>
               <span class="badge-soft {c.payment_type === 'credit' ? 'badge-warning' : 'badge-success'}">{t(`purchases.type.${c.payment_type}`)}</span>
+              {#if settled(c.payable_balance, c.payment_type)}<span class="badge-soft badge-success"><i class="icon-circle-check text-[11px]"></i>{t('purchaseReturns.form.paidOff')}</span>{/if}
               <span class="ms-auto tabular-nums font-semibold">{money(c.total)}</span>
             </button>
           </li>
@@ -280,14 +294,19 @@
             <div><dt class={label}>{t('purchaseReturns.col.purchase')}</dt><dd class="font-mono text-[12.5px] font-bold">{src.doc_no}</dd></div>
             <div><dt class={label}>{t('purchaseReturns.form.supplier')}</dt><dd class="font-semibold">{src.supplier_name}</dd></div>
             <div><dt class={label}>{t('purchaseReturns.form.invoice')}</dt><dd class="font-mono text-[12px]">{src.supplier_invoice_no || '—'}</dd></div>
-            <div><dt class={label}>{t('purchaseReturns.form.date')}</dt><dd>{formatDate(src.purchase_date)} · <span class="badge-soft {src.payment_type === 'credit' ? 'badge-warning' : 'badge-success'}">{t(`purchases.type.${src.payment_type}`)}</span></dd></div>
+            <div><dt class={label}>{t('purchaseReturns.form.date')}</dt><dd>{formatDate(src.purchase_date)} · <span class="badge-soft {src.payment_type === 'credit' ? 'badge-warning' : 'badge-success'}">{t(`purchases.type.${src.payment_type}`)}</span>{#if settled(src.payable_balance, src.payment_type)} <span class="badge-soft badge-success">{t('purchaseReturns.form.paidOff')}</span>{/if}</dd></div>
             <div>
               <dt class={label}>{t('purchaseReturns.form.payableBalance')}</dt>
               <dd class="font-semibold tabular-nums">{src.payable_balance !== null ? money(src.payable_balance) : t('purchaseReturns.form.noPayable')}</dd>
             </div>
           </dl>
-          <button type="button" class="btn btn-sm" onclick={reset}><i class="icon-arrow-left-right text-[13px]"></i>{t('purchaseReturns.form.change')}</button>
         </div>
+        {#if settled(src.payable_balance, src.payment_type)}
+          <div role="note" class="mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-success">
+            <i class="icon-circle-check text-[14px] mt-0.5 shrink-0"></i>
+            <span>{t('purchaseReturns.form.paidOffHint')}</span>
+          </div>
+        {/if}
       </section>
 
       <section class="surface-card !p-0 overflow-hidden">
@@ -355,10 +374,15 @@
                 <span class="mb-1 block text-[12px] font-semibold">{t('purchaseReturns.form.refundMethod')}</span>
                 <Select ariaLabel={t('purchaseReturns.form.refundMethod')} bind:value={methodId} options={methodOptions} />
               </div>
-              <div>
-                <label class="mb-1 block text-[12px] font-semibold" for="ret-ref">{t('purchaseReturns.form.refundRef')}</label>
-                <input id="ret-ref" class={inputClass} maxlength="100" autocomplete="off" bind:value={refundRef} />
-              </div>
+              {#if toCredit}
+                <p class="self-end text-[11.5px] text-[var(--text-secondary)]">{t('purchaseReturns.form.creditHint')}</p>
+              {:else}
+                <div>
+                  <label class="mb-1 block text-[12px] font-semibold" for="ret-ref">{t('purchaseReturns.form.refundRef')}</label>
+                  <input id="ret-ref" class={inputClass} maxlength="100" autocomplete="off" bind:value={refundRef} required={needsRef} />
+                  {#if needsRef}<p class="mt-1 text-[11px] text-[var(--text-tertiary)]">{t('purchaseReturns.form.refundRefHint')}</p>{/if}
+                </div>
+              {/if}
             </div>
           {/if}
         </section>

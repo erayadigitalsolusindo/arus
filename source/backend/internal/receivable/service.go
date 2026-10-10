@@ -1,5 +1,4 @@
-// Package receivable: piutang penjualan kredit member (Fase 5.1/5.3). Piutang lahir dari nota kredit (sales.receivable) dan
-// dilunasi lewat receivable_payments. Saldo = amount − Σ pembayaran (dihitung, tidak disimpan; AGENTS.md §8).
+// Package receivable: piutang penjualan kredit member (Fase 5.1/5.3). Saldo = amount − pembayaran − retur aktif.
 //
 // Paket ini tidak mengimpor `sales`: nota memanggil fungsi di sini (Create, Outstanding, ...) di dalam transaksinya.
 package receivable
@@ -27,6 +26,7 @@ import (
 	gen "aciraba/internal/gen"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
+	"aciraba/internal/wallet"
 )
 
 // Module = modul izin Daftar Piutang Anggota: view = lihat, create = terima pembayaran.
@@ -107,6 +107,7 @@ type Row struct {
 	MemberName string    `json:"member_name"`
 	Amount     string    `json:"amount"`
 	Paid       string    `json:"paid"`
+	Returned   string    `json:"returned"`
 	Balance    string    `json:"balance"`
 	DueDate    *string   `json:"due_date,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -223,9 +224,9 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) (ListRe
 			rows = rows[:p.Limit]
 		}
 		for _, r := range rows {
-			bal := r.Amount.Sub(r.Paid)
+			bal := r.Amount.Sub(r.Paid).Sub(r.Returned)
 			res.Data = append(res.Data, Row{ID: r.ID, SaleID: r.SaleID, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode,
-				MemberName: r.MemberName, Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Balance: bal.StringFixed(2),
+				MemberName: r.MemberName, Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Returned: r.Returned.StringFixed(2), Balance: bal.StringFixed(2),
 				DueDate: dateStr(r.DueDate), CreatedAt: r.CreatedAt.Time, Status: statusOf(bal, r.DueDate, r.Today)})
 		}
 		sm, err := qr.ReceivableSummary(ctx, gen.ReceivableSummaryParams{TenantID: a.TenantID, OutletIds: ids, MemberID: member})
@@ -258,10 +259,10 @@ func (s *Service) detail(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.
 	if err != nil {
 		return Detail{}, err
 	}
-	bal := r.Amount.Sub(r.Paid)
+	bal := r.Amount.Sub(r.Paid).Sub(r.Returned)
 	d := Detail{
 		Row: Row{ID: r.ID, SaleID: r.SaleID, DocNo: r.DocNo, MemberID: r.MemberID, MemberCode: r.MemberCode, MemberName: r.MemberName,
-			Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Balance: bal.StringFixed(2), DueDate: dateStr(r.DueDate),
+			Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Returned: r.Returned.StringFixed(2), Balance: bal.StringFixed(2), DueDate: dateStr(r.DueDate),
 			CreatedAt: r.CreatedAt.Time, Status: statusOf(bal, r.DueDate, r.Today)},
 		SaleTotal: r.SaleTotal.StringFixed(2), SaleAt: r.SaleAt.Time, Payments: []Payment{},
 	}
@@ -378,7 +379,7 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 		if e != nil {
 			return e
 		}
-		balance := r.Amount.Sub(paid)
+		balance := r.Amount.Sub(paid).Sub(r.Returned)
 		switch {
 		case !balance.IsPositive():
 			return FieldErrors{"amount": "SETTLED"}
@@ -393,6 +394,8 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 			return e
 		case !m.Active:
 			return FieldErrors{"method_id": "METHOD_INACTIVE"}
+		case m.Kind == wallet.KindSupplierCredit:
+			return FieldErrors{"method_id": sanitize.Invalid} // kredit pemasok bukan alat bayar piutang member
 		}
 		out, e := q.ReceivablePayOutlet(ctx, gen.ReceivablePayOutletParams{TenantID: a.TenantID, ID: a.OutletID})
 		if errors.Is(e, pgx.ErrNoRows) || (e == nil && !out.Active) {
@@ -413,6 +416,16 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 			ReceivedBy: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}}); e != nil {
 			return e
 		}
+		// Dibayar dari deposit member pemilik piutang: saldo deposit berkurang (ditolak bila tidak cukup).
+		if m.Kind == wallet.KindDeposit {
+			if _, e := wallet.MemberDeposit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: r.MemberID, OutletID: a.OutletID,
+				Kind: wallet.DepReceivablePayment, Amount: n.amount.Neg(), RefID: id, DocNo: docNo, ActorID: a.UserID}); e != nil {
+				if errors.Is(e, wallet.ErrInsufficient) {
+					return FieldErrors{"amount": "DEPOSIT_INSUFFICIENT"}
+				}
+				return e
+			}
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionReceivablePay, Entity: audit.EntityReceivable, EntityID: id.String(),
 			Details: map[string]any{"doc_no": docNo, "sale_doc_no": r.DocNo, "method": m.Name, "amount": n.amount.String(), "balance_after": balance.Sub(n.amount).String(),
 				"member_id": r.MemberID.String(), "outlet_id": a.OutletID.String()}})
@@ -431,12 +444,13 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 
 // SaleInfo = piutang yang melekat pada satu nota kredit.
 type SaleInfo struct {
-	ID      uuid.UUID `json:"id"`
-	Amount  string    `json:"amount"`
-	Paid    string    `json:"paid"`
-	Balance string    `json:"balance"`
-	DueDate *string   `json:"due_date,omitempty"`
-	Status  string    `json:"status"` // open | overdue | paid
+	ID       uuid.UUID `json:"id"`
+	Amount   string    `json:"amount"`
+	Paid     string    `json:"paid"`
+	Returned string    `json:"returned"`
+	Balance  string    `json:"balance"`
+	DueDate  *string   `json:"due_date,omitempty"`
+	Status   string    `json:"status"` // open | overdue | paid
 }
 
 // ForSale = piutang nota (nil bila nota bukan kredit).
@@ -448,7 +462,7 @@ func ForSale(ctx context.Context, tx pgx.Tx, tenant, sale uuid.UUID) (*SaleInfo,
 	if err != nil {
 		return nil, err
 	}
-	bal := r.Amount.Sub(r.Paid)
-	return &SaleInfo{ID: r.ID, Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Balance: bal.StringFixed(2),
+	bal := r.Amount.Sub(r.Paid).Sub(r.Returned)
+	return &SaleInfo{ID: r.ID, Amount: r.Amount.StringFixed(2), Paid: r.Paid.StringFixed(2), Returned: r.Returned.StringFixed(2), Balance: bal.StringFixed(2),
 		DueDate: dateStr(r.DueDate), Status: statusOf(bal, r.DueDate, r.Today)}, nil
 }

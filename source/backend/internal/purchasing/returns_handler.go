@@ -12,6 +12,7 @@ import (
 	"aciraba/internal/authz"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/stock"
+	"aciraba/internal/wallet"
 )
 
 // ReturnRoutes: /purchase-returns (modul izin purchase_returns: view = lihat, create = buat, approve = batalkan).
@@ -154,6 +155,10 @@ func (h *Handler) failReturn(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.Error(w, http.StatusConflict, "RETURN_NOT_ACTIVE", "Retur ini sudah dibatalkan.")
 	case errors.Is(err, ErrReturnLocked):
 		httpx.Error(w, http.StatusConflict, "RETURN_LOCKED", "Hutang nota sudah dibayar setelah retur dibuat; retur tidak dapat dibatalkan.")
+	case errors.Is(err, ErrReturnRefunded):
+		httpx.Error(w, http.StatusConflict, "RETURN_REFUNDED", "Retur ini sudah menerima dana kembali dari pemasok; retur tidak dapat dibatalkan.")
+	case errors.Is(err, wallet.ErrInsufficient):
+		httpx.Error(w, http.StatusConflict, "CREDIT_INSUFFICIENT", "Kredit pemasok sudah terpakai sehingga tidak cukup untuk ditarik kembali.")
 	case errors.Is(err, stock.ErrInsufficient):
 		httpx.Error(w, http.StatusConflict, "RETURN_STOCK_INSUFFICIENT", "Stok di bucket Retur tidak cukup. Mutasi barang ke bucket Retur dulu.")
 	default:

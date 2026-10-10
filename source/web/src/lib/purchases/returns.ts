@@ -22,6 +22,8 @@ export type ReturnablePurchase = {
   purchase_date: string;
   payment_type: PaymentType;
   total: string;
+  /** null = tanpa hutang (tunai); "0.00" = hutang sudah lunas. */
+  payable_balance: string | null;
 };
 
 export type ReturnSourceLine = {
@@ -81,6 +83,7 @@ export type PurchaseReturn = {
   total: string;
   payable_cut: string;
   refund: string;
+  refund_method: string; // jenis metode dana kembali ('' = tanpa dana kembali)
   refund_method_name: string;
   refund_ref: string;
   created_at: string;

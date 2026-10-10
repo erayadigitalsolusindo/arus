@@ -54,6 +54,8 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(csrf, httpx.RateLimit(h.Redis, "refresh", 600, time.Hour)).Post("/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/auth/logout", h.Logout)
 	r.With(authed...).Get("/auth/me", h.Me)
+	r.With(authed...).Get("/auth/feature-shortcuts", h.GetFeatureShortcuts)
+	r.With(authed...).Put("/auth/feature-shortcuts", h.PutFeatureShortcuts)
 
 	r.With(h.limit("forgot", func(p RateLimitPolicy) int { return p.ForgotPerIP })).Post("/auth/forgot-password", h.ForgotPassword)
 	r.With(h.limit("reset", func(p RateLimitPolicy) int { return p.ResetPerIP })).Post("/auth/reset-password", h.ResetPassword)
