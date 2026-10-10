@@ -170,12 +170,28 @@ export type SaleDetailLine = {
   discount: string;
   line_total: string;
   note: string;
+  /** Qty (satuan jual) yang sudah diretur lewat retur aktif. Baris nota sendiri tidak berubah. */
+  returned_qty: string;
   unit_cost?: string;
   line_cost?: string;
   profit?: string;
 };
 export type SaleStockMove = { id: number; at: string; type: 'SALE' | 'SALE_VOID' | 'SALE_RETURN'; bucket: 'display' | 'warehouse' | 'returns'; item_id: string; sku: string; name: string; unit: string; delta: string; balance_after: string; actor: string };
 export type SaleEvent = { action: string; actor: string; at: string; details: Record<string, unknown> | null };
+export type SaleReturnRef = {
+  id: string;
+  doc_no: string;
+  return_date: string;
+  created_at: string;
+  created_by: string;
+  status: 'completed' | 'void';
+  void_reason?: string;
+  total: string;
+  receivable_cut: string;
+  refund: string;
+  refund_method?: string;
+  lines: { sale_position: number; name: string; unit: string; qty: string }[];
+};
 /** Nota lengkap untuk panel detail: harga daftar → jual, potongan per sumber, stok, riwayat. cost/profit hanya dengan izin sales_cost. */
 export type SaleDetail = Omit<Sale, 'lines'> & {
   lines: SaleDetailLine[];
@@ -191,6 +207,11 @@ export type SaleDetail = Omit<Sale, 'lines'> & {
   stock: SaleStockMove[];
   events: SaleEvent[];
   /** Seluruh versi nota (asli + revisi), urut revisi. */
+  /** Dokumen retur yang merujuk nota ini (aktif & batal), terbaru dulu. */
+  returns: SaleReturnRef[];
+  returned_total: string;
+  /** Total nota − retur aktif. */
+  net_total: string;
   revisions: { id: string; doc_no: string; revision: number; status: 'completed' | 'void' | 'superseded'; created_at: string; revised_at?: string; total: string; reason?: string }[];
   cost?: string;
   profit?: string;

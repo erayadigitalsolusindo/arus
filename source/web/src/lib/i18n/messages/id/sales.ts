@@ -87,7 +87,7 @@ const sales = {
       working: 'Membatalkan…'
     },
     loadFailed: 'Gagal memuat detail nota.',
-    tabs: { items: 'Barang', discounts: 'Potongan', payments: 'Pembayaran', stock: 'Stok', history: 'Riwayat' },
+    tabs: { items: 'Barang', discounts: 'Potongan', payments: 'Pembayaran', stock: 'Stok', returns: 'Retur', history: 'Riwayat' },
     info: { time: 'Waktu', outlet: 'Cabang', cashier: 'Kasir', member: 'Member', salesperson: 'Salesman', approvedBy: 'Disetujui oleh', note: 'Catatan nota' },
     stat: { total: 'Total', paid: 'Dibayar', change: 'Kembalian', profit: 'Laba kotor', cost: 'HPP', items: '{count} baris · {qty} unit' },
     items: {
@@ -127,7 +127,7 @@ const sales = {
     },
     payments: { method: 'Metode', amount: 'Jumlah', ref: 'No. referensi', paid: 'Total diterima', change: 'Kembalian', net: 'Pembayaran bersih', fee: 'Biaya {pct}%', feeFlat: 'Biaya', feeTotal: 'Biaya metode (ditanggung toko)', feeCustomer: 'Biaya ditagihkan ke pelanggan', surchargeTotal: 'Biaya tambahan (pelanggan)', charged: 'Total ditagih', received: 'Diterima toko setelah biaya', empty: 'Tidak ada pembayaran.' },
     stock: {
-      intro: 'Dampak nota ini pada stok, dalam satuan dasar barang. Edit atau pembatalan nota akan tampil di sini sebagai gerakan baru.',
+      intro: 'Dampak nota ini pada stok, dalam satuan dasar barang. Edit, pembatalan, dan retur nota tampil di sini sebagai gerakan baru.',
       time: 'Waktu',
       item: 'Barang',
       bucket: 'Lokasi stok',
@@ -137,6 +137,32 @@ const sales = {
       bucketNames: { display: 'Display', warehouse: 'Gudang', returns: 'Retur' },
       types: { SALE: 'Penjualan', SALE_VOID: 'Pembatalan nota', SALE_RETURN: 'Retur penjualan' },
       empty: 'Nota ini tidak menggerakkan stok (hanya jasa).'
+    },
+    returns: {
+      intro: 'Nota asli tidak diubah oleh retur. Setiap retur dicatat sebagai dokumen terpisah yang merujuk nota ini.',
+      banner: 'Sebagian barang nota ini sudah diretur. Nota asli tetap utuh; barang yang diretur ditandai di bawah.',
+      bannerFull: 'Seluruh barang nota ini sudah diretur. Nota asli tetap utuh sebagai catatan transaksi.',
+      seeReturns: 'Lihat retur',
+      badgePartial: 'Diretur sebagian',
+      badgeFull: 'Diretur seluruhnya',
+      col: 'Diretur',
+      lineFull: 'Diretur semua',
+      lineSome: '{qty} diretur',
+      kept: 'Tersisa {qty} {unit}',
+      returned: 'Retur',
+      net: 'Nilai bersih setelah retur',
+      statNet: 'Retur −{returned} · bersih {net}',
+      empty: 'Belum ada retur untuk nota ini.',
+      date: 'Tanggal retur',
+      by: 'Diinput {at} oleh {by}',
+      cut: 'Potong piutang',
+      refund: 'Dana dikembalikan',
+      via: 'lewat {method}',
+      voided: 'Dibatalkan',
+      voidReason: 'Alasan batal: {reason}',
+      voidedNote: 'Retur yang dibatalkan tidak mengurangi nilai nota.',
+      open: 'Buka dokumen retur',
+      items: 'Barang diretur'
     },
     history: { intro: 'Seluruh catatan audit nota ini, urut dari yang paling awal.', empty: 'Belum ada catatan.', by: 'oleh {actor}', approver: 'Disetujui {name}' }
   },

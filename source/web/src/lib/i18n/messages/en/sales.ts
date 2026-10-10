@@ -89,7 +89,7 @@ const sales: Messages['sales'] = {
       working: 'Voiding…'
     },
     loadFailed: 'Could not load the receipt details.',
-    tabs: { items: 'Items', discounts: 'Discounts', payments: 'Payments', stock: 'Stock', history: 'History' },
+    tabs: { items: 'Items', discounts: 'Discounts', payments: 'Payments', stock: 'Stock', returns: 'Returns', history: 'History' },
     info: { time: 'Time', outlet: 'Outlet', cashier: 'Cashier', member: 'Member', salesperson: 'Salesperson', approvedBy: 'Approved by', note: 'Receipt note' },
     stat: { total: 'Total', paid: 'Paid', change: 'Change', profit: 'Gross profit', cost: 'Cost', items: '{count} lines · {qty} units' },
     items: {
@@ -129,7 +129,7 @@ const sales: Messages['sales'] = {
     },
     payments: { method: 'Method', amount: 'Amount', ref: 'Reference no.', paid: 'Total received', change: 'Change', net: 'Net payment', fee: 'Fee {pct}%', feeFlat: 'Fee', feeTotal: 'Method fees (borne by store)', feeCustomer: 'Fee charged to customer', surchargeTotal: 'Extra fee (customer)', charged: 'Total charged', received: 'Received by store after fees', empty: 'No payments.' },
     stock: {
-      intro: 'How this receipt moved stock, in each item’s base unit. Edits or voids will appear here as new movements.',
+      intro: 'How this receipt moved stock, in each item’s base unit. Edits, voids and returns appear here as new movements.',
       time: 'Time',
       item: 'Item',
       bucket: 'Stock location',
@@ -139,6 +139,32 @@ const sales: Messages['sales'] = {
       bucketNames: { display: 'Display', warehouse: 'Warehouse', returns: 'Returns' },
       types: { SALE: 'Sale', SALE_VOID: 'Receipt void', SALE_RETURN: 'Sales return' },
       empty: 'This receipt did not move stock (services only).'
+    },
+    returns: {
+      intro: 'Returns never change the original receipt. Each return is recorded as a separate document that references this receipt.',
+      banner: 'Some items on this receipt have been returned. The original receipt stays intact; returned items are marked below.',
+      bannerFull: 'Every item on this receipt has been returned. The original receipt stays intact as the transaction record.',
+      seeReturns: 'View returns',
+      badgePartial: 'Partially returned',
+      badgeFull: 'Fully returned',
+      col: 'Returned',
+      lineFull: 'All returned',
+      lineSome: '{qty} returned',
+      kept: '{qty} {unit} kept',
+      returned: 'Returns',
+      net: 'Net after returns',
+      statNet: 'Returns −{returned} · net {net}',
+      empty: 'No returns for this receipt yet.',
+      date: 'Return date',
+      by: 'Entered {at} by {by}',
+      cut: 'Receivable offset',
+      refund: 'Refunded',
+      via: 'via {method}',
+      voided: 'Voided',
+      voidReason: 'Void reason: {reason}',
+      voidedNote: 'Voided returns do not reduce the receipt value.',
+      open: 'Open return document',
+      items: 'Returned items'
     },
     history: { intro: 'Every audit record for this receipt, earliest first.', empty: 'No records yet.', by: 'by {actor}', approver: 'Approved by {name}' }
   },
