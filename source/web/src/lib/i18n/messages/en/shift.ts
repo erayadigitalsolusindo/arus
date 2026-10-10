@@ -14,7 +14,11 @@ const shift: Messages['shift'] = {
     submit: 'Open Shift',
     busy: 'Opening…',
     later: 'Later',
-    done: 'Shift {doc} opened.'
+    done: 'Shift {doc} opened.',
+    classicTitle: 'Cashier Opening Cash for {date}',
+    cashierName: 'Cashier Name',
+    outletName: 'Outlet Location',
+    classicSave: 'Save Opening Cash'
   },
   closing: {
     title: 'Close Shift {doc}',
