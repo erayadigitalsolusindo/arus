@@ -358,6 +358,18 @@ func TestListAllSubtractsReturnsByReturnDate(t *testing.T) {
 	if err != nil || *both.Summary.ProfitNet != "1200.00" {
 		t.Fatalf("rentang dua hari: %v %v", both.Summary.ProfitNet, err)
 	}
+	if len(today.Data) != 1 || today.Data[0].Returned != "1000.00" {
+		t.Fatalf("baris nota harus menandai retur: %+v", today.Data)
+	}
+	// Popup Penjualan Hari Ini (per kasir): retur yang dibuat kasir ini hari ini, nota menandai retur, omzet bersih.
+	pop, err := e.svc.List(ctx, a, "", "", "")
+	if err != nil || pop.Returns == nil || pop.Returns.Count != 1 || pop.Returns.Total != "1000.00" || pop.NetTotal != "2000.00" ||
+		len(pop.Data) != 1 || pop.Data[0].Returned != "1000.00" {
+		t.Fatalf("popup penjualan hari ini: returns=%+v net=%s rows=%+v err=%v", pop.Returns, pop.NetTotal, pop.Data, err)
+	}
+	if found, err := e.svc.List(ctx, a, "", "", sale.DocNo); err != nil || found.Returns != nil || found.Data[0].Returned != "1000.00" {
+		t.Fatalf("popup dengan kata cari: %+v %v", found.Returns, err)
+	}
 	if searched, err := e.svc.ListAll(ctx, a, AllParams{From: today.From, To: next, Q: sale.DocNo}); err != nil || searched.Summary.Returns != nil || searched.Summary.ProfitNet != nil {
 		t.Fatalf("dengan kata cari, retur tidak dijumlahkan: %+v %v", searched.Summary, err)
 	}

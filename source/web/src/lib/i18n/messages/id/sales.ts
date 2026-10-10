@@ -26,6 +26,8 @@ const sales = {
     profit: 'Laba kotor'
   },
   badge: {
+    returnedTip: 'Nota ini punya retur senilai {amount}; nota asli tetap utuh.',
+    returned: 'Retur −{amount}',
     manual: 'Manual',
     line: 'Per baris',
     points: 'Poin',

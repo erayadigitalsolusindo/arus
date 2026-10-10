@@ -48,6 +48,9 @@ export default {
     todayDesc: 'Lihat nota yang tersimpan hari ini.'
   },
   today: {
+    returnedBadge: 'Retur −{amount}',
+    returnsRow: 'Retur ({count})',
+    netTotal: 'Penjualan bersih setelah retur',
     title: 'Daftar Penjualan Hari Ini Sebesar : {total}',
     titleRange: 'Daftar Penjualan {from} s/d {to} Sebesar : {total}',
     search: 'Masukkan No Transaksi',

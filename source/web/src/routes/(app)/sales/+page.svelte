@@ -205,6 +205,7 @@
               <td class="px-3 py-3.5 whitespace-nowrap">
                 <button type="button" class="font-mono text-[12px] font-bold text-[var(--color-primary)] hover:underline" title={t('sales.detail.open')} aria-label="{t('sales.detail.open')}: {r.doc_no}" onclick={() => (detailId = r.id)}>{r.doc_no}</button>
                 {#if voided}<div class="mt-1"><span class="badge-soft badge-danger">{t('sales.badge.voidDoc')}</span></div>{:else if r.revision > 1}<div class="mt-1"><span class="badge-soft badge-warning" title={t('sales.badge.revisedTip', { n: r.revision })}>{t('sales.badge.revised', { n: r.revision })}</span></div>{/if}
+                {#if !voided && Number(r.returned) > 0}<div class="mt-1"><span class="badge-soft badge-warning inline-flex items-center gap-1" title={t('sales.badge.returnedTip', { amount: money(r.returned) })}><i class="icon-rotate-ccw text-[10px]"></i>{t('sales.badge.returned', { amount: money(r.returned) })}</span></div>{/if}
               </td>
               {#if allMode}<td class="px-3 py-3.5"><div class="font-medium">{r.outlet.name}</div><div class="font-mono text-[11px] text-[var(--text-tertiary)]">{r.outlet.code}</div></td>{/if}
               <td class="px-3 py-3.5">

@@ -84,6 +84,8 @@ type AllRow struct {
 	Receivable string            `json:"receivable"` // bagian yang dikreditkan (piutang member)
 	Methods    map[string]string `json:"methods"`
 
+	Returned string `json:"returned"` // Σ nilai retur aktif nota ini
+
 	Cost   *string `json:"cost,omitempty"`   // Σ HPP × qty (snapshot saat transaksi)
 	Profit *string `json:"profit,omitempty"` // Subtotal − Discount − Cost (sebelum pajak & biaya lain)
 }
@@ -265,8 +267,17 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p AllParams) (AllR
 			last := rows[len(rows)-1]
 			res.NextCursor = encodeCursor(last.CreatedAt.Time, last.ID)
 		}
-		for _, r := range rows {
+		saleIDs := make([]uuid.UUID, len(rows))
+		for i, r := range rows {
 			res.Data = append(res.Data, allRow(r, canCost))
+			saleIDs[i] = r.ID
+		}
+		returned, err := returnedBySale(ctx, tx, a.TenantID, saleIDs)
+		if err != nil {
+			return err
+		}
+		for i := range res.Data {
+			res.Data[i].Returned = returned[res.Data[i].ID].StringFixed(2)
 		}
 
 		sum, err := qr.SalesListAllSummary(ctx, gen.SalesListAllSummaryParams{TenantID: a.TenantID, OutletIds: outlets, FromDay: from, ToDay: to,
