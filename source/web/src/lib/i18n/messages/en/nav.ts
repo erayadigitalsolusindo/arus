@@ -3,6 +3,7 @@ import type { Messages } from '../../types.ts';
 const nav: Messages['nav'] = {
   group: { main: 'Main', masterData: 'Master Data', sales: 'Sales', purchasing: 'Purchasing', adjustments: 'Adjustments', system: 'System' },
   dashboard: 'Dashboard',
+  liveSales: 'Live Sales',
   users: 'Users',
   roles: 'Roles & Permissions',
   outlets: 'Outlets',

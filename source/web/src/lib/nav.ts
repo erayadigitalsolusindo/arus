@@ -24,6 +24,7 @@ export const nav: NavGroup[] = [
     titleKey: 'nav.group.main',
     items: [
       { id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' }, // selalu tampil
+      { id: 'live-sales', labelKey: 'nav.liveSales', icon: 'activity', module: 'sales_list', href: '/live-sales' },
       { id: 'siak', labelKey: 'nav.siak', icon: 'book-open', module: 'siak' }
     ]
   },
