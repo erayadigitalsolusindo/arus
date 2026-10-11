@@ -44,7 +44,7 @@
 
   // ---- Menu klik kanan: tutup tab / lainnya / di kanan / semua ----
   // Draf di halaman form (item/member) berisi isian pengguna; halaman lain hanya menyimpan filter dan dibuang tanpa tanya.
-  const FORM_PATH = /^\/(items|members)\/[^/]+$/;
+  const FORM_PATH = /^\/(items|members)\/[^/]+$|^\/accounting\/journals\/new$/;
   let menu = $state<{ path: string; x: number; y: number } | null>(null);
 
   function openMenu(e: MouseEvent, path: string) {

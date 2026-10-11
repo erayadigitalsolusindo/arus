@@ -2,6 +2,9 @@
 // saat dilepas dan memulihkannya saat tab itu dibuka lagi. Disimpan di memori + sessionStorage (selamat dari reload,
 // hilang saat browser ditutup). Berkas (gambar/cover yang belum diunggah) tidak bisa disimpan.
 const PREFIX = 'draft:';
+/** Halaman yang drafnya harus selamat dari penutupan browser (localStorage), bukan hanya reload. */
+export const isPersistentPath = (path: string) => path === '/accounting/journals/new';
+const store = (path: string) => (isPersistentPath(path) ? localStorage : sessionStorage);
 const mem = new Map<string, string>();
 const discarded = new Set<string>();
 
@@ -9,7 +12,7 @@ function read(path: string): string | null {
   const hit = mem.get(path);
   if (hit !== undefined) return hit;
   try {
-    return sessionStorage.getItem(PREFIX + path);
+    return store(path).getItem(PREFIX + path);
   } catch {
     return null;
   }
@@ -34,7 +37,7 @@ export const drafts = {
     const raw = JSON.stringify(data);
     mem.set(path, raw);
     try {
-      sessionStorage.setItem(PREFIX + path, raw);
+      store(path).setItem(PREFIX + path, raw);
     } catch {
       /* penyimpanan penuh/tak tersedia: draf tetap ada di memori */
     }
@@ -43,7 +46,7 @@ export const drafts = {
   clear(path: string) {
     mem.delete(path);
     try {
-      sessionStorage.removeItem(PREFIX + path);
+      store(path).removeItem(PREFIX + path);
     } catch {
       /* abaikan */
     }
