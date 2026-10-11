@@ -45,7 +45,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrNotConfigured):
 		httpx.Error(w, http.StatusConflict, "AI_NOT_CONFIGURED", "API key AI belum diatur.")
 	case errors.Is(err, ErrBadKey):
-		httpx.Error(w, http.StatusUnprocessableEntity, "AI_KEY_INVALID", "API key ditolak oleh Anthropic.")
+		httpx.Error(w, http.StatusUnprocessableEntity, "AI_KEY_INVALID", "API key ditolak oleh penyedia AI.")
 	case errors.Is(err, ErrRateLimited):
 		httpx.Error(w, http.StatusTooManyRequests, "AI_RATE_LIMITED", "Terlalu banyak pertanyaan; coba lagi beberapa menit lagi.")
 	case errors.Is(err, ErrFreeQuota):
@@ -82,8 +82,9 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 type putSettingsReq struct {
-	APIKey string `json:"api_key"` // kosong = hanya ganti model
-	Model  string `json:"model"`
+	Provider string `json:"provider"` // kosong = anthropic
+	APIKey   string `json:"api_key"`  // kosong = hanya ganti model / pindah penyedia
+	Model    string `json:"model"`
 }
 
 func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +93,10 @@ func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSONLimit(w, r, &in, 4<<10) {
 		return
 	}
-	if err := h.svc.Save(r.Context(), a, in.APIKey, in.Model); err != nil {
+	if in.Provider == "" {
+		in.Provider = ProviderAnthropic
+	}
+	if err := h.svc.Save(r.Context(), a, in.Provider, in.APIKey, in.Model); err != nil {
 		h.fail(w, r, err)
 		return
 	}
@@ -106,7 +110,11 @@ func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 	a, _ := authz.ActorFrom(r.Context())
-	if err := h.svc.RemoveKey(r.Context(), a); err != nil {
+	provider := r.URL.Query().Get("provider")
+	if provider == "" {
+		provider = ProviderAnthropic
+	}
+	if err := h.svc.RemoveKey(r.Context(), a, provider); err != nil {
 		h.fail(w, r, err)
 		return
 	}
