@@ -31,7 +31,8 @@ int compareVersions(String a, String b) {
       .split(RegExp(r'[.\-]'))
       .map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0)
       .toList();
-  int? build(String v) => v.contains('+') ? int.tryParse(v.split('+').last) : null;
+  int? build(String v) =>
+      v.contains('+') ? int.tryParse(v.split('+').last) : null;
 
   final x = nums(a), y = nums(b);
   final n = x.length > y.length ? x.length : y.length;
@@ -194,3 +195,8 @@ class AppUpdateController extends Notifier<UpdateState> {
     }
   }
 }
+
+/// Versi terpasang `versionName+versionCode` (mis. 1.0.0+1); null di luar Android (tes).
+final appVersionProvider = FutureProvider<String?>(
+  (ref) async => (await ref.read(updaterPlatformProvider).info())?.version,
+);

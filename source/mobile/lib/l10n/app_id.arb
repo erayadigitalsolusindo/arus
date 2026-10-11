@@ -174,7 +174,7 @@
     }
   },
   "serverTitle": "Alamat server",
-  "serverHelp": "Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.",
+  "serverHelp": "Pilih server ARUS. Untuk uji coba di HP fisik, ketik IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080.",
   "serverLabel": "Alamat server",
   "serverInvalid": "Harus diawali http:// atau https:// dan berisi alamat.",
   "save": "Simpan",
@@ -746,5 +746,105 @@
   "updateDownloading": "Mengunduh pembaruan…",
   "updateInstalling": "Membuka pemasang…",
   "updatePermission": "Izinkan ARUS memasang aplikasi pada layar yang terbuka, lalu kembali ke sini dan ketuk Perbarui sekarang.",
-  "updateFailed": "Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi."
+  "updateFailed": "Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi.",
+  "appVersion": "Versi {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverPresetProd": "Produksi",
+  "serverPresetEmulator": "Emulator",
+  "serverPresetCustom": "Atau ketik alamat lain:",
+  "posPanelVersion": "Versi aplikasi",
+  "printerMenu": "Printer struk",
+  "printerTitle": "Printer struk (Bluetooth)",
+  "printerHint": "Pasangkan printer lebih dulu di Pengaturan Android > Bluetooth, lalu pilih di sini. Pengaturan ini berlaku untuk HP ini saja.",
+  "printerRefresh": "Muat ulang daftar",
+  "printerNonePaired": "Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Android, lalu muat ulang.",
+  "printerPaper": "Lebar kertas",
+  "printerPaper58": "58 mm",
+  "printerPaper80": "80 mm",
+  "printerCut": "Potong kertas otomatis",
+  "printerAuto": "Cetak struk otomatis setelah bayar",
+  "printerTest": "Tes printer",
+  "printerTestSent": "Halaman uji terkirim.",
+  "printerNotConfigured": "Printer belum dipilih. Pilih printer Bluetooth dulu.",
+  "printerPermissionDenied": "Izin Bluetooth ditolak. Izinkan ARUS memakai Bluetooth di pengaturan aplikasi.",
+  "printerBluetoothOff": "Bluetooth mati. Nyalakan Bluetooth lalu coba lagi.",
+  "printerConnectFailed": "Tidak dapat terhubung ke printer. Pastikan printer menyala dan berada di dekat HP.",
+  "printerWriteFailed": "Data gagal dikirim ke printer. Periksa printer lalu coba lagi.",
+  "printReceipt": "Cetak struk",
+  "printReprint": "Cetak ulang",
+  "printPrinting": "Mencetak…",
+  "printFailed": "Struk gagal dicetak: {error}",
+  "@printFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptNo": "No",
+  "receiptDate": "Tgl",
+  "receiptCashier": "Kasir",
+  "receiptMember": "Member",
+  "receiptSalesperson": "Sales",
+  "receiptCopy": "*** SALINAN KE-{n} ***",
+  "@receiptCopy": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptVoid": "*** NOTA DIBATALKAN ***",
+  "receiptSuperseded": "*** DIGANTI REVISI ***",
+  "receiptLineDiscount": "Potongan",
+  "receiptSubtotal": "Subtotal",
+  "receiptDiscount": "Diskon",
+  "receiptVoucher": "Kupon {code}",
+  "@receiptVoucher": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptRedeem": "Tukar {points} poin",
+  "@receiptRedeem": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptTaxStore": "Pajak toko {pct}%",
+  "@receiptTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptTaxGov": "Pajak {pct}%",
+  "@receiptTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptOtherCost": "Biaya lain",
+  "receiptTotal": "TOTAL",
+  "receiptSurcharge": "Biaya metode",
+  "receiptCharged": "Total ditagih",
+  "receiptReceivable": "Piutang",
+  "receiptDue": "Jatuh tempo",
+  "receiptChange": "Kembali",
+  "receiptSaved": "Anda hemat",
+  "receiptPointsEarned": "Poin didapat",
+  "receiptTestTitle": "Halaman uji printer"
 }

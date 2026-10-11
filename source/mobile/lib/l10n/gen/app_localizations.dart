@@ -683,7 +683,7 @@ abstract class AppLocalizations {
   /// No description provided for @serverHelp.
   ///
   /// In id, this message translates to:
-  /// **'Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.'**
+  /// **'Pilih server ARUS. Untuk uji coba di HP fisik, ketik IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080.'**
   String get serverHelp;
 
   /// No description provided for @serverLabel.
@@ -2047,6 +2047,312 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi.'**
   String get updateFailed;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi {version}'**
+  String appVersion(String version);
+
+  /// No description provided for @serverPresetProd.
+  ///
+  /// In id, this message translates to:
+  /// **'Produksi'**
+  String get serverPresetProd;
+
+  /// No description provided for @serverPresetEmulator.
+  ///
+  /// In id, this message translates to:
+  /// **'Emulator'**
+  String get serverPresetEmulator;
+
+  /// No description provided for @serverPresetCustom.
+  ///
+  /// In id, this message translates to:
+  /// **'Atau ketik alamat lain:'**
+  String get serverPresetCustom;
+
+  /// No description provided for @posPanelVersion.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi aplikasi'**
+  String get posPanelVersion;
+
+  /// No description provided for @printerMenu.
+  ///
+  /// In id, this message translates to:
+  /// **'Printer struk'**
+  String get printerMenu;
+
+  /// No description provided for @printerTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Printer struk (Bluetooth)'**
+  String get printerTitle;
+
+  /// No description provided for @printerHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Pasangkan printer lebih dulu di Pengaturan Android > Bluetooth, lalu pilih di sini. Pengaturan ini berlaku untuk HP ini saja.'**
+  String get printerHint;
+
+  /// No description provided for @printerRefresh.
+  ///
+  /// In id, this message translates to:
+  /// **'Muat ulang daftar'**
+  String get printerRefresh;
+
+  /// No description provided for @printerNonePaired.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Android, lalu muat ulang.'**
+  String get printerNonePaired;
+
+  /// No description provided for @printerPaper.
+  ///
+  /// In id, this message translates to:
+  /// **'Lebar kertas'**
+  String get printerPaper;
+
+  /// No description provided for @printerPaper58.
+  ///
+  /// In id, this message translates to:
+  /// **'58 mm'**
+  String get printerPaper58;
+
+  /// No description provided for @printerPaper80.
+  ///
+  /// In id, this message translates to:
+  /// **'80 mm'**
+  String get printerPaper80;
+
+  /// No description provided for @printerCut.
+  ///
+  /// In id, this message translates to:
+  /// **'Potong kertas otomatis'**
+  String get printerCut;
+
+  /// No description provided for @printerAuto.
+  ///
+  /// In id, this message translates to:
+  /// **'Cetak struk otomatis setelah bayar'**
+  String get printerAuto;
+
+  /// No description provided for @printerTest.
+  ///
+  /// In id, this message translates to:
+  /// **'Tes printer'**
+  String get printerTest;
+
+  /// No description provided for @printerTestSent.
+  ///
+  /// In id, this message translates to:
+  /// **'Halaman uji terkirim.'**
+  String get printerTestSent;
+
+  /// No description provided for @printerNotConfigured.
+  ///
+  /// In id, this message translates to:
+  /// **'Printer belum dipilih. Pilih printer Bluetooth dulu.'**
+  String get printerNotConfigured;
+
+  /// No description provided for @printerPermissionDenied.
+  ///
+  /// In id, this message translates to:
+  /// **'Izin Bluetooth ditolak. Izinkan ARUS memakai Bluetooth di pengaturan aplikasi.'**
+  String get printerPermissionDenied;
+
+  /// No description provided for @printerBluetoothOff.
+  ///
+  /// In id, this message translates to:
+  /// **'Bluetooth mati. Nyalakan Bluetooth lalu coba lagi.'**
+  String get printerBluetoothOff;
+
+  /// No description provided for @printerConnectFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak dapat terhubung ke printer. Pastikan printer menyala dan berada di dekat HP.'**
+  String get printerConnectFailed;
+
+  /// No description provided for @printerWriteFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Data gagal dikirim ke printer. Periksa printer lalu coba lagi.'**
+  String get printerWriteFailed;
+
+  /// No description provided for @printReceipt.
+  ///
+  /// In id, this message translates to:
+  /// **'Cetak struk'**
+  String get printReceipt;
+
+  /// No description provided for @printReprint.
+  ///
+  /// In id, this message translates to:
+  /// **'Cetak ulang'**
+  String get printReprint;
+
+  /// No description provided for @printPrinting.
+  ///
+  /// In id, this message translates to:
+  /// **'Mencetak…'**
+  String get printPrinting;
+
+  /// No description provided for @printFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Struk gagal dicetak: {error}'**
+  String printFailed(String error);
+
+  /// No description provided for @receiptNo.
+  ///
+  /// In id, this message translates to:
+  /// **'No'**
+  String get receiptNo;
+
+  /// No description provided for @receiptDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Tgl'**
+  String get receiptDate;
+
+  /// No description provided for @receiptCashier.
+  ///
+  /// In id, this message translates to:
+  /// **'Kasir'**
+  String get receiptCashier;
+
+  /// No description provided for @receiptMember.
+  ///
+  /// In id, this message translates to:
+  /// **'Member'**
+  String get receiptMember;
+
+  /// No description provided for @receiptSalesperson.
+  ///
+  /// In id, this message translates to:
+  /// **'Sales'**
+  String get receiptSalesperson;
+
+  /// No description provided for @receiptCopy.
+  ///
+  /// In id, this message translates to:
+  /// **'*** SALINAN KE-{n} ***'**
+  String receiptCopy(int n);
+
+  /// No description provided for @receiptVoid.
+  ///
+  /// In id, this message translates to:
+  /// **'*** NOTA DIBATALKAN ***'**
+  String get receiptVoid;
+
+  /// No description provided for @receiptSuperseded.
+  ///
+  /// In id, this message translates to:
+  /// **'*** DIGANTI REVISI ***'**
+  String get receiptSuperseded;
+
+  /// No description provided for @receiptLineDiscount.
+  ///
+  /// In id, this message translates to:
+  /// **'Potongan'**
+  String get receiptLineDiscount;
+
+  /// No description provided for @receiptSubtotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Subtotal'**
+  String get receiptSubtotal;
+
+  /// No description provided for @receiptDiscount.
+  ///
+  /// In id, this message translates to:
+  /// **'Diskon'**
+  String get receiptDiscount;
+
+  /// No description provided for @receiptVoucher.
+  ///
+  /// In id, this message translates to:
+  /// **'Kupon {code}'**
+  String receiptVoucher(String code);
+
+  /// No description provided for @receiptRedeem.
+  ///
+  /// In id, this message translates to:
+  /// **'Tukar {points} poin'**
+  String receiptRedeem(int points);
+
+  /// No description provided for @receiptTaxStore.
+  ///
+  /// In id, this message translates to:
+  /// **'Pajak toko {pct}%'**
+  String receiptTaxStore(String pct);
+
+  /// No description provided for @receiptTaxGov.
+  ///
+  /// In id, this message translates to:
+  /// **'Pajak {pct}%'**
+  String receiptTaxGov(String pct);
+
+  /// No description provided for @receiptOtherCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya lain'**
+  String get receiptOtherCost;
+
+  /// No description provided for @receiptTotal.
+  ///
+  /// In id, this message translates to:
+  /// **'TOTAL'**
+  String get receiptTotal;
+
+  /// No description provided for @receiptSurcharge.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya metode'**
+  String get receiptSurcharge;
+
+  /// No description provided for @receiptCharged.
+  ///
+  /// In id, this message translates to:
+  /// **'Total ditagih'**
+  String get receiptCharged;
+
+  /// No description provided for @receiptReceivable.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang'**
+  String get receiptReceivable;
+
+  /// No description provided for @receiptDue.
+  ///
+  /// In id, this message translates to:
+  /// **'Jatuh tempo'**
+  String get receiptDue;
+
+  /// No description provided for @receiptChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Kembali'**
+  String get receiptChange;
+
+  /// No description provided for @receiptSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Anda hemat'**
+  String get receiptSaved;
+
+  /// No description provided for @receiptPointsEarned.
+  ///
+  /// In id, this message translates to:
+  /// **'Poin didapat'**
+  String get receiptPointsEarned;
+
+  /// No description provided for @receiptTestTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Halaman uji printer'**
+  String get receiptTestTitle;
 }
 
 class _AppLocalizationsDelegate
