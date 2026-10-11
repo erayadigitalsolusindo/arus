@@ -4417,6 +4417,49 @@ func (q *Queries) PayableVoid(ctx context.Context, arg PayableVoidParams) error 
 	return err
 }
 
+const paymentMethodAccountGet = `-- name: PaymentMethodAccountGet :one
+SELECT m.account_id, a.code AS account_code, a.name AS account_name
+FROM payment_methods m
+LEFT JOIN accounts a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+WHERE m.tenant_id = $1 AND m.id = $2
+`
+
+type PaymentMethodAccountGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PaymentMethodAccountGetRow struct {
+	AccountID   pgtype.UUID
+	AccountCode pgtype.Text
+	AccountName pgtype.Text
+}
+
+func (q *Queries) PaymentMethodAccountGet(ctx context.Context, arg PaymentMethodAccountGetParams) (PaymentMethodAccountGetRow, error) {
+	row := q.db.QueryRow(ctx, paymentMethodAccountGet, arg.TenantID, arg.ID)
+	var i PaymentMethodAccountGetRow
+	err := row.Scan(&i.AccountID, &i.AccountCode, &i.AccountName)
+	return i, err
+}
+
+const paymentMethodAccountOtherUsers = `-- name: PaymentMethodAccountOtherUsers :one
+SELECT count(*) FROM payment_methods WHERE tenant_id = $1 AND account_id = $2 AND id <> $3
+`
+
+type PaymentMethodAccountOtherUsersParams struct {
+	TenantID  uuid.UUID
+	AccountID pgtype.UUID
+	ID        uuid.UUID
+}
+
+// Berapa metode LAIN yang memakai akun yang sama (akun bersama tidak ikut diganti nama / dinonaktifkan).
+func (q *Queries) PaymentMethodAccountOtherUsers(ctx context.Context, arg PaymentMethodAccountOtherUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, paymentMethodAccountOtherUsers, arg.TenantID, arg.AccountID, arg.ID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
 SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
 FROM payment_methods
@@ -4565,14 +4608,30 @@ func (q *Queries) PaymentMethodGetForUpdate(ctx context.Context, arg PaymentMeth
 	return i, err
 }
 
+const paymentMethodLinkDefaultAccounts = `-- name: PaymentMethodLinkDefaultAccounts :exec
+UPDATE payment_methods m SET account_id = a.id
+FROM accounts a
+WHERE m.tenant_id = $1 AND m.account_id IS NULL AND a.tenant_id = m.tenant_id AND a.kind = 'ledger' AND a.code = CASE m.kind
+    WHEN 'cash' THEN '1110' WHEN 'transfer' THEN '1120' WHEN 'debit' THEN '1120' WHEN 'ewallet' THEN '1130'
+    WHEN 'credit_card' THEN '1140' WHEN 'deposit' THEN '2140' WHEN 'supplier_credit' THEN '1320' END
+`
+
+// Dipakai saat template retail dipasang: hubungkan metode yang belum punya akun ke akun bawaan menurut jenis.
+func (q *Queries) PaymentMethodLinkDefaultAccounts(ctx context.Context, tenantID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, paymentMethodLinkDefaultAccounts, tenantID)
+	return err
+}
+
 const paymentMethodList = `-- name: PaymentMethodList :many
-SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at,
+SELECT m.id, m.name, m.kind, m.is_system, m.active, m.fee_pct, m.fee_flat, m.fee_bearer, m.created_at,
+       m.account_id, a.code AS account_code, a.name AS account_name,
        count(*) OVER () AS total
-FROM payment_methods
-WHERE tenant_id = $1
-  AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
-  AND ($3::boolean IS NULL OR active = $3)
-ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id
+FROM payment_methods m
+LEFT JOIN accounts a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+WHERE m.tenant_id = $1
+  AND ($2::text = '' OR m.name ILIKE '%' || $2 || '%')
+  AND ($3::boolean IS NULL OR m.active = $3)
+ORDER BY (m.kind <> 'cash'), m.is_system DESC, lower(m.name), m.id
 LIMIT $5 OFFSET $4
 `
 
@@ -4585,16 +4644,19 @@ type PaymentMethodListParams struct {
 }
 
 type PaymentMethodListRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	CreatedAt pgtype.Timestamptz
-	Total     int64
+	ID          uuid.UUID
+	Name        string
+	Kind        string
+	IsSystem    bool
+	Active      bool
+	FeePct      decimal.Decimal
+	FeeFlat     decimal.Decimal
+	FeeBearer   string
+	CreatedAt   pgtype.Timestamptz
+	AccountID   pgtype.UUID
+	AccountCode pgtype.Text
+	AccountName pgtype.Text
+	Total       int64
 }
 
 func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListParams) ([]PaymentMethodListRow, error) {
@@ -4622,6 +4684,9 @@ func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListPa
 			&i.FeeFlat,
 			&i.FeeBearer,
 			&i.CreatedAt,
+			&i.AccountID,
+			&i.AccountCode,
+			&i.AccountName,
 			&i.Total,
 		); err != nil {
 			return nil, err
@@ -4632,6 +4697,51 @@ func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const paymentMethodRenameAccount = `-- name: PaymentMethodRenameAccount :exec
+UPDATE accounts SET name = $3 WHERE tenant_id = $1 AND id = $2 AND NOT is_system
+`
+
+type PaymentMethodRenameAccountParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+}
+
+func (q *Queries) PaymentMethodRenameAccount(ctx context.Context, arg PaymentMethodRenameAccountParams) error {
+	_, err := q.db.Exec(ctx, paymentMethodRenameAccount, arg.TenantID, arg.ID, arg.Name)
+	return err
+}
+
+const paymentMethodSetAccount = `-- name: PaymentMethodSetAccount :exec
+UPDATE payment_methods SET account_id = $3 WHERE tenant_id = $1 AND id = $2
+`
+
+type PaymentMethodSetAccountParams struct {
+	TenantID  uuid.UUID
+	ID        uuid.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) PaymentMethodSetAccount(ctx context.Context, arg PaymentMethodSetAccountParams) error {
+	_, err := q.db.Exec(ctx, paymentMethodSetAccount, arg.TenantID, arg.ID, arg.AccountID)
+	return err
+}
+
+const paymentMethodSetAccountActive = `-- name: PaymentMethodSetAccountActive :exec
+UPDATE accounts SET active = $3 WHERE tenant_id = $1 AND id = $2 AND NOT is_system
+`
+
+type PaymentMethodSetAccountActiveParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Active   bool
+}
+
+func (q *Queries) PaymentMethodSetAccountActive(ctx context.Context, arg PaymentMethodSetAccountActiveParams) error {
+	_, err := q.db.Exec(ctx, paymentMethodSetAccountActive, arg.TenantID, arg.ID, arg.Active)
+	return err
 }
 
 const paymentMethodSetActive = `-- name: PaymentMethodSetActive :one
