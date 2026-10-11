@@ -6,30 +6,46 @@ const ai: Messages['ai'] = {
   subtitle: 'An AI assistant that reads your business data, draws conclusions and gives advice.',
   readOnly: 'Read-only',
   readOnlyHint: 'HalloArus cannot add, change or delete any data.',
-  privacy: 'Summarised figures are sent to Anthropic (Claude) using your business\'s own API key. Customer data (names, phones, addresses) is never sent; customers appear only as "Pelanggan 1, 2, …".',
+  privacy: 'Summarised figures are sent to the AI provider you choose (Claude, ChatGPT, Gemini or Qwen) using your business\'s own API key (or the free ARUS account). Customer data (names, phones, addresses) is never sent; customers appear only as "Pelanggan 1, 2, …".',
   settings: 'Settings',
   setup: {
-    title: 'Connect Claude',
-    intro: 'HalloArus uses your own Claude API key; usage is billed by Anthropic directly to your account. Create a key at console.anthropic.com and paste it below.',
-    keyLabel: 'Claude API key',
-    keyPlaceholder: 'sk-ant-…',
+    title: 'Connect AI',
+    intro: 'HalloArus uses your own API key; usage is billed by the AI provider directly to your account. Create a key at {console} and paste it below. Each provider\'s key is stored separately; only one is active.',
+    providerLabel: 'AI provider',
+    keyLabel: '{provider} API key',
     keyReplaceHint: 'Leave empty to keep the current key.',
     keySaved: 'Key saved (ends with {hint}). It is stored encrypted and cannot be viewed again.',
+    keyNone: 'No key for this provider yet.',
     modelLabel: 'Model',
-    save: 'Save',
+    save: 'Save & activate',
     saving: 'Checking & saving…',
     saved: 'Settings saved.',
-    removeKey: 'Remove key',
-    removeConfirm: 'Remove the API key? HalloArus stops working until a new key is set.',
-    needKey: 'Enter your Claude API key first.',
-    notConfigured: 'HalloArus is not active yet. Ask the business owner to set a Claude API key on this page.',
-    notConfiguredManage: 'Set a Claude API key to activate HalloArus.'
+    removeKey: 'Remove {provider} key',
+    removeConfirm: 'Remove the {provider} API key? If it is the active provider, HalloArus switches to another provider that has a key (or stops until a key is set).',
+    needKey: 'Enter the {provider} API key first.',
+    notConfigured: 'HalloArus is not active yet. Ask the business owner to set an AI API key on this page.',
+    notConfiguredManage: 'Set an AI API key (Claude, ChatGPT, Gemini or Qwen) to activate HalloArus.'
+  },
+  providers: {
+    anthropic: { name: 'Claude (Anthropic)', placeholder: 'sk-ant-…', console: 'console.anthropic.com' },
+    openai: { name: 'ChatGPT (OpenAI)', placeholder: 'sk-…', console: 'platform.openai.com' },
+    gemini: { name: 'Gemini (Google)', placeholder: 'AIza…', console: 'aistudio.google.com' },
+    qwen: { name: 'Qwen (Alibaba)', placeholder: 'sk-…', console: 'modelstudio.console.alibabacloud.com (Singapore region)' }
   },
   models: {
     'claude-sonnet-5-5': 'Claude Sonnet 5.5 (balanced, recommended)',
     'claude-opus-5-5': 'Claude Opus 5.5 (deeper analysis)',
     'claude-fable-5-1': 'Claude Fable 5.1 (most capable)',
-    'claude-haiku-5-5': 'Claude Haiku 5.5 (fast & cheap)'
+    'claude-haiku-5-5': 'Claude Haiku 5.5 (fast & cheap)',
+    'gpt-5': 'GPT-5 (balanced)',
+    'gpt-5-mini': 'GPT-5 mini (fast & cheap)',
+    'gpt-5.6-sol': 'GPT-5.6 Sol (newest)',
+    'gemini-2.5-pro': 'Gemini 2.5 Pro (deeper analysis)',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash (fast & cheap)',
+    'gemini-3-flash-preview': 'Gemini 3 Flash (preview)',
+    'qwen3-max': 'Qwen3 Max (most capable)',
+    'qwen-plus': 'Qwen Plus (balanced)',
+    'qwen-flash': 'Qwen Flash (fast & cheap)'
   },
   free: {
     banner: 'Free account: {remaining} of {limit} questions left today. Add your own API key for unlimited use.',
@@ -37,12 +53,38 @@ const ai: Messages['ai'] = {
     useOwn: 'Use my own key'
   },
   connector: {
-    button: 'Claude connector',
-    title: 'Connect to the Claude app',
-    intro: 'Use your own Claude subscription (no API key): add ARUS as a connector in Claude, then ask about your business data right there. The connector is read-only, with the same limits as HalloArus.',
-    s1: 'In Claude open Settings → Connectors → Add custom connector.',
-    s2: 'Paste the address below and save.',
-    s3: 'Click Connect; you are sent to ARUS to approve read access.',
+    button: 'AI connector',
+    title: 'Connect to an AI app',
+    intro: 'Use your own Claude, ChatGPT, Gemini or Qwen subscription (no API key): add ARUS as an MCP connector, then ask about your business data right in that app. The connector is read-only, with the same limits as HalloArus.',
+    appsTitle: 'Choose your app',
+    appsNote: 'Connector support differs per app and plan. If it is unavailable, use the HalloArus chat with an API key (settings above).',
+    cmdLabel: 'Command',
+    apps: {
+      claude: {
+        name: 'Claude',
+        s1: 'Open Settings → Connectors → Add custom connector.',
+        s2: 'Enter a name (e.g. ARUS), paste the connector address above, and save.',
+        s3: 'Click Connect; you are sent to ARUS to approve read access.'
+      },
+      chatgpt: {
+        name: 'ChatGPT',
+        s1: 'Open Settings → Apps & Connectors → Advanced settings and enable Developer mode (certain plans only).',
+        s2: 'Back in Apps & Connectors → Create. Enter a name (e.g. ARUS), paste the connector address above as the MCP Server URL, choose OAuth authentication, then Create.',
+        s3: 'In a new chat pick ARUS from the + menu → Developer mode, then approve read access when redirected to ARUS.'
+      },
+      gemini: {
+        name: 'Gemini (Gemini CLI)',
+        s1: 'Install the Gemini CLI, then run the command below.',
+        s2: 'Run gemini, type /mcp auth arus, then approve read access in the browser that opens.',
+        s3: 'Ask about your business data right in the Gemini CLI. The Gemini web app does not support custom connectors yet.'
+      },
+      qwen: {
+        name: 'Qwen (Qwen Code)',
+        s1: 'Install Qwen Code, then run the command below.',
+        s2: 'Run qwen, finish the authorisation that appears (/mcp) and approve read access in the browser.',
+        s3: 'Ask about your business data right in Qwen Code.'
+      }
+    },
     urlLabel: 'Connector address',
     copy: 'Copy',
     copied: 'Copied',

@@ -64,6 +64,7 @@ type Service struct {
 	rdb     *redis.Client
 	box     *secretBox
 	claude  *claudeClient
+	clients map[string]chatClient
 	tools   []tool
 	byName  map[string]tool
 	log     *slog.Logger
@@ -75,6 +76,7 @@ func NewService(pool *pgxpool.Pool, rdb *redis.Client, jwtSecret string, free Fr
 		return nil, err
 	}
 	s := &Service{free: free, pool: pool, rdb: rdb, box: box, claude: newClaudeClient(), tools: registry(), byName: map[string]tool{}, log: log}
+	s.clients = map[string]chatClient{ProviderAnthropic: s.claude, ProviderOpenAI: newOpenAIClient(), ProviderGemini: newGeminiClient(), ProviderQwen: newQwenClient()}
 	for _, t := range s.tools {
 		s.byName[t.name] = t
 	}
@@ -91,14 +93,22 @@ type FreeInfo struct {
 	Model     string `json:"model"`
 }
 
+// ProviderInfo = status satu penyedia AI untuk tenant ini (key tak pernah dikirim balik, hanya 4 karakter terakhir).
+type ProviderInfo struct {
+	ID         string   `json:"id"`
+	Configured bool     `json:"configured"`
+	KeyHint    string   `json:"key_hint,omitempty"`
+	Model      string   `json:"model"`
+	Models     []string `json:"models"`
+}
+
 type Settings struct {
-	Configured   bool     `json:"configured"` // tenant punya API key sendiri
-	Active       bool     `json:"active"`     // asisten bisa dipakai: key sendiri atau akun gratis
-	Free         FreeInfo `json:"free"`
-	ConnectorURL string   `json:"connector_url,omitempty"` // alamat yang dimasukkan ke Claude (Settings → Connectors)
-	KeyHint      string   `json:"key_hint,omitempty"`
-	Model        string   `json:"model"`
-	Models       []string `json:"models"`
+	Configured   bool           `json:"configured"` // penyedia aktif punya API key sendiri
+	Active       bool           `json:"active"`     // asisten bisa dipakai: key sendiri atau akun gratis
+	Free         FreeInfo       `json:"free"`
+	ConnectorURL string         `json:"connector_url,omitempty"` // alamat yang dimasukkan ke aplikasi AI (Claude/ChatGPT/Gemini/Qwen)
+	Provider     string         `json:"provider"`                // penyedia aktif (atau bawaan bila belum ada key)
+	Providers    []ProviderInfo `json:"providers"`
 }
 
 // WithAPIBase mengisi alamat publik API untuk ditampilkan sebagai alamat connector.
@@ -108,14 +118,32 @@ func (s *Service) WithAPIBase(base string) *Service {
 }
 
 func (s *Service) Settings(ctx context.Context, a authz.Actor) (Settings, error) {
-	out := Settings{Model: Models[0], Models: Models}
+	out := Settings{Provider: ProviderAnthropic}
+	for _, p := range providerSpecs {
+		out.Providers = append(out.Providers, ProviderInfo{ID: p.ID, Model: p.Models[0], Models: p.Models})
+	}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT key_hint, model FROM ai_settings WHERE tenant_id = $1`, a.TenantID).Scan(&out.KeyHint, &out.Model)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
+		rows, err := tx.Query(ctx, `SELECT provider, key_hint, model, active FROM ai_settings WHERE tenant_id = $1`, a.TenantID)
+		if err != nil {
+			return err
 		}
-		out.Configured = err == nil
-		return err
+		defer rows.Close()
+		for rows.Next() {
+			var id, hint, model string
+			var active bool
+			if err := rows.Scan(&id, &hint, &model, &active); err != nil {
+				return err
+			}
+			for i := range out.Providers {
+				if out.Providers[i].ID == id {
+					out.Providers[i].Configured, out.Providers[i].KeyHint, out.Providers[i].Model = true, hint, model
+				}
+			}
+			if active {
+				out.Provider, out.Configured = id, true
+			}
+		}
+		return rows.Err()
 	})
 	if err != nil {
 		return out, err
@@ -128,22 +156,23 @@ func (s *Service) Settings(ctx context.Context, a authz.Actor) (Settings, error)
 	return out, nil
 }
 
-// Save menyimpan model dan (bila apiKey tidak kosong) API key baru yang lebih dulu diverifikasi ke Anthropic.
-// apiKey kosong = hanya ganti model (key lama tetap).
-func (s *Service) Save(ctx context.Context, a authz.Actor, apiKey, model string) error {
+// Save menyimpan model dan (bila apiKey tidak kosong) API key baru yang lebih dulu diverifikasi ke penyedianya, lalu
+// menjadikan penyedia itu yang aktif. apiKey kosong = hanya ganti model / pindah ke penyedia yang key-nya sudah tersimpan.
+func (s *Service) Save(ctx context.Context, a authz.Actor, provider, apiKey, model string) error {
 	if a.Impersonator != uuid.Nil {
 		return ErrImpersonating
 	}
-	if !validModel(model) {
+	spec, ok := specOf(provider)
+	if !ok || !spec.validModel(model) {
 		return ErrBadInput
 	}
 	apiKey = strings.TrimSpace(apiKey)
 	var enc, hint string
 	if apiKey != "" {
-		if len(apiKey) < 20 || len(apiKey) > 300 || !strings.HasPrefix(apiKey, "sk-ant-") || strings.ContainsAny(apiKey, " \r\n\t") {
+		if len(apiKey) < 20 || len(apiKey) > 300 || !spec.keyOK(apiKey) || strings.ContainsAny(apiKey, " \r\n\t") {
 			return ErrBadKey
 		}
-		if err := s.claude.verify(ctx, apiKey); err != nil {
+		if err := s.clients[provider].verify(ctx, apiKey, model); err != nil {
 			return err
 		}
 		var err error
@@ -153,52 +182,65 @@ func (s *Service) Save(ctx context.Context, a authz.Actor, apiKey, model string)
 		hint = apiKey[len(apiKey)-4:]
 	}
 	return db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		// Hanya satu penyedia aktif (indeks unik parsial): nonaktifkan yang lain lebih dulu.
+		if _, err := tx.Exec(ctx, `UPDATE ai_settings SET active = false WHERE tenant_id = $1 AND provider <> $2 AND active`, a.TenantID, provider); err != nil {
+			return err
+		}
 		if apiKey == "" {
-			tag, err := tx.Exec(ctx, `UPDATE ai_settings SET model = $2, updated_by = $3, updated_at = now() WHERE tenant_id = $1`, a.TenantID, model, a.UserID)
+			tag, err := tx.Exec(ctx, `UPDATE ai_settings SET model = $3, active = true, updated_by = $4, updated_at = now() WHERE tenant_id = $1 AND provider = $2`, a.TenantID, provider, model, a.UserID)
 			if err != nil {
 				return err
 			}
 			if tag.RowsAffected() == 0 {
 				return ErrNotConfigured
 			}
-		} else if _, err := tx.Exec(ctx, `INSERT INTO ai_settings (tenant_id, api_key_enc, key_hint, model, updated_by) VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (tenant_id) DO UPDATE SET api_key_enc = EXCLUDED.api_key_enc, key_hint = EXCLUDED.key_hint, model = EXCLUDED.model,
-			updated_by = EXCLUDED.updated_by, updated_at = now()`, a.TenantID, enc, hint, model, a.UserID); err != nil {
+		} else if _, err := tx.Exec(ctx, `INSERT INTO ai_settings (tenant_id, provider, api_key_enc, key_hint, model, active, updated_by) VALUES ($1, $2, $3, $4, $5, true, $6)
+			ON CONFLICT (tenant_id, provider) DO UPDATE SET api_key_enc = EXCLUDED.api_key_enc, key_hint = EXCLUDED.key_hint, model = EXCLUDED.model,
+			active = true, updated_by = EXCLUDED.updated_by, updated_at = now()`, a.TenantID, provider, enc, hint, model, a.UserID); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionAISettings, Entity: audit.EntityAI, EntityID: a.TenantID.String(),
-			Details: map[string]any{"model": model, "key_changed": apiKey != ""}})
+			Details: map[string]any{"provider": provider, "model": model, "key_changed": apiKey != ""}})
 	})
 }
 
-func (s *Service) RemoveKey(ctx context.Context, a authz.Actor) error {
+// RemoveKey menghapus key satu penyedia; bila itu yang aktif, penyedia lain yang masih punya key (terbaru) menggantikan.
+func (s *Service) RemoveKey(ctx context.Context, a authz.Actor, provider string) error {
 	if a.Impersonator != uuid.Nil {
 		return ErrImpersonating
 	}
+	if _, ok := specOf(provider); !ok {
+		return ErrBadInput
+	}
 	return db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `DELETE FROM ai_settings WHERE tenant_id = $1`, a.TenantID); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM ai_settings WHERE tenant_id = $1 AND provider = $2`, a.TenantID, provider); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE ai_settings SET active = true WHERE tenant_id = $1
+			AND provider = (SELECT provider FROM ai_settings WHERE tenant_id = $1 ORDER BY updated_at DESC LIMIT 1)
+			AND NOT EXISTS (SELECT 1 FROM ai_settings WHERE tenant_id = $1 AND active)`, a.TenantID); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionAISettings, Entity: audit.EntityAI, EntityID: a.TenantID.String(),
-			Details: map[string]any{"key_removed": true}})
+			Details: map[string]any{"provider": provider, "key_removed": true}})
 	})
 }
 
-func (s *Service) loadKey(ctx context.Context, a authz.Actor) (key, model string, err error) {
+func (s *Service) loadKey(ctx context.Context, a authz.Actor) (provider, key, model string, err error) {
 	var enc string
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT api_key_enc, model FROM ai_settings WHERE tenant_id = $1`, a.TenantID).Scan(&enc, &model)
+		return tx.QueryRow(ctx, `SELECT provider, api_key_enc, model FROM ai_settings WHERE tenant_id = $1 AND active`, a.TenantID).Scan(&provider, &enc, &model)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", ErrNotConfigured
+		return "", "", "", ErrNotConfigured
 	}
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if key, err = s.box.open(enc, a.TenantID.String()); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return key, model, nil
+	return provider, key, model, nil
 }
 
 // ---- Percakapan ----
@@ -216,6 +258,7 @@ type ToolCall struct {
 
 type ChatResult struct {
 	Reply     string     `json:"reply"`
+	Provider  string     `json:"provider"`
 	Model     string     `json:"model"`
 	ToolsUsed []ToolCall `json:"tools_used"`
 	Usage     usage      `json:"usage"`
@@ -266,18 +309,18 @@ func (s *Service) Chat(ctx context.Context, a authz.Actor, in []ChatMessage) (*C
 	if !ok {
 		return nil, ErrRateLimited
 	}
-	key, model, err := s.loadKey(ctx, a)
+	provider, key, model, err := s.loadKey(ctx, a)
 	free := false
 	if errors.Is(err, ErrNotConfigured) && s.free.enabled() && s.rdb != nil {
 		if err = s.takeFree(ctx, a); err != nil {
 			return nil, err
 		}
-		key, model, free = s.free.Key, freeModel, true
+		provider, key, model, free = ProviderAnthropic, s.free.Key, freeModel, true
 	}
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.converse(ctx, a, key, model, msgs)
+	res, err := s.converse(ctx, a, provider, key, model, msgs)
 	if err != nil {
 		if free {
 			s.refundFree(ctx, a)
@@ -299,7 +342,11 @@ func (s *Service) Chat(ctx context.Context, a authz.Actor, in []ChatMessage) (*C
 }
 
 // converse menjalankan putaran model ↔ tool sampai ada jawaban teks. Tidak menulis apa pun ke database.
-func (s *Service) converse(ctx context.Context, a authz.Actor, key, model string, msgs []message) (*ChatResult, error) {
+func (s *Service) converse(ctx context.Context, a authz.Actor, provider, key, model string, msgs []message) (*ChatResult, error) {
+	client, ok := s.clients[provider]
+	if !ok {
+		return nil, ErrBadInput
+	}
 	var defs []toolDef
 	for _, t := range s.tools {
 		if t.allowed(a) {
@@ -310,9 +357,9 @@ func (s *Service) converse(ctx context.Context, a authz.Actor, key, model string
 	today, outletName, tz := s.context(ctx, a)
 	system := systemPrompt(today, a.Name, outletName, tz, canCost)
 
-	res := &ChatResult{Model: model, ToolsUsed: []ToolCall{}}
+	res := &ChatResult{Provider: provider, Model: model, ToolsUsed: []ToolCall{}}
 	for round := 0; round < maxRounds; round++ {
-		resp, err := s.claude.send(ctx, key, apiRequest{Model: model, MaxTokens: maxOutTokens, System: system, Tools: defs, Messages: msgs})
+		resp, err := client.send(ctx, key, apiRequest{Model: model, MaxTokens: maxOutTokens, System: system, Tools: defs, Messages: msgs})
 		if err != nil {
 			return nil, err
 		}
@@ -338,9 +385,9 @@ func (s *Service) converse(ctx context.Context, a authz.Actor, key, model string
 			call := ToolCall{Name: b.Name, Input: b.Input, Error: terr != nil}
 			res.ToolsUsed = append(res.ToolsUsed, call)
 			if terr != nil {
-				results = append(results, block{Type: "tool_result", ToolUseID: b.ID, Content: "ERROR: " + terr.Error(), IsError: true})
+				results = append(results, block{Type: "tool_result", ToolUseID: b.ID, ToolName: b.Name, Content: "ERROR: " + terr.Error(), IsError: true})
 			} else {
-				results = append(results, block{Type: "tool_result", ToolUseID: b.ID, Content: out})
+				results = append(results, block{Type: "tool_result", ToolUseID: b.ID, ToolName: b.Name, Content: out})
 			}
 		}
 		if len(results) == 0 {
@@ -409,7 +456,7 @@ func (s *Service) audit(ctx context.Context, a authz.Actor, question string, r *
 	}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionAIChat, Entity: audit.EntityAI, EntityID: a.TenantID.String(),
-			Details: map[string]any{"question": string(q), "tools": names, "model": r.Model, "free": r.Free != nil, "input_tokens": r.Usage.InputTokens, "output_tokens": r.Usage.OutputTokens}})
+			Details: map[string]any{"question": string(q), "tools": names, "provider": r.Provider, "model": r.Model, "free": r.Free != nil, "input_tokens": r.Usage.InputTokens, "output_tokens": r.Usage.OutputTokens}})
 	})
 	if err != nil {
 		s.log.WarnContext(ctx, "ai audit gagal", "err", err)
