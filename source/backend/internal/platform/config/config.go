@@ -29,6 +29,10 @@ type Config struct {
 	// Hapus dari lingkungan server setelah admin pertama dibuat.
 	PlatformSetupToken string
 
+	// AutoJournal: penjadwal malam yang membuat DRAF jurnal otomatis (AUTO_JOURNAL=true|false). Bawaan: nyala di luar development
+	// (di dev mati agar API yang dijalankan ulang tidak menulis draf ke data pengguna tanpa diminta).
+	AutoJournal bool
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
@@ -59,6 +63,10 @@ func Load() (Config, error) {
 		SMTPUser:           os.Getenv("SMTP_USER"),
 		SMTPPass:           os.Getenv("SMTP_PASS"),
 		SMTPFrom:           getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+	}
+	c.AutoJournal = !c.IsDev()
+	if v := os.Getenv("AUTO_JOURNAL"); v != "" {
+		c.AutoJournal = v == "true"
 	}
 	for _, o := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {

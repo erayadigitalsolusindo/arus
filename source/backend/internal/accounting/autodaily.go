@@ -342,7 +342,7 @@ func newAutoDraft(ctx context.Context, q *gen.Queries, a authz.Actor, src dailyS
 		return uuid.Nil, err
 	}
 	id, err := q.JournalInsert(ctx, gen.JournalInsertParams{TenantID: a.TenantID, OutletID: outlet, EntryDate: pgDate(date), Type: src.jtype,
-		Narration: narr, SourceType: pgText(src.key), SourceRef: pgText(ref), CreatedBy: a.UserID})
+		Narration: narr, SourceType: pgText(src.key), SourceRef: pgText(ref), CreatedBy: pgUUIDOrNull(a.UserID)})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -501,4 +501,12 @@ func postErrorCode(err error) string {
 		return "PERIOD_CLOSED"
 	}
 	return "INTERNAL"
+}
+
+// pgUUIDOrNull: uuid.Nil (aksi sistem/penjadwal) disimpan sebagai NULL.
+func pgUUIDOrNull(id uuid.UUID) pgtype.UUID {
+	if id == uuid.Nil {
+		return pgtype.UUID{}
+	}
+	return pgUUID(id)
 }
