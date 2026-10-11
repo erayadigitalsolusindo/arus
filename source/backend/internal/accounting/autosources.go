@@ -21,6 +21,9 @@ const (
 	SourceReceivablesDaily     = "receivable_payments_daily"
 	SourcePayablesDaily        = "payable_payments_daily"
 	SourceWalletDaily          = "wallet_daily"
+	SourceStockCountsDaily     = "stock_counts_daily"
+	SourceShiftVarianceDaily   = "cash_shift_variance_daily"
+	SourcePettyCashDaily       = "petty_cash_daily"
 )
 
 var dailySources = []dailySource{
@@ -31,6 +34,9 @@ var dailySources = []dailySource{
 	{SourceReceivablesDaily, "AR", "Pelunasan piutang", computeReceivablePayments},
 	{SourcePayablesDaily, "AP", "Pembayaran hutang", computePayablePayments},
 	{SourceWalletDaily, "WALLET", "Deposit member & kredit pemasok", computeWallet},
+	{SourceStockCountsDaily, "STOCK", "Selisih opname stok", computeStockCounts},
+	{SourceShiftVarianceDaily, "CASH", "Selisih kas tutup shift", computeShiftVariance},
+	{SourcePettyCashDaily, "CASH", "Kas kecil kasir", computePettyCash},
 }
 
 // Penjualan (urutan hitung nota PRD §7.4; total = subtotal − diskon + pajak + biaya lain):
@@ -223,5 +229,67 @@ func computeWallet(ctx context.Context, q *gen.Queries, tenant, outlet uuid.UUID
 		b.drMethod(c.AccountID, c.Name, c.Amount, "Pencairan kredit pemasok via "+c.Name)
 		b.crRole(MapSupplierAdvance, c.Amount, "Kredit pemasok")
 	}
+	return n, nil
+}
+
+// Opname stok selesai (selisih × HPP rata-rata saat selesai): kelebihan D persediaan / K selisih stok; kekurangan sebaliknya.
+func computeStockCounts(ctx context.Context, q *gen.Queries, tenant, outlet uuid.UUID, w dayWindow, b *jb) (int64, error) {
+	tot, err := q.AutoStockCountTotals(ctx, gen.AutoStockCountTotalsParams{TenantID: tenant, OutletID: outlet, CompletedAt: w.t0, CompletedAt_2: w.t1})
+	if err != nil || tot.N == 0 {
+		return 0, err
+	}
+	b.drRole(MapInventory, tot.Value, "Penyesuaian persediaan hasil opname")
+	b.crRole(MapStockVariance, tot.Value, "Selisih opname stok")
+	return tot.N, nil
+}
+
+// Selisih kas saat tutup shift, per metode (nilai fisik − seharusnya; kas kecil sudah termasuk "seharusnya"):
+// lebih D metode / K selisih kas lebih; kurang D selisih kas kurang / K metode.
+func computeShiftVariance(ctx context.Context, q *gen.Queries, tenant, outlet uuid.UUID, w dayWindow, b *jb) (int64, error) {
+	rows, err := q.AutoShiftVariances(ctx, gen.AutoShiftVariancesParams{TenantID: tenant, OutletID: outlet, ClosedAt: w.t0, ClosedAt_2: w.t1})
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	over, short := decimal.Zero, decimal.Zero
+	for _, r := range rows {
+		n += r.N
+		over, short = over.Add(r.OverAmount), short.Add(r.ShortAmount)
+		b.drMethod(r.AccountID, r.Name, r.OverAmount, "Kas lebih "+r.Name)
+		b.crMethod(r.AccountID, r.Name, r.ShortAmount, "Kas kurang "+r.Name)
+	}
+	b.crRole(MapCashOver, over, "Selisih kas lebih")
+	b.drRole(MapCashShort, short, "Selisih kas kurang")
+	return n, nil
+}
+
+// Kas kecil yang tidak dibatalkan: keluar D beban kas kecil (per kategori) / K kas; masuk D kas / K sumber dana tambah receh.
+func computePettyCash(ctx context.Context, q *gen.Queries, tenant, outlet uuid.UUID, w dayWindow, b *jb) (int64, error) {
+	rows, err := q.AutoPettyCash(ctx, gen.AutoPettyCashParams{TenantID: tenant, OutletID: outlet, CreatedAt: w.t0, CreatedAt_2: w.t1})
+	if err != nil || len(rows) == 0 {
+		return 0, err
+	}
+	cash, err := q.AutoCashMethod(ctx, tenant)
+	if errors.Is(err, pgx.ErrNoRows) {
+		b.missing.Methods = append(b.missing.Methods, "cash")
+		return 1, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	in, out := decimal.Zero, decimal.Zero
+	for _, r := range rows {
+		n += r.N
+		if r.Direction == "out" {
+			out = out.Add(r.Amount)
+			b.drRole(MapPettyExpense, r.Amount, "Kas kecil: "+r.Category)
+		} else {
+			in = in.Add(r.Amount)
+		}
+	}
+	b.crMethod(cash.AccountID, cash.Name, out, "Uang keluar kas kecil")
+	b.drMethod(cash.AccountID, cash.Name, in, "Uang masuk kas kecil")
+	b.crRole(MapPettyIn, in, "Sumber dana tambah receh")
 	return n, nil
 }

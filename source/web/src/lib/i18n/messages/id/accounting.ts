@@ -1,5 +1,5 @@
 export default {
-  type: { JU: 'Jurnal Umum', KM: 'Kas Masuk', KK: 'Kas Keluar', TK: 'Transfer Kas', OPENING: 'Saldo Awal', SALES: 'Penjualan', PURCHASE: 'Pembelian', AR: 'Piutang', AP: 'Hutang', WALLET: 'Deposit & Kredit' },
+  type: { JU: 'Jurnal Umum', KM: 'Kas Masuk', KK: 'Kas Keluar', TK: 'Transfer Kas', OPENING: 'Saldo Awal', SALES: 'Penjualan', PURCHASE: 'Pembelian', AR: 'Piutang', AP: 'Hutang', WALLET: 'Deposit & Kredit', STOCK: 'Opname Stok', CASH: 'Kas Laci' },
   class: { asset: 'Aset', liability: 'Kewajiban', equity: 'Ekuitas', revenue: 'Pendapatan', cogs: 'Harga Pokok', expense: 'Beban' },
   status: { draft: 'Draf', posted: 'Terposting' },
   accounts: {
@@ -102,7 +102,7 @@ export default {
     col: { doc: 'No. Jurnal', date: 'Tanggal', type: 'Jenis', narration: 'Keterangan', total: 'Total', status: 'Status', by: 'Dibuat oleh' },
     autoGenerate: 'Buat Draf Otomatis',
     genTitle: 'Buat draf jurnal otomatis',
-    genHint: 'Sistem menjumlahkan transaksi per hari per outlet menjadi satu draf jurnal per sumber: penjualan, retur penjualan, pembelian, retur pembelian, pelunasan piutang, pembayaran hutang, serta deposit dan kredit pemasok. Draf yang belum diposting dihitung ulang; yang sudah diposting hanya menerima draf selisih.',
+    genHint: 'Sistem menjumlahkan transaksi per hari per outlet menjadi satu draf jurnal per sumber: penjualan, retur penjualan, pembelian, retur pembelian, pelunasan piutang, pembayaran hutang, deposit dan kredit pemasok, selisih opname, selisih kas tutup shift, serta kas kecil. Draf yang belum diposting dihitung ulang; yang sudah diposting hanya menerima draf selisih.',
     genDo: 'Buat Draf',
     genNone: 'Tidak ada transaksi pada rentang ini.',
     genDone: '{created} draf dibuat, {updated} diperbarui, {adjusted} selisih, {unchanged} tidak berubah.',
@@ -306,7 +306,7 @@ export default {
     keys: {
       sales_revenue: 'Penjualan', other_income: 'Pendapatan biaya lain', receivable: 'Piutang usaha', cogs: 'Harga pokok penjualan',
       inventory: 'Persediaan', tax_out: 'PPN keluaran', tax_in: 'PPN masukan', payable: 'Hutang usaha', fee_expense: 'Beban admin metode bayar',
-      stock_variance: 'Selisih stok', member_deposit: 'Deposit member', supplier_advance: 'Uang muka pemasok', cash_over: 'Selisih kas lebih', cash_short: 'Selisih kas kurang'
+      stock_variance: 'Selisih stok', petty_cash_expense: 'Beban kas kecil', petty_cash_in: 'Sumber dana tambah receh', member_deposit: 'Deposit member', supplier_advance: 'Uang muka pemasok', cash_over: 'Selisih kas lebih', cash_short: 'Selisih kas kurang'
     },
     hints: {
       sales_revenue: 'Nilai penjualan bersih (setelah potongan).',
@@ -322,7 +322,9 @@ export default {
       member_deposit: 'Titipan saldo member.',
       supplier_advance: 'Saldo kredit atau uang muka ke pemasok.',
       cash_over: 'Kas fisik lebih besar dari catatan saat tutup shift.',
-      cash_short: 'Kas fisik lebih kecil dari catatan saat tutup shift.'
+      cash_short: 'Kas fisik lebih kecil dari catatan saat tutup shift.',
+      petty_cash_expense: 'Uang keluar dari laci kasir (galon, parkir, dll.) pada kas kecil.',
+      petty_cash_in: 'Asal uang saat laci ditambah receh (umumnya bank).'
     }
   },
   periods: {

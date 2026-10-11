@@ -18,19 +18,21 @@ import (
 // retailTemplate. Akun per metode bayar bukan di sini, tetapi di payment_methods.account_id.
 const (
 	MapSalesRevenue    = "sales_revenue"
-	MapOtherIncome     = "other_income"     // biaya lain / biaya tambahan metode bayar yang ditanggung pelanggan
-	MapReceivable      = "receivable"       // piutang usaha
-	MapCOGS            = "cogs"             // harga pokok penjualan
-	MapInventory       = "inventory"        // persediaan
-	MapTaxOut          = "tax_out"          // PPN keluaran
-	MapTaxIn           = "tax_in"           // PPN masukan
-	MapPayable         = "payable"          // hutang usaha
-	MapFeeExpense      = "fee_expense"      // beban admin metode bayar (MDR)
-	MapStockVariance   = "stock_variance"   // selisih stok opname
-	MapMemberDeposit   = "member_deposit"   // titipan deposit member
-	MapSupplierAdvance = "supplier_advance" // uang muka / kredit pemasok
-	MapCashOver        = "cash_over"        // selisih kas lebih
-	MapCashShort       = "cash_short"       // selisih kas kurang
+	MapOtherIncome     = "other_income"       // biaya lain / biaya tambahan metode bayar yang ditanggung pelanggan
+	MapReceivable      = "receivable"         // piutang usaha
+	MapCOGS            = "cogs"               // harga pokok penjualan
+	MapInventory       = "inventory"          // persediaan
+	MapTaxOut          = "tax_out"            // PPN keluaran
+	MapTaxIn           = "tax_in"             // PPN masukan
+	MapPayable         = "payable"            // hutang usaha
+	MapFeeExpense      = "fee_expense"        // beban admin metode bayar (MDR)
+	MapStockVariance   = "stock_variance"     // selisih stok opname
+	MapMemberDeposit   = "member_deposit"     // titipan deposit member
+	MapSupplierAdvance = "supplier_advance"   // uang muka / kredit pemasok
+	MapCashOver        = "cash_over"          // selisih kas lebih
+	MapCashShort       = "cash_short"         // selisih kas kurang
+	MapPettyExpense    = "petty_cash_expense" // beban kas kecil (uang keluar laci)
+	MapPettyIn         = "petty_cash_in"      // sumber dana tambah receh / kas masuk laci
 )
 
 type mappingDef struct {
@@ -54,6 +56,8 @@ var mappingDefs = []mappingDef{
 	{MapSupplierAdvance, "1320", []string{"asset"}},
 	{MapCashOver, "4900", []string{"revenue"}},
 	{MapCashShort, "6900", []string{"expense"}},
+	{MapPettyExpense, "6900", []string{"expense"}},
+	{MapPettyIn, "1120", []string{"asset", "liability", "equity"}},
 }
 
 func mappingDefOf(key string) (mappingDef, bool) {

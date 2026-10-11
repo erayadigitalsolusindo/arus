@@ -51,7 +51,7 @@ func TestAccountMappings(t *testing.T) {
 	}
 	want := map[string]string{"sales_revenue": "4100", "other_income": "4200", "receivable": "1210", "cogs": "5100", "inventory": "1310",
 		"tax_out": "2130", "tax_in": "1330", "payable": "2110", "fee_expense": "6160", "stock_variance": "5200",
-		"member_deposit": "2140", "supplier_advance": "1320", "cash_over": "4900", "cash_short": "6900"}
+		"member_deposit": "2140", "supplier_advance": "1320", "cash_over": "4900", "cash_short": "6900", "petty_cash_expense": "6900", "petty_cash_in": "1120"}
 	if len(ms) != len(want) {
 		t.Fatalf("jumlah peran %d, mau %d", len(ms), len(want))
 	}

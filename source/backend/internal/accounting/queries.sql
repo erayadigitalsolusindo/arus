@@ -269,3 +269,27 @@ SELECT m.id AS method_id, m.name, m.account_id, count(*)::bigint AS n, coalesce(
 FROM supplier_credit_movements d JOIN payment_methods m ON m.tenant_id = d.tenant_id AND m.id = d.method_id
 WHERE d.tenant_id = $1 AND d.outlet_id = $2 AND d.kind = 'CASH_OUT' AND d.created_at >= $3 AND d.created_at < $4
 GROUP BY m.id, m.name, m.account_id ORDER BY m.name;
+
+-- ---- Jurnal otomatis tahap 4: opname, selisih kas shift, kas kecil ----
+
+-- name: AutoStockCountTotals :one
+SELECT count(DISTINCT c.id)::bigint AS n, coalesce(sum(l.diff * coalesce(l.unit_cost, 0)), 0)::numeric(18,2) AS value
+FROM stock_counts c JOIN stock_count_lines l ON l.tenant_id = c.tenant_id AND l.count_id = c.id
+WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.status = 'completed' AND c.completed_at >= $3 AND c.completed_at < $4
+  AND l.diff IS NOT NULL AND l.diff <> 0;
+
+-- name: AutoShiftVariances :many
+SELECT m.id AS method_id, m.name, m.account_id, count(DISTINCT s.id)::bigint AS n,
+       coalesce(sum(GREATEST(c.diff, 0)), 0)::numeric(18,2) AS over_amount,
+       coalesce(sum(GREATEST(-c.diff, 0)), 0)::numeric(18,2) AS short_amount
+FROM cash_shift_counts c
+JOIN cash_shifts s ON s.tenant_id = c.tenant_id AND s.id = c.shift_id
+JOIN payment_methods m ON m.tenant_id = c.tenant_id AND m.id = c.method_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'closed' AND s.closed_at >= $3 AND s.closed_at < $4 AND c.diff <> 0
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name;
+
+-- name: AutoPettyCash :many
+SELECT direction, category, count(*)::bigint AS n, coalesce(sum(amount), 0)::numeric(18,2) AS amount
+FROM cash_movements
+WHERE tenant_id = $1 AND outlet_id = $2 AND voided_at IS NULL AND created_at >= $3 AND created_at < $4
+GROUP BY direction, category ORDER BY direction, category;

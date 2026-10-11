@@ -1,7 +1,7 @@
 import type { Messages } from '../../types.ts';
 
 const accounting: Messages['accounting'] = {
-  type: { JU: 'General Journal', KM: 'Cash In', KK: 'Cash Out', TK: 'Cash Transfer', OPENING: 'Opening Balance', SALES: 'Sales', PURCHASE: 'Purchases', AR: 'Receivables', AP: 'Payables', WALLET: 'Deposits & Credits' },
+  type: { JU: 'General Journal', KM: 'Cash In', KK: 'Cash Out', TK: 'Cash Transfer', OPENING: 'Opening Balance', SALES: 'Sales', PURCHASE: 'Purchases', AR: 'Receivables', AP: 'Payables', WALLET: 'Deposits & Credits', STOCK: 'Stock Count', CASH: 'Cash Drawer' },
   class: { asset: 'Asset', liability: 'Liability', equity: 'Equity', revenue: 'Revenue', cogs: 'Cost of Goods', expense: 'Expense' },
   status: { draft: 'Draft', posted: 'Posted' },
   accounts: {
@@ -104,7 +104,7 @@ const accounting: Messages['accounting'] = {
     col: { doc: 'Journal No.', date: 'Date', type: 'Type', narration: 'Description', total: 'Total', status: 'Status', by: 'Created by' },
     autoGenerate: 'Generate Auto Drafts',
     genTitle: 'Generate automatic journal drafts',
-    genHint: 'Transactions are summed per day per outlet into one journal draft per source: sales, sales returns, purchases, purchase returns, receivable settlements, payable payments, and member deposits / supplier credits. Unposted drafts are recalculated; posted ones only receive an adjustment draft.',
+    genHint: 'Transactions are summed per day per outlet into one journal draft per source: sales, sales returns, purchases, purchase returns, receivable settlements, payable payments, member deposits / supplier credits, stock count differences, shift-close cash differences, and petty cash. Unposted drafts are recalculated; posted ones only receive an adjustment draft.',
     genDo: 'Generate',
     genNone: 'No transactions in this range.',
     genDone: '{created} created, {updated} updated, {adjusted} adjustments, {unchanged} unchanged.',
@@ -308,7 +308,7 @@ const accounting: Messages['accounting'] = {
     keys: {
       sales_revenue: 'Sales', other_income: 'Other-charge income', receivable: 'Accounts receivable', cogs: 'Cost of goods sold',
       inventory: 'Inventory', tax_out: 'Output VAT', tax_in: 'Input VAT', payable: 'Accounts payable', fee_expense: 'Payment method fee expense',
-      stock_variance: 'Stock variance', member_deposit: 'Member deposits', supplier_advance: 'Supplier advances', cash_over: 'Cash over', cash_short: 'Cash short'
+      stock_variance: 'Stock variance', petty_cash_expense: 'Petty cash expense', petty_cash_in: 'Drawer top-up source', member_deposit: 'Member deposits', supplier_advance: 'Supplier advances', cash_over: 'Cash over', cash_short: 'Cash short'
     },
     hints: {
       sales_revenue: 'Net sales value (after discounts).',
@@ -324,7 +324,9 @@ const accounting: Messages['accounting'] = {
       member_deposit: 'Member balances held on deposit.',
       supplier_advance: 'Credit balance or advance paid to suppliers.',
       cash_over: 'Physical cash above the recorded amount at shift close.',
-      cash_short: 'Physical cash below the recorded amount at shift close.'
+      cash_short: 'Physical cash below the recorded amount at shift close.',
+      petty_cash_expense: 'Money taken out of the cashier drawer (water, parking, etc.) as petty cash.',
+      petty_cash_in: 'Where the money comes from when the drawer is topped up (usually the bank).'
     }
   },
   periods: {

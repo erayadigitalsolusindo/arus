@@ -83,6 +83,25 @@ type Brand struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type CashMovement struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	OutletID     uuid.UUID
+	ShiftID      uuid.UUID
+	MethodID     uuid.UUID
+	Direction    string
+	Amount       decimal.Decimal
+	Category     string
+	Note         string
+	CreatedBy    uuid.UUID
+	ApprovedBy   pgtype.UUID
+	ApprovedName pgtype.Text
+	IdemKey      string
+	CreatedAt    pgtype.Timestamptz
+	VoidedAt     pgtype.Timestamptz
+	VoidedBy     pgtype.UUID
+}
+
 type CashShift struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID
@@ -369,22 +388,23 @@ type MemberPointMovement struct {
 }
 
 type Outlet struct {
-	ID            uuid.UUID
-	TenantID      uuid.UUID
-	Code          string
-	Name          string
-	TaxStorePct   decimal.Decimal
-	TaxGovPct     decimal.Decimal
-	Timezone      string
-	Active        bool
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	StockLockedAt pgtype.Timestamptz
-	OpsStartDate  pgtype.Date
-	Address       string
-	Phone         string
-	ReceiptHeader string
-	ReceiptFooter string
+	ID                     uuid.UUID
+	TenantID               uuid.UUID
+	Code                   string
+	Name                   string
+	TaxStorePct            decimal.Decimal
+	TaxGovPct              decimal.Decimal
+	Timezone               string
+	Active                 bool
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	StockLockedAt          pgtype.Timestamptz
+	OpsStartDate           pgtype.Date
+	Address                string
+	Phone                  string
+	ReceiptHeader          string
+	ReceiptFooter          string
+	PettyCashApprovalLimit decimal.Decimal
 }
 
 type Payable struct {
