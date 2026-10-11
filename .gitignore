@@ -27,3 +27,4 @@ dump.rdb
 
 # hasil build print-agent
 source/print-agent/dist/
+source/apk-uploader/dist/
