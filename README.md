@@ -20,7 +20,7 @@
 ---
 
 > [!NOTE]
-> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel** (rencana mulai **1 November 2026**). Fitur kasir web sudah praktis lengkap, dan aplikasi **Android (Flutter)** mulai dibangun. Yang tersisa ada di luar layar kasir, yaitu import katalog, backup teruji, spec test, dan CI. Lihat [Status & Roadmap](#-status--roadmap).
+> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel** (rencana mulai **1 November 2026**). Fitur kasir web sudah praktis lengkap, dan aplikasi **Kasir Android (Flutter)** sudah bisa dipakai berjualan, termasuk cetak struk ke printer thermal Bluetooth. Yang tersisa ada di luar layar kasir, yaitu import katalog, backup teruji, spec test, dan CI. Lihat [Status & Roadmap](#-status--roadmap).
 
 ## Apa itu ARUS?
 
@@ -51,7 +51,9 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 - Member, poin, kupon, salesman, biaya lain dinamis
 - Peringatan dini stok kurang dan harga di bawah HPP
 - **Shift kasir**: modal awal, hitung fisik per metode, selisih wajib catatan + PIN
-- **Cetak struk** 58/80 mm lewat browser atau *print-agent* ESC/POS, struk tutup shift, rekap harian
+- **Cetak struk** 58/80 mm lewat browser atau *print-agent* ESC/POS (di Android: Bluetooth), struk tutup shift, rekap harian
+- **Kas kecil kasir** (kas masuk/keluar per shift, batas persetujuan dengan PIN)
+- **Kasir Android (Flutter)** dengan cetak struk Bluetooth, lihat bagian ARUS Kasir Mobile di bawah
 - Edit/batal nota lewat **revisi**, retur penjualan
 
 </td><td valign="top">
@@ -84,6 +86,8 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 - Daftar penjualan semua kasir, HPP & laba (khusus pemegang izin)
 - **Dasbor** "toko baik-baik saja?": KPI, tren, terlaris, per jam, shift, stok menipis, perbandingan cabang dan bulan lalu
 - **Penjualan Langsung** hari ini secara real-time (SSE)
+- **HalloArus**, asisten AI hanya-baca yang menjawab pertanyaan tentang angka toko. Bisa memakai Claude, ChatGPT, Gemini, atau Qwen (API key milik tenant, data pelanggan dianonimkan), atau lewat **connector MCP** dari langganan Claude Anda
+- **Akuntansi (SIAK)**: bagan akun, periode, jurnal draf → posting yang tidak bisa diubah, buku besar, neraca saldo, laba rugi, neraca, kas & bank, jurnal otomatis dari transaksi
 
 </td></tr>
 <tr><td valign="top">
@@ -106,7 +110,13 @@ ARUS dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Nod
 </td></tr>
 </table>
 
-**📱 ARUS Mobile (Flutter, Android, dalam pengerjaan):** login, tema terang/gelap, pilih bahasa dan cabang, serta layar kasir (cari barang, keranjang dengan harga dari server, bayar tunai/split, buka shift). Belum: member, kupon, kredit, nota pending, scan kamera, struk Bluetooth. Lihat [`source/mobile/README.md`](source/mobile/README.md).
+**📱 ARUS Kasir Mobile (Flutter, Android):** aplikasi kasir native yang memakai API Go yang sama dengan web.
+- **Cetak struk thermal via Bluetooth** (ESC/POS), termasuk struk tutup shift.
+- Kasir lengkap: cari barang dengan gambar katalog, scan barcode (pemindai HID), keranjang dengan harga dari server, bayar tunai/non-tunai/split, member, salesman, biaya lain, nota pending, dan **Penjualan hari ini**.
+- **Shift**: buka shift, tutup shift dengan hitung fisik per metode, selisih wajib catatan + PIN penyetuju, dan **kas kecil**.
+- Beranda bertema langit/laut (siang-malam), tema terang/gelap, Bahasa Indonesia & Inggris, pindah cabang (PIN penyetuju bila dari kasir), skala teks, dan akun **Hanya Kasir** punya tombol Keluar.
+- **Pembaruan otomatis**: aplikasi memeriksa versi baru, mengunduh APK, memverifikasi SHA-256, lalu memasangnya. APK diunggah lewat Platform Admin dan bisa diunduh dari halaman login web.
+- Belum: kredit/piutang dan retur di mobile. Lihat [`source/mobile/AGENTS.md`](source/mobile/AGENTS.md).
 
 Antarmuka web memakai tema Dreams Core (Tailwind v4), tersedia dalam **Bahasa Indonesia & Inggris**, tema terang/gelap, dan tab halaman yang menyimpan draf form.
 
@@ -139,7 +149,7 @@ flowchart LR
 | Cache | Redis 7 — **tidak pernah** menjadi sumber kebenaran stok atau uang |
 | Frontend | SvelteKit 3 (SPA, `adapter-static`), Tailwind v4, bits-ui, TanStack Query, zod |
 | Mobile | Flutter (Android), Riverpod, go_router, dio; auth native lewat header `X-Client: mobile` |
-| Cetak | print-agent Go tanpa dependensi (Windows spooler RAW / berkas perangkat); mobile: Bluetooth (direncanakan) |
+| Cetak | print-agent Go tanpa dependensi (Windows spooler RAW / berkas perangkat); mobile: Bluetooth ESC/POS |
 | Deploy | Docker Compose (Postgres + Redis), binary Go via systemd, web statis di Apache/Nginx |
 
 **Invarian yang dijaga di semua modul:** tenant/outlet dari token · satu use-case satu transaksi · harga dihitung server · stok = ledger · idempotensi · kunci bisnis dijaga DB · uang tanpa float · aturan bisnis di service Go yang dites · tanpa secret di repo. Uraian lengkapnya ada di [`AGENTS.md` §3](AGENTS.md); desain data dan struktur modul di [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -281,9 +291,9 @@ Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`
 | 5 | Kasir: nota, kredit, revisi, retur, piutang, shift, cetak struk | 🟡 Hampir selesai (sisa catatan per baris, offline) |
 | 6 | Pembelian, retur beli, hutang | 🟡 Saldo awal hutang, pembatalan pembayaran, PO belum |
 | 7 | Laporan | 🟡 Dasbor dan Penjualan Langsung sudah; laporan rinci belum |
-| 8 | Modul opsional: resto/KDS, akuntansi, payment gateway | ⏳ Belum |
+| 8 | Modul opsional: resto/KDS, akuntansi, payment gateway | 🟡 Akuntansi (SIAK) dan HalloArus (asisten AI) berjalan; resto/KDS dan payment gateway belum |
 | 9 | Wizard onboarding & go-live | ⏳ Belum |
-| 10 | Kasir mobile Android (Flutter) | 🟡 Berjalan: login + layar kasir; belum diuji di perangkat |
+| 10 | Kasir mobile Android (Flutter) | 🟡 Berjalan: kasir lengkap, shift, kas kecil, cetak Bluetooth, pembaruan otomatis; sisa kredit/retur dan uji lapangan |
 
 **Jalur kritis go-live pilot**
 
@@ -341,5 +351,5 @@ Pokok-pokok produksi:
 ---
 
 <div align="center">
-<sub>© Eraya Digital Solusindo · Hak cipta dilindungi · Lisensi belum ditetapkan</sub>
+<sub>© Eraya Digital Solusindo · Source-available: kode boleh dibaca dan dipakai untuk usaha sendiri, dilarang dijual ulang tanpa izin · Lihat <a href="LICENSE">LICENSE</a></sub>
 </div>
