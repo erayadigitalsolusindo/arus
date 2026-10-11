@@ -53,18 +53,38 @@ const ai: Messages['ai'] = {
     useOwn: 'Use my own key'
   },
   connector: {
-    button: 'Claude connector',
+    button: 'AI connector',
     title: 'Connect to an AI app',
     intro: 'Use your own Claude, ChatGPT, Gemini or Qwen subscription (no API key): add ARUS as an MCP connector, then ask about your business data right in that app. The connector is read-only, with the same limits as HalloArus.',
-    s1: 'In Claude open Settings → Connectors → Add custom connector.',
-    s2: 'Paste the address below and save.',
-    s3: 'Click Connect; you are sent to ARUS to approve read access.',
-    appsTitle: 'Steps per app',
-    appClaude: 'Claude: Settings → Connectors → Add custom connector, paste the address, then Connect.',
-    appChatGPT: 'ChatGPT: Settings → Apps/Connectors → Advanced → enable Developer mode, then create a new connector (MCP, OAuth authentication) with this address. Available on certain plans.',
-    appGemini: 'Gemini: use the Gemini CLI and run: gemini mcp add --transport http arus <address>, then authorise in the browser. The Gemini web app does not support custom connectors yet.',
-    appQwen: 'Qwen: use Qwen Code and run: qwen mcp add --transport http arus <address>, then authorise in the browser.',
-    appsNote: 'Connector support differs per app and plan; if it is unavailable, use the HalloArus chat with an API key.',
+    appsTitle: 'Choose your app',
+    appsNote: 'Connector support differs per app and plan. If it is unavailable, use the HalloArus chat with an API key (settings above).',
+    cmdLabel: 'Command',
+    apps: {
+      claude: {
+        name: 'Claude',
+        s1: 'Open Settings → Connectors → Add custom connector.',
+        s2: 'Enter a name (e.g. ARUS), paste the connector address above, and save.',
+        s3: 'Click Connect; you are sent to ARUS to approve read access.'
+      },
+      chatgpt: {
+        name: 'ChatGPT',
+        s1: 'Open Settings → Apps & Connectors → Advanced settings and enable Developer mode (certain plans only).',
+        s2: 'Back in Apps & Connectors → Create. Enter a name (e.g. ARUS), paste the connector address above as the MCP Server URL, choose OAuth authentication, then Create.',
+        s3: 'In a new chat pick ARUS from the + menu → Developer mode, then approve read access when redirected to ARUS.'
+      },
+      gemini: {
+        name: 'Gemini (Gemini CLI)',
+        s1: 'Install the Gemini CLI, then run the command below.',
+        s2: 'Run gemini, type /mcp auth arus, then approve read access in the browser that opens.',
+        s3: 'Ask about your business data right in the Gemini CLI. The Gemini web app does not support custom connectors yet.'
+      },
+      qwen: {
+        name: 'Qwen (Qwen Code)',
+        s1: 'Install Qwen Code, then run the command below.',
+        s2: 'Run qwen, finish the authorisation that appears (/mcp) and approve read access in the browser.',
+        s3: 'Ask about your business data right in Qwen Code.'
+      }
+    },
     urlLabel: 'Connector address',
     copy: 'Copy',
     copied: 'Copied',
