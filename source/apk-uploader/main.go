@@ -145,7 +145,7 @@ func run(in *bufio.Reader, tg target, owner, version, file string) error {
 	}
 
 	cfg := &ssh.ClientConfig{
-		User:            user,
+		User: user,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(string(pw)),
 			// Sebagian server (PAM) hanya menawarkan keyboard-interactive untuk login password.
