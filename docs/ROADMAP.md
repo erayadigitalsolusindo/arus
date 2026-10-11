@@ -39,6 +39,7 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 - [ ] 5.3 Edit/void nota, retur penjualan, pembayaran piutang, saldo awal piutang (FR-ONB-04) — **sebagian: edit/batal nota, pembayaran piutang/cicilan + daftar piutang, dan retur penjualan (FR-AR-01..03) selesai 2026-10-09**; **batal retur penjualan + deposit member selesai 2026-10-10**; **saldo awal piutang (FR-ONB-04) selesai 2026-10-10**; sisa: pembatalan pembayaran piutang (FR-AR-07, tidak menghalangi go-live)
 - [x] 5.4 print-agent Go + cetak struk — **selesai 2026-10-10 (untuk web): cetak struk lewat browser selesai 2026-10-10** (model struk server `GET /sales/{id}/receipt`, cetak ulang tercatat, 58/80 mm, Chrome `--kiosk-printing`; panduan `source/deploy/PC-KASIR.md`); **print-agent ESC/POS selesai 2026-10-10** (`source/print-agent`, template tetap di web `escpos.ts`); **struk tutup shift + cetak rekap Penjualan Hari Ini selesai 2026-10-10** (`lib/pos/report-receipts.ts`); uji printer fisik oleh pengguna: berhasil; sisa: struk retur/bayar piutang/top-up (belum diminta), Bluetooth/Android (Fase 10). Laci uang tidak dipakai Kotak Cantik
 - [x] 5.5 **Shift kasir (FR-POS-16)** — selesai 2026-10-10: buka shift wajib + modal awal, tutup shift dengan hitung fisik per metode, selisih wajib catatan + PIN (`shift_close.approve`), rekap beku, Daftar Shift (`/shifts`)
+- [x] 5.5b **Kas kecil kasir (FR-POS-23)** — selesai 2026-10-11: migration `00064_cash_movements`, `internal/shift/pettycash*.go` (`POST /shifts/petty-cash`, `/{id}/void`, `PUT /limit`), masuk rekap shift + `sales/list.go` flows; web `PettyCashModal` (tombol di `PosScreen`), Android `petty_cash_page.dart`; test `TestPettyCash`. Belum: jurnal otomatis kas kecil (8a.3 tahap 4), laporan kas kecil per kategori
 
 **Fase 6 — Pembelian** (keputusan 2026-10-09; UI `purchase-orders.html`, `suppliers.html`)
 - [x] 6.1 **HPP per cabang**: tabel `item_outlet_costs` (`00035`); `items.avg_cost/last_cost` = HPP awal/bawaan cabang yang belum punya baris. Penjualan, pecah satuan, opname, daftar/detail item memakai HPP cabang
@@ -59,6 +60,13 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 - [x] 8a.1 Fase A: COA (+template retail), periode, jurnal manual JU/KM/KK/TK, buku besar, kas/bank
 - [x] 8a.2 Fase B: neraca saldo, laba rugi, neraca, kas/bank, jurnal umum (baca-saja, agregat; selesai 2026-10-11)
 - [ ] 8a.3 Fase C: jurnal otomatis + pemetaan akun per metode bayar (penjualan harian per outlet; pembelian/piutang/hutang/retur per dokumen)
+  - [x] tahap 1: pemetaan akun (`account_mappings`, halaman pengaturan)
+  - [x] tahap 2: draf penjualan harian + posting massal (tombol di halaman jurnal); [x] job malam; [x] tahap 3: pembelian/retur/piutang/hutang/deposit; [x] tahap 4: opname/kas shift/kas kecil
+
+**Fase 8b — HalloArus: asisten AI hanya-baca (permintaan pengguna 2026-10-11)**
+- [x] 8b.1 Menu Utama → HalloArus (`/halloarus`, izin `ai_assistant`): chat dengan Claude, API key milik tenant (BYOK, dienkripsi), 16 tool baca di semua domain (penjualan, stok, piutang/hutang, pembelian, kas/shift, akuntansi), transaksi READ ONLY, pelanggan dianonimkan
+- [x] 8b.3 Akun gratis (kuota harian, key platform) dan connector MCP untuk langganan Claude pengguna
+- [ ] 8b.2 Belum: streaming jawaban, riwayat percakapan tersimpan, kuota token per tenant, tool laporan tambahan (transfer stok, voucher, harga beli)
 
 **Fase 10 — Kasir Mobile Android [PRD §7.11, §6.2, §15.4]**
 - **Keputusan pengguna 2026-10-10: aplikasi kasir mobile dibuat dengan Flutter di `source/mobile/` (menggantikan usulan Capacitor di 10.1), dikerjakan LEBIH CEPAT dari rencana karena dibutuhkan segera; import barang (3.4) menyusul. Konsekuensi: template struk (`receipt.ts`/`escpos.ts`) harus ditulis ulang di Dart, UI kasir dibuat dari nol memakai API Go yang sama. PRD §7.11/§15.4 belum diselaraskan.**

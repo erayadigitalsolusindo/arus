@@ -141,6 +141,11 @@ const (
 	EntityShift      = "shift"
 	ActionShiftOpen  = "shift.open"
 	ActionShiftClose = "shift.close"
+
+	// Kas kecil kasir (uang keluar/masuk laci di luar penjualan).
+	EntityCashMovement       = "cash_movement"
+	ActionCashMovementCreate = "cash_movement.create"
+	ActionCashMovementVoid   = "cash_movement.void"
 )
 
 // Hutang pemasok (pembelian kredit).
@@ -224,16 +229,28 @@ const (
 	EntityAccountingPeriod = "accounting_period"
 	EntityJournal          = "journal"
 
-	ActionAccountCreate = "account.create"
-	ActionAccountUpdate = "account.update"
-	ActionAccountDelete = "account.delete"
-	ActionAccountSeed   = "account.seed" // template COA retail
+	ActionAccountCreate    = "account.create"
+	ActionAccountUpdate    = "account.update"
+	ActionAccountDelete    = "account.delete"
+	ActionAccountSeed      = "account.seed" // template COA retail
+	ActionAccountMapUpdate = "account.mapping_update"
 
 	ActionPeriodClose  = "accounting_period.close"
 	ActionPeriodReopen = "accounting_period.reopen"
 
-	ActionJournalSave    = "journal.save" // buat/ubah draf
-	ActionJournalDelete  = "journal.delete"
-	ActionJournalPost    = "journal.post"
-	ActionJournalReverse = "journal.reverse"
+	ActionJournalSave         = "journal.save" // buat/ubah draf
+	ActionJournalDelete       = "journal.delete"
+	ActionJournalPost         = "journal.post"
+	ActionJournalReverse      = "journal.reverse"
+	ActionJournalAutoGenerate = "journal.auto_generate" // draf jurnal otomatis (penjualan harian, dst.)
 )
+
+// Asisten AI (HalloArus): hanya pengaturan (API key/model) dan pemakaian; asisten sendiri tidak menulis data bisnis.
+const (
+	EntityAI = "ai"
+
+	ActionAISettings = "ai.settings" // simpan/ganti API key atau model, hapus key
+	ActionAIChat     = "ai.chat"     // satu pertanyaan ke asisten (pertanyaan dipotong, tool yang dipanggil, token)
+)
+
+const ActionAIMCPCall = "ai.mcp_call" // satu panggilan tool lewat connector MCP (nama tool + klien; tanpa isi hasil)

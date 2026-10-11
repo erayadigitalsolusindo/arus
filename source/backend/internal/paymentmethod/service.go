@@ -108,6 +108,8 @@ type Method struct {
 	// FeeBearer = penanggung biaya: "store" atau "customer".
 	FeeBearer string    `json:"fee_bearer,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitzero"` // kosong di lookup
+	// Account = akun COA yang dipetakan ke metode ini (kosong bila tenant belum punya bagan akun).
+	Account *AccountRef `json:"account,omitempty"`
 }
 
 // Input = isi form. Saat mengubah, `kind` boleh dikosongkan; bila diisi harus sama dengan jenis yang sekarang.
@@ -118,6 +120,9 @@ type Input struct {
 	FeeFlat Num    `json:"fee_flat"` // kosong = 0; rupiah per transaksi, maks 2 desimal
 	// FeeBearer: "store" (bawaan) atau "customer". Saat mengubah, kosong = tetap seperti sekarang.
 	FeeBearer string `json:"fee_bearer"`
+	// AccountID: akun COA pilihan. Saat membuat, kosong = buat akun baru otomatis di Aset Lancar (bila tenant punya bagan
+	// akun). Saat mengubah, kosong = tetap seperti sekarang.
+	AccountID *uuid.UUID `json:"account_id"`
 }
 
 // Num = angka opsional dari JSON: boleh angka (0.7), teks ("0.7"), teks kosong (""), atau null — semuanya dibaca apa adanya
@@ -247,7 +252,9 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Meth
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		rows, err := gen.New(tx).PaymentMethodList(ctx, arg)
 		for _, r := range rows {
-			out = append(out, view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt))
+			m := view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+			m.Account = accountRef(r.AccountID, r.AccountCode, r.AccountName)
+			out = append(out, m)
 			total = int(r.Total)
 		}
 		return err
@@ -305,11 +312,34 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Method,
 		if n >= maxTotal {
 			return ErrTooMany
 		}
+		// Akun COA: pilihan pengguna, atau akun baru otomatis (nama = nama metode); tanpa bagan akun -> kosong.
+		var account pgtype.UUID
+		if in.AccountID != nil {
+			if err := checkAccount(ctx, q, a.TenantID, *in.AccountID, in.Kind); err != nil {
+				return err
+			}
+			account = pgtype.UUID{Bytes: *in.AccountID, Valid: true}
+		} else if account, err = newOwnAccount(ctx, q, a.TenantID, name, in.Kind); err != nil {
+			return err
+		}
+		if !account.Valid {
+			if account, err = defaultAccount(ctx, q, a.TenantID, in.Kind); err != nil {
+				return err
+			}
+		}
 		r, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: a.TenantID, Name: name, Kind: in.Kind, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer})
 		if err != nil {
 			return err
 		}
+		if account.Valid {
+			if err := q.PaymentMethodSetAccount(ctx, gen.PaymentMethodSetAccountParams{TenantID: a.TenantID, ID: r.ID, AccountID: account}); err != nil {
+				return err
+			}
+		}
 		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
+			return err
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionPaymentMethodCreate, Entity: audit.EntityPaymentMethod, EntityID: r.ID.String(), Details: details(out),
 		})
@@ -352,15 +382,39 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		if len(f) > 0 {
 			return f
 		}
-		if cur.Name == name && cur.Kind == kind && cur.FeePct.Equal(feePct) && cur.FeeFlat.Equal(feeFlat) && cur.FeeBearer == feeBearer {
+		curAcc, err := q.PaymentMethodAccountGet(ctx, gen.PaymentMethodAccountGetParams{TenantID: a.TenantID, ID: id})
+		if err != nil {
+			return err
+		}
+		newAccount := in.AccountID != nil && !(curAcc.AccountID.Valid && uuid.UUID(curAcc.AccountID.Bytes) == *in.AccountID)
+		if newAccount {
+			if err := checkAccount(ctx, q, a.TenantID, *in.AccountID, kind); err != nil {
+				return err
+			}
+		}
+		if cur.Name == name && cur.Kind == kind && cur.FeePct.Equal(feePct) && cur.FeeFlat.Equal(feeFlat) && cur.FeeBearer == feeBearer && !newAccount {
 			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt)
+			out.Account = accountRef(curAcc.AccountID, curAcc.AccountCode, curAcc.AccountName)
 			return nil
 		}
 		r, err := q.PaymentMethodUpdate(ctx, gen.PaymentMethodUpdateParams{TenantID: a.TenantID, ID: id, Name: name, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer, Kind: kind})
 		if err != nil {
 			return err
 		}
+		if cur.Name != name { // akun otomatis ikut berganti nama (sebelum pemetaan diganti)
+			if err := syncOwnedAccount(ctx, q, a.TenantID, id, cur.Name, name, nil); err != nil {
+				return err
+			}
+		}
+		if newAccount {
+			if err := q.PaymentMethodSetAccount(ctx, gen.PaymentMethodSetAccountParams{TenantID: a.TenantID, ID: id, AccountID: pgtype.UUID{Bytes: *in.AccountID, Valid: true}}); err != nil {
+				return err
+			}
+		}
 		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
+			return err
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionPaymentMethodUpdate, Entity: audit.EntityPaymentMethod, EntityID: id.String(),
 			Details: map[string]any{"before": view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt).detail(), "after": out.detail()},
@@ -385,13 +439,19 @@ func (s *Service) SetActive(ctx context.Context, a authz.Actor, id uuid.UUID, ac
 		}
 		if cur.Active == active {
 			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt)
-			return nil
+			return fillAccount(ctx, q, a.TenantID, &out)
 		}
 		r, err := q.PaymentMethodSetActive(ctx, gen.PaymentMethodSetActiveParams{TenantID: a.TenantID, ID: id, Active: active})
 		if err != nil {
 			return err
 		}
+		if err := syncOwnedAccount(ctx, q, a.TenantID, id, cur.Name, cur.Name, &active); err != nil { // akun otomatis ikut aktif/nonaktif
+			return err
+		}
 		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
+			return err
+		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionPaymentMethodActive, Entity: audit.EntityPaymentMethod, EntityID: id.String(),
 			Details: map[string]any{"name": out.Name, "active": active},

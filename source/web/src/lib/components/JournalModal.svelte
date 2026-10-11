@@ -3,24 +3,30 @@
   import { onMount, tick } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import JournalTemplateDialog from '#lib/components/JournalTemplateDialog.svelte';
   import Combobox from '#lib/components/Combobox.svelte';
   import DatePicker from '#lib/components/DatePicker.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
   import Select from '#lib/components/Select.svelte';
-  import { accounting, todayISO, type Account, type Journal, type LineInput, type SavedTemplate } from '#lib/accounting/api.ts';
+  import { accounting, todayISO, type Account, type Journal, type LineInput, type SavedTemplate, type SavedTemplateInput } from '#lib/accounting/api.ts';
   import { journalTemplates, type JournalTemplate } from '#lib/accounting/templates.ts';
   import { toCents } from '#lib/pos/money.ts';
-  import { can } from '#lib/auth/session.svelte.ts';
+  import { can, session } from '#lib/auth/session.svelte.ts';
+  import { guard } from '#lib/tabs/guard.svelte.ts';
+  import { drafts } from '#lib/tabs/drafts.ts';
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
 
+  // `page`: dirender langsung di halaman (tab "Jurnal Baru") tanpa pop up; isiannya disimpan otomatis sebagai draf
+  // di localStorage (lib/tabs/drafts.ts) sehingga selamat dari penutupan browser.
   let {
     id = '',
     opening = false,
     initialType = '',
+    page = false,
     onclose,
     onchanged
-  }: { id?: string; opening?: boolean; initialType?: string; onclose: () => void; onchanged: () => void } = $props();
+  }: { id?: string; opening?: boolean; initialType?: string; page?: boolean; onclose: () => void; onchanged: () => void } = $props();
 
   type Row = { k: number; account: string; label: string; debit: string; credit: string; memo: string };
   let seq = 0;
@@ -45,11 +51,75 @@
   let revDate = $state(todayISO());
   let revNote = $state('');
 
-  const readonly = $derived(journal?.status === 'posted');
+  // ---- Draf lokal (hanya mode halaman, jurnal baru) ----
+  const draftPath = '/accounting/journals/new';
+  const draftOwner = session.tenant && session.outlet && session.user ? `${session.tenant.id}:${session.outlet.id}:${session.user.id}` : '';
+  const useDraft = page && !id && !opening && draftOwner !== '';
+  type Draft = { owner: string; type: string; date: string; narration: string; rows: Omit<Row, 'k'>[] };
+  const collect = (): Draft => ({
+    owner: draftOwner,
+    type,
+    date,
+    narration,
+    rows: rows.map((r) => ({ account: r.account, label: r.label, debit: r.debit, credit: r.credit, memo: r.memo }))
+  });
+  const hasContent = () => narration.trim() !== '' || rows.some((r) => r.account !== '' || r.debit !== '' || r.credit !== '' || r.memo !== '');
+  let restored = $state(false);
+  if (useDraft) {
+    const d = drafts.load<Draft>(draftPath);
+    const s = (v: unknown): v is string => typeof v === 'string';
+    if (d && d.owner === draftOwner && s(d.type) && s(d.date) && s(d.narration) && Array.isArray(d.rows) && d.rows.length > 0 && d.rows.length <= 200) {
+      type = ['JU', 'KM', 'KK', 'TK'].includes(d.type) ? d.type : 'JU';
+      date = d.date || todayISO();
+      narration = d.narration;
+      rows = d.rows.map((r) => ({ ...blank(), account: s(r.account) ? r.account : '', label: s(r.label) ? r.label : '', debit: s(r.debit) ? r.debit : '', credit: s(r.credit) ? r.credit : '', memo: s(r.memo) ? r.memo : '' }));
+      restored = true;
+    }
+  }
+  let finished = false; // sudah disimpan/diposting atau ditutup: jangan menulis draf lagi
+  function persist() {
+    if (finished) return;
+    if (hasContent()) drafts.save(draftPath, collect());
+    else drafts.clear(draftPath);
+  }
+  function finish() {
+    finished = true;
+    if (useDraft) drafts.clear(draftPath);
+  }
+  // Simpan otomatis dengan jeda 500 ms.
+  $effect(() => {
+    if (!useDraft) return;
+    void JSON.stringify(collect());
+    const h = setTimeout(persist, 500);
+    return () => clearTimeout(h);
+  });
+  $effect(() => {
+    if (!useDraft) return;
+    const off = guard.register(() => !finished && hasContent());
+    return () => {
+      off();
+      if (!drafts.takeDiscard(draftPath)) persist();
+    };
+  });
+  const discardDraft = () => {
+    finish();
+    type = initialType || 'JU';
+    date = todayISO();
+    narration = '';
+    rows = [blank(), blank()];
+    mirror = false;
+    restored = false;
+    finished = false;
+  };
+  const closeIt = () => (page ? guard.request(() => (finish(), onclose())) : onclose());
+
+  // Draf jurnal otomatis (SALES, dst.) dihitung server dari transaksi: hanya bisa dilihat dan diposting, bukan diubah.
+  const isAuto = $derived(!!journal && journal.status === 'draft' && !['JU', 'KM', 'KK', 'TK'].includes(journal.type));
+  const readonly = $derived(journal?.status === 'posted' || isAuto);
   const typeOptions = $derived((['JU', 'KM', 'KK', 'TK'] as const).map((v) => ({ value: v as string, label: `${v} · ${t(`accounting.type.${v}`)}` })));
 
   onMount(async () => {
-    if (!id && initialType) type = initialType;
+    if (!id && initialType && !restored) type = initialType;
     try {
       accounts = (await accounting.accounts()).filter((a) => a.kind === 'ledger' && a.active);
       if (!id && !opening) saved = await accounting.templates().catch(() => []);
@@ -113,18 +183,23 @@
   let saved = $state<SavedTemplate[]>([]);
   // Template pengguna hanya dipakai bila semua akunnya masih aktif (akun yang dihapus sudah ikut menghapus barisnya).
   const usableSaved = $derived(saved.filter((tp) => tp.lines.length >= 2 && tp.lines.every((l) => l.active)));
-  const focusOnMount = (el: HTMLInputElement) => (el.focus(), el.select());
-  let savingTpl = $state(false);
-  let tplName = $state('');
+  let tplDialog = $state<'pick' | 'save' | null>(null);
+  const canTpl = $derived(!readonly && !opening && !id);
 
-  const canSaveTpl = $derived(
-    filled.length >= 2 &&
-      filled.every((r) => (toCents(r.debit) > 0n) !== (toCents(r.credit) > 0n)) &&
-      filled.some((r) => toCents(r.debit) > 0n) &&
-      filled.some((r) => toCents(r.credit) > 0n)
-  );
+  // Isi awal dialog simpan: baris yang akunnya sudah dipilih (sisi dari nominal bila ada); nominal tidak ikut.
+  const tplSeed = $derived({
+    type,
+    narration: narration.trim(),
+    lines: filled.map((r, i) => ({
+      account: r.account,
+      label: r.label,
+      side: (toCents(r.debit) > 0n ? 'debit' : toCents(r.credit) > 0n ? 'credit' : i === 0 ? 'debit' : 'credit') as 'debit' | 'credit',
+      memo: r.memo.trim()
+    }))
+  });
 
   function applySaved(tp: SavedTemplate) {
+    tplDialog = null;
     type = tp.type;
     if (!narration.trim()) narration = tp.narration || tp.name;
     rows = tp.lines.map((l) => ({ ...blank(), account: l.account_id, label: `${l.account_code} · ${l.account_name}`, memo: l.memo }));
@@ -133,40 +208,39 @@
     void focusCell(0, tp.lines[0].side === 'debit' ? 1 : 2);
   }
 
-  function startSaveTpl() {
-    tplName = narration.trim().slice(0, 80);
-    savingTpl = true;
-  }
-
-  async function saveTpl(e: Event) {
-    e.preventDefault();
-    const name = tplName.trim();
-    if (!name) return;
-    await run(async () => {
-      const made = await accounting.createTemplate({
-        name,
-        type,
-        narration: narration.trim(),
-        lines: filled.map((r) => ({ account_id: r.account, side: toCents(r.debit) > 0n ? 'debit' : 'credit', memo: r.memo.trim() }))
-      });
-      saved = [...saved, made].sort((a, b) => a.name.localeCompare(b.name));
-      savingTpl = false;
-      notice = t('accounting.journals.tplSaved', { name });
-    });
+  // Galat dilempar ke dialog agar tampil di dalamnya.
+  async function createTpl(input: SavedTemplateInput) {
+    const made = await accounting.createTemplate(input);
+    saved = [...saved, made].sort((a, b) => a.name.localeCompare(b.name));
+    tplDialog = null;
+    notice = t('accounting.journals.tplSaved', { name: made.name });
   }
 
   async function removeTpl(tp: SavedTemplate) {
     if (!confirm(t('accounting.journals.tplDeleteConfirm', { name: tp.name }))) return;
-    await run(async () => {
-      await accounting.deleteTemplate(tp.id);
-      saved = saved.filter((x) => x.id !== tp.id);
-    });
+    await accounting.deleteTemplate(tp.id);
+    saved = saved.filter((x) => x.id !== tp.id);
   }
 
   const byCode = $derived(new Map(accounts.map((a) => [a.code, a])));
   const usableTemplates = $derived(journalTemplates.filter((tp) => byCode.has(tp.debit) && byCode.has(tp.credit)));
 
+  const builtinList = $derived(
+    usableTemplates.map((tp) => ({
+      id: tp.id as string,
+      type: tp.type as string,
+      name: t(`accounting.journals.tpl.${tp.id}`),
+      debit: `${tp.debit} · ${byCode.get(tp.debit)!.name}`,
+      credit: `${tp.credit} · ${byCode.get(tp.credit)!.name}`
+    }))
+  );
+  const pickBuiltin = (id: string) => {
+    const tp = journalTemplates.find((x) => x.id === id);
+    if (tp) applyTemplate(tp);
+  };
+
   function applyTemplate(tp: JournalTemplate) {
+    tplDialog = null;
     const row = (code: string): Row => {
       const a = byCode.get(code)!;
       return { ...blank(), account: a.id, label: `${a.code} · ${a.name}` };
@@ -301,7 +375,11 @@
       } else notice = t('accounting.journals.draftSaved');
       journal = j;
       onchanged();
-      if (post) onclose();
+      if (page) {
+        // Draf sudah di server (ubah lewat daftar jurnal); tab Jurnal Baru selesai tugasnya.
+        finish();
+        onclose();
+      } else if (post) onclose();
     });
   }
 
@@ -310,6 +388,16 @@
       const j = await accounting.opening({ date, narration: narration.trim(), lines: payloadLines() });
       onchanged();
       notice = t('accounting.journals.posted', { doc: j.doc_no ?? '' });
+      onclose();
+    });
+  }
+
+  async function postAuto() {
+    if (!journal) return;
+    await run(async () => {
+      const j = await accounting.postJournal(journal!.id);
+      notice = t('accounting.journals.posted', { doc: j.doc_no ?? '' });
+      onchanged();
       onclose();
     });
   }
@@ -331,58 +419,66 @@
 
 <svelte:window {onkeydown} />
 
-<Modal {title} {onclose} xl>
+{#snippet content()}
   {#if !loaded}
     <p class="py-10 text-center text-[var(--text-tertiary)]">…</p>
   {:else}
-    <div class="space-y-2.5 text-[12.5px]">
+    <div class="space-y-3 text-[12.5px]">
+      {#if restored}
+        <div role="status" class="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 text-[12.5px] badge-warning">
+          <i class="icon-save text-[14px] shrink-0"></i>
+          <span class="grow">{t('accounting.journals.draftRestored')}</span>
+          <button type="button" class="btn btn-sm" onclick={discardDraft}><i class="icon-trash-2 text-[13px]"></i>{t('accounting.journals.draftDiscard')}</button>
+        </div>
+      {/if}
       {#if opening}<p class="text-[12px] text-[var(--text-secondary)]">{t('accounting.journals.openingHint')}</p>{/if}
       {#if !opening && accounts.length < 2 && !readonly}<p class="text-[12px] text-[var(--color-warning-700)]">{t('accounting.journals.noAccounts')}</p>{/if}
 
-      {#if !readonly && !opening && !id && (usableTemplates.length || usableSaved.length)}
-        <div>
-          <div class="flex items-baseline gap-2">
-            <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.tplTitle')}</span>
-            <span class="text-[11px] text-[var(--text-tertiary)]">{t('accounting.journals.tplHint')}</span>
-          </div>
-          <div class="mt-1.5 flex flex-wrap gap-1.5">
-            {#each usableSaved as tp (tp.id)}
-              <span class="inline-flex items-center rounded-full border border-[var(--color-primary-500)]/50 bg-[color-mix(in_srgb,var(--color-primary-500)_8%,transparent)] text-[12px]">
-                <button type="button" class="ps-2.5 pe-1.5 py-1 hover:text-[var(--color-primary-600)]" title={tp.narration} onclick={() => applySaved(tp)}>
-                  <i class="icon-bookmark text-[11px] text-[var(--color-primary-600)]"></i> {tp.name}
-                </button>
-                <button type="button" class="pe-2 ps-0.5 py-1 text-[var(--text-tertiary)] hover:text-[var(--color-danger-600)]" aria-label="{t('accounting.journals.tplDelete')}: {tp.name}" title={t('accounting.journals.tplDelete')} onclick={() => removeTpl(tp)}><i class="icon-x text-[11px]"></i></button>
-              </span>
-            {/each}
-            {#each usableTemplates as tp (tp.id)}
-              <button type="button" class="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2.5 py-1 text-[12px] hover:border-[var(--color-primary-500)] hover:text-[var(--color-primary-600)]" onclick={() => applyTemplate(tp)}>
-                <span class="font-mono text-[10.5px] text-[var(--text-tertiary)]">{tp.type}</span> {t(`accounting.journals.tpl.${tp.id}`)}
-              </button>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
-      <div class="grid sm:grid-cols-[13rem_10.5rem_1fr] gap-2.5 items-end">
-        <div>
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.type')}</span>
-          {#if !opening}
-            <div class="mt-1"><Select bind:value={type} options={typeOptions} disabled={readonly || !!id} ariaLabel={t('accounting.journals.type')} /></div>
-          {:else}
-            <div class="mt-1 h-9 flex items-center font-medium">{t('accounting.type.OPENING')}</div>
+      <section class="surface-card !p-3.5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="font-display font-bold text-[13px] uppercase tracking-wide inline-flex items-center gap-1.5"><i class="icon-file-text text-[14px] text-[var(--text-tertiary)]"></i>{t('accounting.journals.infoTitle')}</h2>
+          {#if canTpl}
+            <div class="flex flex-wrap items-center gap-2">
+              {#if usableTemplates.length || usableSaved.length}
+                <button type="button" class="btn btn-sm" onclick={() => (tplDialog = 'pick')}><i class="icon-bookmark"></i> {t('accounting.journals.tplBtn')} <span class="rounded-full bg-[var(--surface-sunken)] px-1.5 text-[10.5px] tabular-nums text-[var(--text-tertiary)]">{usableTemplates.length + usableSaved.length}</span></button>
+              {/if}
+              {#if can('journals', 'create')}
+                <button type="button" class="btn btn-sm" onclick={() => (tplDialog = 'save')}><i class="icon-bookmark-plus"></i> {t('accounting.journals.tplSave')}</button>
+              {/if}
+            </div>
           {/if}
         </div>
-        <div>
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.date')}</span>
-          <div class="mt-1"><DatePicker bind:value={date} clearable={false} disabled={readonly} invalid={!!fields.date} /></div>
+        <div class="grid sm:grid-cols-[auto_10.5rem_1fr] gap-3 items-end">
+          <div>
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.type')}</span>
+            {#if !opening}
+              <div class="mt-1 inline-flex rounded-lg border border-[var(--border-default)] p-0.5" role="group" aria-label={t('accounting.journals.type')}>
+                {#each ['JU', 'KM', 'KK', 'TK'] as const as v (v)}
+                  <button type="button" disabled={readonly || !!id} title={t(`accounting.type.${v}`)} class="h-8 rounded-md px-3 text-[12px] font-semibold disabled:cursor-default {type === v ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] disabled:hover:bg-transparent'}" aria-pressed={type === v} onclick={() => (type = v)}>{v}</button>
+                {/each}
+              </div>
+              <span class="ms-2 text-[12px] text-[var(--text-tertiary)]">{t(`accounting.type.${type as 'JU'}`)}</span>
+            {:else}
+              <div class="mt-1 h-9 flex items-center font-medium">{t('accounting.type.OPENING')}</div>
+            {/if}
+          </div>
+          <div>
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.date')}</span>
+            <div class="mt-1"><DatePicker bind:value={date} clearable={false} disabled={readonly} invalid={!!fields.date} /></div>
+          </div>
+          <label class="block">
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.narration')}</span>
+            <input bind:value={narration} maxlength="500" disabled={readonly} class="mt-1 {inputClass} !h-9" />
+          </label>
         </div>
-        <label class="block">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.narration')}</span>
-          <input bind:value={narration} maxlength="500" disabled={readonly} class="mt-1 {inputClass} !h-9" />
-        </label>
-      </div>
+      </section>
 
-      <div class="overflow-x-auto scroll-thin rounded-lg border border-[var(--border-default)]">
+      <section class="surface-card !p-0 overflow-hidden">
+      <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[var(--border-subtle)]">
+        <h2 class="font-display font-bold text-[13px] uppercase tracking-wide inline-flex items-center gap-1.5"><i class="icon-list-ordered text-[14px] text-[var(--text-tertiary)]"></i>{t('accounting.journals.linesTitle')}</h2>
+        {#if !readonly}<button type="button" class="btn btn-sm" onclick={() => addRow(rows.length)}><i class="icon-plus"></i> {t('accounting.journals.addLine')}</button>{/if}
+      </div>
+      <div class="overflow-x-auto scroll-thin">
         <table class="w-full min-w-[720px] text-[12.5px]">
           <thead>
             <tr class="bg-[var(--surface-sunken)] text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
@@ -425,21 +521,15 @@
           </tbody>
           <tfoot>
             <tr class="border-t border-[var(--border-default)] bg-[var(--surface-sunken)] font-bold">
-              <td colspan="2" class="py-1.5 ps-2.5 pe-2">
-                {#if !readonly}<button type="button" class="btn btn-sm" onclick={() => addRow(rows.length)}><i class="icon-plus"></i> {t('accounting.journals.addLine')}</button>{/if}
-              </td>
-              <td class="py-1.5 px-1.5 text-end tabular-nums">{readonly && journal ? money(journal.total_debit) : fmtCents(totalD)}</td>
-              <td class="py-1.5 px-1.5 text-end tabular-nums">{readonly && journal ? money(journal.total_credit) : fmtCents(totalC)}</td>
-              <td colspan="2" class="py-1.5 px-1.5 text-[12px] font-semibold">
-                {#if !readonly}
-                  {#if diff === 0n && totalD > 0n}<span class="text-[var(--color-success-600)]"><i class="icon-check"></i> {t('accounting.journals.balanced')}</span>
-                  {:else if diff !== 0n}<span class="text-[var(--color-danger-600)]">{t('accounting.journals.unbalanced', { diff: fmtCents(diff) })}</span>{/if}
-                {/if}
-              </td>
+              <td colspan="2" class="py-2 ps-3.5 pe-2 text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">{t('accounting.journals.totalDebit')} / {t('accounting.journals.totalCredit')}</td>
+              <td class="py-2 px-1.5 text-end tabular-nums">{readonly && journal ? money(journal.total_debit) : fmtCents(totalD)}</td>
+              <td class="py-2 px-1.5 text-end tabular-nums">{readonly && journal ? money(journal.total_credit) : fmtCents(totalC)}</td>
+              <td colspan="2"></td>
             </tr>
           </tfoot>
         </table>
       </div>
+      </section>
       {#if !readonly}
         <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-tertiary)]">
           <span><kbd class={kbd}>↑</kbd> <kbd class={kbd}>↓</kbd> {t('accounting.journals.keyMove')}</span>
@@ -450,17 +540,6 @@
           {#if !opening}<span><kbd class={kbd}>Ctrl+S</kbd> {t('accounting.journals.keyDraft')}</span>{/if}
           <span><kbd class={kbd}>Ctrl+Enter</kbd> {opening ? t('accounting.journals.saveOpening') : t('accounting.journals.keyPost')}</span>
         </p>
-      {/if}
-      {#if !readonly && !opening && can('journals', 'create')}
-        {#if savingTpl}
-          <form class="flex flex-wrap items-center gap-2" onsubmit={saveTpl}>
-            <div class="w-64"><input bind:value={tplName} use:focusOnMount maxlength="80" placeholder={t('accounting.journals.tplName')} aria-label={t('accounting.journals.tplName')} class={inputClass} /></div>
-            <button type="submit" class="btn btn-sm btn-primary" disabled={busy || !tplName.trim()}>{t('accounting.journals.tplSave')}</button>
-            <button type="button" class="btn btn-sm" onclick={() => (savingTpl = false)}>{t('accounting.journals.close')}</button>
-          </form>
-        {:else}
-          <button type="button" class="btn btn-sm" disabled={!canSaveTpl} title={canSaveTpl ? '' : t('accounting.journals.tplNeedSides')} onclick={startSaveTpl}><i class="icon-bookmark-plus"></i> {t('accounting.journals.tplSave')}</button>
-        {/if}
       {/if}
       {#each Object.entries(fields) as [k, code] (k)}<p class="text-[12px] text-[var(--color-danger-600)]">{k}: {fieldMessage(code)}</p>{/each}
 
@@ -482,21 +561,48 @@
         </form>
       {/if}
 
-      <div class="flex flex-wrap justify-end gap-2">
-        <button type="button" class="btn" onclick={onclose} disabled={busy}>{t('accounting.journals.close')}</button>
-        {#if readonly}
-          {#if can('journals', 'approve') && !reversing && !journal?.reverses_id}
-            <button type="button" class="btn" onclick={() => (reversing = true)}><i class="icon-undo-2"></i> {t('accounting.journals.reverse')}</button>
-          {/if}
-        {:else if opening}
-          <button type="button" class="btn btn-primary" disabled={!valid || busy} onclick={saveOpening}>{busy ? t('accounting.journals.saving') : t('accounting.journals.saveOpening')}</button>
-        {:else}
-          <button type="button" class="btn" disabled={!rowsOk || busy} onclick={() => saveDraft(false)}>{busy ? t('accounting.journals.saving') : t('accounting.journals.saveDraft')}</button>
-          {#if can('journals', 'approve')}
-            <button type="button" class="btn btn-primary" disabled={!valid || diff !== 0n || busy} onclick={() => saveDraft(true)}>{t('accounting.journals.savePost')}</button>
-          {/if}
+      <div class="sticky bottom-0 z-10 surface-card !py-2.5 !px-4 flex flex-wrap items-center gap-x-4 gap-y-2 shadow-[0_-6px_16px_rgba(0,0,0,.08)]">
+        {#if !readonly}
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
+            <span class="tabular-nums text-[var(--text-secondary)]">{t('accounting.journals.debit')} <b class="text-[var(--text-primary)]">{fmtCents(totalD)}</b></span>
+            <span class="tabular-nums text-[var(--text-secondary)]">{t('accounting.journals.credit')} <b class="text-[var(--text-primary)]">{fmtCents(totalC)}</b></span>
+            {#if diff === 0n && totalD > 0n}
+              <span class="badge-soft badge-success"><i class="icon-check"></i> {t('accounting.journals.balanced')}</span>
+            {:else if diff !== 0n}
+              <span class="badge-soft badge-danger">{t('accounting.journals.unbalanced', { diff: fmtCents(diff) })}</span>
+            {/if}
+          </div>
         {/if}
+        <div class="ms-auto flex flex-wrap justify-end gap-2">
+          <button type="button" class="btn" onclick={closeIt} disabled={busy}>{t('accounting.journals.close')}</button>
+          {#if isAuto}
+            {#if can('journals', 'approve')}
+              <button type="button" class="btn btn-primary" disabled={busy} onclick={postAuto}><i class="icon-circle-check"></i> {t('accounting.journals.post')}</button>
+            {/if}
+          {:else if readonly}
+            {#if can('journals', 'approve') && !reversing && !journal?.reverses_id}
+              <button type="button" class="btn" onclick={() => (reversing = true)}><i class="icon-undo-2"></i> {t('accounting.journals.reverse')}</button>
+            {/if}
+          {:else if opening}
+            <button type="button" class="btn btn-primary" disabled={!valid || busy} onclick={saveOpening}>{busy ? t('accounting.journals.saving') : t('accounting.journals.saveOpening')}</button>
+          {:else}
+            <button type="button" class="btn" disabled={!rowsOk || busy} onclick={() => saveDraft(false)}>{busy ? t('accounting.journals.saving') : t('accounting.journals.saveDraft')}</button>
+            {#if can('journals', 'approve')}
+              <button type="button" class="btn btn-primary" disabled={!valid || diff !== 0n || busy} onclick={() => saveDraft(true)}>{t('accounting.journals.savePost')}</button>
+            {/if}
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
-</Modal>
+{/snippet}
+
+{#if tplDialog}
+  <JournalTemplateDialog mode={tplDialog} saved={usableSaved} builtin={builtinList} seed={tplSeed} {search} onpick={applySaved} onpickBuiltin={pickBuiltin} onremove={removeTpl} onsave={createTpl} onclose={() => (tplDialog = null)} />
+{/if}
+
+{#if page}
+  {@render content()}
+{:else}
+  <Modal {title} {onclose} xl>{@render content()}</Modal>
+{/if}

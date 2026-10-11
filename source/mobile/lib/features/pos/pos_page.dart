@@ -10,6 +10,7 @@ import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/text_scale_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../core/locale/locale_controller.dart';
@@ -30,6 +31,7 @@ import 'salesperson_picker.dart';
 import 'shortcuts_strip.dart';
 import 'scan_page.dart';
 import 'shift_close_page.dart';
+import 'petty_cash_page.dart';
 import 'shift_dialog.dart';
 
 const _wideBreakpoint = 840.0;
@@ -81,6 +83,16 @@ class _PosPageState extends ConsumerState<PosPage> {
     if (openNew == null || !mounted) return;
     ref.read(cartProvider.notifier).clear();
     if (openNew) await showOpenShiftDialog(context);
+  }
+
+  /// Kas kecil hanya bisa dicatat pada shift terbuka; tanpa shift, tawarkan membuka shift.
+  Future<void> _pettyCash() async {
+    final shift = ref.read(shiftProvider).asData?.value;
+    if (shift == null) {
+      await showOpenShiftDialog(context);
+      return;
+    }
+    await showPettyCashPage(context, shift.id);
   }
 
   // Memakai context halaman (bukan laci yang sudah ditutup).
@@ -232,6 +244,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                   onClose: () => Navigator.of(context).pop(),
                   onSalesToday: () => showSalesTodayPage(context),
                   onCloseShift: _closeShift,
+                  onPettyCash: _pettyCash,
                   onSwitchOutlet: _switchOutlet,
                 ),
               ),
@@ -249,7 +262,11 @@ class _PosPageState extends ConsumerState<PosPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        actions: [const LanguageButton(), const ThemeToggleButton()],
+        actions: [
+          const LanguageButton(),
+          const TextScaleButton(),
+          const ThemeToggleButton(),
+        ],
       ),
       body: wide
           ? Row(
@@ -275,6 +292,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                       onClose: () => setState(() => _panelOpen = false),
                       onSalesToday: () => showSalesTodayPage(context),
                       onCloseShift: _closeShift,
+                      onPettyCash: _pettyCash,
                       onSwitchOutlet: _switchOutlet,
                     ),
                   ),
@@ -307,12 +325,14 @@ class OutletPanel extends ConsumerWidget {
     required this.onClose,
     required this.onSalesToday,
     required this.onCloseShift,
+    required this.onPettyCash,
     required this.onSwitchOutlet,
   });
 
   final VoidCallback onClose;
   final VoidCallback onSalesToday;
   final VoidCallback onCloseShift;
+  final VoidCallback onPettyCash;
   final VoidCallback onSwitchOutlet;
 
   @override
@@ -395,41 +415,55 @@ class OutletPanel extends ConsumerWidget {
             e is ApiError ? e.message(l) : l.errorUnknown,
           ),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: () {
+        const SizedBox(height: 16),
+        _PanelAction(
+          icon: Icons.receipt_long,
+          label: l.posSalesTodayTooltip,
+          filled: true,
+          onTap: () {
             onClose();
             onSalesToday();
           },
-          icon: const Icon(Icons.receipt_long, size: 18),
-          label: Text(l.posSalesTodayTooltip),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () {
+        _PanelAction(
+          icon: Icons.payments_outlined,
+          label: l.pettyMenu,
+          filled: true,
+          onTap: () {
+            onClose();
+            onPettyCash();
+          },
+        ),
+        const SizedBox(height: 8),
+        _PanelAction(
+          icon: Icons.lock_clock,
+          label: l.posShiftCloseTooltip,
+          filled: true,
+          onTap: () {
             onClose();
             onCloseShift();
           },
-          icon: const Icon(Icons.lock_clock, size: 18),
-          label: Text(l.posShiftCloseTooltip),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () {
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Divider(height: 1),
+        ),
+        _PanelAction(
+          icon: Icons.swap_horiz,
+          label: l.outletSwitch,
+          onTap: () {
             onClose();
             onSwitchOutlet();
           },
-          icon: const Icon(Icons.swap_horiz, size: 18),
-          label: Text(l.outletSwitch),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () {
+        _PanelAction(
+          icon: Icons.arrow_back,
+          label: l.posBackHome,
+          onTap: () {
             onClose();
             context.go('/');
           },
-          icon: const Icon(Icons.arrow_back, size: 18),
-          label: Text(l.posBackHome),
         ),
       ],
     );
@@ -1194,35 +1228,10 @@ class _CartRow extends ConsumerWidget {
   final QuoteLine? quote;
 
   Future<void> _editQty(BuildContext context, WidgetRef ref) async {
-    final c = TextEditingController(text: formatQty(line.qty));
     final v = await showDialog<Decimal>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          line.item.name,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onSubmitted: (_) => Navigator.of(ctx).pop(parseInput(c.text)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-            onPressed: () => Navigator.of(ctx).pop(parseInput(c.text)),
-            child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
-          ),
-        ],
-      ),
+      builder: (_) => _QtyDialog(line: line),
     );
-    c.dispose();
     if (v != null) ref.read(cartProvider.notifier).setQty(line.item.id, v);
   }
 
@@ -1415,4 +1424,105 @@ class _Issue extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Dialog ubah qty; controller dimiliki dialog agar dibuang setelah animasi tutup selesai.
+class _QtyDialog extends StatefulWidget {
+  const _QtyDialog({required this.line});
+
+  final CartLine line;
+
+  @override
+  State<_QtyDialog> createState() => _QtyDialogState();
+}
+
+class _QtyDialogState extends State<_QtyDialog> {
+  late final TextEditingController _c = TextEditingController(
+    text: formatQty(widget.line.qty),
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(parseInput(_c.text));
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.line.item.name,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      content: TextField(
+        controller: _c,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: _submit,
+          child: Text(MaterialLocalizations.of(context).okButtonLabel),
+        ),
+      ],
+    );
+  }
+}
+
+/// Baris aksi di panel samping: rata kiri, tinggi seragam. [filled] untuk aksi utama (latar lembut).
+class _PanelAction extends StatelessWidget {
+  const _PanelAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return Material(
+      color: filled ? pal.primarySoft : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: filled ? pal.primary : null),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: filled ? FontWeight.w700 : FontWeight.w500,
+                      color: filled ? pal.primary : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

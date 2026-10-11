@@ -92,7 +92,9 @@ const pos: Messages['pos'] = {
       sale_return: 'Sales return refunds',
       payable_payment: 'Supplier payable payments',
       purchase_return: 'Purchase return refunds',
-      supplier_credit_cashout: 'Supplier credit cash-outs'
+      supplier_credit_cashout: 'Supplier credit cash-outs',
+      petty_cash_in: 'Petty cash in',
+      petty_cash_out: 'Petty cash out'
     },
     drawer: 'Expected per method',
     drawerHint: 'Sales plus the other money above. Payments from member deposits are excluded because they are not money in the drawer.',

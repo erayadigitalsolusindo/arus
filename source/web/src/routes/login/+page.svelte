@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { api, API_URL, ApiError, request, type AuthResponse } from '#lib/api/client.ts';
-  import { homePath, startSession } from '#lib/auth/session.svelte.ts';
+  import { homePath, safeNext, startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import TransactionFeed from '#lib/components/TransactionFeed.svelte';
@@ -79,7 +79,7 @@
       const res = await api<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
       startSession(res);
       password = '';
-      await goto(homePath());
+      await goto(safeNext(new URL(location.href).searchParams.get('next')) ?? homePath());
     } catch (err) {
       if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
         now = Date.now();

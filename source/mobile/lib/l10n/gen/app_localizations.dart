@@ -308,6 +308,48 @@ abstract class AppLocalizations {
   /// **'Gelap'**
   String get themeDark;
 
+  /// No description provided for @textSizeTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran teks'**
+  String get textSizeTooltip;
+
+  /// No description provided for @textSizeTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran teks'**
+  String get textSizeTitle;
+
+  /// No description provided for @textSizeSample.
+  ///
+  /// In id, this message translates to:
+  /// **'Contoh teks: Kopi susu Rp 18.000'**
+  String get textSizeSample;
+
+  /// No description provided for @textSizeDecrease.
+  ///
+  /// In id, this message translates to:
+  /// **'Perkecil'**
+  String get textSizeDecrease;
+
+  /// No description provided for @textSizeIncrease.
+  ///
+  /// In id, this message translates to:
+  /// **'Perbesar'**
+  String get textSizeIncrease;
+
+  /// No description provided for @textSizeReset.
+  ///
+  /// In id, this message translates to:
+  /// **'Atur ulang'**
+  String get textSizeReset;
+
+  /// No description provided for @textSizeDone.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesai'**
+  String get textSizeDone;
+
   /// No description provided for @themeTooltip.
   ///
   /// In id, this message translates to:
@@ -1795,6 +1837,162 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Ketuk untuk mulai berjualan'**
   String get homeStallHint;
+
+  /// No description provided for @pettyMenu.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas kecil'**
+  String get pettyMenu;
+
+  /// No description provided for @pettyTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas kecil kasir'**
+  String get pettyTitle;
+
+  /// No description provided for @pettyBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat uang yang keluar dari laci di luar penjualan (beli galon, parkir, dll.) atau uang yang ditambahkan ke laci. Ikut dihitung saat tutup shift.'**
+  String get pettyBody;
+
+  /// No description provided for @pettyOut.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas keluar'**
+  String get pettyOut;
+
+  /// No description provided for @pettyIn.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas masuk'**
+  String get pettyIn;
+
+  /// No description provided for @pettyAmount.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah'**
+  String get pettyAmount;
+
+  /// No description provided for @pettyCategory.
+  ///
+  /// In id, this message translates to:
+  /// **'Kategori'**
+  String get pettyCategory;
+
+  /// No description provided for @pettyNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Keterangan'**
+  String get pettyNote;
+
+  /// No description provided for @pettySave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan'**
+  String get pettySave;
+
+  /// No description provided for @pettySaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas kecil dicatat.'**
+  String get pettySaved;
+
+  /// No description provided for @pettyHistory.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan shift ini'**
+  String get pettyHistory;
+
+  /// No description provided for @pettyEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada kas kecil di shift ini.'**
+  String get pettyEmpty;
+
+  /// No description provided for @pettyVoid.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan'**
+  String get pettyVoid;
+
+  /// No description provided for @pettyVoided.
+  ///
+  /// In id, this message translates to:
+  /// **'Dibatalkan'**
+  String get pettyVoided;
+
+  /// No description provided for @pettyVoidConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan catatan ini? Uang laci yang seharusnya dihitung ulang.'**
+  String get pettyVoidConfirm;
+
+  /// No description provided for @pettyApprovedBy.
+  ///
+  /// In id, this message translates to:
+  /// **'Disetujui {name}'**
+  String pettyApprovedBy(String name);
+
+  /// No description provided for @pettyNeedApproval.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas keluar di atas {limit} butuh persetujuan Owner/Supervisor (PIN).'**
+  String pettyNeedApproval(String limit);
+
+  /// No description provided for @pettyCatOperational.
+  ///
+  /// In id, this message translates to:
+  /// **'Operasional'**
+  String get pettyCatOperational;
+
+  /// No description provided for @pettyCatMeal.
+  ///
+  /// In id, this message translates to:
+  /// **'Konsumsi'**
+  String get pettyCatMeal;
+
+  /// No description provided for @pettyCatTransport.
+  ///
+  /// In id, this message translates to:
+  /// **'Parkir/Transport'**
+  String get pettyCatTransport;
+
+  /// No description provided for @pettyCatSupplies.
+  ///
+  /// In id, this message translates to:
+  /// **'Perlengkapan'**
+  String get pettyCatSupplies;
+
+  /// No description provided for @pettyCatChange.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah receh'**
+  String get pettyCatChange;
+
+  /// No description provided for @pettyCatMisc.
+  ///
+  /// In id, this message translates to:
+  /// **'Lain-lain'**
+  String get pettyCatMisc;
+
+  /// No description provided for @errorPettyVoided.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan kas kecil ini sudah dibatalkan.'**
+  String get errorPettyVoided;
+
+  /// No description provided for @errorNoCashMethod.
+  ///
+  /// In id, this message translates to:
+  /// **'Metode pembayaran tunai belum tersedia.'**
+  String get errorNoCashMethod;
+
+  /// No description provided for @homePettyHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat uang keluar/masuk laci'**
+  String get homePettyHint;
 }
 
 class _AppLocalizationsDelegate

@@ -148,10 +148,15 @@ export function posOnly(): boolean {
 /** Halaman awal setelah masuk: layar kasir untuk akun "Hanya Kasir", selain itu dasbor. */
 export const homePath = () => (posOnly() ? '/kasir' : '/dashboard');
 
-/** Penjaga route publik (login/register): pengguna yang sudah masuk diarahkan ke halaman awalnya. */
-export async function guestOnly() {
+/** Tujuan setelah login dari parameter `?next=`: hanya path internal (tolak `//host` dan skema) agar bukan open redirect. */
+export function safeNext(raw: string | null | undefined): string | null {
+  return raw && raw.startsWith('/') && !raw.startsWith('//') && !raw.includes(String.fromCharCode(92)) ? raw : null;
+}
+
+/** Penjaga route publik (login/register): pengguna yang sudah masuk diarahkan ke `?next=` atau halaman awalnya. */
+export async function guestOnly(event?: { url: URL }) {
   await bootstrap();
-  if (session.status === 'authed') redirect(307, homePath());
+  if (session.status === 'authed') redirect(307, safeNext(event?.url.searchParams.get('next')) ?? homePath());
 }
 
 /** Penjaga halaman yang butuh izin lihat suatu modul: tanpa izin diarahkan ke dasbor. */

@@ -303,26 +303,30 @@
   {/if}
 
   {#if openingMode}
-    <div class="surface-card !py-3 flex flex-wrap items-end gap-x-6 gap-y-3 text-[12.5px]">
-      <div>
-        <span class="font-semibold">{t('accounting.accounts.openingDate')}</span>
-        <div class="mt-1 w-44"><DatePicker bind:value={openingDate} clearable={false} /></div>
-      </div>
-      <p class="flex-1 min-w-[16rem] text-[var(--text-secondary)]">{t('accounting.accounts.openingHint')}</p>
-      <dl class="flex items-center gap-5 tabular-nums">
-        <div><dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.totalDebit')}</dt><dd class="font-semibold">{formatCurrency(totals.d / 100)}</dd></div>
-        <div><dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.totalCredit')}</dt><dd class="font-semibold">{formatCurrency(totals.c / 100)}</dd></div>
-        <div>
-          <dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.diff')}</dt>
-          <dd class="font-semibold {totals.diff === 0 ? 'text-[var(--color-success-600)]' : 'text-[var(--color-warning-700)]'}">{formatCurrency(Math.abs(totals.diff) / 100)}</dd>
+    <div class="surface-card !p-4 space-y-3 text-[12.5px]">
+      <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div class="flex flex-wrap items-end gap-x-8 gap-y-3">
+          <div>
+            <span class="block text-[11px] font-semibold uppercase text-[var(--text-tertiary)] mb-1">{t('accounting.accounts.openingDate')}</span>
+            <div class="w-44"><DatePicker bind:value={openingDate} clearable={false} /></div>
+          </div>
+          <dl class="flex items-center gap-6 tabular-nums">
+            <div><dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.totalDebit')}</dt><dd class="font-semibold text-[14px]">{formatCurrency(totals.d / 100)}</dd></div>
+            <div><dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.totalCredit')}</dt><dd class="font-semibold text-[14px]">{formatCurrency(totals.c / 100)}</dd></div>
+            <div>
+              <dt class="text-[11px] uppercase text-[var(--text-tertiary)]">{t('accounting.accounts.diff')}</dt>
+              <dd class="font-semibold text-[14px] {totals.diff === 0 ? 'text-[var(--color-success-600)]' : 'text-[var(--color-warning-700)]'}">{formatCurrency(Math.abs(totals.diff) / 100)}</dd>
+            </div>
+          </dl>
         </div>
-      </dl>
-      <div class="flex gap-2">
-        <button type="button" class="btn" onclick={() => (openingMode = false)} disabled={savingOpening}>{t('accounting.accounts.cancel')}</button>
-        <button type="button" class="btn btn-primary" onclick={saveOpening} disabled={savingOpening || (totals.d === 0 && totals.c === 0)}><i class="icon-save"></i> {savingOpening ? t('accounting.accounts.saving') : t('accounting.accounts.openingSave')}</button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn" onclick={() => (openingMode = false)} disabled={savingOpening}>{t('accounting.accounts.cancel')}</button>
+          <button type="button" class="btn btn-primary" onclick={saveOpening} disabled={savingOpening || (totals.d === 0 && totals.c === 0)}><i class="icon-save"></i> {savingOpening ? t('accounting.accounts.saving') : t('accounting.accounts.openingSave')}</button>
+        </div>
       </div>
+      <p class="flex items-start gap-1.5 border-t border-[var(--border-default)] pt-3 text-[12px] leading-relaxed text-[var(--text-secondary)]"><i class="icon-info text-[13px] mt-0.5 shrink-0 text-[var(--text-tertiary)]"></i><span>{t('accounting.accounts.openingHint')}</span></p>
       {#if totals.diff !== 0}
-        <p class="basis-full text-[12px] text-[var(--color-warning-700)]">{equityPlug ? t('accounting.accounts.openingPlugHint', { acc: `${equityPlug.code} ${equityPlug.name}` }) : t('accounting.accounts.openingUnbalanced')}</p>
+        <p class="text-[12px] text-[var(--color-warning-700)]">{equityPlug ? t('accounting.accounts.openingPlugHint', { acc: `${equityPlug.code} ${equityPlug.name}` }) : t('accounting.accounts.openingUnbalanced')}</p>
       {/if}
     </div>
   {/if}

@@ -1,7 +1,7 @@
 // Tab halaman gaya browser. Hanya path yang disimpan (judul dihitung saat render agar ikut bahasa aktif);
 // isi halaman dimuat ulang saat tab dibuka. Disimpan di sessionStorage per pengguna.
-import { nav } from '#lib/nav.ts';
-import { drafts } from '#lib/tabs/drafts.ts';
+import { nav, siakNav } from '#lib/nav.ts';
+import { drafts, isPersistentPath } from '#lib/tabs/drafts.ts';
 import type { MessageKey } from '#lib/i18n/index.ts';
 
 export const HOME = '/dashboard';
@@ -9,7 +9,7 @@ export const HOME = '/dashboard';
 export type TabMeta = { titleKey: MessageKey; module?: string };
 
 const menu = new Map<string, TabMeta>();
-for (const g of nav) {
+for (const g of [...nav, ...siakNav]) {
   for (const i of g.items) {
     if (i.href) menu.set(i.href, { titleKey: i.labelKey, module: i.module });
     for (const c of i.children ?? []) if (c.href) menu.set(c.href, { titleKey: c.labelKey, module: c.module });
@@ -23,6 +23,7 @@ export function tabMeta(path: string): TabMeta | null {
   if (path === '/items/new') return { titleKey: 'items.newTitle', module: 'items' };
   if (/^\/items\/[^/]+$/.test(path)) return { titleKey: 'items.editTitle', module: 'items' };
   if (path === '/members/new') return { titleKey: 'members.newTitle', module: 'members' };
+  if (path === '/accounting/journals/new') return { titleKey: 'accounting.journals.titleNew', module: 'journals' };
   if (/^\/members\/[^/]+$/.test(path)) return { titleKey: 'members.editTitle', module: 'members' };
   return null;
 }
@@ -36,9 +37,13 @@ class Tabs {
     if (this.#key === owner) return;
     this.#key = owner;
     try {
-      const raw = JSON.parse(sessionStorage.getItem(owner) ?? '[]');
-      const saved = Array.isArray(raw) ? raw.filter((p) => typeof p === 'string' && tabMeta(p)) : [];
-      this.paths = [HOME, ...saved.filter((p) => p !== HOME)];
+      const read = (s: Storage): string[] => {
+        const raw = JSON.parse(s.getItem(owner) ?? '[]');
+        return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string' && !!tabMeta(p)) : [];
+      };
+      // Tab form tertentu juga disimpan di localStorage agar muncul lagi setelah browser ditutup.
+      const saved = [...read(sessionStorage), ...read(localStorage).filter(isPersistentPath)];
+      this.paths = [HOME, ...new Set(saved.filter((p) => p !== HOME))];
     } catch {
       this.paths = [HOME];
     }
@@ -78,7 +83,9 @@ class Tabs {
   #save() {
     if (!this.#key) return;
     try {
-      sessionStorage.setItem(this.#key, JSON.stringify(this.paths.slice(1)));
+      const list = this.paths.slice(1);
+      sessionStorage.setItem(this.#key, JSON.stringify(list));
+      localStorage.setItem(this.#key, JSON.stringify(list.filter(isPersistentPath)));
     } catch {
       /* penyimpanan tak tersedia: tab tetap jalan di memori */
     }

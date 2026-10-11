@@ -245,6 +245,34 @@ class PosRepository {
     return ShiftRecap.fromJson(r.data!);
   });
 
+  /// Catat kas kecil pada shift terbuka. [idempotencyKey] sama = tidak tercatat dua kali.
+  Future<void> addPettyCash({
+    required bool out,
+    required String amount,
+    required String category,
+    required String note,
+    required String idempotencyKey,
+    String? approverId,
+    String? pin,
+  }) => _guard(() async {
+    await _dio.post<Map<String, dynamic>>(
+      '/shifts/petty-cash',
+      data: {
+        'direction': out ? 'out' : 'in',
+        'amount': amount,
+        'category': category,
+        'note': note,
+        if (approverId != null && pin != null)
+          'approval': {'user_id': approverId, 'pin': pin},
+      },
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+  });
+
+  Future<void> voidPettyCash(String id) => _guard(() async {
+    await _dio.post<Map<String, dynamic>>('/shifts/petty-cash/$id/void');
+  });
+
   /// Tanpa [purpose] = penyetuju ubah harga/potongan di outlet aktif.
   Future<List<Approver>> approvers([String? purpose]) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
