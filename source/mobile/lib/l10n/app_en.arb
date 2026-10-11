@@ -646,5 +646,24 @@
   "pettyCatMisc": "Other",
   "errorPettyVoided": "This petty cash entry is already voided.",
   "errorNoCashMethod": "The cash payment method is not available.",
-  "homePettyHint": "Record cash in/out of the drawer"
+  "homePettyHint": "Record cash in/out of the drawer",
+  "updateTitle": "Update available",
+  "updateVersions": "Installed {current} → new version {latest}",
+  "@updateVersions": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "updateBody": "Update ARUS to the latest version to continue.",
+  "updateNow": "Update now",
+  "updateRetry": "Try again",
+  "updateDownloading": "Downloading update…",
+  "updateInstalling": "Opening installer…",
+  "updatePermission": "Allow ARUS to install apps on the screen that just opened, then come back and tap Update now.",
+  "updateFailed": "The update could not be downloaded. Check your connection and try again."
 }

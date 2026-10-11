@@ -1104,4 +1104,35 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get homePettyHint => 'Catat uang keluar/masuk laci';
+
+  @override
+  String get updateTitle => 'Pembaruan tersedia';
+
+  @override
+  String updateVersions(String current, String latest) {
+    return 'Versi terpasang $current → versi baru $latest';
+  }
+
+  @override
+  String get updateBody => 'Perbarui ARUS ke versi terbaru untuk melanjutkan.';
+
+  @override
+  String get updateNow => 'Perbarui sekarang';
+
+  @override
+  String get updateRetry => 'Coba lagi';
+
+  @override
+  String get updateDownloading => 'Mengunduh pembaruan…';
+
+  @override
+  String get updateInstalling => 'Membuka pemasang…';
+
+  @override
+  String get updatePermission =>
+      'Izinkan ARUS memasang aplikasi pada layar yang terbuka, lalu kembali ke sini dan ketuk Perbarui sekarang.';
+
+  @override
+  String get updateFailed =>
+      'Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi.';
 }
