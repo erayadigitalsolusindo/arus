@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/update/app_update.dart';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,8 @@ import '../../core/theme/theme_controller.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../core/locale/locale_controller.dart';
 import '../../core/outlet/outlet_switcher.dart';
+import '../../core/printing/printer_service.dart';
+import '../../core/printing/printer_sheet.dart';
 import 'empty_cart.dart';
 import 'costs_sheet.dart';
 import 'item_thumb.dart';
@@ -109,7 +113,23 @@ class _PosPageState extends ConsumerState<PosPage> {
   Future<void> _pay() async {
     final result = await showPaySheet(context);
     if (result == null || !mounted) return;
+    unawaited(_autoPrint(result));
     await _showSuccess(result);
+  }
+
+  /// Cetak otomatis setelah bayar bila diaktifkan dan printer sudah dipilih. Gagal cetak tidak membatalkan nota:
+  /// kasir diberi tahu dan bisa mencetak ulang dari dialog sukses.
+  Future<void> _autoPrint(SaleResult r) async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final printer = ref.read(receiptPrinterProvider);
+    final s = await ref.read(printerSettingsProvider.future);
+    if (!s.auto || !s.hasPrinter) return;
+    try {
+      await printer.printSale(r.id, l);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(printErrorMessage(l, e))));
+    }
   }
 
   Future<void> _showSuccess(SaleResult r) {
@@ -168,7 +188,10 @@ class _PosPageState extends ConsumerState<PosPage> {
             ],
           ],
         ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsOverflowDirection: VerticalDirection.down,
         actions: [
+          PrintReceiptButton(saleId: r.id),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(l.payNewSale),
@@ -243,6 +266,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                 child: OutletPanel(
                   onClose: () => Navigator.of(context).pop(),
                   onSalesToday: () => showSalesTodayPage(context),
+                  onPrinter: () => showPrinterSheet(context),
                   onCloseShift: _closeShift,
                   onPettyCash: _pettyCash,
                   onSwitchOutlet: _switchOutlet,
@@ -291,6 +315,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                     child: OutletPanel(
                       onClose: () => setState(() => _panelOpen = false),
                       onSalesToday: () => showSalesTodayPage(context),
+                  onPrinter: () => showPrinterSheet(context),
                       onCloseShift: _closeShift,
                       onPettyCash: _pettyCash,
                       onSwitchOutlet: _switchOutlet,
@@ -324,6 +349,7 @@ class OutletPanel extends ConsumerWidget {
     super.key,
     required this.onClose,
     required this.onSalesToday,
+    required this.onPrinter,
     required this.onCloseShift,
     required this.onPettyCash,
     required this.onSwitchOutlet,
@@ -331,6 +357,7 @@ class OutletPanel extends ConsumerWidget {
 
   final VoidCallback onClose;
   final VoidCallback onSalesToday;
+  final VoidCallback onPrinter;
   final VoidCallback onCloseShift;
   final VoidCallback onPettyCash;
   final VoidCallback onSwitchOutlet;
@@ -402,6 +429,7 @@ class OutletPanel extends ConsumerWidget {
         const SizedBox(height: 8),
         kv(l.posPanelBusiness, p.tenant.name),
         kv(l.posPanelCashier, p.user.name),
+        kv(l.posPanelVersion, ref.watch(appVersionProvider).value ?? '-'),
         shift.when(
           data: (s) => kv(
             l.posPanelShift,
@@ -423,6 +451,16 @@ class OutletPanel extends ConsumerWidget {
           onTap: () {
             onClose();
             onSalesToday();
+          },
+        ),
+        const SizedBox(height: 8),
+        _PanelAction(
+          icon: Icons.print_outlined,
+          label: l.printerMenu,
+          filled: true,
+          onTap: () {
+            onClose();
+            onPrinter();
           },
         ),
         const SizedBox(height: 8),

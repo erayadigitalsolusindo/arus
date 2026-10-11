@@ -9,6 +9,7 @@ import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../core/printing/printer_sheet.dart';
 import 'pos_repository.dart';
 import 'sales_models.dart';
 
@@ -295,7 +296,7 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
                   child: LinearProgressIndicator(minHeight: 2),
                 );
               }
-              return _DetailBody(d: snap.data!);
+              return _DetailBody(d: snap.data!, saleId: r.id);
             },
           ),
       ],
@@ -304,9 +305,10 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.d});
+  const _DetailBody({required this.d, required this.saleId});
 
   final SaleDetailInfo d;
+  final String saleId;
 
   @override
   Widget build(BuildContext context) {
@@ -387,6 +389,8 @@ class _DetailBody extends StatelessWidget {
         for (final p in d.payments) kv(p.name, p.amount),
         if (d.change > Decimal.zero) kv(l.saleChange, d.change),
         if (d.receivable > Decimal.zero) kv(l.saleReceivable, d.receivable),
+        const SizedBox(height: 10),
+        Center(child: PrintReceiptButton(saleId: saleId, reprint: true)),
       ],
     );
   }
