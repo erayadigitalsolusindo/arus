@@ -456,11 +456,15 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                child: FilledButton(
-                  onPressed: _busy || !enough ? null : _submit,
-                  child: Text(_busy ? l.payProcessing : l.paySubmit),
+              // useSafeArea tidak mencakup sisi bawah: tanpa SafeArea tombol tertutup bar navigasi Android.
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                  child: FilledButton(
+                    onPressed: _busy || !enough ? null : _submit,
+                    child: Text(_busy ? l.payProcessing : l.paySubmit),
+                  ),
                 ),
               ),
             ],
