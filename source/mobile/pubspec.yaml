@@ -1,5 +1,5 @@
 name: arus_mobile
-description: "ARUS Mobile - aplikasi kasir dan operasional toko (Android)"
+description: "ARUS Mobile - Aplikasi ERP Masa Kini"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
