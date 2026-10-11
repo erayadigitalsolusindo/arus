@@ -330,7 +330,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverHelp =>
-      'ARUS API address. On a physical phone use your computer\'s IP on the same network, e.g. http://192.168.1.10:8080. Leave empty to use the default.';
+      'Choose the ARUS server. To test on a physical phone, type your computer\'s IP on the same network, e.g. http://192.168.1.10:8080.';
 
   @override
   String get serverLabel => 'Server address';
@@ -1132,4 +1132,178 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updateFailed =>
       'The update could not be downloaded. Check your connection and try again.';
+
+  @override
+  String appVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get serverPresetProd => 'Production';
+
+  @override
+  String get serverPresetEmulator => 'Emulator';
+
+  @override
+  String get serverPresetCustom => 'Or type another address:';
+
+  @override
+  String get posPanelVersion => 'App version';
+
+  @override
+  String get printerMenu => 'Receipt printer';
+
+  @override
+  String get printerTitle => 'Receipt printer (Bluetooth)';
+
+  @override
+  String get printerHint =>
+      'Pair the printer first in Android Settings > Bluetooth, then pick it here. These settings apply to this phone only.';
+
+  @override
+  String get printerRefresh => 'Reload list';
+
+  @override
+  String get printerNonePaired =>
+      'No paired Bluetooth devices yet. Pair the printer in Android Settings, then reload.';
+
+  @override
+  String get printerPaper => 'Paper width';
+
+  @override
+  String get printerPaper58 => '58 mm';
+
+  @override
+  String get printerPaper80 => '80 mm';
+
+  @override
+  String get printerCut => 'Cut paper automatically';
+
+  @override
+  String get printerAuto => 'Print receipt automatically after payment';
+
+  @override
+  String get printerTest => 'Test printer';
+
+  @override
+  String get printerTestSent => 'Test page sent.';
+
+  @override
+  String get printerNotConfigured =>
+      'No printer selected. Pick a Bluetooth printer first.';
+
+  @override
+  String get printerPermissionDenied =>
+      'Bluetooth permission denied. Allow ARUS to use Bluetooth in the app settings.';
+
+  @override
+  String get printerBluetoothOff =>
+      'Bluetooth is off. Turn it on and try again.';
+
+  @override
+  String get printerConnectFailed =>
+      'Could not connect to the printer. Make sure it is on and near the phone.';
+
+  @override
+  String get printerWriteFailed =>
+      'Sending data to the printer failed. Check the printer and try again.';
+
+  @override
+  String get printReceipt => 'Print receipt';
+
+  @override
+  String get printReprint => 'Reprint';
+
+  @override
+  String get printPrinting => 'Printing…';
+
+  @override
+  String printFailed(String error) {
+    return 'Receipt failed to print: $error';
+  }
+
+  @override
+  String get receiptNo => 'No';
+
+  @override
+  String get receiptDate => 'Date';
+
+  @override
+  String get receiptCashier => 'Cashier';
+
+  @override
+  String get receiptMember => 'Member';
+
+  @override
+  String get receiptSalesperson => 'Sales';
+
+  @override
+  String receiptCopy(int n) {
+    return '*** COPY #$n ***';
+  }
+
+  @override
+  String get receiptVoid => '*** VOIDED ***';
+
+  @override
+  String get receiptSuperseded => '*** REPLACED BY REVISION ***';
+
+  @override
+  String get receiptLineDiscount => 'Discount';
+
+  @override
+  String get receiptSubtotal => 'Subtotal';
+
+  @override
+  String get receiptDiscount => 'Discount';
+
+  @override
+  String receiptVoucher(String code) {
+    return 'Coupon $code';
+  }
+
+  @override
+  String receiptRedeem(int points) {
+    return 'Redeem $points pts';
+  }
+
+  @override
+  String receiptTaxStore(String pct) {
+    return 'Store tax $pct%';
+  }
+
+  @override
+  String receiptTaxGov(String pct) {
+    return 'Tax $pct%';
+  }
+
+  @override
+  String get receiptOtherCost => 'Other cost';
+
+  @override
+  String get receiptTotal => 'TOTAL';
+
+  @override
+  String get receiptSurcharge => 'Payment fee';
+
+  @override
+  String get receiptCharged => 'Amount charged';
+
+  @override
+  String get receiptReceivable => 'Credit';
+
+  @override
+  String get receiptDue => 'Due date';
+
+  @override
+  String get receiptChange => 'Change';
+
+  @override
+  String get receiptSaved => 'You saved';
+
+  @override
+  String get receiptPointsEarned => 'Points earned';
+
+  @override
+  String get receiptTestTitle => 'Printer test page';
 }

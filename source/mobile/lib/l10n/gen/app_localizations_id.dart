@@ -332,7 +332,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get serverHelp =>
-      'Alamat API ARUS. Di HP fisik gunakan IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080. Kosongkan untuk kembali ke bawaan.';
+      'Pilih server ARUS. Untuk uji coba di HP fisik, ketik IP komputer di jaringan yang sama, mis. http://192.168.1.10:8080.';
 
   @override
   String get serverLabel => 'Alamat server';
@@ -1135,4 +1135,178 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get updateFailed =>
       'Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi.';
+
+  @override
+  String appVersion(String version) {
+    return 'Versi $version';
+  }
+
+  @override
+  String get serverPresetProd => 'Produksi';
+
+  @override
+  String get serverPresetEmulator => 'Emulator';
+
+  @override
+  String get serverPresetCustom => 'Atau ketik alamat lain:';
+
+  @override
+  String get posPanelVersion => 'Versi aplikasi';
+
+  @override
+  String get printerMenu => 'Printer struk';
+
+  @override
+  String get printerTitle => 'Printer struk (Bluetooth)';
+
+  @override
+  String get printerHint =>
+      'Pasangkan printer lebih dulu di Pengaturan Android > Bluetooth, lalu pilih di sini. Pengaturan ini berlaku untuk HP ini saja.';
+
+  @override
+  String get printerRefresh => 'Muat ulang daftar';
+
+  @override
+  String get printerNonePaired =>
+      'Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Android, lalu muat ulang.';
+
+  @override
+  String get printerPaper => 'Lebar kertas';
+
+  @override
+  String get printerPaper58 => '58 mm';
+
+  @override
+  String get printerPaper80 => '80 mm';
+
+  @override
+  String get printerCut => 'Potong kertas otomatis';
+
+  @override
+  String get printerAuto => 'Cetak struk otomatis setelah bayar';
+
+  @override
+  String get printerTest => 'Tes printer';
+
+  @override
+  String get printerTestSent => 'Halaman uji terkirim.';
+
+  @override
+  String get printerNotConfigured =>
+      'Printer belum dipilih. Pilih printer Bluetooth dulu.';
+
+  @override
+  String get printerPermissionDenied =>
+      'Izin Bluetooth ditolak. Izinkan ARUS memakai Bluetooth di pengaturan aplikasi.';
+
+  @override
+  String get printerBluetoothOff =>
+      'Bluetooth mati. Nyalakan Bluetooth lalu coba lagi.';
+
+  @override
+  String get printerConnectFailed =>
+      'Tidak dapat terhubung ke printer. Pastikan printer menyala dan berada di dekat HP.';
+
+  @override
+  String get printerWriteFailed =>
+      'Data gagal dikirim ke printer. Periksa printer lalu coba lagi.';
+
+  @override
+  String get printReceipt => 'Cetak struk';
+
+  @override
+  String get printReprint => 'Cetak ulang';
+
+  @override
+  String get printPrinting => 'Mencetak…';
+
+  @override
+  String printFailed(String error) {
+    return 'Struk gagal dicetak: $error';
+  }
+
+  @override
+  String get receiptNo => 'No';
+
+  @override
+  String get receiptDate => 'Tgl';
+
+  @override
+  String get receiptCashier => 'Kasir';
+
+  @override
+  String get receiptMember => 'Member';
+
+  @override
+  String get receiptSalesperson => 'Sales';
+
+  @override
+  String receiptCopy(int n) {
+    return '*** SALINAN KE-$n ***';
+  }
+
+  @override
+  String get receiptVoid => '*** NOTA DIBATALKAN ***';
+
+  @override
+  String get receiptSuperseded => '*** DIGANTI REVISI ***';
+
+  @override
+  String get receiptLineDiscount => 'Potongan';
+
+  @override
+  String get receiptSubtotal => 'Subtotal';
+
+  @override
+  String get receiptDiscount => 'Diskon';
+
+  @override
+  String receiptVoucher(String code) {
+    return 'Kupon $code';
+  }
+
+  @override
+  String receiptRedeem(int points) {
+    return 'Tukar $points poin';
+  }
+
+  @override
+  String receiptTaxStore(String pct) {
+    return 'Pajak toko $pct%';
+  }
+
+  @override
+  String receiptTaxGov(String pct) {
+    return 'Pajak $pct%';
+  }
+
+  @override
+  String get receiptOtherCost => 'Biaya lain';
+
+  @override
+  String get receiptTotal => 'TOTAL';
+
+  @override
+  String get receiptSurcharge => 'Biaya metode';
+
+  @override
+  String get receiptCharged => 'Total ditagih';
+
+  @override
+  String get receiptReceivable => 'Piutang';
+
+  @override
+  String get receiptDue => 'Jatuh tempo';
+
+  @override
+  String get receiptChange => 'Kembali';
+
+  @override
+  String get receiptSaved => 'Anda hemat';
+
+  @override
+  String get receiptPointsEarned => 'Poin didapat';
+
+  @override
+  String get receiptTestTitle => 'Halaman uji printer';
 }

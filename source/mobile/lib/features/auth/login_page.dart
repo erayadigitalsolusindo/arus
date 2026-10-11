@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import '../../core/config/app_config.dart';
+import '../../core/update/app_version_label.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -351,6 +354,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                               ),
                             ),
+                            AppVersionLabel(
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: pal.textTertiary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -475,9 +484,32 @@ class _ServerDialogState extends ConsumerState<_ServerDialog> {
         children: [
           Text(l.serverHelp),
           const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text(l.serverPresetProd),
+                selected: _c.text.trim() == AppConfig.productionUrl,
+                onSelected: (_) => setState(() {
+                  _c.text = AppConfig.productionUrl;
+                  _err = null;
+                }),
+              ),
+              ChoiceChip(
+                label: Text(l.serverPresetEmulator),
+                selected: _c.text.trim() == AppConfig.emulatorUrl,
+                onSelected: (_) => setState(() {
+                  _c.text = AppConfig.emulatorUrl;
+                  _err = null;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(l.serverPresetCustom),
           TextField(
             controller: _c,
-            autofocus: true,
+            onChanged: (_) => setState(() => _err = null),
             keyboardType: TextInputType.url,
             autocorrect: false,
             decoration: InputDecoration(

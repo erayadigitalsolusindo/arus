@@ -97,7 +97,7 @@
   "errorMethodInactive": "The payment method is inactive.",
   "errorEditWindow": "Outside the edit window.",
   "serverTitle": "Server address",
-  "serverHelp": "ARUS API address. On a physical phone use your computer's IP on the same network, e.g. http://192.168.1.10:8080. Leave empty to use the default.",
+  "serverHelp": "Choose the ARUS server. To test on a physical phone, type your computer's IP on the same network, e.g. http://192.168.1.10:8080.",
   "serverLabel": "Server address",
   "serverInvalid": "Must start with http:// or https:// and include a host.",
   "save": "Save",
@@ -665,5 +665,105 @@
   "updateDownloading": "Downloading update…",
   "updateInstalling": "Opening installer…",
   "updatePermission": "Allow ARUS to install apps on the screen that just opened, then come back and tap Update now.",
-  "updateFailed": "The update could not be downloaded. Check your connection and try again."
+  "updateFailed": "The update could not be downloaded. Check your connection and try again.",
+  "appVersion": "Version {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverPresetProd": "Production",
+  "serverPresetEmulator": "Emulator",
+  "serverPresetCustom": "Or type another address:",
+  "posPanelVersion": "App version",
+  "printerMenu": "Receipt printer",
+  "printerTitle": "Receipt printer (Bluetooth)",
+  "printerHint": "Pair the printer first in Android Settings > Bluetooth, then pick it here. These settings apply to this phone only.",
+  "printerRefresh": "Reload list",
+  "printerNonePaired": "No paired Bluetooth devices yet. Pair the printer in Android Settings, then reload.",
+  "printerPaper": "Paper width",
+  "printerPaper58": "58 mm",
+  "printerPaper80": "80 mm",
+  "printerCut": "Cut paper automatically",
+  "printerAuto": "Print receipt automatically after payment",
+  "printerTest": "Test printer",
+  "printerTestSent": "Test page sent.",
+  "printerNotConfigured": "No printer selected. Pick a Bluetooth printer first.",
+  "printerPermissionDenied": "Bluetooth permission denied. Allow ARUS to use Bluetooth in the app settings.",
+  "printerBluetoothOff": "Bluetooth is off. Turn it on and try again.",
+  "printerConnectFailed": "Could not connect to the printer. Make sure it is on and near the phone.",
+  "printerWriteFailed": "Sending data to the printer failed. Check the printer and try again.",
+  "printReceipt": "Print receipt",
+  "printReprint": "Reprint",
+  "printPrinting": "Printing…",
+  "printFailed": "Receipt failed to print: {error}",
+  "@printFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptNo": "No",
+  "receiptDate": "Date",
+  "receiptCashier": "Cashier",
+  "receiptMember": "Member",
+  "receiptSalesperson": "Sales",
+  "receiptCopy": "*** COPY #{n} ***",
+  "@receiptCopy": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptVoid": "*** VOIDED ***",
+  "receiptSuperseded": "*** REPLACED BY REVISION ***",
+  "receiptLineDiscount": "Discount",
+  "receiptSubtotal": "Subtotal",
+  "receiptDiscount": "Discount",
+  "receiptVoucher": "Coupon {code}",
+  "@receiptVoucher": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptRedeem": "Redeem {points} pts",
+  "@receiptRedeem": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptTaxStore": "Store tax {pct}%",
+  "@receiptTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptTaxGov": "Tax {pct}%",
+  "@receiptTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptOtherCost": "Other cost",
+  "receiptTotal": "TOTAL",
+  "receiptSurcharge": "Payment fee",
+  "receiptCharged": "Amount charged",
+  "receiptReceivable": "Credit",
+  "receiptDue": "Due date",
+  "receiptChange": "Change",
+  "receiptSaved": "You saved",
+  "receiptPointsEarned": "Points earned",
+  "receiptTestTitle": "Printer test page"
 }

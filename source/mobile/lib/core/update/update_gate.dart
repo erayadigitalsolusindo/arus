@@ -97,7 +97,10 @@ class _UpdateScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      l.updateVersions(state.current, state.info?.version ?? ''),
+                      l.updateVersions(
+                        state.current,
+                        state.info?.version ?? '',
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
