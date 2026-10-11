@@ -2,7 +2,7 @@
 
 Unggah APK ARUS Kasir dari PC Windows ke server lewat SFTP (SSH), melewati Cloudflare/Apache/API.
 
-- Pakai: seret berkas `.apk` ke `apk-uploader.exe` (atau jalankan lalu ketik path-nya). Default: `root@200.200.200.2:22`.
+- Pakai: seret berkas `.apk` ke `apk-uploader.exe` (atau jalankan lalu ketik path-nya). Alamat, port, username, dan folder ditanyakan (Enter = pakai pilihan terakhir, disimpan di `apk-uploader.json`, tanpa password).
 - Opsi: `-host -port -user -dir -owner -version` (lihat `apk-uploader.exe -h`).
 - Berkas ditaruh di `<UPLOAD_DIR>/mobile/arus-kasir.apk` + `arus-kasir-info.json` (format sama dengan `platformadmin/apk.go`).
   Ubah `-dir` bila `UPLOAD_DIR` server bukan `/www/wwwroot/arus/data/uploads`.

@@ -36,16 +36,17 @@ const (
 var versionRe = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z._+-]{0,31}$`)
 
 func main() {
-	host := flag.String("host", "200.200.200.2", "alamat server")
-	port := flag.Int("port", 22, "port SSH")
-	user := flag.String("user", "root", "pengguna SSH")
-	dir := flag.String("dir", "/www/wwwroot/arus/data/uploads/mobile", "folder tujuan di server (UPLOAD_DIR + /mobile)")
+	host := flag.String("host", "", "alamat server/domain (kosong = ditanya)")
+	port := flag.Int("port", 0, "port SSH (0 = ditanya)")
+	user := flag.String("user", "", "pengguna SSH (kosong = ditanya)")
+	dir := flag.String("dir", "", "folder tujuan di server (kosong = ditanya; UPLOAD_DIR + /mobile)")
 	owner := flag.String("owner", "www:www", "pemilik berkas di server (pengguna service API); kosong = jangan diubah")
 	version := flag.String("version", "", "versi aplikasi, mis. 1.0.3 (kosong = ditanya)")
 	flag.Parse()
 
 	in := bufio.NewReader(os.Stdin)
-	err := run(in, *host, *port, *user, *dir, *owner, *version, flag.Arg(0))
+	t := target{Host: *host, Port: *port, User: *user, Dir: *dir}
+	err := run(in, t, *owner, *version, flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "\nGAGAL:", err)
 	}
@@ -56,7 +57,68 @@ func main() {
 	}
 }
 
-func run(in *bufio.Reader, host string, port int, user, dir, owner, version, file string) error {
+// target = tujuan SSH; nilai terakhir yang dipakai diingat di apk-uploader.json (tanpa password).
+type target struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+	User string `json:"user"`
+	Dir  string `json:"dir"`
+}
+
+func cfgPath() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "apk-uploader.json")
+}
+
+// resolve melengkapi tujuan: isian flag > pilihan terakhir > bawaan; yang belum diberi flag ditanyakan.
+func (t target) resolve(in *bufio.Reader) target {
+	last := target{Host: "200.200.200.2", Port: 22, User: "root", Dir: "/www/wwwroot/arus/data/uploads/mobile"}
+	if b, err := os.ReadFile(cfgPath()); err == nil {
+		var l target
+		if json.Unmarshal(b, &l) == nil {
+			if l.Host != "" {
+				last.Host = l.Host
+			}
+			if l.Port > 0 {
+				last.Port = l.Port
+			}
+			if l.User != "" {
+				last.User = l.User
+			}
+			if l.Dir != "" {
+				last.Dir = l.Dir
+			}
+		}
+	}
+	pick := func(cur, def, q string) string {
+		if cur != "" {
+			return cur
+		}
+		if v := ask(in, fmt.Sprintf("%s [%s]: ", q, def)); v != "" {
+			return v
+		}
+		return def
+	}
+	t.Host = pick(t.Host, last.Host, "Alamat server (IP/domain)")
+	if t.Port == 0 {
+		p := pick("", fmt.Sprint(last.Port), "Port SSH")
+		fmt.Sscan(p, &t.Port)
+		if t.Port <= 0 || t.Port > 65535 {
+			t.Port = 22
+		}
+	}
+	t.User = pick(t.User, last.User, "Username SSH")
+	t.Dir = pick(t.Dir, last.Dir, "Folder tujuan di server")
+	return t
+}
+
+func (t target) save() {
+	if b, err := json.MarshalIndent(t, "", "  "); err == nil {
+		os.WriteFile(cfgPath(), b, 0o600)
+	}
+}
+
+func run(in *bufio.Reader, tg target, owner, version, file string) error {
 	if file == "" {
 		file = ask(in, "Path berkas APK (atau seret berkas ke jendela ini): ")
 	}
@@ -71,7 +133,9 @@ func run(in *bufio.Reader, host string, port int, user, dir, owner, version, fil
 	if version != "" && !versionRe.MatchString(version) {
 		return errors.New("versi hanya huruf, angka, titik, minus, plus (maks 32 karakter)")
 	}
-	fmt.Printf("APK   : %s (%.1f MB)\nServer: %s@%s:%d\nTujuan: %s/%s\n\n", file, float64(size)/1e6, user, host, port, dir, apkName)
+	tg = tg.resolve(in)
+	host, port, user, dir := tg.Host, tg.Port, tg.User, tg.Dir
+	fmt.Printf("\nAPK   : %s (%.1f MB)\nServer: %s@%s:%d\nTujuan: %s/%s\n\n", file, float64(size)/1e6, user, host, port, dir, apkName)
 
 	fmt.Printf("Password SSH untuk %s: ", user)
 	pw, err := term.ReadPassword(int(syscall.Stdin))
@@ -91,6 +155,7 @@ func run(in *bufio.Reader, host string, port int, user, dir, owner, version, fil
 		return fmt.Errorf("tidak bisa masuk ke server: %w", err)
 	}
 	defer conn.Close()
+	tg.save()
 	cl, err := sftp.NewClient(conn)
 	if err != nil {
 		return fmt.Errorf("SFTP: %w", err)
