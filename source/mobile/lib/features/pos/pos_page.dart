@@ -188,13 +188,20 @@ class _PosPageState extends ConsumerState<PosPage> {
             ],
           ],
         ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsOverflowDirection: VerticalDirection.down,
+        actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
         actions: [
-          PrintReceiptButton(saleId: r.id),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.payNewSale),
+          // Tombol bertumpuk, selebar dialog, dengan jarak di antaranya.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PrintReceiptButton(saleId: r.id),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l.payNewSale),
+              ),
+            ],
           ),
         ],
       ),
@@ -495,14 +502,25 @@ class OutletPanel extends ConsumerWidget {
             onSwitchOutlet();
           },
         ),
-        _PanelAction(
-          icon: Icons.arrow_back,
-          label: l.posBackHome,
-          onTap: () {
-            onClose();
-            context.go('/');
-          },
-        ),
+        // Akun "Hanya Kasir" terkunci di layar kasir (router memantulkan '/'), jadi satu-satunya jalan keluar = logout.
+        if (p.permissions.posOnly)
+          _PanelAction(
+            icon: Icons.logout,
+            label: l.logout,
+            onTap: () {
+              onClose();
+              ref.read(sessionProvider.notifier).logout();
+            },
+          )
+        else
+          _PanelAction(
+            icon: Icons.arrow_back,
+            label: l.posBackHome,
+            onTap: () {
+              onClose();
+              context.go('/');
+            },
+          ),
       ],
     );
   }
