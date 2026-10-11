@@ -1993,6 +1993,60 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Catat uang keluar/masuk laci'**
   String get homePettyHint;
+
+  /// No description provided for @updateTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembaruan tersedia'**
+  String get updateTitle;
+
+  /// No description provided for @updateVersions.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi terpasang {current} → versi baru {latest}'**
+  String updateVersions(String current, String latest);
+
+  /// No description provided for @updateBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Perbarui ARUS ke versi terbaru untuk melanjutkan.'**
+  String get updateBody;
+
+  /// No description provided for @updateNow.
+  ///
+  /// In id, this message translates to:
+  /// **'Perbarui sekarang'**
+  String get updateNow;
+
+  /// No description provided for @updateRetry.
+  ///
+  /// In id, this message translates to:
+  /// **'Coba lagi'**
+  String get updateRetry;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In id, this message translates to:
+  /// **'Mengunduh pembaruan…'**
+  String get updateDownloading;
+
+  /// No description provided for @updateInstalling.
+  ///
+  /// In id, this message translates to:
+  /// **'Membuka pemasang…'**
+  String get updateInstalling;
+
+  /// No description provided for @updatePermission.
+  ///
+  /// In id, this message translates to:
+  /// **'Izinkan ARUS memasang aplikasi pada layar yang terbuka, lalu kembali ke sini dan ketuk Perbarui sekarang.'**
+  String get updatePermission;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi.'**
+  String get updateFailed;
 }
 
 class _AppLocalizationsDelegate
