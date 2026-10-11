@@ -21,6 +21,10 @@ export type AccountInput = { parent_id: string | null; code: string; name: strin
 
 export type Mapping = { key: string; classes: AccClass[]; account: Account | null };
 
+export type GenerateItem = { outlet_id: string; date: string; action: 'created' | 'updated' | 'deleted' | 'adjusted' | 'unchanged'; journal_id?: string };
+export type GenerateResult = { items: GenerateItem[]; created: number; updated: number; deleted: number; adjusted: number; unchanged: number };
+export type BatchPostItem = { id: string; ok: boolean; code?: string; doc_no?: string };
+
 export type Period = { id: string; start_date: string; end_date: string; status: 'open' | 'closed'; closed_at?: string };
 
 export type JournalLine = { line_no: number; account_id: string; account_code: string; account_name: string; debit: string; credit: string; memo: string };
@@ -117,6 +121,8 @@ export const accounting = {
   createJournal: (b: JournalInput) => api<Journal>('/accounting/journals', json('POST', b)),
   updateJournal: (id: string, b: JournalInput) => api<Journal>(`/accounting/journals/${id}`, json('PUT', b)),
   deleteJournal: (id: string) => api<void>(`/accounting/journals/${id}`, json('DELETE')),
+  generateSales: (b: { from: string; to: string }) => api<GenerateResult>('/accounting/auto/sales', json('POST', b)),
+  postBatch: (ids: string[]) => api<{ items: BatchPostItem[] }>('/accounting/journals/post-batch', json('POST', { ids })).then((r) => r.items),
   postJournal: (id: string) => api<Journal>(`/accounting/journals/${id}/post`, json('POST')),
   reverseJournal: (id: string, date: string, narration: string) => api<Journal>(`/accounting/journals/${id}/reverse`, json('POST', { date, narration })),
   opening: (b: { date: string; narration: string; lines: LineInput[] }) => api<Journal>('/accounting/opening', json('POST', b)),

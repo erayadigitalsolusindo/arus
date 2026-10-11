@@ -732,6 +732,293 @@ func (q *Queries) AuthzListAccessibleOutlets(ctx context.Context, arg AuthzListA
 	return items, nil
 }
 
+const autoJournalAdjCount = `-- name: AutoJournalAdjCount :one
+SELECT count(*)::bigint FROM journal_entries WHERE tenant_id = $1 AND source_type = $2 AND source_ref LIKE $3::text || ':adj:%'
+`
+
+type AutoJournalAdjCountParams struct {
+	TenantID   uuid.UUID
+	SourceType pgtype.Text
+	Column3    string
+}
+
+func (q *Queries) AutoJournalAdjCount(ctx context.Context, arg AutoJournalAdjCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, autoJournalAdjCount, arg.TenantID, arg.SourceType, arg.Column3)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const autoJournalByRef = `-- name: AutoJournalByRef :one
+SELECT id, status FROM journal_entries WHERE tenant_id = $1 AND source_type = $2 AND source_ref = $3
+`
+
+type AutoJournalByRefParams struct {
+	TenantID   uuid.UUID
+	SourceType pgtype.Text
+	SourceRef  pgtype.Text
+}
+
+type AutoJournalByRefRow struct {
+	ID     uuid.UUID
+	Status string
+}
+
+func (q *Queries) AutoJournalByRef(ctx context.Context, arg AutoJournalByRefParams) (AutoJournalByRefRow, error) {
+	row := q.db.QueryRow(ctx, autoJournalByRef, arg.TenantID, arg.SourceType, arg.SourceRef)
+	var i AutoJournalByRefRow
+	err := row.Scan(&i.ID, &i.Status)
+	return i, err
+}
+
+const autoJournalPendingAdj = `-- name: AutoJournalPendingAdj :one
+SELECT id FROM journal_entries
+WHERE tenant_id = $1 AND source_type = $2 AND status = 'draft' AND source_ref LIKE $3::text || ':adj:%' LIMIT 1
+`
+
+type AutoJournalPendingAdjParams struct {
+	TenantID   uuid.UUID
+	SourceType pgtype.Text
+	Column3    string
+}
+
+func (q *Queries) AutoJournalPendingAdj(ctx context.Context, arg AutoJournalPendingAdjParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, autoJournalPendingAdj, arg.TenantID, arg.SourceType, arg.Column3)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const autoJournalPostedNet = `-- name: AutoJournalPostedNet :many
+SELECT l.account_id, sum(l.debit - l.credit)::numeric(18,2) AS net
+FROM journal_entries e JOIN journal_lines l ON l.tenant_id = e.tenant_id AND l.entry_id = e.id
+WHERE e.tenant_id = $1 AND e.source_type = $2 AND e.status = 'posted'
+  AND (e.source_ref = $3::text OR e.source_ref LIKE $3::text || ':adj:%')
+GROUP BY l.account_id
+`
+
+type AutoJournalPostedNetParams struct {
+	TenantID   uuid.UUID
+	SourceType pgtype.Text
+	Column3    string
+}
+
+type AutoJournalPostedNetRow struct {
+	AccountID uuid.UUID
+	Net       decimal.Decimal
+}
+
+func (q *Queries) AutoJournalPostedNet(ctx context.Context, arg AutoJournalPostedNetParams) ([]AutoJournalPostedNetRow, error) {
+	rows, err := q.db.Query(ctx, autoJournalPostedNet, arg.TenantID, arg.SourceType, arg.Column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoJournalPostedNetRow
+	for rows.Next() {
+		var i AutoJournalPostedNetRow
+		if err := rows.Scan(&i.AccountID, &i.Net); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoOutletWindow = `-- name: AutoOutletWindow :one
+
+SELECT o.name, o.active,
+       (($1::date)::timestamp AT TIME ZONE o.timezone)::timestamptz AS t0,
+       (((($1::date) + 1)::timestamp) AT TIME ZONE o.timezone)::timestamptz AS t1,
+       (now() AT TIME ZONE o.timezone)::date AS today
+FROM outlets o WHERE o.tenant_id = $2 AND o.id = $3
+`
+
+type AutoOutletWindowParams struct {
+	Day      pgtype.Date
+	TenantID uuid.UUID
+	OutletID uuid.UUID
+}
+
+type AutoOutletWindowRow struct {
+	Name   string
+	Active bool
+	T0     pgtype.Timestamptz
+	T1     pgtype.Timestamptz
+	Today  pgtype.Date
+}
+
+// ---- Jurnal otomatis: penjualan harian per outlet ----
+func (q *Queries) AutoOutletWindow(ctx context.Context, arg AutoOutletWindowParams) (AutoOutletWindowRow, error) {
+	row := q.db.QueryRow(ctx, autoOutletWindow, arg.Day, arg.TenantID, arg.OutletID)
+	var i AutoOutletWindowRow
+	err := row.Scan(
+		&i.Name,
+		&i.Active,
+		&i.T0,
+		&i.T1,
+		&i.Today,
+	)
+	return i, err
+}
+
+const autoSalesCogs = `-- name: AutoSalesCogs :one
+SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
+FROM sale_lines l JOIN sales s ON s.tenant_id = l.tenant_id AND s.id = l.sale_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'completed' AND s.created_at >= $3 AND s.created_at < $4
+`
+
+type AutoSalesCogsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+func (q *Queries) AutoSalesCogs(ctx context.Context, arg AutoSalesCogsParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, autoSalesCogs,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	var column_1 decimal.Decimal
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const autoSalesPayments = `-- name: AutoSalesPayments :many
+SELECT m.id AS method_id, m.name, m.kind, m.account_id,
+       coalesce(sum(p.amount), 0)::numeric(18,2) AS amount,
+       coalesce(sum(p.fee_amount), 0)::numeric(18,2) AS fee,
+       coalesce(sum(CASE WHEN p.fee_bearer = 'customer' THEN p.fee_amount ELSE 0 END), 0)::numeric(18,2) AS surcharge
+FROM sale_payments p
+JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.sale_id
+JOIN payment_methods m ON m.tenant_id = p.tenant_id AND m.id = p.method_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'completed' AND s.created_at >= $3 AND s.created_at < $4
+GROUP BY m.id, m.name, m.kind, m.account_id ORDER BY m.name
+`
+
+type AutoSalesPaymentsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoSalesPaymentsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	Kind      string
+	AccountID pgtype.UUID
+	Amount    decimal.Decimal
+	Fee       decimal.Decimal
+	Surcharge decimal.Decimal
+}
+
+func (q *Queries) AutoSalesPayments(ctx context.Context, arg AutoSalesPaymentsParams) ([]AutoSalesPaymentsRow, error) {
+	rows, err := q.db.Query(ctx, autoSalesPayments,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoSalesPaymentsRow
+	for rows.Next() {
+		var i AutoSalesPaymentsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.Kind,
+			&i.AccountID,
+			&i.Amount,
+			&i.Fee,
+			&i.Surcharge,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoSalesReceivable = `-- name: AutoSalesReceivable :one
+SELECT coalesce(sum(receivable), 0)::numeric(18,2) FROM sales
+WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND created_at >= $3 AND created_at < $4
+`
+
+type AutoSalesReceivableParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+func (q *Queries) AutoSalesReceivable(ctx context.Context, arg AutoSalesReceivableParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, autoSalesReceivable,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	var column_1 decimal.Decimal
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const autoSalesTotals = `-- name: AutoSalesTotals :one
+SELECT count(*)::bigint AS n,
+       coalesce(sum(subtotal - discount), 0)::numeric(18,2) AS revenue,
+       coalesce(sum(tax_store + tax_gov), 0)::numeric(18,2) AS tax,
+       coalesce(sum(other_cost), 0)::numeric(18,2) AS other_cost,
+       coalesce(sum(change), 0)::numeric(18,2) AS change_given
+FROM sales
+WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND created_at >= $3 AND created_at < $4
+`
+
+type AutoSalesTotalsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoSalesTotalsRow struct {
+	N           int64
+	Revenue     decimal.Decimal
+	Tax         decimal.Decimal
+	OtherCost   decimal.Decimal
+	ChangeGiven decimal.Decimal
+}
+
+func (q *Queries) AutoSalesTotals(ctx context.Context, arg AutoSalesTotalsParams) (AutoSalesTotalsRow, error) {
+	row := q.db.QueryRow(ctx, autoSalesTotals,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	var i AutoSalesTotalsRow
+	err := row.Scan(
+		&i.N,
+		&i.Revenue,
+		&i.Tax,
+		&i.OtherCost,
+		&i.ChangeGiven,
+	)
+	return i, err
+}
+
 const balanceAdd = `-- name: BalanceAdd :exec
 INSERT INTO account_period_balances (tenant_id, outlet_id, account_id, period_month, debit, credit)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -5092,6 +5379,22 @@ func (q *Queries) PeriodSetStatus(ctx context.Context, arg PeriodSetStatusParams
 		arg.ClosedBy,
 	)
 	return err
+}
+
+const periodStatusGet = `-- name: PeriodStatusGet :one
+SELECT status FROM accounting_periods WHERE tenant_id = $1 AND start_date = $2
+`
+
+type PeriodStatusGetParams struct {
+	TenantID  uuid.UUID
+	StartDate pgtype.Date
+}
+
+func (q *Queries) PeriodStatusGet(ctx context.Context, arg PeriodStatusGetParams) (string, error) {
+	row := q.db.QueryRow(ctx, periodStatusGet, arg.TenantID, arg.StartDate)
+	var status string
+	err := row.Scan(&status)
+	return status, err
 }
 
 const platformAdminByEmail = `-- name: PlatformAdminByEmail :one

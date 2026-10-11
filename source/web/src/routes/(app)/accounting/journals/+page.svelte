@@ -5,10 +5,12 @@
   import DateRange from '#lib/components/DateRange.svelte';
   import Select from '#lib/components/Select.svelte';
   import JournalModal from '#lib/components/JournalModal.svelte';
-  import { accounting, todayISO, type JournalSummary } from '#lib/accounting/api.ts';
+  import Modal from '#lib/components/Modal.svelte';
+  import { accounting, todayISO, type GenerateResult, type JournalSummary } from '#lib/accounting/api.ts';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { t, formatCurrency, formatDate } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import { tryT } from '#lib/i18n/index.ts';
 
   let rows = $state<JournalSummary[]>([]);
   let cursor = $state('');
@@ -20,6 +22,11 @@
   let status = $state('');
   let q = $state('');
   let editor = $state<{ id: string; opening: boolean; type?: string } | null>(null);
+  let notice = $state('');
+  let picked = $state<Record<string, boolean>>({});
+  let posting = $state(false);
+  // Dialog "Buat draf jurnal otomatis" (penjualan harian per outlet).
+  let gen = $state<{ from: string; to: string; busy: boolean; error: string; result: GenerateResult | null } | null>(null);
 
   let seq = 0;
   async function load(more = false) {
@@ -52,6 +59,67 @@
     if (n && ['JU', 'KM', 'KK', 'TK'].includes(n) && can('journals', 'create')) void goto(`/accounting/journals/new?type=${n}`, { replaceState: true });
   });
 
+  const pickedIds = $derived(Object.keys(picked).filter((id) => picked[id]));
+  function toggleAll() {
+    const on = !allPicked;
+    picked = Object.fromEntries(draftShown.map((r) => [r.id, on]));
+  }
+
+  async function postSelected() {
+    if (posting || pickedIds.length === 0) return;
+    if (!confirm(t('accounting.journals.postManyConfirm', { n: pickedIds.length }))) return;
+    posting = true;
+    error = '';
+    notice = '';
+    try {
+      let ok = 0;
+      const failed = new Set<string>();
+      let failCount = 0;
+      for (let i = 0; i < pickedIds.length; i += 100) {
+        for (const it of await accounting.postBatch(pickedIds.slice(i, i + 100))) {
+          if (it.ok) ok++;
+          else {
+            failCount++;
+            failed.add(it.code ?? 'INTERNAL');
+          }
+        }
+      }
+      notice = t('accounting.journals.postManyDone', { ok, failed: failCount });
+      if (failCount > 0) error = [...failed].map((c) => tryT(`errors.${c}`) ?? c).join(' · ');
+      picked = {};
+      await load();
+    } catch (e) {
+      error = errorMessage(e);
+    } finally {
+      posting = false;
+    }
+  }
+
+  function openGenerate() {
+    notice = '';
+    error = '';
+    const today = todayISO();
+    gen = { from: today.slice(0, 8) + '01', to: today, busy: false, error: '', result: null };
+  }
+  async function runGenerate() {
+    if (!gen || gen.busy || !gen.from || !gen.to) return;
+    gen.busy = true;
+    gen.error = '';
+    try {
+      gen.result = await accounting.generateSales({ from: gen.from, to: gen.to });
+      from = gen.from;
+      to = gen.to;
+      type = 'SALES';
+      status = 'draft';
+      picked = {};
+      await load();
+    } catch (e) {
+      if (gen) gen.error = errorMessage(e);
+    } finally {
+      if (gen) gen.busy = false;
+    }
+  }
+
   async function post(r: JournalSummary) {
     if (!confirm(t('accounting.journals.postConfirm'))) return;
     error = '';
@@ -81,6 +149,8 @@
   // Pencarian teks hanya menyaring baris yang sudah dimuat; jenis, status, dan tanggal disaring server.
   const needle = $derived(q.trim().toLowerCase());
   const shown = $derived(needle ? rows.filter((r) => `${r.doc_no} ${r.narration} ${r.debit_account} ${r.credit_account}`.toLowerCase().includes(needle)) : rows);
+  const draftShown = $derived(shown.filter((r) => r.status === 'draft'));
+  const allPicked = $derived(draftShown.length > 0 && draftShown.every((r) => picked[r.id]));
   const hasFilter = $derived(!!(type || status || q));
   function resetFilter() {
     type = '';
@@ -90,7 +160,7 @@
 
   const typeOptions = $derived([
     { value: '', label: t('accounting.journals.allTypes') },
-    ...(['JU', 'KM', 'KK', 'TK', 'OPENING'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
+    ...(['JU', 'KM', 'KK', 'TK', 'OPENING', 'SALES'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
   ]);
   const statusOptions = $derived([
     { value: '', label: t('accounting.journals.allStatus') },
@@ -111,6 +181,7 @@
       </div>
     </div>
     <div class="flex flex-wrap gap-2">
+      {#if can('journals', 'create')}<button type="button" class="btn" onclick={openGenerate}><i class="icon-zap"></i> {t('accounting.journals.autoGenerate')}</button>{/if}
       {#if can('journals', 'approve')}<button type="button" class="btn" onclick={() => (editor = { id: '', opening: true })}><i class="icon-flag"></i> {t('accounting.journals.opening')}</button>{/if}
       {#if can('journals', 'create')}<a href="/accounting/journals/new" class="btn btn-primary"><i class="icon-plus"></i> {t('accounting.journals.add')}</a>{/if}
     </div>
@@ -118,6 +189,10 @@
 
   {#if error}
     <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] shrink-0"></i><span>{error}</span></div>
+  {/if}
+
+  {#if notice}
+    <div role="status" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-success"><i class="icon-check text-[14px] shrink-0"></i><span>{notice}</span></div>
   {/if}
 
   <!-- Ringkasan dari jurnal yang dimuat -->
@@ -152,11 +227,22 @@
       {/if}
     </div>
 
+    {#if pickedIds.length > 0}
+      <div class="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--color-primary)_7%,transparent)] text-[12.5px]">
+        <b>{t('accounting.journals.pickedCount', { n: pickedIds.length })}</b>
+        <button type="button" class="btn btn-sm btn-primary" disabled={posting} onclick={postSelected}><i class="icon-circle-check"></i> {posting ? t('accounting.journals.saving') : t('accounting.journals.postMany')}</button>
+        <button type="button" class="btn btn-sm" disabled={posting} onclick={() => (picked = {})}>{t('accounting.journals.pickClear')}</button>
+      </div>
+    {/if}
+
     {#if shown.length > 0}
     <div class="overflow-x-auto scroll-thin">
       <table class="w-full min-w-[900px] text-[12.5px]">
         <thead>
           <tr class="border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)] text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+            {#if can('journals', 'approve')}
+              <th class="ps-4 pe-0 py-2.5 w-px"><input type="checkbox" checked={allPicked} disabled={draftShown.length === 0} onchange={toggleAll} aria-label={t('accounting.journals.pickAll')} /></th>
+            {/if}
             <th class="px-4 py-2.5 text-start whitespace-nowrap" scope="col">{t('accounting.journals.col.date')}</th>
             <th class="px-3 py-2.5 text-start whitespace-nowrap" scope="col">{t('accounting.journals.col.doc')}</th>
             <th class="px-3 py-2.5 text-start" scope="col">{t('accounting.journals.col.narration')}</th>
@@ -168,6 +254,9 @@
         <tbody>
           {#each shown as r (r.id)}
             <tr class="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,transparent)] {r.status === 'draft' ? 'shadow-[inset_3px_0_0_var(--color-warning-600,#d97706)]' : ''}">
+              {#if can('journals', 'approve')}
+                <td class="ps-4 pe-0 py-2.5 align-top">{#if r.status === 'draft'}<input type="checkbox" bind:checked={picked[r.id]} aria-label={t('accounting.journals.pickOne')} />{/if}</td>
+              {/if}
               <td class="px-4 py-2.5 whitespace-nowrap tabular-nums align-top">
                 <div class="font-semibold">{formatDate(r.date, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                 {#if r.created_by}<div class="text-[11px] text-[var(--text-tertiary)]">{r.created_by}</div>{/if}
@@ -205,7 +294,8 @@
               <td class="px-3 py-2 text-end whitespace-nowrap align-top">
                 <div class="inline-flex gap-0.5">
                   {#if r.status === 'draft'}
-                    {#if can('journals', 'update')}<button type="button" class={act} title={t('accounting.journals.edit')} aria-label={t('accounting.journals.edit')} onclick={() => (editor = { id: r.id, opening: false })}><i class="icon-pencil text-[15px]"></i></button>{/if}
+                    {#if can('journals', 'update') && !r.source}<button type="button" class={act} title={t('accounting.journals.edit')} aria-label={t('accounting.journals.edit')} onclick={() => (editor = { id: r.id, opening: false })}><i class="icon-pencil text-[15px]"></i></button>{/if}
+                    {#if r.source}<button type="button" class={act} title={t('accounting.journals.view')} aria-label={t('accounting.journals.view')} onclick={() => (editor = { id: r.id, opening: false })}><i class="icon-eye text-[15px]"></i></button>{/if}
                     {#if can('journals', 'approve')}<button type="button" class="{act} hover:!text-[var(--color-success-600)]" title={t('accounting.journals.post')} aria-label={t('accounting.journals.post')} onclick={() => post(r)}><i class="icon-circle-check text-[15px]"></i></button>{/if}
                     {#if can('journals', 'delete')}<button type="button" class="{act} hover:!text-[var(--color-danger-600)]" title={t('accounting.journals.remove')} aria-label={t('accounting.journals.remove')} onclick={() => remove(r)}><i class="icon-trash-2 text-[15px]"></i></button>{/if}
                   {:else}
@@ -246,4 +336,29 @@
 
 {#if editor}
   <JournalModal id={editor.id} opening={editor.opening} initialType={editor.type} onclose={() => (editor = null)} onchanged={() => load()} />
+{/if}
+
+{#if gen}
+  <Modal title={t('accounting.journals.genTitle')} onclose={() => (gen = null)}>
+    <div class="space-y-3 text-[13px]">
+      <p class="text-[12.5px] text-[var(--text-secondary)]">{t('accounting.journals.genHint')}</p>
+      <DateRange bind:from={gen.from} bind:to={gen.to} ariaLabel={t('accounting.journals.range')} />
+      {#if gen.error}
+        <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] shrink-0"></i><span>{gen.error}</span></div>
+      {/if}
+      {#if gen.result}
+        <div role="status" class="rounded-lg px-3 py-2.5 text-[12.5px] badge-success">
+          {#if gen.result.items.length === 0}
+            {t('accounting.journals.genNone')}
+          {:else}
+            {t('accounting.journals.genDone', { created: gen.result.created, updated: gen.result.updated, adjusted: gen.result.adjusted, unchanged: gen.result.unchanged })}
+          {/if}
+        </div>
+      {/if}
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn" onclick={() => (gen = null)}>{t('accounting.journals.close')}</button>
+        <button type="button" class="btn btn-primary" disabled={gen.busy || !gen.from || !gen.to} onclick={runGenerate}><i class="icon-zap"></i> {gen.busy ? t('accounting.journals.saving') : t('accounting.journals.genDo')}</button>
+      </div>
+    </div>
+  </Modal>
 {/if}
