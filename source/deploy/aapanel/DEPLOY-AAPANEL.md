@@ -148,6 +148,17 @@ Service hidup lagi sendiri saat mati (`Restart=always`) dan saat boot. Unit ini 
    ```
    Pakai `%{DOCUMENT_ROOT}%{REQUEST_URI}` persis seperti itu, **bukan** `%{REQUEST_FILENAME}`: di konteks vhost, `REQUEST_FILENAME` membuat semua berkas (termasuk `/_app/…`) dianggap tidak ada, sehingga CSS/JS diganti `index.html` dan halaman putih.
 
+**Unggah APK Kasir (Platform Admin, hingga 150 MB)** — batas bawaan Apache/Cloudflare memutus unggahan besar dan browser hanya menampilkan "tidak dapat terhubung ke server". Website → situs API → Settings → **Config** (vhost), tambahkan di dalam `<VirtualHost>`:
+```apache
+# Unggah APK: jangan putus di tengah jalan (API Go sendiri membatasi 10 menit & 150 MB).
+Timeout 600
+ProxyTimeout 600
+<Location "/platform/mobile/apk">
+    LimitRequestBody 167772160
+</Location>
+```
+Lalu `Timeout` global Apache (aaPanel → Apache → Config) minimal 300. **Cloudflare (proxy oranye) membatasi body request 100 MB di paket Free/Pro** (413 tanpa header CORS = terlihat sebagai gagal terhubung). Bila APK > 100 MB: bangun dengan `flutter build apk --split-per-abi` (±20–30 MB per ABI; pakai `arm64-v8a`) atau unggah lewat subdomain DNS-only (awan abu-abu).
+
 *Varian Nginx:* tempel `nginx-api.conf` / `nginx-web.conf` di Config situs masing-masing (jangan dipakai bersama fitur Reverse proxy aaPanel).
 
 Uji:
@@ -201,6 +212,7 @@ Memeriksa API, akses dari internet, Docker, versi migrasi, umur backup, disk, da
 | Halaman putih, CSS/JS tak termuat | Rewrite memakai `%{REQUEST_FILENAME}` (lihat langkah 7) |
 | `update.sh` gagal di `rsync` | `.user.ini` terkunci di `/www/wwwroot/arus/web`: matikan anti-cross-site di aaPanel, `sudo chattr -i` lalu hapus berkasnya |
 | Login berhasil lalu langsung keluar / refresh 401 | `CORS_ORIGINS`/`APP_BASE_URL` tak persis `https://arus.erayadigital.co.id` (tanpa slash akhir), atau Cloudflare mode Flexible |
+| Unggah APK "tidak dapat terhubung ke server" | Timeout Apache/`ProxyTimeout` terlalu pendek, `LimitRequestBody`, atau Cloudflare > 100 MB (lihat langkah 7); lihat tab Network browser |
 | Unggah gambar gagal 413 | Batas ukuran unggahan di situs API (Apache `LimitRequestBody`, Nginx `client_max_body_size 12m`) |
 | Semua pengguna terlihat dari satu IP (rate limit salah sasaran) | `TRUST_PROXY=true` belum diset |
 | PIN penyetuju/2FA mendadak tak valid | `JWT_SECRET` berubah |
