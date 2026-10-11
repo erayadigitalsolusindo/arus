@@ -732,6 +732,80 @@ func (q *Queries) AuthzListAccessibleOutlets(ctx context.Context, arg AuthzListA
 	return items, nil
 }
 
+const autoCashMethod = `-- name: AutoCashMethod :one
+
+SELECT id, name, account_id FROM payment_methods WHERE tenant_id = $1 AND kind = 'cash' LIMIT 1
+`
+
+type AutoCashMethodRow struct {
+	ID        uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+}
+
+// ---- Jurnal otomatis: sumber lain (retur, pembelian, pembayaran piutang/hutang, deposit) ----
+func (q *Queries) AutoCashMethod(ctx context.Context, tenantID uuid.UUID) (AutoCashMethodRow, error) {
+	row := q.db.QueryRow(ctx, autoCashMethod, tenantID)
+	var i AutoCashMethodRow
+	err := row.Scan(&i.ID, &i.Name, &i.AccountID)
+	return i, err
+}
+
+const autoDepositMoves = `-- name: AutoDepositMoves :many
+SELECT m.id AS method_id, m.name, m.account_id, d.kind, count(*)::bigint AS n, coalesce(sum(d.amount), 0)::numeric(18,2) AS amount
+FROM member_deposit_movements d JOIN payment_methods m ON m.tenant_id = d.tenant_id AND m.id = d.method_id
+WHERE d.tenant_id = $1 AND d.outlet_id = $2 AND d.kind IN ('TOPUP', 'WITHDRAW') AND d.created_at >= $3 AND d.created_at < $4
+GROUP BY m.id, m.name, m.account_id, d.kind ORDER BY m.name, d.kind
+`
+
+type AutoDepositMovesParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoDepositMovesRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	Kind      string
+	N         int64
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoDepositMoves(ctx context.Context, arg AutoDepositMovesParams) ([]AutoDepositMovesRow, error) {
+	rows, err := q.db.Query(ctx, autoDepositMoves,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoDepositMovesRow
+	for rows.Next() {
+		var i AutoDepositMovesRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.Kind,
+			&i.N,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const autoJournalAdjCount = `-- name: AutoJournalAdjCount :one
 SELECT count(*)::bigint FROM journal_entries WHERE tenant_id = $1 AND source_type = $2 AND source_ref LIKE $3::text || ':adj:%'
 `
@@ -865,6 +939,252 @@ func (q *Queries) AutoOutletWindow(ctx context.Context, arg AutoOutletWindowPara
 	return i, err
 }
 
+const autoPayablePayments = `-- name: AutoPayablePayments :many
+SELECT m.id AS method_id, m.name, m.account_id, count(*)::bigint AS n, coalesce(sum(p.amount), 0)::numeric(18,2) AS amount
+FROM payable_payments p JOIN payment_methods m ON m.tenant_id = p.tenant_id AND m.id = p.method_id
+WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.created_at >= $3 AND p.created_at < $4
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoPayablePaymentsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoPayablePaymentsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	N         int64
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoPayablePayments(ctx context.Context, arg AutoPayablePaymentsParams) ([]AutoPayablePaymentsRow, error) {
+	rows, err := q.db.Query(ctx, autoPayablePayments,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoPayablePaymentsRow
+	for rows.Next() {
+		var i AutoPayablePaymentsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.N,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoPurchaseReturnCost = `-- name: AutoPurchaseReturnCost :one
+SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
+FROM purchase_return_lines l JOIN purchase_returns r ON r.tenant_id = l.tenant_id AND r.id = l.return_id
+WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.return_date = $3
+`
+
+type AutoPurchaseReturnCostParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+func (q *Queries) AutoPurchaseReturnCost(ctx context.Context, arg AutoPurchaseReturnCostParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, autoPurchaseReturnCost, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	var column_1 decimal.Decimal
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const autoPurchaseReturnRefunds = `-- name: AutoPurchaseReturnRefunds :many
+SELECT m.id AS method_id, m.name, m.account_id, coalesce(sum(r.refund), 0)::numeric(18,2) AS amount
+FROM purchase_returns r JOIN payment_methods m ON m.tenant_id = r.tenant_id AND m.id = r.refund_method_id
+WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.return_date = $3 AND r.refund > 0
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoPurchaseReturnRefundsParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+type AutoPurchaseReturnRefundsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoPurchaseReturnRefunds(ctx context.Context, arg AutoPurchaseReturnRefundsParams) ([]AutoPurchaseReturnRefundsRow, error) {
+	rows, err := q.db.Query(ctx, autoPurchaseReturnRefunds, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoPurchaseReturnRefundsRow
+	for rows.Next() {
+		var i AutoPurchaseReturnRefundsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoPurchaseReturnTotals = `-- name: AutoPurchaseReturnTotals :one
+SELECT count(*)::bigint AS n,
+       coalesce(sum(subtotal), 0)::numeric(18,2) AS subtotal,
+       coalesce(sum(tax_amount), 0)::numeric(18,2) AS tax,
+       coalesce(sum(payable_cut), 0)::numeric(18,2) AS payable_cut
+FROM purchase_returns WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND return_date = $3
+`
+
+type AutoPurchaseReturnTotalsParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+type AutoPurchaseReturnTotalsRow struct {
+	N          int64
+	Subtotal   decimal.Decimal
+	Tax        decimal.Decimal
+	PayableCut decimal.Decimal
+}
+
+func (q *Queries) AutoPurchaseReturnTotals(ctx context.Context, arg AutoPurchaseReturnTotalsParams) (AutoPurchaseReturnTotalsRow, error) {
+	row := q.db.QueryRow(ctx, autoPurchaseReturnTotals, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	var i AutoPurchaseReturnTotalsRow
+	err := row.Scan(
+		&i.N,
+		&i.Subtotal,
+		&i.Tax,
+		&i.PayableCut,
+	)
+	return i, err
+}
+
+const autoPurchaseTotals = `-- name: AutoPurchaseTotals :one
+SELECT count(*)::bigint AS n,
+       coalesce(sum(subtotal + other_cost), 0)::numeric(18,2) AS inventory,
+       coalesce(sum(tax_amount), 0)::numeric(18,2) AS tax,
+       coalesce(sum(total) FILTER (WHERE payment_type = 'credit'), 0)::numeric(18,2) AS credit_total,
+       coalesce(sum(total) FILTER (WHERE payment_type = 'cash'), 0)::numeric(18,2) AS cash_total
+FROM purchases WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND purchase_date = $3
+`
+
+type AutoPurchaseTotalsParams struct {
+	TenantID     uuid.UUID
+	OutletID     uuid.UUID
+	PurchaseDate pgtype.Date
+}
+
+type AutoPurchaseTotalsRow struct {
+	N           int64
+	Inventory   decimal.Decimal
+	Tax         decimal.Decimal
+	CreditTotal decimal.Decimal
+	CashTotal   decimal.Decimal
+}
+
+func (q *Queries) AutoPurchaseTotals(ctx context.Context, arg AutoPurchaseTotalsParams) (AutoPurchaseTotalsRow, error) {
+	row := q.db.QueryRow(ctx, autoPurchaseTotals, arg.TenantID, arg.OutletID, arg.PurchaseDate)
+	var i AutoPurchaseTotalsRow
+	err := row.Scan(
+		&i.N,
+		&i.Inventory,
+		&i.Tax,
+		&i.CreditTotal,
+		&i.CashTotal,
+	)
+	return i, err
+}
+
+const autoReceivablePayments = `-- name: AutoReceivablePayments :many
+SELECT m.id AS method_id, m.name, m.account_id, count(*)::bigint AS n,
+       coalesce(sum(p.amount), 0)::numeric(18,2) AS amount,
+       coalesce(sum(p.fee_amount), 0)::numeric(18,2) AS fee,
+       coalesce(sum(CASE WHEN p.fee_bearer = 'customer' THEN p.fee_amount ELSE 0 END), 0)::numeric(18,2) AS surcharge
+FROM receivable_payments p JOIN payment_methods m ON m.tenant_id = p.tenant_id AND m.id = p.method_id
+WHERE p.tenant_id = $1 AND p.outlet_id = $2 AND p.created_at >= $3 AND p.created_at < $4
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoReceivablePaymentsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoReceivablePaymentsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	N         int64
+	Amount    decimal.Decimal
+	Fee       decimal.Decimal
+	Surcharge decimal.Decimal
+}
+
+func (q *Queries) AutoReceivablePayments(ctx context.Context, arg AutoReceivablePaymentsParams) ([]AutoReceivablePaymentsRow, error) {
+	rows, err := q.db.Query(ctx, autoReceivablePayments,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoReceivablePaymentsRow
+	for rows.Next() {
+		var i AutoReceivablePaymentsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.N,
+			&i.Amount,
+			&i.Fee,
+			&i.Surcharge,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const autoSalesCogs = `-- name: AutoSalesCogs :one
 SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
 FROM sale_lines l JOIN sales s ON s.tenant_id = l.tenant_id AND s.id = l.sale_id
@@ -976,6 +1296,103 @@ func (q *Queries) AutoSalesReceivable(ctx context.Context, arg AutoSalesReceivab
 	return column_1, err
 }
 
+const autoSalesReturnCost = `-- name: AutoSalesReturnCost :one
+SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
+FROM sales_return_lines l JOIN sales_returns r ON r.tenant_id = l.tenant_id AND r.id = l.return_id
+WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.return_date = $3
+`
+
+type AutoSalesReturnCostParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+func (q *Queries) AutoSalesReturnCost(ctx context.Context, arg AutoSalesReturnCostParams) (decimal.Decimal, error) {
+	row := q.db.QueryRow(ctx, autoSalesReturnCost, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	var column_1 decimal.Decimal
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const autoSalesReturnRefunds = `-- name: AutoSalesReturnRefunds :many
+SELECT m.id AS method_id, m.name, m.account_id, coalesce(sum(r.refund), 0)::numeric(18,2) AS amount
+FROM sales_returns r JOIN payment_methods m ON m.tenant_id = r.tenant_id AND m.id = r.refund_method_id
+WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND r.return_date = $3 AND r.refund > 0
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoSalesReturnRefundsParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+type AutoSalesReturnRefundsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoSalesReturnRefunds(ctx context.Context, arg AutoSalesReturnRefundsParams) ([]AutoSalesReturnRefundsRow, error) {
+	rows, err := q.db.Query(ctx, autoSalesReturnRefunds, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoSalesReturnRefundsRow
+	for rows.Next() {
+		var i AutoSalesReturnRefundsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoSalesReturnTotals = `-- name: AutoSalesReturnTotals :one
+SELECT count(*)::bigint AS n,
+       coalesce(sum(subtotal - discount), 0)::numeric(18,2) AS revenue,
+       coalesce(sum(tax_amount), 0)::numeric(18,2) AS tax,
+       coalesce(sum(receivable_cut), 0)::numeric(18,2) AS receivable_cut
+FROM sales_returns WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND return_date = $3
+`
+
+type AutoSalesReturnTotalsParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ReturnDate pgtype.Date
+}
+
+type AutoSalesReturnTotalsRow struct {
+	N             int64
+	Revenue       decimal.Decimal
+	Tax           decimal.Decimal
+	ReceivableCut decimal.Decimal
+}
+
+func (q *Queries) AutoSalesReturnTotals(ctx context.Context, arg AutoSalesReturnTotalsParams) (AutoSalesReturnTotalsRow, error) {
+	row := q.db.QueryRow(ctx, autoSalesReturnTotals, arg.TenantID, arg.OutletID, arg.ReturnDate)
+	var i AutoSalesReturnTotalsRow
+	err := row.Scan(
+		&i.N,
+		&i.Revenue,
+		&i.Tax,
+		&i.ReceivableCut,
+	)
+	return i, err
+}
+
 const autoSalesTotals = `-- name: AutoSalesTotals :one
 SELECT count(*)::bigint AS n,
        coalesce(sum(subtotal - discount), 0)::numeric(18,2) AS revenue,
@@ -1017,6 +1434,59 @@ func (q *Queries) AutoSalesTotals(ctx context.Context, arg AutoSalesTotalsParams
 		&i.ChangeGiven,
 	)
 	return i, err
+}
+
+const autoSupplierCashOuts = `-- name: AutoSupplierCashOuts :many
+SELECT m.id AS method_id, m.name, m.account_id, count(*)::bigint AS n, coalesce(sum(-d.amount), 0)::numeric(18,2) AS amount
+FROM supplier_credit_movements d JOIN payment_methods m ON m.tenant_id = d.tenant_id AND m.id = d.method_id
+WHERE d.tenant_id = $1 AND d.outlet_id = $2 AND d.kind = 'CASH_OUT' AND d.created_at >= $3 AND d.created_at < $4
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoSupplierCashOutsParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoSupplierCashOutsRow struct {
+	MethodID  uuid.UUID
+	Name      string
+	AccountID pgtype.UUID
+	N         int64
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoSupplierCashOuts(ctx context.Context, arg AutoSupplierCashOutsParams) ([]AutoSupplierCashOutsRow, error) {
+	rows, err := q.db.Query(ctx, autoSupplierCashOuts,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoSupplierCashOutsRow
+	for rows.Next() {
+		var i AutoSupplierCashOutsRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.N,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const balanceAdd = `-- name: BalanceAdd :exec

@@ -60,7 +60,7 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 - [x] 8a.2 Fase B: neraca saldo, laba rugi, neraca, kas/bank, jurnal umum (baca-saja, agregat; selesai 2026-10-11)
 - [ ] 8a.3 Fase C: jurnal otomatis + pemetaan akun per metode bayar (penjualan harian per outlet; pembelian/piutang/hutang/retur per dokumen)
   - [x] tahap 1: pemetaan akun (`account_mappings`, halaman pengaturan)
-  - [x] tahap 2: draf penjualan harian + posting massal (tombol di halaman jurnal); [ ] job malam; [ ] tahap 3: pembelian/retur/piutang/hutang/deposit; [ ] tahap 4: opname/kas shift
+  - [x] tahap 2: draf penjualan harian + posting massal (tombol di halaman jurnal); [ ] job malam; [x] tahap 3: pembelian/retur/piutang/hutang/deposit; [ ] tahap 4: opname/kas shift/kas kecil
 
 **Fase 10 — Kasir Mobile Android [PRD §7.11, §6.2, §15.4]**
 - **Keputusan pengguna 2026-10-10: aplikasi kasir mobile dibuat dengan Flutter di `source/mobile/` (menggantikan usulan Capacitor di 10.1), dikerjakan LEBIH CEPAT dari rencana karena dibutuhkan segera; import barang (3.4) menyusul. Konsekuensi: template struk (`receipt.ts`/`escpos.ts`) harus ditulis ulang di Dart, UI kasir dibuat dari nol memakai API Go yang sama. PRD §7.11/§15.4 belum diselaraskan.**

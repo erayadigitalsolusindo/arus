@@ -106,10 +106,10 @@
     gen.busy = true;
     gen.error = '';
     try {
-      gen.result = await accounting.generateSales({ from: gen.from, to: gen.to });
+      gen.result = await accounting.generateDrafts({ from: gen.from, to: gen.to });
       from = gen.from;
       to = gen.to;
-      type = 'SALES';
+      type = '';
       status = 'draft';
       picked = {};
       await load();
@@ -160,7 +160,7 @@
 
   const typeOptions = $derived([
     { value: '', label: t('accounting.journals.allTypes') },
-    ...(['JU', 'KM', 'KK', 'TK', 'OPENING', 'SALES'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
+    ...(['JU', 'KM', 'KK', 'TK', 'OPENING', 'SALES', 'PURCHASE', 'AR', 'AP', 'WALLET'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
   ]);
   const statusOptions = $derived([
     { value: '', label: t('accounting.journals.allStatus') },
