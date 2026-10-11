@@ -23,6 +23,7 @@
   let showConnector = $state(false);
   let connections = $state<Connection[] | undefined>();
   let copied = $state(false);
+  let copiedKey = $state('');
 
   // Form pengaturan
   let keyInput = $state('');
@@ -109,6 +110,27 @@
       /* clipboard tidak tersedia: pengguna bisa menyalin manual dari kolom */
     }
   }
+
+  async function copyText(text: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedKey = key;
+      setTimeout(() => (copiedKey = ''), 2000);
+    } catch {
+      /* clipboard tidak tersedia: pengguna bisa memilih teks perintah secara manual */
+    }
+  }
+
+  // Klien MCP yang didukung; Gemini CLI dan Qwen Code didaftarkan lewat perintah dengan alamat connector terisi.
+  const connectorApps = $derived.by(() => {
+    const url = settings?.connector_url ?? '';
+    return [
+      { id: 'claude', cmd: undefined as string | undefined },
+      { id: 'chatgpt', cmd: undefined as string | undefined },
+      { id: 'gemini', cmd: `gemini mcp add --transport http arus ${url}` as string | undefined },
+      { id: 'qwen', cmd: `qwen mcp add --transport http arus ${url}` as string | undefined }
+    ];
+  });
 
   async function revoke(c: Connection) {
     if (!confirm(t('ai.connector.revokeConfirm'))) return;
@@ -235,19 +257,6 @@
           <p class="text-[12.5px] mt-1 leading-relaxed text-[var(--text-secondary)]">{t('ai.connector.intro')}</p>
         </div>
       </div>
-      <ol class="space-y-1 text-[12.5px] text-[var(--text-secondary)] ps-1">
-        <li>1. {t('ai.connector.s1')}</li>
-        <li>2. {t('ai.connector.s2')}</li>
-        <li>3. {t('ai.connector.s3')}</li>
-      </ol>
-      <div class="rounded-lg bg-[var(--surface-sunken)] p-3 text-[12px] leading-relaxed text-[var(--text-secondary)] space-y-1.5">
-        <p class="font-medium text-[var(--text-primary)]">{t('ai.connector.appsTitle')}</p>
-        <p>{t('ai.connector.appClaude')}</p>
-        <p>{t('ai.connector.appChatGPT')}</p>
-        <p>{t('ai.connector.appGemini')}</p>
-        <p>{t('ai.connector.appQwen')}</p>
-        <p class="text-[var(--text-tertiary)]">{t('ai.connector.appsNote')}</p>
-      </div>
       <div class="block text-[12.5px]">
         <span class="font-medium">{t('ai.connector.urlLabel')}</span>
         <div class="mt-1 flex items-center gap-2">
@@ -255,6 +264,28 @@
             class="flex-1 min-w-0 h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] font-mono text-[12px]" />
           <button type="button" class="btn btn-sm" onclick={copyUrl}><i class={copied ? 'icon-check' : 'icon-copy'}></i> {copied ? t('ai.connector.copied') : t('ai.connector.copy')}</button>
         </div>
+      </div>
+      <div class="space-y-2">
+        <h3 class="font-medium text-[12.5px]">{t('ai.connector.appsTitle')}</h3>
+        {#each connectorApps as app (app.id)}
+          <details class="rounded-lg border border-[var(--border-subtle)] group" open={app.id === 'claude'}>
+            <summary class="cursor-pointer select-none px-3 py-2.5 text-[12.5px] font-medium">{tryT(`ai.connector.apps.${app.id}.name`)}</summary>
+            <div class="px-3 pb-3 space-y-2 text-[12.5px] text-[var(--text-secondary)]">
+              <ol class="space-y-1">
+                <li>1. {tryT(`ai.connector.apps.${app.id}.s1`)}</li>
+                {#if app.cmd}
+                  <li class="flex items-center gap-2">
+                    <code class="flex-1 min-w-0 overflow-x-auto whitespace-nowrap px-2.5 py-2 rounded bg-[var(--surface-sunken)] font-mono text-[11.5px]" aria-label={t('ai.connector.cmdLabel')}>{app.cmd}</code>
+                    <button type="button" class="btn btn-sm shrink-0" onclick={() => copyText(app.cmd!, app.id)}><i class={copiedKey === app.id ? 'icon-check' : 'icon-copy'}></i> {copiedKey === app.id ? t('ai.connector.copied') : t('ai.connector.copy')}</button>
+                  </li>
+                {/if}
+                <li>2. {tryT(`ai.connector.apps.${app.id}.s2`)}</li>
+                <li>3. {tryT(`ai.connector.apps.${app.id}.s3`)}</li>
+              </ol>
+            </div>
+          </details>
+        {/each}
+        <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('ai.connector.appsNote')}</p>
       </div>
       <div>
         <h3 class="font-medium text-[12.5px] mb-2">{t('ai.connector.listTitle')}</h3>

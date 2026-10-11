@@ -51,18 +51,38 @@ export default {
     useOwn: 'Pasang key sendiri'
   },
   connector: {
-    button: 'Connector Claude',
+    button: 'Connector AI',
     title: 'Sambungkan ke aplikasi AI',
     intro: 'Pakai langganan Claude, ChatGPT, Gemini, atau Qwen Anda sendiri (tanpa API key): tambahkan ARUS sebagai connector MCP, lalu tanyakan data usaha langsung di aplikasi itu. Connector hanya bisa membaca, dengan batasan yang sama seperti HalloArus.',
-    s1: 'Di Claude buka Settings → Connectors → Add custom connector.',
-    s2: 'Tempel alamat di bawah ini, lalu simpan.',
-    s3: 'Klik Connect; Anda diarahkan ke ARUS untuk menyetujui akses baca.',
-    appsTitle: 'Langkah per aplikasi',
-    appClaude: 'Claude: Settings → Connectors → Add custom connector, tempel alamat, lalu Connect.',
-    appChatGPT: 'ChatGPT: Settings → Apps/Connectors → Advanced → aktifkan Developer mode, lalu buat connector baru (MCP, autentikasi OAuth) dengan alamat ini. Tersedia di paket tertentu.',
-    appGemini: 'Gemini: pakai Gemini CLI, jalankan: gemini mcp add --transport http arus <alamat>, lalu otorisasi lewat browser. Aplikasi web Gemini belum mendukung connector kustom.',
-    appQwen: 'Qwen: pakai Qwen Code, jalankan: qwen mcp add --transport http arus <alamat>, lalu otorisasi lewat browser.',
-    appsNote: 'Fitur connector berbeda-beda per aplikasi dan paket; bila tidak tersedia, pakai chat HalloArus dengan API key.',
+    appsTitle: 'Pilih aplikasi Anda',
+    appsNote: 'Dukungan connector berbeda-beda per aplikasi dan paket. Bila tidak tersedia, pakai chat HalloArus dengan API key (pengaturan di atas).',
+    cmdLabel: 'Perintah',
+    apps: {
+      claude: {
+        name: 'Claude',
+        s1: 'Buka Settings → Connectors → Add custom connector.',
+        s2: 'Isi nama (mis. ARUS) dan tempel alamat connector di atas, lalu simpan.',
+        s3: 'Klik Connect; Anda diarahkan ke ARUS untuk menyetujui akses baca.'
+      },
+      chatgpt: {
+        name: 'ChatGPT',
+        s1: 'Buka Settings → Apps & Connectors → Advanced settings, aktifkan Developer mode (hanya di paket tertentu).',
+        s2: 'Kembali ke Apps & Connectors → Create. Isi nama (mis. ARUS), tempel alamat connector di atas sebagai MCP Server URL, pilih autentikasi OAuth, lalu Create.',
+        s3: 'Di percakapan baru, pilih ARUS dari menu + → Developer mode, lalu setujui akses baca saat diarahkan ke ARUS.'
+      },
+      gemini: {
+        name: 'Gemini (Gemini CLI)',
+        s1: 'Pasang Gemini CLI, lalu jalankan perintah di bawah.',
+        s2: 'Jalankan gemini, ketik /mcp auth arus, lalu setujui akses baca di browser yang terbuka.',
+        s3: 'Tanyakan data usaha langsung di Gemini CLI. Aplikasi web Gemini belum mendukung connector kustom.'
+      },
+      qwen: {
+        name: 'Qwen (Qwen Code)',
+        s1: 'Pasang Qwen Code, lalu jalankan perintah di bawah.',
+        s2: 'Jalankan qwen, lalu selesaikan otorisasi yang muncul (/mcp) dan setujui akses baca di browser.',
+        s3: 'Tanyakan data usaha langsung di Qwen Code.'
+      }
+    },
     urlLabel: 'Alamat connector',
     copy: 'Salin',
     copied: 'Tersalin',
