@@ -727,5 +727,24 @@
   "pettyCatMisc": "Lain-lain",
   "errorPettyVoided": "Catatan kas kecil ini sudah dibatalkan.",
   "errorNoCashMethod": "Metode pembayaran tunai belum tersedia.",
-  "homePettyHint": "Catat uang keluar/masuk laci"
+  "homePettyHint": "Catat uang keluar/masuk laci",
+  "updateTitle": "Pembaruan tersedia",
+  "updateVersions": "Versi terpasang {current} → versi baru {latest}",
+  "@updateVersions": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "updateBody": "Perbarui ARUS ke versi terbaru untuk melanjutkan.",
+  "updateNow": "Perbarui sekarang",
+  "updateRetry": "Coba lagi",
+  "updateDownloading": "Mengunduh pembaruan…",
+  "updateInstalling": "Membuka pemasang…",
+  "updatePermission": "Izinkan ARUS memasang aplikasi pada layar yang terbuka, lalu kembali ke sini dan ketuk Perbarui sekarang.",
+  "updateFailed": "Pembaruan gagal diunduh. Periksa koneksi lalu coba lagi."
 }
