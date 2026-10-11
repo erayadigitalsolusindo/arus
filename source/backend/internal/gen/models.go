@@ -25,6 +25,13 @@ type Account struct {
 	IsSystem   bool
 }
 
+type AccountMapping struct {
+	TenantID  uuid.UUID
+	Key       string
+	AccountID uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type AccountPeriodBalance struct {
 	TenantID    uuid.UUID
 	OutletID    uuid.UUID

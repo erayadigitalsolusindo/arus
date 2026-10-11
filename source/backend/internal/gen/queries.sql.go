@@ -214,6 +214,22 @@ func (q *Queries) AccountHasLines(ctx context.Context, arg AccountHasLinesParams
 	return exists, err
 }
 
+const accountIsMapped = `-- name: AccountIsMapped :one
+SELECT EXISTS (SELECT 1 FROM account_mappings WHERE tenant_id = $1 AND account_id = $2)
+`
+
+type AccountIsMappedParams struct {
+	TenantID  uuid.UUID
+	AccountID uuid.UUID
+}
+
+func (q *Queries) AccountIsMapped(ctx context.Context, arg AccountIsMappedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, accountIsMapped, arg.TenantID, arg.AccountID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const accountList = `-- name: AccountList :many
 SELECT id, parent_id, code, name, kind, class, normal_side, is_cash_bank, active, is_system
 FROM accounts WHERE tenant_id = $1 ORDER BY code
@@ -2964,6 +2980,81 @@ func (q *Queries) JournalUpdateDraft(ctx context.Context, arg JournalUpdateDraft
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const mappingInsertDefault = `-- name: MappingInsertDefault :exec
+INSERT INTO account_mappings (tenant_id, key, account_id)
+SELECT a.tenant_id, $2::text, a.id FROM accounts a WHERE a.tenant_id = $1 AND a.code = $3::text AND a.kind = 'ledger'
+ON CONFLICT DO NOTHING
+`
+
+type MappingInsertDefaultParams struct {
+	TenantID uuid.UUID
+	Column2  string
+	Column3  string
+}
+
+func (q *Queries) MappingInsertDefault(ctx context.Context, arg MappingInsertDefaultParams) error {
+	_, err := q.db.Exec(ctx, mappingInsertDefault, arg.TenantID, arg.Column2, arg.Column3)
+	return err
+}
+
+const mappingList = `-- name: MappingList :many
+SELECT m.key, a.id AS account_id, a.code, a.name, a.class, a.active
+FROM account_mappings m JOIN accounts a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+WHERE m.tenant_id = $1 ORDER BY m.key
+`
+
+type MappingListRow struct {
+	Key       string
+	AccountID uuid.UUID
+	Code      string
+	Name      string
+	Class     string
+	Active    bool
+}
+
+func (q *Queries) MappingList(ctx context.Context, tenantID uuid.UUID) ([]MappingListRow, error) {
+	rows, err := q.db.Query(ctx, mappingList, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MappingListRow
+	for rows.Next() {
+		var i MappingListRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.AccountID,
+			&i.Code,
+			&i.Name,
+			&i.Class,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const mappingUpsert = `-- name: MappingUpsert :exec
+INSERT INTO account_mappings (tenant_id, key, account_id) VALUES ($1, $2, $3)
+ON CONFLICT (tenant_id, key) DO UPDATE SET account_id = EXCLUDED.account_id, updated_at = now()
+`
+
+type MappingUpsertParams struct {
+	TenantID  uuid.UUID
+	Key       string
+	AccountID uuid.UUID
+}
+
+func (q *Queries) MappingUpsert(ctx context.Context, arg MappingUpsertParams) error {
+	_, err := q.db.Exec(ctx, mappingUpsert, arg.TenantID, arg.Key, arg.AccountID)
+	return err
 }
 
 const memberCodeExists = `-- name: MemberCodeExists :one

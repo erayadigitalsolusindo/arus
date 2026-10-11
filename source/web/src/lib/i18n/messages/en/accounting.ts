@@ -283,6 +283,37 @@ const accounting: Messages['accounting'] = {
     subtitle: 'All posted journals in date order, with their debit/credit lines.',
     empty: 'No posted journals in this range.'
   },
+  mappings: {
+    docTitle: 'Account Mapping | ACIRABA',
+    title: 'Auto-Journal Account Mapping',
+    subtitle: 'Choose which accounts are used when the app drafts journals from sales, purchases, receivables, payables, and cash.',
+    col: { role: 'Role', account: 'Account' },
+    unset: '— Not mapped —',
+    empty: 'No mapping yet. Install the retail template in the Chart of Accounts first.',
+    saved: 'Mapping saved.',
+    methodNote: 'Cash, bank, and QRIS accounts are set per payment method in the Payment Methods menu.',
+    keys: {
+      sales_revenue: 'Sales', other_income: 'Other-charge income', receivable: 'Accounts receivable', cogs: 'Cost of goods sold',
+      inventory: 'Inventory', tax_out: 'Output VAT', tax_in: 'Input VAT', payable: 'Accounts payable', fee_expense: 'Payment method fee expense',
+      stock_variance: 'Stock variance', member_deposit: 'Member deposits', supplier_advance: 'Supplier advances', cash_over: 'Cash over', cash_short: 'Cash short'
+    },
+    hints: {
+      sales_revenue: 'Net sales value (after discounts).',
+      other_income: 'Other charges on receipts and payment-method surcharges borne by the customer.',
+      receivable: 'Credit sales to members and their settlement.',
+      cogs: 'Cost of the goods sold.',
+      inventory: 'Value of merchandise stock.',
+      tax_out: 'Tax collected on sales.',
+      tax_in: 'Tax paid on purchases.',
+      payable: 'Credit purchases from suppliers and their settlement.',
+      fee_expense: 'MDR / admin fees deducted by the bank or payment provider.',
+      stock_variance: 'Stock count differences.',
+      member_deposit: 'Member balances held on deposit.',
+      supplier_advance: 'Credit balance or advance paid to suppliers.',
+      cash_over: 'Physical cash above the recorded amount at shift close.',
+      cash_short: 'Physical cash below the recorded amount at shift close.'
+    }
+  },
   periods: {
     docTitle: 'Accounting Periods | ACIRABA',
     title: 'Periods & Closing',

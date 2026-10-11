@@ -45,6 +45,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleAccounts, authz.ActUpdate)).Put("/accounts/{id}", h.UpdateAccount)
 		r.With(req(ModuleAccounts, authz.ActDelete)).Delete("/accounts/{id}", h.DeleteAccount)
 
+		r.With(req(ModuleAccounts, authz.ActView)).Get("/mappings", h.ListMappings)
+		r.With(req(ModuleAccounts, authz.ActUpdate)).Put("/mappings", h.UpdateMappings)
+
 		r.With(req(ModulePeriods, authz.ActView)).Get("/periods", h.ListPeriods)
 		r.With(req(ModulePeriods, authz.ActUpdate)).Post("/periods/{month}/close", h.ClosePeriod)
 		r.With(req(ModulePeriods, authz.ActApprove)).Post("/periods/{month}/reopen", h.ReopenPeriod)
@@ -159,6 +162,28 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ListMappings(w http.ResponseWriter, r *http.Request) {
+	res, err := h.svc.ListMappings(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": res})
+}
+
+func (h *Handler) UpdateMappings(w http.ResponseWriter, r *http.Request) {
+	var in MappingInput
+	if !httpx.DecodeJSONLimit(w, r, &in, 8<<10) {
+		return
+	}
+	res, err := h.svc.UpdateMappings(r.Context(), actor(r), in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": res})
 }
 
 func (h *Handler) ListPeriods(w http.ResponseWriter, r *http.Request) {

@@ -19,6 +19,8 @@ export type Account = {
 
 export type AccountInput = { parent_id: string | null; code: string; name: string; kind?: 'group' | 'ledger'; class: AccClass; is_cash_bank: boolean; active?: boolean };
 
+export type Mapping = { key: string; classes: AccClass[]; account: Account | null };
+
 export type Period = { id: string; start_date: string; end_date: string; status: 'open' | 'closed'; closed_at?: string };
 
 export type JournalLine = { line_no: number; account_id: string; account_code: string; account_name: string; debit: string; credit: string; memo: string };
@@ -102,6 +104,9 @@ export const accounting = {
   updateAccount: (id: string, b: AccountInput) => api<Account>(`/accounting/accounts/${id}`, json('PUT', b)),
   deleteAccount: (id: string) => api<void>(`/accounting/accounts/${id}`, json('DELETE')),
   seedRetail: () => api<{ items: Account[] }>('/accounting/accounts/seed-retail', json('POST')),
+
+  mappings: () => api<{ items: Mapping[] }>('/accounting/mappings').then((r) => r.items),
+  updateMappings: (items: Record<string, string>) => api<{ items: Mapping[] }>('/accounting/mappings', json('PUT', { items })).then((r) => r.items),
 
   periods: () => api<{ items: Period[] }>('/accounting/periods').then((r) => r.items),
   closePeriod: (month: string) => api<Period>(`/accounting/periods/${month}/close`, json('POST')),

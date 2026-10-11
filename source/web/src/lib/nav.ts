@@ -173,6 +173,7 @@ export const siakNav: NavGroup[] = [
         icon: 'calculator',
         children: [
           { labelKey: 'nav.accAccounts', module: 'accounts', href: '/accounting/accounts' },
+          { labelKey: 'nav.accMappings', module: 'accounts', href: '/accounting/mappings' },
           { labelKey: 'nav.accJournals', module: 'journals', href: '/accounting/journals' },
           { labelKey: 'nav.accCashBank', module: 'general_ledger', href: '/accounting/cash-bank' },
           { labelKey: 'nav.accPeriods', module: 'accounting_periods', href: '/accounting/periods' }

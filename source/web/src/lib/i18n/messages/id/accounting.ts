@@ -281,6 +281,37 @@ export default {
     subtitle: 'Seluruh jurnal terposting berurutan menurut tanggal, lengkap dengan baris debit/kredit.',
     empty: 'Tidak ada jurnal terposting pada rentang ini.'
   },
+  mappings: {
+    docTitle: 'Pemetaan Akun | ACIRABA',
+    title: 'Pemetaan Akun Jurnal Otomatis',
+    subtitle: 'Tentukan akun yang dipakai saat aplikasi membuat draf jurnal dari penjualan, pembelian, piutang, hutang, dan kas.',
+    col: { role: 'Peran', account: 'Akun' },
+    unset: '— Belum dipetakan —',
+    empty: 'Belum ada pemetaan. Pasang template retail di Bagan Akun terlebih dahulu.',
+    saved: 'Pemetaan tersimpan.',
+    methodNote: 'Akun kas, bank, dan QRIS ditentukan per metode pembayaran di menu Metode Pembayaran.',
+    keys: {
+      sales_revenue: 'Penjualan', other_income: 'Pendapatan biaya lain', receivable: 'Piutang usaha', cogs: 'Harga pokok penjualan',
+      inventory: 'Persediaan', tax_out: 'PPN keluaran', tax_in: 'PPN masukan', payable: 'Hutang usaha', fee_expense: 'Beban admin metode bayar',
+      stock_variance: 'Selisih stok', member_deposit: 'Deposit member', supplier_advance: 'Uang muka pemasok', cash_over: 'Selisih kas lebih', cash_short: 'Selisih kas kurang'
+    },
+    hints: {
+      sales_revenue: 'Nilai penjualan bersih (setelah potongan).',
+      other_income: 'Biaya lain pada nota dan biaya tambahan metode bayar yang ditanggung pelanggan.',
+      receivable: 'Penjualan kredit ke member dan pelunasannya.',
+      cogs: 'Modal barang yang terjual.',
+      inventory: 'Nilai stok barang dagang.',
+      tax_out: 'Pajak yang dipungut dari penjualan.',
+      tax_in: 'Pajak yang dibayar pada pembelian.',
+      payable: 'Pembelian kredit dari pemasok dan pelunasannya.',
+      fee_expense: 'Potongan MDR / biaya admin yang dipotong bank atau penyedia pembayaran.',
+      stock_variance: 'Selisih hasil opname stok.',
+      member_deposit: 'Titipan saldo member.',
+      supplier_advance: 'Saldo kredit atau uang muka ke pemasok.',
+      cash_over: 'Kas fisik lebih besar dari catatan saat tutup shift.',
+      cash_short: 'Kas fisik lebih kecil dari catatan saat tutup shift.'
+    }
+  },
   periods: {
     docTitle: 'Periode Akuntansi | ACIRABA',
     title: 'Periode & Tutup Buku',

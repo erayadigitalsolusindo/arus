@@ -9,6 +9,7 @@ export default {
   siak: 'SIAK Aciraba',
   backToArus: 'Kembali ke ARUS',
   accAccounts: 'Kode COA',
+  accMappings: 'Pemetaan Akun',
   accJournals: 'Entri Jurnal',
   accAccounting: 'Akuntansi',
   accReports: 'Laporan',

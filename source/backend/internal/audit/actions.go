@@ -224,10 +224,11 @@ const (
 	EntityAccountingPeriod = "accounting_period"
 	EntityJournal          = "journal"
 
-	ActionAccountCreate = "account.create"
-	ActionAccountUpdate = "account.update"
-	ActionAccountDelete = "account.delete"
-	ActionAccountSeed   = "account.seed" // template COA retail
+	ActionAccountCreate    = "account.create"
+	ActionAccountUpdate    = "account.update"
+	ActionAccountDelete    = "account.delete"
+	ActionAccountSeed      = "account.seed" // template COA retail
+	ActionAccountMapUpdate = "account.mapping_update"
 
 	ActionPeriodClose  = "accounting_period.close"
 	ActionPeriodReopen = "accounting_period.reopen"
