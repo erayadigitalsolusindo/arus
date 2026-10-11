@@ -190,6 +190,13 @@ func (s *Service) UpdateAccount(ctx context.Context, a authz.Actor, id uuid.UUID
 		if in.IsCashBank && (cur.Kind != KindLedger || in.Class != "asset") {
 			return FieldErrors{"is_cash_bank": sanitize.Invalid}
 		}
+		mapped, err := q.AccountIsMapped(ctx, gen.AccountIsMappedParams{TenantID: a.TenantID, AccountID: id})
+		if err != nil {
+			return err
+		}
+		if mapped && (in.Class != cur.Class || (in.Active != nil && !*in.Active)) { // dirujuk jurnal otomatis
+			return ErrAccountInUse
+		}
 		if in.Class != cur.Class { // kelas menentukan saldo normal: kunci bila sudah dipakai
 			hasKids, err := q.AccountHasChildren(ctx, gen.AccountHasChildrenParams{TenantID: a.TenantID, ParentID: pgUUID(id)})
 			if err != nil {

@@ -113,7 +113,7 @@
                     {#each week as date (date.toString())}
                       <Calendar.Cell {date} month={month.value} class="p-0.5 text-center">
                         <Calendar.Day
-                          class="grid size-9 w-full place-items-center rounded-lg text-[12.5px] tabular-nums transition-colors
+                          class="dp-day grid size-9 w-full place-items-center rounded-lg text-[12.5px] tabular-nums transition-colors
                             hover:bg-[var(--surface-sunken)]
                             data-[outside-month]:opacity-35
                             data-[disabled]:pointer-events-none data-[disabled]:opacity-30
@@ -141,3 +141,10 @@
     </Popover.Content>
   </Popover.Portal>
 </Popover.Root>
+
+<style>
+  /* Hari terpilih: teks putih di atas latar primer (utilitas Tailwind kalah oleh warna "hari ini"). */
+  :global(.dp-day[data-selected]) {
+    color: #fff !important;
+  }
+</style>

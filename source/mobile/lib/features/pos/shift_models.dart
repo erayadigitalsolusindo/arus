@@ -48,6 +48,8 @@ class ShiftRecap {
     required this.countedTotal,
     required this.diffTotal,
     required this.counts,
+    this.pettyCash = const [],
+    required this.pettyCashLimit,
   });
 
   final String id;
@@ -62,6 +64,10 @@ class ShiftRecap {
   final Decimal? countedTotal;
   final Decimal? diffTotal;
   final List<ShiftCount> counts;
+  final List<PettyCash> pettyCash;
+
+  /// Kas keluar di atas batas ini butuh PIN penyetuju.
+  final Decimal pettyCashLimit;
 
   factory ShiftRecap.fromJson(Map<String, dynamic> j) => ShiftRecap(
     id: '${j['id']}',
@@ -79,6 +85,10 @@ class ShiftRecap {
     counts: (j['counts'] as List? ?? const [])
         .map((e) => ShiftCount.fromJson((e as Map).cast<String, dynamic>()))
         .toList(),
+    pettyCash: (j['petty_cash'] as List? ?? const [])
+        .map((e) => PettyCash.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+    pettyCashLimit: dec(j['petty_cash_limit']),
   );
 }
 
@@ -91,4 +101,39 @@ class Approver {
 
   factory Approver.fromJson(Map<String, dynamic> j) =>
       Approver(id: '${j['id']}', name: '${j['name'] ?? ''}');
+}
+
+/// Satu catatan kas kecil kasir (uang keluar/masuk laci di luar penjualan).
+class PettyCash {
+  const PettyCash({
+    required this.id,
+    required this.out,
+    required this.amount,
+    required this.category,
+    required this.note,
+    required this.createdAt,
+    required this.approvedBy,
+    required this.voided,
+  });
+
+  final String id;
+  final bool out;
+  final Decimal amount;
+  final String category;
+  final String note;
+  final DateTime createdAt;
+  final String approvedBy;
+  final bool voided;
+
+  factory PettyCash.fromJson(Map<String, dynamic> j) => PettyCash(
+    id: '${j['id']}',
+    out: j['direction'] == 'out',
+    amount: dec(j['amount']),
+    category: '${j['category'] ?? ''}',
+    note: '${j['note'] ?? ''}',
+    createdAt:
+        DateTime.tryParse('${j['created_at']}')?.toLocal() ?? DateTime.now(),
+    approvedBy: '${j['approved_by_name'] ?? ''}',
+    voided: j['voided_at'] != null,
+  );
 }

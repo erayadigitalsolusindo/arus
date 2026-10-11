@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -45,6 +47,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleAccounts, authz.ActUpdate)).Put("/accounts/{id}", h.UpdateAccount)
 		r.With(req(ModuleAccounts, authz.ActDelete)).Delete("/accounts/{id}", h.DeleteAccount)
 
+		r.With(req(ModuleAccounts, authz.ActView)).Get("/mappings", h.ListMappings)
+		r.With(req(ModuleAccounts, authz.ActUpdate)).Put("/mappings", h.UpdateMappings)
+
 		r.With(req(ModulePeriods, authz.ActView)).Get("/periods", h.ListPeriods)
 		r.With(req(ModulePeriods, authz.ActUpdate)).Post("/periods/{month}/close", h.ClosePeriod)
 		r.With(req(ModulePeriods, authz.ActApprove)).Post("/periods/{month}/reopen", h.ReopenPeriod)
@@ -54,6 +59,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleJournals, authz.ActCreate)).Post("/journals", h.CreateJournal)
 		r.With(req(ModuleJournals, authz.ActUpdate)).Put("/journals/{id}", h.UpdateJournal)
 		r.With(req(ModuleJournals, authz.ActDelete)).Delete("/journals/{id}", h.DeleteJournal)
+		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/post-batch", h.PostBatch)
+		r.With(req(ModuleJournals, authz.ActCreate)).Post("/auto/generate", h.Generate)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/{id}/post", h.PostJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/{id}/reverse", h.ReverseJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/opening", h.PostOpening)
@@ -159,6 +166,56 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
+	var in GenerateInput
+	if !httpx.DecodeJSONLimit(w, r, &in, 4<<10) {
+		return
+	}
+	res, err := h.svc.GenerateDrafts(r.Context(), actor(r), in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) PostBatch(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		IDs []uuid.UUID `json:"ids"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &in, 16<<10) {
+		return
+	}
+	res, err := h.svc.PostBatch(r.Context(), actor(r), in.IDs)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": res})
+}
+
+func (h *Handler) ListMappings(w http.ResponseWriter, r *http.Request) {
+	res, err := h.svc.ListMappings(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": res})
+}
+
+func (h *Handler) UpdateMappings(w http.ResponseWriter, r *http.Request) {
+	var in MappingInput
+	if !httpx.DecodeJSONLimit(w, r, &in, 8<<10) {
+		return
+	}
+	res, err := h.svc.UpdateMappings(r.Context(), actor(r), in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": res})
 }
 
 func (h *Handler) ListPeriods(w http.ResponseWriter, r *http.Request) {
@@ -381,8 +438,11 @@ func (h *Handler) GeneralJournal(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var fields FieldErrors
+	var missing *MissingMappingError
 	e := func(status int, code, msg string) { httpx.Error(w, status, code, msg) }
 	switch {
+	case errors.As(err, &missing):
+		e(http.StatusUnprocessableEntity, "MAPPING_MISSING", "Pemetaan akun belum lengkap: "+strings.Join(append(slices.Clone(missing.Keys), missing.Methods...), ", ")+".")
 	case errors.As(err, &fields):
 		httpx.ValidationError(w, fields)
 	case errors.Is(err, ErrNotFound):

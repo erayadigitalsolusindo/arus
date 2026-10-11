@@ -66,7 +66,7 @@ func newEnv(t *testing.T) *env {
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
 			_, _ = admin.Exec(ctx, `UPDATE journal_entries SET reverses_id = NULL WHERE tenant_id = $1`, tid)
-			for _, tbl := range []string{"audit_log", "account_period_balances", "journal_lines", "journal_entries", "journal_counters", "accounting_periods",
+			for _, tbl := range []string{"audit_log", "account_period_balances", "journal_lines", "journal_entries", "journal_counters", "accounting_periods", "account_mappings",
 				"accounts", "user_outlets", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
@@ -737,7 +737,7 @@ func TestSeedRetailTemplate(t *testing.T) {
 	if _, err := e.svc.UpdateAccount(ctx, e.otherOwner, kas.ID, accounting.AccountInput{ParentID: kas.ParentID, Code: kas.Code, Name: "Kas Besar", Class: kas.Class, IsCashBank: true}); err != nil {
 		t.Errorf("ganti nama akun sistem: %v", err)
 	}
-	if err := e.svc.DeleteAccount(ctx, e.otherOwner, byCode["6900"].ID); err != nil {
+	if err := e.svc.DeleteAccount(ctx, e.otherOwner, byCode["6130"].ID); err != nil {
 		t.Errorf("hapus akun biasa: %v", err)
 	}
 	if _, err := e.svc.SeedRetailTemplate(ctx, e.otherOwner); !errors.Is(err, accounting.ErrCOAExists) {

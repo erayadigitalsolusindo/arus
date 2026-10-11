@@ -110,6 +110,10 @@ class ApiError implements Exception {
         return l.errorShiftClosed;
       case 'SHIFT_ALREADY_OPEN':
         return l.errorShiftAlreadyOpen;
+      case 'PETTY_CASH_VOIDED':
+        return l.errorPettyVoided;
+      case 'NO_CASH_METHOD':
+        return l.errorNoCashMethod;
       case 'INTERNAL':
         return l.errorInternal;
       default:

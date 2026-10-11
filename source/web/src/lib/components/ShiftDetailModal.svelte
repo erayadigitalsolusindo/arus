@@ -113,6 +113,20 @@
         </div>
       {/if}
 
+      {#if sh.petty_cash?.length}
+        <div>
+          <h3 class="font-semibold mb-1">{t('shift.petty.detailTitle')}</h3>
+          <ul class="text-[12px] rounded-md bg-[var(--surface-sunken)] p-3 space-y-0.5">
+            {#each sh.petty_cash as m (m.id)}
+              <li class="flex justify-between gap-3 {m.voided_at ? 'line-through opacity-50' : ''}">
+                <span>{m.created_local} · {m.category}{m.note ? ` · ${m.note}` : ''}{m.approved_by_name ? ` · ${t('shift.petty.approvedBy', { name: m.approved_by_name })}` : ''}</span>
+                <span class="tabular-nums">{m.direction === 'out' ? '−' : '+'}{money(m.amount)}</span>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+
       {#if sh.note}
         <div>
           <h3 class="font-semibold mb-1">{t('shift.detail.note')}</h3>

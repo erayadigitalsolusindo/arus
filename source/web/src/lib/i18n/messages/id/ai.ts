@@ -1,0 +1,111 @@
+export default {
+  docTitle: 'HalloArus | ACIRABA',
+  title: 'HalloArus',
+  subtitle: 'Asisten AI untuk membaca data usaha Anda, menarik kesimpulan, dan memberi saran.',
+  readOnly: 'Hanya membaca',
+  readOnlyHint: 'HalloArus tidak bisa menambah, mengubah, atau menghapus data apa pun.',
+  privacy: 'Ringkasan angka dikirim ke Anthropic (Claude) memakai API key Claude milik usaha Anda (atau akun gratis ARUS). Data pelanggan (nama, telepon, alamat) tidak pernah dikirim; pelanggan hanya tampil sebagai "Pelanggan 1, 2, …".',
+  settings: 'Pengaturan',
+  setup: {
+    title: 'Hubungkan Claude',
+    intro: 'HalloArus memakai API key Claude milik usaha Anda sendiri; biaya pemakaian ditagih langsung oleh Anthropic ke akun Anda. Buat key di console.anthropic.com lalu tempel di bawah.',
+    keyLabel: 'API key Claude',
+    keyPlaceholder: 'sk-ant-…',
+    keyReplaceHint: 'Kosongkan bila tidak ingin mengganti key.',
+    keySaved: 'Key tersimpan (berakhiran {hint}). Disimpan terenkripsi dan tidak bisa dilihat lagi.',
+    modelLabel: 'Model',
+    save: 'Simpan',
+    saving: 'Memeriksa & menyimpan…',
+    saved: 'Pengaturan tersimpan.',
+    removeKey: 'Hapus key',
+    removeConfirm: 'Hapus API key? HalloArus berhenti bekerja sampai key baru dipasang.',
+    needKey: 'Isi API key Claude lebih dulu.',
+    notConfigured: 'HalloArus belum aktif. Minta pemilik usaha memasang API key Claude di halaman ini.',
+    notConfiguredManage: 'Pasang API key Claude untuk mengaktifkan HalloArus.'
+  },
+  models: {
+    'claude-sonnet-5-5': 'Claude Sonnet 5.5 (seimbang, disarankan)',
+    'claude-opus-5-5': 'Claude Opus 5.5 (analisis lebih dalam)',
+    'claude-fable-5-1': 'Claude Fable 5.1 (paling mampu)',
+    'claude-haiku-5-5': 'Claude Haiku 5.5 (cepat & hemat)'
+  },
+  free: {
+    banner: 'Akun gratis: sisa {remaining} dari {limit} pertanyaan hari ini. Pasang API key sendiri untuk tanpa batas.',
+    exhausted: 'Kuota akun gratis hari ini habis (kembali besok). Pasang API key sendiri untuk lanjut tanpa batas.',
+    useOwn: 'Pasang key sendiri'
+  },
+  connector: {
+    button: 'Connector Claude',
+    title: 'Sambungkan ke aplikasi Claude',
+    intro: 'Pakai langganan Claude Anda sendiri (tanpa API key): tambahkan ARUS sebagai connector di Claude, lalu tanyakan data usaha langsung di sana. Connector hanya bisa membaca, dengan batasan yang sama seperti HalloArus.',
+    s1: 'Di Claude buka Settings → Connectors → Add custom connector.',
+    s2: 'Tempel alamat di bawah ini, lalu simpan.',
+    s3: 'Klik Connect; Anda diarahkan ke ARUS untuk menyetujui akses baca.',
+    urlLabel: 'Alamat connector',
+    copy: 'Salin',
+    copied: 'Tersalin',
+    listTitle: 'Connector yang aktif',
+    none: 'Belum ada connector yang tersambung.',
+    by: 'oleh {name}',
+    lastUsed: 'terakhir dipakai {when}',
+    never: 'belum pernah dipakai',
+    revoke: 'Cabut',
+    revokeConfirm: 'Cabut akses connector ini? Claude tidak bisa lagi membaca data ARUS lewat izin ini.',
+    revoked: 'Akses connector dicabut.'
+  },
+  connect: {
+    docTitle: 'Izinkan Claude | ACIRABA',
+    title: 'Izinkan {name} membaca data ARUS?',
+    lead: 'Anda masuk sebagai {user}. {name} (kembali ke {host}) meminta izin untuk:',
+    c1: 'Membaca ringkasan penjualan, stok, piutang/hutang, kas, dan akuntansi sesuai hak akses Anda.',
+    c2: 'Melihat pelanggan hanya sebagai "Pelanggan 1, 2, …" (nama, telepon, alamat tidak pernah dikirim).',
+    c3: 'Tidak bisa menambah, mengubah, atau menghapus data apa pun.',
+    allow: 'Izinkan',
+    deny: 'Tolak',
+    working: 'Mengalihkan…',
+    invalid: 'Permintaan tidak valid atau kedaluwarsa. Ulangi dari aplikasi Claude.',
+    revokeHint: 'Anda bisa mencabut akses kapan saja di HalloArus → Connector Claude.'
+  },
+  empty: {
+    title: 'Tanya apa saja tentang data usaha Anda',
+    hint: 'HalloArus membaca penjualan, stok, piutang/hutang, kas, dan akuntansi sesuai hak akses Anda, lalu menyimpulkan dan memberi saran.'
+  },
+  suggestions: {
+    s1: 'Bagaimana penjualan 30 hari terakhir dibanding 30 hari sebelumnya?',
+    s2: 'Barang apa yang paling laku dan paling untung bulan ini?',
+    s3: 'Barang apa yang stoknya menipis dan perlu segera dibeli?',
+    s4: 'Ada piutang yang berisiko macet? Siapa yang harus ditagih dulu?',
+    s5: 'Apakah ada masalah selisih kas atau banyak pembatalan nota di kasir?',
+    s6: 'Barang apa yang mengendap dan sebaiknya diobral?'
+  },
+  input: {
+    placeholder: 'Tulis pertanyaan… (Enter kirim, Shift+Enter baris baru)',
+    send: 'Kirim',
+    clear: 'Percakapan baru',
+    stop: 'Batalkan'
+  },
+  thinking: 'Membaca data & menganalisis…',
+  you: 'Anda',
+  assistant: 'HalloArus',
+  dataRead: 'Data yang dibaca',
+  usage: '{input} token masuk · {output} token keluar',
+  disclaimer: 'Jawaban AI bisa keliru; periksa angka penting di laporan. Bukan nasihat keuangan, pajak, atau hukum.',
+  tools: {
+    list_outlets: 'Daftar outlet',
+    sales_summary: 'Ringkasan penjualan',
+    top_items: 'Barang terlaris / terlemah',
+    sales_by_category: 'Penjualan per kategori',
+    returns_summary: 'Ringkasan retur',
+    member_overview: 'Ringkasan pelanggan (anonim)',
+    stock_overview: 'Kondisi persediaan',
+    stock_items: 'Barang perlu perhatian',
+    slow_moving_items: 'Barang mengendap',
+    stock_opname_summary: 'Hasil opname stok',
+    receivables_summary: 'Piutang & umur piutang',
+    payables_summary: 'Hutang pemasok',
+    purchases_summary: 'Ringkasan pembelian',
+    cash_shifts_summary: 'Kontrol shift kasir',
+    petty_cash_summary: 'Kas kecil',
+    accounting_balances: 'Saldo akun (buku besar)'
+  }
+};

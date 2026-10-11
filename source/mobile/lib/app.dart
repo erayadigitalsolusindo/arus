@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'core/locale/locale_controller.dart';
 import 'core/session/session_controller.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/text_scale_controller.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/login_page.dart';
 import 'features/pos/pos_page.dart';
@@ -56,6 +57,14 @@ class ArusApp extends ConsumerWidget {
       themeMode: ref.watch(themeModeProvider),
       locale: ref.watch(localeProvider),
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        final user = ref.watch(textScaleProvider);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: _ScaledBy(mq.textScaler, user)),
+          child: child!,
+        );
+      },
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -71,4 +80,31 @@ class ArusApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
     );
   }
+}
+
+/// Mengalikan skala font sistem HP dengan pilihan pengguna di aplikasi.
+class _ScaledBy extends TextScaler {
+  const _ScaledBy(this.base, this.factor);
+
+  final TextScaler base;
+  final double factor;
+
+  @override
+  double scale(double fontSize) => base.scale(fontSize) * factor;
+
+  @override
+  double get textScaleFactor => scale(1);
+
+  @override
+  TextScaler clamp({
+    double minScaleFactor = 0,
+    double maxScaleFactor = double.infinity,
+  }) => TextScaler.linear(scale(1).clamp(minScaleFactor, maxScaleFactor));
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ScaledBy && other.base == base && other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(base, factor);
 }

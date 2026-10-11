@@ -3,6 +3,7 @@
   import Modal from '#lib/components/Modal.svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { paymentMethods as api, type FeeBearer, type PaymentKind, type PaymentMethod, isWalletKind } from '#lib/catalog/api.ts';
+  import { accounting, type Account } from '#lib/accounting/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, formatCurrency, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
@@ -12,13 +13,26 @@
   const PAGE = 20;
   // Jenis dasar yang boleh dipilih untuk metode baru. Tunai hanya satu (bawaan), jadi tidak ditawarkan.
   const NEW_KINDS: PaymentKind[] = ['transfer', 'debit', 'credit_card', 'ewallet'];
-  const kindLabel = (k: PaymentKind) => t(`sales.method.${k}` as 'sales.method.cash');
+  // Pintasan nama + jenis untuk metode baru (bank, dompet digital, QRIS). Tiap metode mendapat akun COA sendiri.
+  const PRESETS: { name: string; kind: PaymentKind }[] = [
+    { name: 'Transfer BCA', kind: 'transfer' },
+    { name: 'Transfer BNI', kind: 'transfer' },
+    { name: 'Transfer BRI', kind: 'transfer' },
+    { name: 'Transfer Mandiri', kind: 'transfer' },
+    { name: 'QRIS', kind: 'ewallet' },
+    { name: 'DANA', kind: 'ewallet' },
+    { name: 'OVO', kind: 'ewallet' },
+    { name: 'GoPay', kind: 'ewallet' },
+    { name: 'ShopeePay', kind: 'ewallet' }
+  ];
+  const kindLabel =(k: PaymentKind) => t(`sales.method.${k}` as 'sales.method.cash');
 
-  type Field = 'name' | 'kind' | 'fee_pct' | 'fee_flat' | 'fee_bearer';
+  type Field = 'name' | 'kind' | 'fee_pct' | 'fee_flat' | 'fee_bearer' | 'account_id';
   type Editor = {
     id: string | null;
     name: string;
     kind: PaymentKind;
+    accountId: string; // '' = otomatis (baru) / tetap (ubah)
     feePct: string;
     feeFlat: string;
     bearer: FeeBearer;
@@ -71,9 +85,31 @@
     void load();
   }
 
+  // Pilihan akun COA hanya untuk pengguna yang boleh melihat bagan akun; selain itu akun diurus otomatis oleh server.
+  let accounts = $state<Account[]>([]);
+  async function loadAccounts() {
+    if (!can('accounts', 'view')) return;
+    try {
+      accounts = (await accounting.accounts()).filter((a) => a.kind === 'ledger' && a.active && (a.class === 'asset' || a.class === 'liability'));
+    } catch {
+      accounts = [];
+    }
+  }
+  const accountOptions = (ed: Editor) => {
+    const internal = isWalletKind(ed.kind);
+    const opts = accounts.filter((a) => a.class === 'asset' || internal).map((a) => ({ value: a.id, label: `${a.code} · ${a.name}` }));
+    return ed.id ? opts : [{ value: '', label: t('catalog.paymentMethods.accountAuto') }, ...opts];
+  };
+
   const canWrite = (m: PaymentMethod | null) => (m ? can('payment_methods', 'update') : can('payment_methods', 'create'));
-  const openNew = () => (editor = { id: null, name: '', kind: 'ewallet', feePct: '', feeFlat: '', bearer: 'store', system: false, saving: false, error: '', errors: {} });
-  const openMethod = (m: PaymentMethod) => (editor = { id: m.id, name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, saving: false, error: '', errors: {} });
+  const openNew = () => {
+    void loadAccounts();
+    editor = { id: null, accountId: '', name: '', kind: 'ewallet', feePct: '', feeFlat: '', bearer: 'store', system: false, saving: false, error: '', errors: {} };
+  };
+  const openMethod = (m: PaymentMethod) => {
+    void loadAccounts();
+    editor = { id: m.id, accountId: m.account?.id ?? '', name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, saving: false, error: '', errors: {} };
+  };
 
   /** Ringkasan biaya untuk tabel, mis. "0,7% + Rp100"; "—" bila tanpa biaya. */
   function feeText(m: PaymentMethod): string {
@@ -102,7 +138,7 @@
     if (Object.keys(next).length) return;
 
     // Kolom biaya yang kosong TIDAK dikirim: API membaca angka sebagai json.Number dan menolak teks kosong ("").
-    const body = { name: name.value, kind: ed.kind, fee_bearer: ed.bearer, ...(pct ? { fee_pct: pct } : {}), ...(flat ? { fee_flat: flat } : {}) };
+    const body = { name: name.value, kind: ed.kind, fee_bearer: ed.bearer, ...(ed.accountId ? { account_id: ed.accountId } : {}), ...(pct ? { fee_pct: pct } : {}), ...(flat ? { fee_flat: flat } : {}) };
     ed.saving = true;
     try {
       if (ed.id) {
@@ -191,11 +227,12 @@
     </div>
 
     <div class="overflow-x-auto scroll-thin">
-      <table class="w-full text-[12.5px] min-w-[600px]">
+      <table class="w-full text-[12.5px] min-w-[760px]">
         <thead>
           <tr class="text-[11.5px] uppercase tracking-wide text-[var(--text-tertiary)]">
             <th class="p-3 text-start" scope="col">{t('catalog.name')}</th>
             <th class="p-3 text-start" scope="col">{t('catalog.paymentMethods.kind')}</th>
+            <th class="p-3 text-start" scope="col">{t('catalog.paymentMethods.account')}</th>
             <th class="p-3 text-end" scope="col">{t('catalog.paymentMethods.fee')}</th>
             <th class="p-3 text-start" scope="col">{t('catalog.status')}</th>
             <th class="p-3 text-end" scope="col"></th>
@@ -209,6 +246,7 @@
                 {#if m.is_system}<span class="badge-soft badge-info ms-1.5">{t('catalog.paymentMethods.system')}</span>{/if}
               </td>
               <td class="p-3">{kindLabel(m.kind)}</td>
+              <td class="p-3">{#if m.account}<span class="tabular-nums text-[var(--text-secondary)]">{m.account.code}</span> {m.account.name}{:else}<span class="text-[var(--text-tertiary)]">—</span>{/if}</td>
               <td class="p-3 text-end tabular-nums">{feeText(m)}</td>
               <td class="p-3"><span class="badge-soft {m.active ? 'badge-success' : 'badge-danger'}">{m.active ? t('catalog.active') : t('catalog.inactive')}</span></td>
               <td class="p-3 text-end whitespace-nowrap">
@@ -230,7 +268,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' ? t('catalog.emptySearch') : t('catalog.empty')}</td></tr>
+            <tr><td colspan="6" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? '…' : q.trim() || filter !== 'all' ? t('catalog.emptySearch') : t('catalog.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -260,6 +298,16 @@
         </div>
       {/if}
 
+      {#if !ed.id}
+        <div>
+          <span class={labelClass}>{t('catalog.paymentMethods.presets')}</span>
+          <div class="flex flex-wrap gap-1.5">
+            {#each PRESETS as p (p.name)}
+              <button type="button" class="btn !text-[11.5px] !py-1" onclick={() => { ed.name = p.name; ed.kind = p.kind; }}>{p.name}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
       <div>
         <label for="pm-name" class={labelClass}>{t('catalog.name')}</label>
         <input id="pm-name" class={inputClass} bind:value={ed.name} maxlength="60" disabled={ro} aria-invalid={!!ed.errors.name} use:focusOnMount />
@@ -302,6 +350,15 @@
         </div>
       {:else}
         <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('catalog.paymentMethods.feeCash')}</p>
+      {/if}
+
+      {#if can('accounts', 'view') && accounts.length}
+        <div>
+          <label for="pm-account" class={labelClass}>{t('catalog.paymentMethods.account')}</label>
+          <Select id="pm-account" ariaLabel={t('catalog.paymentMethods.account')} bind:value={ed.accountId} disabled={ro} options={accountOptions(ed)} />
+          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.accountHint')}</p>
+          {#if ed.errors.account_id}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.account_id}</p>{/if}
+        </div>
       {/if}
 
       <div class="flex justify-end gap-2 pt-1">

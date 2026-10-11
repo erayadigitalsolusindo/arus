@@ -25,6 +25,13 @@ type Account struct {
 	IsSystem   bool
 }
 
+type AccountMapping struct {
+	TenantID  uuid.UUID
+	Key       string
+	AccountID uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type AccountPeriodBalance struct {
 	TenantID    uuid.UUID
 	OutletID    uuid.UUID
@@ -74,6 +81,25 @@ type Brand struct {
 	Active    bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type CashMovement struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	OutletID     uuid.UUID
+	ShiftID      uuid.UUID
+	MethodID     uuid.UUID
+	Direction    string
+	Amount       decimal.Decimal
+	Category     string
+	Note         string
+	CreatedBy    uuid.UUID
+	ApprovedBy   pgtype.UUID
+	ApprovedName pgtype.Text
+	IdemKey      string
+	CreatedAt    pgtype.Timestamptz
+	VoidedAt     pgtype.Timestamptz
+	VoidedBy     pgtype.UUID
 }
 
 type CashShift struct {
@@ -245,7 +271,7 @@ type JournalEntry struct {
 	SourceType pgtype.Text
 	SourceRef  pgtype.Text
 	ReversesID pgtype.UUID
-	CreatedBy  uuid.UUID
+	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	PostedBy   pgtype.UUID
 	PostedAt   pgtype.Timestamptz
@@ -262,6 +288,25 @@ type JournalLine struct {
 	Debit     decimal.Decimal
 	Credit    decimal.Decimal
 	Memo      string
+}
+
+type JournalTemplate struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Type      string
+	Narration string
+	CreatedBy uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type JournalTemplateLine struct {
+	TenantID   uuid.UUID
+	TemplateID uuid.UUID
+	LineNo     int32
+	AccountID  uuid.UUID
+	Side       string
+	Memo       string
 }
 
 type Member struct {
@@ -343,22 +388,23 @@ type MemberPointMovement struct {
 }
 
 type Outlet struct {
-	ID            uuid.UUID
-	TenantID      uuid.UUID
-	Code          string
-	Name          string
-	TaxStorePct   decimal.Decimal
-	TaxGovPct     decimal.Decimal
-	Timezone      string
-	Active        bool
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	StockLockedAt pgtype.Timestamptz
-	OpsStartDate  pgtype.Date
-	Address       string
-	Phone         string
-	ReceiptHeader string
-	ReceiptFooter string
+	ID                     uuid.UUID
+	TenantID               uuid.UUID
+	Code                   string
+	Name                   string
+	TaxStorePct            decimal.Decimal
+	TaxGovPct              decimal.Decimal
+	Timezone               string
+	Active                 bool
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	StockLockedAt          pgtype.Timestamptz
+	OpsStartDate           pgtype.Date
+	Address                string
+	Phone                  string
+	ReceiptHeader          string
+	ReceiptFooter          string
+	PettyCashApprovalLimit decimal.Decimal
 }
 
 type Payable struct {
@@ -430,6 +476,7 @@ type PaymentMethod struct {
 	FeePct    decimal.Decimal
 	FeeFlat   decimal.Decimal
 	FeeBearer string
+	AccountID pgtype.UUID
 }
 
 type PlatformAdmin struct {

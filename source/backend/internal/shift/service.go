@@ -115,6 +115,9 @@ type Shift struct {
 	ApprovedByName  string     `json:"approved_by_name,omitempty"`
 	Counts          []Count    `json:"counts"`
 	Flows           []Flow     `json:"flows"`
+	// Kas kecil kasir pada shift ini (terbaru dulu, termasuk yang dibatalkan) + batas kas keluar tanpa PIN.
+	PettyCash      []Movement `json:"petty_cash"`
+	PettyCashLimit string     `json:"petty_cash_limit"`
 	// Waktu menurut zona waktu outlet (untuk struk), format 02/01/2006 15:04.
 	OpenedLocal string `json:"opened_local"`
 	ClosedLocal string `json:"closed_local,omitempty"`
@@ -279,6 +282,11 @@ WITH x AS (
   SELECT 'supplier_credit_cashout', c.method_id, c.method, -c.amount
   FROM supplier_credit_movements c
   WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.kind = 'CASH_OUT' AND c.actor_id = $3 AND c.created_at >= $4 AND c.created_at < $5
+  UNION ALL
+  SELECT CASE m.direction WHEN 'in' THEN 'petty_cash_in' ELSE 'petty_cash_out' END, m.method_id, 'cash',
+         CASE m.direction WHEN 'in' THEN m.amount ELSE -m.amount END
+  FROM cash_movements m
+  WHERE m.tenant_id = $1 AND m.outlet_id = $2 AND m.created_by = $3 AND m.voided_at IS NULL AND m.created_at >= $4 AND m.created_at < $5
 )
 SELECT x.src, x.method_id, pm.name, x.kind, sum(x.amt), count(*)
 FROM x JOIN payment_methods pm ON pm.tenant_id = $1 AND pm.id = x.method_id
@@ -476,6 +484,14 @@ func (s *Service) get(ctx context.Context, a authz.Actor, id uuid.UUID, check bo
 		out = Shift{ID: h.id, DocNo: h.docNo, Status: h.status, OutletID: h.outlet, UserID: h.user, UserName: h.userName,
 			OpeningCash: h.opening.StringFixed(2), OpenedAt: h.openedAt, ClosedAt: h.closedAt, ClosedByName: h.closedBy, Note: h.note,
 			ApprovedByName: h.approvedName, OpenedLocal: localTime(h.openedAt, h.tz), Store: h.store}
+		var lim dec
+		if err := tx.QueryRow(ctx, `SELECT petty_cash_approval_limit FROM outlets WHERE tenant_id = $1 AND id = $2`, a.TenantID, h.outlet).Scan(&lim); err != nil {
+			return err
+		}
+		out.PettyCashLimit = lim.StringFixed(2)
+		if out.PettyCash, err = loadMovements(ctx, tx, a.TenantID, id, h.tz); err != nil {
+			return err
+		}
 		if h.status == "open" {
 			r, err := computeRecap(ctx, tx, a.TenantID, h.outlet, h.user, h.opening, h.openedAt, s.now().Add(time.Second))
 			if err != nil {

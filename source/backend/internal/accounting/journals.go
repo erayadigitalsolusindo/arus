@@ -59,7 +59,7 @@ type Journal struct {
 	Status      string     `json:"status"`
 	Narration   string     `json:"narration"`
 	ReversesID  *uuid.UUID `json:"reverses_id,omitempty"`
-	CreatedBy   uuid.UUID  `json:"created_by"`
+	CreatedBy   *uuid.UUID `json:"created_by"` // kosong = dibuat penjadwal otomatis
 	CreatedAt   time.Time  `json:"created_at"`
 	PostedAt    *time.Time `json:"posted_at,omitempty"`
 	TotalDebit  string     `json:"total_debit"`
@@ -165,7 +165,7 @@ type journalRow interface {
 func loadJournal[R journalRow](ctx context.Context, q *gen.Queries, tenant uuid.UUID, row R) (Journal, error) {
 	r := gen.JournalGetRow(row)
 	j := Journal{ID: r.ID, OutletID: r.OutletID, DocNo: r.DocNo.String, Date: r.EntryDate.Time.Format(dateLayout), Type: r.Type, Status: r.Status,
-		Narration: r.Narration, ReversesID: uuidPtr(r.ReversesID), CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt.Time, Lines: []Line{}}
+		Narration: r.Narration, ReversesID: uuidPtr(r.ReversesID), CreatedBy: uuidPtr(r.CreatedBy), CreatedAt: r.CreatedAt.Time, Lines: []Line{}}
 	if r.PostedAt.Valid {
 		t := r.PostedAt.Time
 		j.PostedAt = &t
@@ -225,7 +225,7 @@ func (s *Service) SaveDraft(ctx context.Context, a authz.Actor, id uuid.UUID, in
 		}
 		if id == uuid.Nil {
 			id, err = q.JournalInsert(ctx, gen.JournalInsertParams{TenantID: a.TenantID, OutletID: outlet, EntryDate: pgDate(date), Type: in.Type,
-				Narration: narr, CreatedBy: a.UserID})
+				Narration: narr, CreatedBy: pgUUID(a.UserID)})
 			if err != nil {
 				return err
 			}
@@ -459,7 +459,7 @@ func (s *Service) Reverse(ctx context.Context, a authz.Actor, id uuid.UUID, date
 			memo += ": " + narr
 		}
 		newID, err := q.JournalInsert(ctx, gen.JournalInsertParams{TenantID: a.TenantID, OutletID: orig.OutletID, EntryDate: pgDate(d), Type: orig.Type,
-			Narration: memo, ReversesID: pgUUID(id), CreatedBy: a.UserID})
+			Narration: memo, ReversesID: pgUUID(id), CreatedBy: pgUUID(a.UserID)})
 		if err != nil {
 			return err
 		}
@@ -515,7 +515,7 @@ func (s *Service) PostOpening(ctx context.Context, a authz.Actor, in OpeningInpu
 			return ErrOpeningExists
 		}
 		id, err := q.JournalInsert(ctx, gen.JournalInsertParams{TenantID: a.TenantID, OutletID: outlet, EntryDate: pgDate(date), Type: "OPENING",
-			Narration: narr, CreatedBy: a.UserID})
+			Narration: narr, CreatedBy: pgUUID(a.UserID)})
 		if err != nil {
 			return err
 		}

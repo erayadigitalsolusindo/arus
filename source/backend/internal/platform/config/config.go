@@ -29,6 +29,17 @@ type Config struct {
 	// Hapus dari lingkungan server setelah admin pertama dibuat.
 	PlatformSetupToken string
 
+	// AutoJournal: penjadwal malam yang membuat DRAF jurnal otomatis (AUTO_JOURNAL=true|false). Bawaan: nyala di luar development
+	// (di dev mati agar API yang dijalankan ulang tidak menulis draf ke data pengguna tanpa diminta).
+	AutoJournal bool
+
+	// AIPlatformKey = API key Claude milik platform untuk akun gratis HalloArus (kosong = tanpa akun gratis; tenant wajib memasang key sendiri).
+	// AIFreeDailyLimit = jumlah pertanyaan gratis per tenant per hari (bawaan 10); akun gratis selalu memakai model murah (Haiku).
+	// APIBaseURL = alamat PUBLIK API (tanpa slash akhir): dipakai metadata OAuth dan alamat connector MCP (/mcp) yang dimasukkan ke Claude.
+	APIBaseURL       string
+	AIPlatformKey    string
+	AIFreeDailyLimit int
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
@@ -54,11 +65,25 @@ func Load() (Config, error) {
 		TrustProxy:         os.Getenv("TRUST_PROXY") == "true",
 		UploadDir:          getenv("UPLOAD_DIR", "./data/uploads"),
 		PlatformSetupToken: os.Getenv("PLATFORM_SETUP_TOKEN"),
+		APIBaseURL:         strings.TrimRight(getenv("API_BASE_URL", "http://localhost:8080"), "/"),
+		AIPlatformKey:      strings.TrimSpace(os.Getenv("AI_PLATFORM_KEY")),
+		AIFreeDailyLimit:   10,
 		AppBaseURL:         strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
 		SMTPHost:           os.Getenv("SMTP_HOST"),
 		SMTPUser:           os.Getenv("SMTP_USER"),
 		SMTPPass:           os.Getenv("SMTP_PASS"),
 		SMTPFrom:           getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+	}
+	c.AutoJournal = !c.IsDev()
+	if v := os.Getenv("AUTO_JOURNAL"); v != "" {
+		c.AutoJournal = v == "true"
+	}
+	if v := os.Getenv("AI_FREE_DAILY_LIMIT"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 || n > 1000 {
+			return Config{}, errors.New("AI_FREE_DAILY_LIMIT tidak valid (0-1000)")
+		}
+		c.AIFreeDailyLimit = n
 	}
 	for _, o := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {
@@ -83,6 +108,9 @@ func Load() (Config, error) {
 	}
 	if !c.IsDev() && !strings.HasPrefix(c.AppBaseURL, "https://") {
 		errs = append(errs, errors.New("APP_BASE_URL wajib https:// di luar development"))
+	}
+	if !c.IsDev() && !strings.HasPrefix(c.APIBaseURL, "https://") {
+		errs = append(errs, errors.New("API_BASE_URL wajib https:// di luar development (alamat publik API untuk connector MCP)"))
 	}
 	if !c.IsDev() && c.SMTPHost == "" {
 		errs = append(errs, errors.New("SMTP_HOST wajib di luar development (email verifikasi dan reset password)"))

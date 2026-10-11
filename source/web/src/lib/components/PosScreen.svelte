@@ -25,6 +25,7 @@
   import PayModal from '#lib/components/PayModal.svelte';
   import ShiftOpenModal from '#lib/components/ShiftOpenModal.svelte';
   import ShiftCloseModal from '#lib/components/ShiftCloseModal.svelte';
+  import PettyCashModal from '#lib/components/PettyCashModal.svelte';
   import { shifts, type Shift } from '#lib/shift/api.ts';
   import VoucherModal from '#lib/components/VoucherModal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
@@ -614,6 +615,7 @@
   let shift = $state<Shift | null | undefined>(undefined);
   let shiftOpenDlg = $state(false);
   let shiftCloseId = $state<string | null>(null); // dipegang terpisah: layar "shift ditutup" tetap tampil setelah shift = null
+  let pettyOpen = $state(false);
   async function loadShift(ask: boolean) {
     try {
       shift = await shifts.current();
@@ -1131,6 +1133,9 @@
       {/if}
 
       <span class="grow"></span>
+      {#if shift}
+        <button type="button" class="btn btn-sm w-full" onclick={() => (pettyOpen = true)}><i class="icon-wallet"></i> {t('shift.petty.button')}</button>
+      {/if}
       <button type="button" class="btn btn-sm w-full" disabled title={t('pos.soon')}>{t('pos.orderStatus')}</button>
     </aside>
 
@@ -1764,6 +1769,7 @@
         <button type="button" class="cl-btn cl-btn-lg" onclick={() => (todayOpen = true)}><i class="icon-receipt"></i> F9 - {t('pos.shortcuts.today')}</button>
         <button type="button" class="cl-btn cl-btn-lg" onclick={() => load(true)}><i class="icon-refresh-cw {loading ? 'animate-spin' : ''}"></i> F5 - {t('pos.classic.refresh')}</button>
         {#if shift}
+          <button type="button" class="cl-btn cl-btn-lg" onclick={() => (pettyOpen = true)}><i class="icon-wallet"></i> {t('shift.petty.button')}</button>
           <button type="button" class="cl-btn cl-btn-lg" title={t('shift.openAt', { time: shift.opened_local })} onclick={() => (shiftCloseId = shift?.id ?? null)}><i class="icon-lock"></i> {t('shift.close')}</button>
         {:else if shift === null}
           <button type="button" class="cl-btn cl-btn-lg text-[var(--color-danger-600)]" onclick={() => (shiftOpenDlg = true)}><i class="icon-lock-open"></i> {t('shift.open.submit')}</button>
@@ -1883,6 +1889,10 @@
 
 {#if shiftOpenDlg}
   <ShiftOpenModal {classic} onclose={() => (shiftOpenDlg = false)} onopened={shiftOpened} />
+{/if}
+
+{#if pettyOpen && shift}
+  <PettyCashModal shiftId={shift.id} onclose={() => ((pettyOpen = false), searchEl?.focus())} />
 {/if}
 
 {#if shiftCloseId}

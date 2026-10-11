@@ -35,9 +35,14 @@
       mode: 'range',
       showMonths: 2,
       dateFormat: 'd-m-Y',
-      locale: i18n.locale === 'id' ? Indonesian : undefined,
+      // Pemisah ringkas; bawaan " to " (Inggris) lebih panjang dan membuat teks terpotong.
+      locale: { ...(i18n.locale === 'id' ? Indonesian : {}), rangeSeparator: ' – ' },
       defaultDate: dates(),
       disableMobile: true,
+      // Ujung rentang terpilih bertulisan putih; aturan tema (gelap) memaksa teks gelap, jadi diberi gaya inline.
+      onDayCreate: (_d, _s, _fp, el) => {
+        if (el.classList.contains('selected') || el.classList.contains('startRange') || el.classList.contains('endRange')) el.style.setProperty('color', '#fff', 'important');
+      },
       onOpen: () => (isOpen = true),
       onClose: () => (isOpen = false),
       onChange: (dates) => {
@@ -72,7 +77,7 @@
   });
 </script>
 
-<div class="relative {cls}">
+<div class="relative {cls}" style="min-width:15.5rem">
   <i class="icon-calendar absolute start-3 top-1/2 -translate-y-1/2 text-[14px] text-[var(--text-tertiary)] pointer-events-none"></i>
   <input
     bind:this={input}
@@ -81,6 +86,6 @@
     aria-label={ariaLabel}
     placeholder={placeholder || t('common.dateRange')}
     class="btn btn-outline w-full cursor-pointer text-[12.5px] focus:!outline-none"
-    style="padding-inline-start: 2.25rem; text-align: start"
+    style="padding-inline-start: 2.25rem; padding-inline-end: 0.75rem; text-align: start; font-size: 12.5px; text-overflow: clip"
   />
 </div>
