@@ -113,7 +113,9 @@
   };
   const closeIt = () => (page ? guard.request(() => (finish(), onclose())) : onclose());
 
-  const readonly = $derived(journal?.status === 'posted');
+  // Draf jurnal otomatis (SALES, dst.) dihitung server dari transaksi: hanya bisa dilihat dan diposting, bukan diubah.
+  const isAuto = $derived(!!journal && journal.status === 'draft' && !['JU', 'KM', 'KK', 'TK'].includes(journal.type));
+  const readonly = $derived(journal?.status === 'posted' || isAuto);
   const typeOptions = $derived((['JU', 'KM', 'KK', 'TK'] as const).map((v) => ({ value: v as string, label: `${v} · ${t(`accounting.type.${v}`)}` })));
 
   onMount(async () => {
@@ -390,6 +392,16 @@
     });
   }
 
+  async function postAuto() {
+    if (!journal) return;
+    await run(async () => {
+      const j = await accounting.postJournal(journal!.id);
+      notice = t('accounting.journals.posted', { doc: j.doc_no ?? '' });
+      onchanged();
+      onclose();
+    });
+  }
+
   async function reverse(e: Event) {
     e.preventDefault();
     if (!journal) return;
@@ -563,7 +575,11 @@
         {/if}
         <div class="ms-auto flex flex-wrap justify-end gap-2">
           <button type="button" class="btn" onclick={closeIt} disabled={busy}>{t('accounting.journals.close')}</button>
-          {#if readonly}
+          {#if isAuto}
+            {#if can('journals', 'approve')}
+              <button type="button" class="btn btn-primary" disabled={busy} onclick={postAuto}><i class="icon-circle-check"></i> {t('accounting.journals.post')}</button>
+            {/if}
+          {:else if readonly}
             {#if can('journals', 'approve') && !reversing && !journal?.reverses_id}
               <button type="button" class="btn" onclick={() => (reversing = true)}><i class="icon-undo-2"></i> {t('accounting.journals.reverse')}</button>
             {/if}

@@ -135,3 +135,61 @@ ON CONFLICT DO NOTHING;
 
 -- name: AccountIsMapped :one
 SELECT EXISTS (SELECT 1 FROM account_mappings WHERE tenant_id = $1 AND account_id = $2);
+
+-- ---- Jurnal otomatis: penjualan harian per outlet ----
+
+-- name: AutoOutletWindow :one
+SELECT o.name, o.active,
+       ((sqlc.arg(day)::date)::timestamp AT TIME ZONE o.timezone)::timestamptz AS t0,
+       ((((sqlc.arg(day)::date) + 1)::timestamp) AT TIME ZONE o.timezone)::timestamptz AS t1,
+       (now() AT TIME ZONE o.timezone)::date AS today
+FROM outlets o WHERE o.tenant_id = sqlc.arg(tenant_id) AND o.id = sqlc.arg(outlet_id);
+
+-- name: AutoSalesTotals :one
+SELECT count(*)::bigint AS n,
+       coalesce(sum(subtotal - discount), 0)::numeric(18,2) AS revenue,
+       coalesce(sum(tax_store + tax_gov), 0)::numeric(18,2) AS tax,
+       coalesce(sum(other_cost), 0)::numeric(18,2) AS other_cost,
+       coalesce(sum(change), 0)::numeric(18,2) AS change_given
+FROM sales
+WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND created_at >= $3 AND created_at < $4;
+
+-- name: AutoSalesPayments :many
+SELECT m.id AS method_id, m.name, m.kind, m.account_id,
+       coalesce(sum(p.amount), 0)::numeric(18,2) AS amount,
+       coalesce(sum(p.fee_amount), 0)::numeric(18,2) AS fee,
+       coalesce(sum(CASE WHEN p.fee_bearer = 'customer' THEN p.fee_amount ELSE 0 END), 0)::numeric(18,2) AS surcharge
+FROM sale_payments p
+JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.sale_id
+JOIN payment_methods m ON m.tenant_id = p.tenant_id AND m.id = p.method_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'completed' AND s.created_at >= $3 AND s.created_at < $4
+GROUP BY m.id, m.name, m.kind, m.account_id ORDER BY m.name;
+
+-- name: AutoSalesReceivable :one
+SELECT coalesce(sum(receivable), 0)::numeric(18,2) FROM sales
+WHERE tenant_id = $1 AND outlet_id = $2 AND status = 'completed' AND created_at >= $3 AND created_at < $4;
+
+-- name: AutoSalesCogs :one
+SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
+FROM sale_lines l JOIN sales s ON s.tenant_id = l.tenant_id AND s.id = l.sale_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'completed' AND s.created_at >= $3 AND s.created_at < $4;
+
+-- name: AutoJournalByRef :one
+SELECT id, status FROM journal_entries WHERE tenant_id = $1 AND source_type = $2 AND source_ref = $3;
+
+-- name: AutoJournalPostedNet :many
+SELECT l.account_id, sum(l.debit - l.credit)::numeric(18,2) AS net
+FROM journal_entries e JOIN journal_lines l ON l.tenant_id = e.tenant_id AND l.entry_id = e.id
+WHERE e.tenant_id = $1 AND e.source_type = $2 AND e.status = 'posted'
+  AND (e.source_ref = $3::text OR e.source_ref LIKE $3::text || ':adj:%')
+GROUP BY l.account_id;
+
+-- name: AutoJournalPendingAdj :one
+SELECT id FROM journal_entries
+WHERE tenant_id = $1 AND source_type = $2 AND status = 'draft' AND source_ref LIKE $3::text || ':adj:%' LIMIT 1;
+
+-- name: AutoJournalAdjCount :one
+SELECT count(*)::bigint FROM journal_entries WHERE tenant_id = $1 AND source_type = $2 AND source_ref LIKE $3::text || ':adj:%';
+
+-- name: PeriodStatusGet :one
+SELECT status FROM accounting_periods WHERE tenant_id = $1 AND start_date = $2;

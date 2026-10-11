@@ -233,8 +233,9 @@ const (
 	ActionPeriodClose  = "accounting_period.close"
 	ActionPeriodReopen = "accounting_period.reopen"
 
-	ActionJournalSave    = "journal.save" // buat/ubah draf
-	ActionJournalDelete  = "journal.delete"
-	ActionJournalPost    = "journal.post"
-	ActionJournalReverse = "journal.reverse"
+	ActionJournalSave         = "journal.save" // buat/ubah draf
+	ActionJournalDelete       = "journal.delete"
+	ActionJournalPost         = "journal.post"
+	ActionJournalReverse      = "journal.reverse"
+	ActionJournalAutoGenerate = "journal.auto_generate" // draf jurnal otomatis (penjualan harian, dst.)
 )
