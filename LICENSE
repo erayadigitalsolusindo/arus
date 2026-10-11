@@ -1,0 +1,63 @@
+ARUS Source-Available License (Versi 1.0)
+
+Hak Cipta (c) 2026 Eraya Digital Solusindo. Semua hak dilindungi kecuali yang
+diberikan secara tegas di bawah ini.
+
+CATATAN: Ini adalah lisensi source-available, BUKAN lisensi open source menurut
+definisi OSI. Naskah ini dibuat sebagai pegangan awal dan belum ditinjau
+penasihat hukum.
+
+1. DEFINISI
+   "Perangkat Lunak" adalah seluruh kode sumber, dokumentasi, dan berkas
+   pendukung dalam repositori ARUS, termasuk perubahannya.
+   "Pemberi Lisensi" adalah Eraya Digital Solusindo.
+   "Anda" adalah individu atau badan yang menggunakan Perangkat Lunak.
+   "Penjualan Ulang" adalah menjual, menyewakan, melisensikan ulang,
+   mendistribusikan dengan imbalan, atau menawarkan Perangkat Lunak atau
+   turunannya kepada pihak lain, termasuk sebagai layanan (SaaS/hosting untuk
+   pihak ketiga), jasa pemasangan atau pengelolaan bagi pihak lain, atau
+   dengan nama/merek lain (white-label).
+
+2. HAK YANG DIBERIKAN
+   Dengan syarat Anda mematuhi lisensi ini, Anda diberi hak yang tidak
+   eksklusif, tidak dapat dialihkan, dan tidak dapat disublisensikan untuk:
+   a. membaca, mempelajari, dan mengaudit kode sumber;
+   b. menjalankan dan menguji Perangkat Lunak untuk keperluan pribadi,
+      belajar, atau riset;
+   c. menjalankan Perangkat Lunak untuk operasional usaha Anda sendiri
+      (misalnya toko atau jaringan toko milik Anda), termasuk melakukan
+      perubahan untuk keperluan internal itu;
+   d. membuat salinan dan fork di GitHub untuk tujuan mengajukan kontribusi
+      kepada Pemberi Lisensi.
+
+3. PEMBATASAN
+   Tanpa izin tertulis dari Pemberi Lisensi, Anda tidak boleh:
+   a. melakukan Penjualan Ulang;
+   b. memasang atau mengelola Perangkat Lunak untuk pihak lain demi imbalan;
+   c. menghapus atau mengubah pemberitahuan hak cipta dan lisensi ini;
+   d. memakai nama, logo, atau merek ARUS dan Eraya Digital Solusindo untuk
+      menyiratkan dukungan atau afiliasi.
+
+4. IZIN KOMERSIAL
+   Untuk izin Penjualan Ulang, kemitraan, atau penggunaan lain di luar
+   Bagian 2, hubungi Pemberi Lisensi lewat
+   https://github.com/erayadigitalsolusindo/arus. Izin hanya sah bila
+   tertulis dan ditandatangani Pemberi Lisensi.
+
+5. KONTRIBUSI
+   Kontribusi yang Anda ajukan dianggap diberikan kepada Pemberi Lisensi
+   dengan hak untuk memakai, mengubah, dan mendistribusikannya di bawah
+   lisensi ini maupun lisensi lain yang dipilih Pemberi Lisensi.
+
+6. PENCABUTAN
+   Pelanggaran terhadap lisensi ini mengakhiri hak Anda secara otomatis.
+   Hak dipulihkan bila pelanggaran dihentikan dalam 30 hari sejak Anda
+   mengetahuinya atau diberi tahu, dan itu pelanggaran pertama Anda.
+
+7. TANPA JAMINAN
+   PERANGKAT LUNAK DISEDIAKAN "APA ADANYA", TANPA JAMINAN APA PUN, TERSURAT
+   MAUPUN TERSIRAT. PEMBERI LISENSI TIDAK BERTANGGUNG JAWAB ATAS KERUGIAN
+   APA PUN YANG TIMBUL DARI PENGGUNAAN PERANGKAT LUNAK.
+
+8. HUKUM YANG BERLAKU
+   Lisensi ini tunduk pada hukum Republik Indonesia.
