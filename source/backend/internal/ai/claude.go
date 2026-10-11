@@ -23,15 +23,6 @@ const (
 // Model yang boleh dipilih tenant (dijaga juga oleh CHECK di DB). Yang pertama = bawaan.
 var Models = []string{"claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "claude-haiku-5-5"}
 
-func validModel(m string) bool {
-	for _, x := range Models {
-		if x == m {
-			return true
-		}
-	}
-	return false
-}
-
 type block struct {
 	Type      string          `json:"type"`
 	Text      string          `json:"text,omitempty"`
@@ -41,6 +32,10 @@ type block struct {
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 	Content   string          `json:"content,omitempty"`
 	IsError   bool            `json:"is_error,omitempty"`
+
+	// Hanya di memori (tidak dikirim ke Anthropic): dipakai adaptor penyedia lain.
+	ToolName string `json:"-"` // nama tool pada tool_result (Gemini mencocokkan hasil lewat nama)
+	Sig      string `json:"-"` // thoughtSignature Gemini pada tool_use, wajib dikembalikan apa adanya
 }
 
 type message struct {
@@ -126,7 +121,7 @@ func (c *claudeClient) send(ctx context.Context, apiKey string, req apiRequest) 
 }
 
 // verify memeriksa API key lewat daftar model (gratis, tanpa token). Key ditolak → ErrBadKey; gangguan lain → upstreamError.
-func (c *claudeClient) verify(ctx context.Context, apiKey string) error {
+func (c *claudeClient) verify(ctx context.Context, apiKey, _ string) error {
 	hr, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(c.url, "/messages")+"/models?limit=1", nil)
 	if err != nil {
 		return err
@@ -149,25 +144,64 @@ func (c *claudeClient) verify(ctx context.Context, apiKey string) error {
 	}
 }
 
+// mapUpstream memetakan galat penyedia mana pun (Anthropic, OpenAI, Gemini, Qwen) ke kode API stabil.
 func mapUpstream(status int, raw []byte) error {
 	var e struct {
 		Error struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
+			Type    string          `json:"type"`
+			Message string          `json:"message"`
+			Status  string          `json:"status"`
+			Code    json.RawMessage `json:"code"`
 		} `json:"error"`
 	}
 	_ = json.Unmarshal(raw, &e)
 	msg := e.Error.Message
+	low := strings.ToLower(msg + " " + e.Error.Type + " " + e.Error.Status + " " + string(e.Error.Code))
+	has := func(subs ...string) bool {
+		for _, s := range subs {
+			if strings.Contains(low, s) {
+				return true
+			}
+		}
+		return false
+	}
 	switch {
-	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+	case status == http.StatusUnauthorized || status == http.StatusForbidden,
+		status == http.StatusBadRequest && has("api key not valid", "api_key_invalid", "invalid_api_key"):
 		return &upstreamError{Status: status, Code: "AI_KEY_INVALID", Message: msg}
+	case status == http.StatusTooManyRequests && has("insufficient_quota"),
+		status == http.StatusBadRequest && has("credit balance", "arrearage", "overdue"):
+		return &upstreamError{Status: status, Code: "AI_NO_CREDIT", Message: msg}
 	case status == http.StatusTooManyRequests:
 		return &upstreamError{Status: status, Code: "AI_UPSTREAM_LIMIT", Message: msg}
-	case status == http.StatusBadRequest && strings.Contains(strings.ToLower(msg), "credit balance"):
-		return &upstreamError{Status: status, Code: "AI_NO_CREDIT", Message: msg}
-	case status == http.StatusNotFound:
+	case status == http.StatusNotFound,
+		status == http.StatusBadRequest && has("model_not_found", "model not exist", "model does not exist", "model not found"):
 		return &upstreamError{Status: status, Code: "AI_MODEL_UNAVAILABLE", Message: msg}
 	default:
 		return &upstreamError{Status: status, Code: "AI_UNAVAILABLE", Message: msg}
 	}
+}
+
+func unavailable(msg string) error {
+	return &upstreamError{Status: http.StatusBadGateway, Code: "AI_UNAVAILABLE", Message: msg}
+}
+
+// doJSON dipakai klien non-Anthropic: kirim, batasi ukuran respons, petakan galat HTTP.
+func doJSON(ctx context.Context, h *http.Client, label string, hr *http.Request) ([]byte, error) {
+	resp, err := h.Do(hr)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+		return nil, unavailable("tidak dapat menghubungi " + label)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if err != nil {
+		return nil, unavailable("respons " + label + " terputus")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, mapUpstream(resp.StatusCode, raw)
+	}
+	return raw, nil
 }
