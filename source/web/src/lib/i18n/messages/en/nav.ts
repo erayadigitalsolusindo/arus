@@ -11,6 +11,7 @@ const nav: Messages['nav'] = {
   siak: 'SIAK Aciraba',
   backToArus: 'Back to ARUS',
   accAccounts: 'Chart of Accounts',
+  accMappings: 'Account Mapping',
   accJournals: 'Journal Entries',
   accAccounting: 'Accounting',
   accReports: 'Reports',

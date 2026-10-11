@@ -99,6 +99,9 @@ func (s *Service) SeedRetailTemplate(ctx context.Context, a authz.Actor) ([]Acco
 			ids[t.code] = pgUUID(row.ID)
 			out = append(out, accountOf(row))
 		}
+		if err := seedMappings(ctx, q, a.TenantID); err != nil { // pemetaan peran jurnal otomatis ke akun bawaan
+			return err
+		}
 		if err := paymentmethod.LinkDefaultAccounts(ctx, tx, a.TenantID); err != nil { // metode bayar yang sudah ada dipetakan ke akun kas/bank
 			return err
 		}

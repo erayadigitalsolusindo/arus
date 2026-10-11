@@ -118,3 +118,20 @@ DO UPDATE SET debit = account_period_balances.debit + EXCLUDED.debit, credit = a
 -- name: BalanceList :many
 SELECT outlet_id, account_id, period_month, debit, credit FROM account_period_balances
 WHERE tenant_id = $1 AND account_id = $2 ORDER BY period_month, outlet_id;
+
+-- name: MappingList :many
+SELECT m.key, a.id AS account_id, a.code, a.name, a.class, a.active
+FROM account_mappings m JOIN accounts a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+WHERE m.tenant_id = $1 ORDER BY m.key;
+
+-- name: MappingUpsert :exec
+INSERT INTO account_mappings (tenant_id, key, account_id) VALUES ($1, $2, $3)
+ON CONFLICT (tenant_id, key) DO UPDATE SET account_id = EXCLUDED.account_id, updated_at = now();
+
+-- name: MappingInsertDefault :exec
+INSERT INTO account_mappings (tenant_id, key, account_id)
+SELECT a.tenant_id, $2::text, a.id FROM accounts a WHERE a.tenant_id = $1 AND a.code = $3::text AND a.kind = 'ledger'
+ON CONFLICT DO NOTHING;
+
+-- name: AccountIsMapped :one
+SELECT EXISTS (SELECT 1 FROM account_mappings WHERE tenant_id = $1 AND account_id = $2);
