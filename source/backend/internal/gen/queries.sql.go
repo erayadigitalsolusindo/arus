@@ -992,6 +992,57 @@ func (q *Queries) AutoPayablePayments(ctx context.Context, arg AutoPayablePaymen
 	return items, nil
 }
 
+const autoPettyCash = `-- name: AutoPettyCash :many
+SELECT direction, category, count(*)::bigint AS n, coalesce(sum(amount), 0)::numeric(18,2) AS amount
+FROM cash_movements
+WHERE tenant_id = $1 AND outlet_id = $2 AND voided_at IS NULL AND created_at >= $3 AND created_at < $4
+GROUP BY direction, category ORDER BY direction, category
+`
+
+type AutoPettyCashParams struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedAt_2 pgtype.Timestamptz
+}
+
+type AutoPettyCashRow struct {
+	Direction string
+	Category  string
+	N         int64
+	Amount    decimal.Decimal
+}
+
+func (q *Queries) AutoPettyCash(ctx context.Context, arg AutoPettyCashParams) ([]AutoPettyCashRow, error) {
+	rows, err := q.db.Query(ctx, autoPettyCash,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CreatedAt,
+		arg.CreatedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoPettyCashRow
+	for rows.Next() {
+		var i AutoPettyCashRow
+		if err := rows.Scan(
+			&i.Direction,
+			&i.Category,
+			&i.N,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const autoPurchaseReturnCost = `-- name: AutoPurchaseReturnCost :one
 SELECT coalesce(sum(l.unit_cost * l.qty), 0)::numeric(18,2)
 FROM purchase_return_lines l JOIN purchase_returns r ON r.tenant_id = l.tenant_id AND r.id = l.return_id
@@ -1433,6 +1484,98 @@ func (q *Queries) AutoSalesTotals(ctx context.Context, arg AutoSalesTotalsParams
 		&i.OtherCost,
 		&i.ChangeGiven,
 	)
+	return i, err
+}
+
+const autoShiftVariances = `-- name: AutoShiftVariances :many
+SELECT m.id AS method_id, m.name, m.account_id, count(DISTINCT s.id)::bigint AS n,
+       coalesce(sum(GREATEST(c.diff, 0)), 0)::numeric(18,2) AS over_amount,
+       coalesce(sum(GREATEST(-c.diff, 0)), 0)::numeric(18,2) AS short_amount
+FROM cash_shift_counts c
+JOIN cash_shifts s ON s.tenant_id = c.tenant_id AND s.id = c.shift_id
+JOIN payment_methods m ON m.tenant_id = c.tenant_id AND m.id = c.method_id
+WHERE s.tenant_id = $1 AND s.outlet_id = $2 AND s.status = 'closed' AND s.closed_at >= $3 AND s.closed_at < $4 AND c.diff <> 0
+GROUP BY m.id, m.name, m.account_id ORDER BY m.name
+`
+
+type AutoShiftVariancesParams struct {
+	TenantID   uuid.UUID
+	OutletID   uuid.UUID
+	ClosedAt   pgtype.Timestamptz
+	ClosedAt_2 pgtype.Timestamptz
+}
+
+type AutoShiftVariancesRow struct {
+	MethodID    uuid.UUID
+	Name        string
+	AccountID   pgtype.UUID
+	N           int64
+	OverAmount  decimal.Decimal
+	ShortAmount decimal.Decimal
+}
+
+func (q *Queries) AutoShiftVariances(ctx context.Context, arg AutoShiftVariancesParams) ([]AutoShiftVariancesRow, error) {
+	rows, err := q.db.Query(ctx, autoShiftVariances,
+		arg.TenantID,
+		arg.OutletID,
+		arg.ClosedAt,
+		arg.ClosedAt_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoShiftVariancesRow
+	for rows.Next() {
+		var i AutoShiftVariancesRow
+		if err := rows.Scan(
+			&i.MethodID,
+			&i.Name,
+			&i.AccountID,
+			&i.N,
+			&i.OverAmount,
+			&i.ShortAmount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const autoStockCountTotals = `-- name: AutoStockCountTotals :one
+
+SELECT count(DISTINCT c.id)::bigint AS n, coalesce(sum(l.diff * coalesce(l.unit_cost, 0)), 0)::numeric(18,2) AS value
+FROM stock_counts c JOIN stock_count_lines l ON l.tenant_id = c.tenant_id AND l.count_id = c.id
+WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.status = 'completed' AND c.completed_at >= $3 AND c.completed_at < $4
+  AND l.diff IS NOT NULL AND l.diff <> 0
+`
+
+type AutoStockCountTotalsParams struct {
+	TenantID      uuid.UUID
+	OutletID      uuid.UUID
+	CompletedAt   pgtype.Timestamptz
+	CompletedAt_2 pgtype.Timestamptz
+}
+
+type AutoStockCountTotalsRow struct {
+	N     int64
+	Value decimal.Decimal
+}
+
+// ---- Jurnal otomatis tahap 4: opname, selisih kas shift, kas kecil ----
+func (q *Queries) AutoStockCountTotals(ctx context.Context, arg AutoStockCountTotalsParams) (AutoStockCountTotalsRow, error) {
+	row := q.db.QueryRow(ctx, autoStockCountTotals,
+		arg.TenantID,
+		arg.OutletID,
+		arg.CompletedAt,
+		arg.CompletedAt_2,
+	)
+	var i AutoStockCountTotalsRow
+	err := row.Scan(&i.N, &i.Value)
 	return i, err
 }
 

@@ -2,7 +2,7 @@
 import { api } from '#lib/api/client.ts';
 
 export type AccClass = 'asset' | 'liability' | 'equity' | 'revenue' | 'cogs' | 'expense';
-export type JournalType = 'JU' | 'KM' | 'KK' | 'TK' | 'SALES' | 'PURCHASE' | 'AR' | 'AP' | 'WALLET' | 'OPENING';
+export type JournalType = 'JU' | 'KM' | 'KK' | 'TK' | 'SALES' | 'PURCHASE' | 'AR' | 'AP' | 'WALLET' | 'STOCK' | 'CASH' | 'OPENING';
 
 export type Account = {
   id: string;

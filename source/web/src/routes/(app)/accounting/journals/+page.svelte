@@ -160,7 +160,7 @@
 
   const typeOptions = $derived([
     { value: '', label: t('accounting.journals.allTypes') },
-    ...(['JU', 'KM', 'KK', 'TK', 'OPENING', 'SALES', 'PURCHASE', 'AR', 'AP', 'WALLET'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
+    ...(['JU', 'KM', 'KK', 'TK', 'OPENING', 'SALES', 'PURCHASE', 'AR', 'AP', 'WALLET', 'STOCK', 'CASH'] as const).map((v) => ({ value: v as string, label: t(`accounting.type.${v}`) }))
   ]);
   const statusOptions = $derived([
     { value: '', label: t('accounting.journals.allStatus') },
