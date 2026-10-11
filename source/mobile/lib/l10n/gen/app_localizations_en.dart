@@ -1101,4 +1101,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homePettyHint => 'Record cash in/out of the drawer';
+
+  @override
+  String get updateTitle => 'Update available';
+
+  @override
+  String updateVersions(String current, String latest) {
+    return 'Installed $current → new version $latest';
+  }
+
+  @override
+  String get updateBody => 'Update ARUS to the latest version to continue.';
+
+  @override
+  String get updateNow => 'Update now';
+
+  @override
+  String get updateRetry => 'Try again';
+
+  @override
+  String get updateDownloading => 'Downloading update…';
+
+  @override
+  String get updateInstalling => 'Opening installer…';
+
+  @override
+  String get updatePermission =>
+      'Allow ARUS to install apps on the screen that just opened, then come back and tap Update now.';
+
+  @override
+  String get updateFailed =>
+      'The update could not be downloaded. Check your connection and try again.';
 }
