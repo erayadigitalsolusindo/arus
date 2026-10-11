@@ -32,6 +32,9 @@ func (h *Handler) Routes(r chi.Router) {
 		cashier := authz.Require(ModuleCashier, authz.ActCreate)
 		r.With(cashier).Get("/current", h.Current)
 		r.With(cashier).Post("/open", h.Open)
+		r.With(cashier).Post("/petty-cash", h.AddMovement)
+		r.With(cashier).Post("/petty-cash/{id}/void", h.VoidMovement)
+		r.With(authz.Require(Module, authz.ActUpdate)).Put("/petty-cash/limit", h.SetPettyCashLimit)
 		r.With(authz.Require(Module, authz.ActView)).Get("/", h.List)
 		// Rincian & tutup: pemilik shift (kasir) atau supervisor; aturan detailnya di service.
 		r.With(authz.RequireAny([2]string{ModuleCashier, authz.ActCreate}, [2]string{Module, authz.ActView})).Get("/{id}", h.Get)
@@ -136,6 +139,14 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 			"message": "Ada selisih uang; isi catatan dan minta persetujuan penyetuju (PIN).", "diff": de.Diff}})
 	case errors.Is(err, ErrAlreadyOpen):
 		httpx.Error(w, http.StatusConflict, "SHIFT_ALREADY_OPEN", "Shift Anda di outlet ini sudah terbuka.")
+	case errors.Is(err, ErrMovementNotFound):
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+	case errors.Is(err, ErrMovementVoided):
+		httpx.Error(w, http.StatusConflict, "PETTY_CASH_VOIDED", "Catatan kas kecil sudah dibatalkan.")
+	case errors.Is(err, ErrNoCashMethod):
+		httpx.Error(w, http.StatusConflict, "NO_CASH_METHOD", "Metode pembayaran tunai belum tersedia.")
+	case errors.Is(err, ErrRequired):
+		httpx.Error(w, http.StatusConflict, "SHIFT_REQUIRED", "Buka shift kasir terlebih dahulu.")
 	case errors.Is(err, ErrNotOpen):
 		httpx.Error(w, http.StatusConflict, "SHIFT_CLOSED", "Shift ini sudah ditutup.")
 	case errors.Is(err, ErrRecapChanged):

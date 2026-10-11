@@ -74,7 +74,7 @@ type ListResult struct {
 
 // Flow = jumlah satu sumber uang lain per metode.
 type Flow struct {
-	Source   string    `json:"source"` // receivable_payment | deposit_topup | deposit_withdraw | sale_return | payable_payment | purchase_return | supplier_credit_cashout
+	Source   string    `json:"source"` // receivable_payment | deposit_topup | deposit_withdraw | sale_return | payable_payment | purchase_return | supplier_credit_cashout  | petty_cash_in | petty_cash_out
 	MethodID uuid.UUID `json:"method_id"`
 	Name     string    `json:"name"`
 	Kind     string    `json:"kind"`
@@ -156,6 +156,11 @@ WITH b AS (
   SELECT 'supplier_credit_cashout', c.method_id, c.method, -c.amount
   FROM supplier_credit_movements c, b
   WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.kind = 'CASH_OUT' AND ($3::bool OR c.actor_id = $4) AND c.created_at >= b.t0 AND c.created_at < b.t1
+  UNION ALL
+  SELECT CASE m.direction WHEN 'in' THEN 'petty_cash_in' ELSE 'petty_cash_out' END, m.method_id, 'cash',
+         CASE m.direction WHEN 'in' THEN m.amount ELSE -m.amount END
+  FROM cash_movements m, b
+  WHERE m.tenant_id = $1 AND m.outlet_id = $2 AND m.voided_at IS NULL AND ($3::bool OR m.created_by = $4) AND m.created_at >= b.t0 AND m.created_at < b.t1
 )
 SELECT x.src, x.method_id, pm.name, x.kind, sum(x.amt), count(*)
 FROM x JOIN payment_methods pm ON pm.tenant_id = $1 AND pm.id = x.method_id

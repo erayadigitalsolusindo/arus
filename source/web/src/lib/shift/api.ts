@@ -16,6 +16,26 @@ export type ShiftCount = {
 
 export type ShiftFlow = { source: string; method_id: string; name: string; kind: PayMethod; amount: string; count: number };
 
+export type PettyCash = {
+  id: string;
+  direction: 'in' | 'out';
+  amount: string;
+  category: string;
+  note: string;
+  created_at: string;
+  created_local: string;
+  approved_by_name?: string;
+  voided_at?: string;
+};
+
+export type PettyCashInput = {
+  direction: 'in' | 'out';
+  amount: string;
+  category: string;
+  note: string;
+  approval?: { user_id: string; pin: string };
+};
+
 export type Shift = {
   id: string;
   doc_no: string;
@@ -39,6 +59,8 @@ export type Shift = {
   approved_by_name?: string;
   counts: ShiftCount[];
   flows: ShiftFlow[];
+  petty_cash: PettyCash[];
+  petty_cash_limit: string;
   opened_local: string;
   closed_local?: string;
   store: { tenant_name: string; outlet_code: string; outlet_name: string; address: string; phone: string };
@@ -73,6 +95,10 @@ export const shifts = {
   get: (id: string) => api<Shift>(`/shifts/${id}`),
   close: (id: string, input: CloseInput, idempotencyKey: string) =>
     api<Shift>(`/shifts/${id}/close`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  addPettyCash: (input: PettyCashInput, idempotencyKey: string) =>
+    api<PettyCash>('/shifts/petty-cash', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(input) }),
+  voidPettyCash: (id: string) => api<{ ok: true }>(`/shifts/petty-cash/${id}/void`, { method: 'POST' }),
+  setPettyCashLimit: (limit: string) => api<{ limit: string }>('/shifts/petty-cash/limit', { method: 'PUT', body: JSON.stringify({ limit }) }),
   list: (p: { from?: string; to?: string; user_id?: string; status?: string; diff?: boolean; cursor?: string; limit?: number }) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '' && v !== false) qs.set(k, v === true ? '1' : String(v));

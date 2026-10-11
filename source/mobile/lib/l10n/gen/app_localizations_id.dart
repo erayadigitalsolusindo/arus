@@ -1020,4 +1020,88 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get homeStallHint => 'Ketuk untuk mulai berjualan';
+
+  @override
+  String get pettyMenu => 'Kas kecil';
+
+  @override
+  String get pettyTitle => 'Kas kecil kasir';
+
+  @override
+  String get pettyBody =>
+      'Catat uang yang keluar dari laci di luar penjualan (beli galon, parkir, dll.) atau uang yang ditambahkan ke laci. Ikut dihitung saat tutup shift.';
+
+  @override
+  String get pettyOut => 'Kas keluar';
+
+  @override
+  String get pettyIn => 'Kas masuk';
+
+  @override
+  String get pettyAmount => 'Jumlah';
+
+  @override
+  String get pettyCategory => 'Kategori';
+
+  @override
+  String get pettyNote => 'Keterangan';
+
+  @override
+  String get pettySave => 'Simpan';
+
+  @override
+  String get pettySaved => 'Kas kecil dicatat.';
+
+  @override
+  String get pettyHistory => 'Catatan shift ini';
+
+  @override
+  String get pettyEmpty => 'Belum ada kas kecil di shift ini.';
+
+  @override
+  String get pettyVoid => 'Batalkan';
+
+  @override
+  String get pettyVoided => 'Dibatalkan';
+
+  @override
+  String get pettyVoidConfirm =>
+      'Batalkan catatan ini? Uang laci yang seharusnya dihitung ulang.';
+
+  @override
+  String pettyApprovedBy(String name) {
+    return 'Disetujui $name';
+  }
+
+  @override
+  String pettyNeedApproval(String limit) {
+    return 'Kas keluar di atas $limit butuh persetujuan Owner/Supervisor (PIN).';
+  }
+
+  @override
+  String get pettyCatOperational => 'Operasional';
+
+  @override
+  String get pettyCatMeal => 'Konsumsi';
+
+  @override
+  String get pettyCatTransport => 'Parkir/Transport';
+
+  @override
+  String get pettyCatSupplies => 'Perlengkapan';
+
+  @override
+  String get pettyCatChange => 'Tambah receh';
+
+  @override
+  String get pettyCatMisc => 'Lain-lain';
+
+  @override
+  String get errorPettyVoided => 'Catatan kas kecil ini sudah dibatalkan.';
+
+  @override
+  String get errorNoCashMethod => 'Metode pembayaran tunai belum tersedia.';
+
+  @override
+  String get homePettyHint => 'Catat uang keluar/masuk laci';
 }

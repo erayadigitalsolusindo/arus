@@ -1,6 +1,6 @@
 // Tab halaman gaya browser. Hanya path yang disimpan (judul dihitung saat render agar ikut bahasa aktif);
 // isi halaman dimuat ulang saat tab dibuka. Disimpan di sessionStorage per pengguna.
-import { nav } from '#lib/nav.ts';
+import { nav, siakNav } from '#lib/nav.ts';
 import { drafts, isPersistentPath } from '#lib/tabs/drafts.ts';
 import type { MessageKey } from '#lib/i18n/index.ts';
 
@@ -9,7 +9,7 @@ export const HOME = '/dashboard';
 export type TabMeta = { titleKey: MessageKey; module?: string };
 
 const menu = new Map<string, TabMeta>();
-for (const g of nav) {
+for (const g of [...nav, ...siakNav]) {
   for (const i of g.items) {
     if (i.href) menu.set(i.href, { titleKey: i.labelKey, module: i.module });
     for (const c of i.children ?? []) if (c.href) menu.set(c.href, { titleKey: c.labelKey, module: c.module });

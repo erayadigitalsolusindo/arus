@@ -141,6 +141,11 @@ const (
 	EntityShift      = "shift"
 	ActionShiftOpen  = "shift.open"
 	ActionShiftClose = "shift.close"
+
+	// Kas kecil kasir (uang keluar/masuk laci di luar penjualan).
+	EntityCashMovement       = "cash_movement"
+	ActionCashMovementCreate = "cash_movement.create"
+	ActionCashMovementVoid   = "cash_movement.void"
 )
 
 // Hutang pemasok (pembelian kredit).
@@ -239,3 +244,13 @@ const (
 	ActionJournalReverse      = "journal.reverse"
 	ActionJournalAutoGenerate = "journal.auto_generate" // draf jurnal otomatis (penjualan harian, dst.)
 )
+
+// Asisten AI (HalloArus): hanya pengaturan (API key/model) dan pemakaian; asisten sendiri tidak menulis data bisnis.
+const (
+	EntityAI = "ai"
+
+	ActionAISettings = "ai.settings" // simpan/ganti API key atau model, hapus key
+	ActionAIChat     = "ai.chat"     // satu pertanyaan ke asisten (pertanyaan dipotong, tool yang dipanggil, token)
+)
+
+const ActionAIMCPCall = "ai.mcp_call" // satu panggilan tool lewat connector MCP (nama tool + klien; tanpa isi hasil)

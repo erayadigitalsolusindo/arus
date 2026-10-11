@@ -91,7 +91,9 @@ export default {
       sale_return: 'Dana kembali retur jual',
       payable_payment: 'Bayar hutang pemasok',
       purchase_return: 'Dana kembali retur beli',
-      supplier_credit_cashout: 'Pencairan kredit pemasok'
+      supplier_credit_cashout: 'Pencairan kredit pemasok',
+      petty_cash_in: 'Kas kecil masuk',
+      petty_cash_out: 'Kas kecil keluar'
     },
     drawer: 'Seharusnya ada per metode',
     drawerHint: 'Penjualan + uang lain di atas. Pembayaran dari deposit member tidak dihitung karena bukan uang di laci.',

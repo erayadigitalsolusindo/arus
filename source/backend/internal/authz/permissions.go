@@ -77,6 +77,7 @@ var Modules = []Module{
 	{"users", crud},
 	{"roles", crud},
 	{"outlets", crud},
+	{"ai_assistant", []string{ActView, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), update = kelola API key & model
 	{"audit_log", viewing},
 }
 

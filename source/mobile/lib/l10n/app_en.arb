@@ -606,5 +606,45 @@
   "homeTodayTitle": "Today's sales",
   "homeTodayNotes": "Receipts",
   "homeShiftLabel": "Shift",
-  "homeStallHint": "Tap to start selling"
+  "homeStallHint": "Tap to start selling",
+  "pettyMenu": "Petty cash",
+  "pettyTitle": "Cashier petty cash",
+  "pettyBody": "Record money taken out of the drawer outside of sales (water refill, parking, etc.) or money added to the drawer. It is counted when you close the shift.",
+  "pettyOut": "Cash out",
+  "pettyIn": "Cash in",
+  "pettyAmount": "Amount",
+  "pettyCategory": "Category",
+  "pettyNote": "Note",
+  "pettySave": "Save",
+  "pettySaved": "Petty cash recorded.",
+  "pettyHistory": "This shift's entries",
+  "pettyEmpty": "No petty cash on this shift yet.",
+  "pettyVoid": "Void",
+  "pettyVoided": "Voided",
+  "pettyVoidConfirm": "Void this entry? The expected drawer cash will be recalculated.",
+  "pettyApprovedBy": "Approved by {name}",
+  "@pettyApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyNeedApproval": "Cash out above {limit} needs Owner/Supervisor approval (PIN).",
+  "@pettyNeedApproval": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyCatOperational": "Operations",
+  "pettyCatMeal": "Meals",
+  "pettyCatTransport": "Parking/Transport",
+  "pettyCatSupplies": "Supplies",
+  "pettyCatChange": "Add change",
+  "pettyCatMisc": "Other",
+  "errorPettyVoided": "This petty cash entry is already voided.",
+  "errorNoCashMethod": "The cash payment method is not available.",
+  "homePettyHint": "Record cash in/out of the drawer"
 }

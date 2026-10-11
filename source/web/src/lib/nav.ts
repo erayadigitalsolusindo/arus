@@ -26,7 +26,9 @@ export const nav: NavGroup[] = [
       { id: 'dashboard', labelKey: 'nav.dashboard', icon: 'layout-dashboard', href: '/dashboard' }, // selalu tampil
       { id: 'live-sales', labelKey: 'nav.liveSales', icon: 'activity', module: 'sales_list', href: '/live-sales' },
       // Pintu masuk ke mode SIAK (sidebar berganti ke `siakNav`); href-nya diganti Sidebar ke halaman SIAK pertama yang boleh dibuka.
-      { id: 'siak', labelKey: 'nav.siak', icon: 'book-open', anyOf: ['accounts', 'journals', 'general_ledger', 'accounting_periods'], href: '/accounting/accounts' }
+      { id: 'siak', labelKey: 'nav.siak', icon: 'book-open', anyOf: ['accounts', 'journals', 'general_ledger', 'accounting_periods'], href: '/accounting/accounts' },
+      // Asisten AI hanya-baca (Claude, API key milik tenant): menganalisis data usaha dan memberi saran.
+      { id: 'halloarus', labelKey: 'nav.halloarus', icon: 'sparkles', module: 'ai_assistant', href: '/halloarus' }
     ]
   },
   {
@@ -71,6 +73,7 @@ export const nav: NavGroup[] = [
     titleKey: 'nav.group.sales',
     items: [
       { id: 'pos', labelKey: 'nav.pos', icon: 'monitor-smartphone', module: 'sales_orders', href: '/kasir' },
+      { id: 'pettyCash', labelKey: 'nav.pettyCash', icon: 'wallet', module: 'sales_orders', href: '/petty-cash' },
       {
         id: 'salesOrders',
         labelKey: 'nav.salesOrdersReturns',

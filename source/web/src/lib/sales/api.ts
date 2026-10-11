@@ -4,7 +4,7 @@ import { api } from '#lib/api/client.ts';
 
 export type PayMethod = 'cash' | 'debit' | 'credit_card' | 'ewallet' | 'transfer' | 'deposit';
 /** Arus uang lain lewat kasir di outlet aktif (bertanda: + masuk, − keluar). */
-export type CashFlowSource = 'receivable_payment' | 'deposit_topup' | 'deposit_withdraw' | 'sale_return' | 'payable_payment' | 'purchase_return' | 'supplier_credit_cashout';
+export type CashFlowSource = 'receivable_payment' | 'deposit_topup' | 'deposit_withdraw' | 'sale_return' | 'payable_payment' | 'purchase_return' | 'supplier_credit_cashout' | 'petty_cash_in' | 'petty_cash_out';
 export type CashFlow = { source: CashFlowSource; method_id: string; name: string; kind: PayMethod; amount: string; count: number };
 export const PAY_METHODS: PayMethod[] = ['cash', 'debit', 'credit_card', 'ewallet', 'transfer'];
 

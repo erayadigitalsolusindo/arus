@@ -74,7 +74,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
-			for _, tbl := range []string{"audit_log", "cash_shift_flows", "cash_shift_counts", "cash_shifts", "cash_shift_counters", "sale_payments", "sale_lines",
+			for _, tbl := range []string{"audit_log", "cash_movements", "cash_shift_flows", "cash_shift_counts", "cash_shifts", "cash_shift_counters", "sale_payments", "sale_lines",
 				"sales", "sale_counters", "payment_methods", "stock_movements", "stock_balances", "items", "units", "user_outlets", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
@@ -415,5 +415,113 @@ func TestConcurrentOpenAndCloseWhileSelling(t *testing.T) {
 		if sold+rejected != 12 || closed.SaleCount != sold {
 			t.Fatalf("ronde %d: terjual %d, ditolak %d, rekap %d nota", round, sold, rejected, closed.SaleCount)
 		}
+	}
+}
+
+func TestPettyCash(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	it := e.item(t, "10000", 100)
+	in := func(dir, amt string) shift.MovementInput {
+		return shift.MovementInput{Direction: dir, Amount: json.Number(amt), Category: "Operasional", Note: "galon"}
+	}
+
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), in("out", "5000")); !errors.Is(err, shift.ErrRequired) {
+		t.Fatalf("tanpa shift: %v", err)
+	}
+	sh, err := e.svc.Open(ctx, e.cashier, shift.OpenInput{OpeningCash: "100000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []shift.MovementInput{in("x", "5000"), in("out", "0"), in("out", "-5"), in("out", "1.234"), {Direction: "out", Amount: "5000"}} {
+		var fe shift.FieldErrors
+		if _, err := e.svc.AddMovement(ctx, e.cashier, key(), bad); !errors.As(err, &fe) {
+			t.Fatalf("input salah harus ditolak: %+v %v", bad, err)
+		}
+	}
+	if _, err := e.sell(e.cashier, it, "2", "cash", "20000"); err != nil {
+		t.Fatal(err)
+	}
+	// Di bawah batas (100.000) tanpa PIN; idempoten dengan kunci sama.
+	k := key()
+	m, err := e.svc.AddMovement(ctx, e.cashier, k, in("out", "30000"))
+	if err != nil || m.Direction != "out" || m.Amount != "30000.00" {
+		t.Fatalf("kas keluar: %v %+v", err, m)
+	}
+	if again, err := e.svc.AddMovement(ctx, e.cashier, k, in("out", "30000")); err != nil || again.ID != m.ID {
+		t.Fatalf("replay: %v", err)
+	}
+	if _, err := e.svc.AddMovement(ctx, e.cashier, k, in("out", "31000")); !errors.Is(err, shift.ErrKeyMismatch) {
+		t.Fatalf("kunci sama isi beda: %v", err)
+	}
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), in("in", "50000")); err != nil {
+		t.Fatal(err)
+	}
+	// Di atas batas butuh PIN penyetuju shift_close.
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), in("out", "150000")); !errors.Is(err, approval.ErrPinRequired) {
+		t.Fatalf("tanpa PIN: %v", err)
+	}
+	spv := e.person(t, "Supervisor", `{"shift_close":["approve"]}`)
+	if err := e.appr.SetPin(ctx, spv, testPassword, "482915"); err != nil {
+		t.Fatal(err)
+	}
+	big := in("out", "20000")
+	e.exec(t, `UPDATE outlets SET petty_cash_approval_limit = 10000 WHERE id = $1`, e.outlet)
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), big); !errors.Is(err, approval.ErrPinRequired) {
+		t.Fatalf("batas outlet: %v", err)
+	}
+	big.Approval = &shift.ApprovalIn{UserID: spv.UserID, Pin: "482915"}
+	mb, err := e.svc.AddMovement(ctx, e.cashier, key(), big)
+	if err != nil || mb.ApprovedBy != "Supervisor" {
+		t.Fatalf("disetujui: %v %+v", err, mb)
+	}
+	// Kas masuk tidak butuh PIN walau di atas batas.
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), in("in", "200000")); err != nil {
+		t.Fatalf("kas masuk: %v", err)
+	}
+
+	// Rekap: 100.000 modal + 20.000 jual − 30.000 + 50.000 − 20.000 + 200.000 = 320.000.
+	cur, err := e.svc.Current(ctx, e.cashier)
+	if err != nil || cur == nil {
+		t.Fatal(err)
+	}
+	if c := countOf(*cur, e.cashID); c.Expected != "320000.00" || c.Flows != "200000.00" {
+		t.Fatalf("rekap tunai: %+v", c)
+	}
+	if len(cur.PettyCash) != 4 {
+		t.Fatalf("daftar kas kecil: %d", len(cur.PettyCash))
+	}
+
+	// Batal: oleh kasir lain tanpa izin ditolak; pemilik boleh; dua kali ditolak; rekap berkurang.
+	other := e.person(t, "Kasir2", `{"sales_orders":["view","create"]}`)
+	if err := e.svc.VoidMovement(ctx, other, m.ID); !errors.Is(err, shift.ErrForbidden) {
+		t.Fatalf("batal oleh orang lain: %v", err)
+	}
+	if err := e.svc.VoidMovement(ctx, e.cashier, m.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.VoidMovement(ctx, e.cashier, m.ID); !errors.Is(err, shift.ErrMovementVoided) {
+		t.Fatalf("batal dua kali: %v", err)
+	}
+	cur, _ = e.svc.Current(ctx, e.cashier)
+	if c := countOf(*cur, e.cashID); c.Expected != "350000.00" {
+		t.Fatalf("rekap setelah batal: %+v", c)
+	}
+
+	// Tutup shift membekukan kas kecil; setelah itu tidak bisa tambah/batal.
+	in2 := shift.CloseInput{Counts: []shift.CountIn{{MethodID: e.cashID, Counted: "350000"}}}
+	closed, err := e.svc.Close(ctx, e.cashier, sh.ID, key(), in2)
+	if err != nil || *closed.DiffTotal != "0.00" || len(closed.PettyCash) != 4 {
+		t.Fatalf("tutup: %v %+v", err, closed)
+	}
+	if _, err := e.svc.AddMovement(ctx, e.cashier, key(), in("out", "1000")); !errors.Is(err, shift.ErrRequired) {
+		t.Fatalf("tambah setelah tutup: %v", err)
+	}
+	if err := e.svc.VoidMovement(ctx, e.cashier, mb.ID); !errors.Is(err, shift.ErrNotOpen) {
+		t.Fatalf("batal setelah tutup: %v", err)
+	}
+	// Penyetuju tanpa izin ditolak (PIN salah izin).
+	if v, err := e.svc.SetPettyCashLimit(ctx, e.person(t, "Boss", `{"cash_shifts":["update"]}`), "250000"); err != nil || v != "250000.00" {
+		t.Fatalf("atur batas: %v %s", err, v)
 	}
 }
