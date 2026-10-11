@@ -319,7 +319,7 @@ func TestConverseToolLoop(t *testing.T) {
 	it.svc.claude.url = srv.URL + "/v1/messages"
 
 	msgs, _ := cleanHistory([]ChatMessage{{"user", "berapa outlet saya?"}})
-	res, err := it.svc.converse(context.Background(), it.actor, "sk-ant-test-key-0000000000", Models[0], msgs)
+	res, err := it.svc.converse(context.Background(), it.actor, ProviderAnthropic, "sk-ant-test-key-0000000000", Models[0], msgs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestConverseToolLoop(t *testing.T) {
 	}
 
 	// key salah → AI_KEY_INVALID
-	_, err = it.svc.converse(context.Background(), it.actor, "sk-ant-salah-salah-salah", Models[0], msgs)
+	_, err = it.svc.converse(context.Background(), it.actor, ProviderAnthropic, "sk-ant-salah-salah-salah", Models[0], msgs)
 	var up *upstreamError
 	if err == nil || !asUpstream(err, &up) || up.Code != "AI_KEY_INVALID" {
 		t.Fatalf("key salah: %v", err)

@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import MarkdownView from '#lib/components/MarkdownView.svelte';
   import Select from '#lib/components/Select.svelte';
-  import { ai, type AiSettings, type ChatMessage, type Connection, type ToolCall } from '#lib/ai/api.ts';
+  import { ai, type AiSettings, type ChatMessage, type Connection, type Provider, type ToolCall } from '#lib/ai/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, tryT, formatNumber, formatDateTime } from '#lib/i18n/index.ts';
   import { ApiError } from '#lib/api/client.ts';
@@ -26,6 +26,7 @@
 
   // Form pengaturan
   let keyInput = $state('');
+  let provSel = $state<Provider>('anthropic');
   let modelSel = $state('');
   let saving = $state(false);
   let saveMsg = $state('');
@@ -34,11 +35,12 @@
   async function loadSettings() {
     try {
       settings = await ai.settings();
-      modelSel = settings.model;
+      provSel = settings.provider;
+      modelSel = cur?.model ?? '';
       showSettings = !settings.active && canManage;
     } catch (e) {
       error = errorMessage(e);
-      settings = { configured: false, active: false, free: { enabled: false, limit: 0, remaining: 0, model: '' }, model: '', models: [] };
+      settings = { configured: false, active: false, free: { enabled: false, limit: 0, remaining: 0, model: '' }, provider: 'anthropic', providers: [] };
     }
   }
 
@@ -51,13 +53,14 @@
   async function saveSettings() {
     if (saving) return;
     error = saveMsg = '';
-    if (!settings?.configured && !keyInput.trim()) {
-      error = t('ai.setup.needKey');
+    if (!cur?.configured && !keyInput.trim()) {
+      error = t('ai.setup.needKey', { provider: provName });
       return;
     }
     saving = true;
     try {
-      settings = await ai.save({ api_key: keyInput.trim() || undefined, model: modelSel });
+      settings = await ai.save({ provider: provSel, api_key: keyInput.trim() || undefined, model: modelSel });
+      provSel = settings.provider;
       keyInput = '';
       saveMsg = t('ai.setup.saved');
       showSettings = false;
@@ -69,14 +72,14 @@
   }
 
   async function removeKey() {
-    if (saving || !confirm(t('ai.setup.removeConfirm'))) return;
+    if (saving || !confirm(t('ai.setup.removeConfirm', { provider: provName }))) return;
     saving = true;
     error = saveMsg = '';
     try {
-      await ai.removeKey();
+      await ai.removeKey(provSel);
       turns = [];
       await loadSettings();
-      showSettings = true;
+      showSettings = !settings?.configured;
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -173,7 +176,17 @@
 
   const toolLabel = (n: string) => tryT(`ai.tools.${n}`) ?? n;
   const uniqueTools = (calls: ToolCall[] = []) => [...new Set(calls.map((c) => c.name))];
-  const modelOptions = $derived((settings?.models ?? []).map((m) => ({ value: m, label: tryT(`ai.models.${m}`) ?? m })));
+  const cur = $derived(settings?.providers.find((p) => p.id === provSel));
+  const provName = $derived(tryT(`ai.providers.${provSel}.name`) ?? provSel);
+  const modelOptions = $derived((cur?.models ?? []).map((m) => ({ value: m, label: tryT(`ai.models.${m}`) ?? m })));
+  const providerOptions = $derived(
+    (settings?.providers ?? []).map((p) => ({ value: p.id, label: (tryT(`ai.providers.${p.id}.name`) ?? p.id) + (p.configured ? (p.id === settings?.provider ? ' ✓' : ' •') : '') }))
+  );
+  // Ganti penyedia di form: model ikut penyedia itu, isian key dikosongkan.
+  function pickProvider() {
+    keyInput = '';
+    modelSel = cur?.model ?? '';
+  }
   const suggestionKeys = ['s1', 's2', 's3', 's4', 's5', 's6'] as const;
 </script>
 
@@ -227,6 +240,14 @@
         <li>2. {t('ai.connector.s2')}</li>
         <li>3. {t('ai.connector.s3')}</li>
       </ol>
+      <div class="rounded-lg bg-[var(--surface-sunken)] p-3 text-[12px] leading-relaxed text-[var(--text-secondary)] space-y-1.5">
+        <p class="font-medium text-[var(--text-primary)]">{t('ai.connector.appsTitle')}</p>
+        <p>{t('ai.connector.appClaude')}</p>
+        <p>{t('ai.connector.appChatGPT')}</p>
+        <p>{t('ai.connector.appGemini')}</p>
+        <p>{t('ai.connector.appQwen')}</p>
+        <p class="text-[var(--text-tertiary)]">{t('ai.connector.appsNote')}</p>
+      </div>
       <div class="block text-[12.5px]">
         <span class="font-medium">{t('ai.connector.urlLabel')}</span>
         <div class="mt-1 flex items-center gap-2">
@@ -270,15 +291,19 @@
           <span class="grid place-items-center size-9 shrink-0 rounded-lg bg-[var(--surface-sunken)] text-[var(--color-primary-600)]"><i class="icon-key-round text-[18px]"></i></span>
           <div class="min-w-0">
             <h2 class="font-semibold text-[14px]">{t('ai.setup.title')}</h2>
-            <p class="text-[12.5px] mt-1 leading-relaxed text-[var(--text-secondary)]">{settings.configured ? '' : t('ai.setup.notConfiguredManage') + ' '}{t('ai.setup.intro')}</p>
+            <p class="text-[12.5px] mt-1 leading-relaxed text-[var(--text-secondary)]">{settings.configured ? '' : t('ai.setup.notConfiguredManage') + ' '}{t('ai.setup.intro', { console: tryT(`ai.providers.${provSel}.console`) ?? '' })}</p>
           </div>
         </div>
+        <div class="block text-[12.5px]">
+          <span class="font-medium">{t('ai.setup.providerLabel')}</span>
+          <div class="mt-1"><Select bind:value={provSel} options={providerOptions} ariaLabel={t('ai.setup.providerLabel')} onchange={pickProvider} /></div>
+        </div>
         <label class="block text-[12.5px]">
-          <span class="font-medium">{t('ai.setup.keyLabel')}</span>
-          <input type="password" bind:value={keyInput} autocomplete="off" spellcheck="false" maxlength="300" placeholder={t('ai.setup.keyPlaceholder')}
+          <span class="font-medium">{t('ai.setup.keyLabel', { provider: provName })}</span>
+          <input type="password" bind:value={keyInput} autocomplete="off" spellcheck="false" maxlength="300" placeholder={tryT(`ai.providers.${provSel}.placeholder`) ?? ''}
             class="mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] font-mono" />
           <span class="block mt-1 text-[11.5px] text-[var(--text-tertiary)]">
-            {settings.configured ? t('ai.setup.keySaved', { hint: settings.key_hint ?? '' }) + ' ' + t('ai.setup.keyReplaceHint') : ''}
+            {cur?.configured ? t('ai.setup.keySaved', { hint: cur.key_hint ?? '' }) + ' ' + t('ai.setup.keyReplaceHint') : t('ai.setup.keyNone')}
           </span>
         </label>
         <div class="block text-[12.5px]">
@@ -287,8 +312,8 @@
         </div>
         <div class="flex flex-wrap items-center gap-2 pt-1">
           <button type="submit" class="btn btn-primary" disabled={saving}>{saving ? t('ai.setup.saving') : t('ai.setup.save')}</button>
-          {#if settings.configured}
-            <button type="button" class="btn" onclick={removeKey} disabled={saving}><i class="icon-trash-2"></i> {t('ai.setup.removeKey')}</button>
+          {#if cur?.configured}
+            <button type="button" class="btn" onclick={removeKey} disabled={saving}><i class="icon-trash-2"></i> {t('ai.setup.removeKey', { provider: provName })}</button>
           {/if}
         </div>
       </form>
