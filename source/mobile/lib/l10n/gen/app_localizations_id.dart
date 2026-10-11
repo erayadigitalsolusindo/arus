@@ -125,6 +125,27 @@ class AppLocalizationsId extends AppLocalizations {
   String get themeDark => 'Gelap';
 
   @override
+  String get textSizeTooltip => 'Ukuran teks';
+
+  @override
+  String get textSizeTitle => 'Ukuran teks';
+
+  @override
+  String get textSizeSample => 'Contoh teks: Kopi susu Rp 18.000';
+
+  @override
+  String get textSizeDecrease => 'Perkecil';
+
+  @override
+  String get textSizeIncrease => 'Perbesar';
+
+  @override
+  String get textSizeReset => 'Atur ulang';
+
+  @override
+  String get textSizeDone => 'Selesai';
+
+  @override
   String themeTooltip(String mode) {
     return 'Tampilan: $mode';
   }

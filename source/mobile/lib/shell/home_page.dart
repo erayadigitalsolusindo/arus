@@ -8,6 +8,7 @@ import '../core/money/money.dart';
 import '../core/outlet/outlet_switcher.dart';
 import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/text_scale_controller.dart';
 import '../core/theme/theme_controller.dart';
 import '../core/widgets/beach_background.dart';
 import '../core/widgets/ocean_background.dart';
@@ -62,6 +63,7 @@ class HomePage extends ConsumerWidget {
         ),
         actions: [
           const LanguageButton(),
+          const TextScaleButton(),
           const ThemeToggleButton(),
           IconButton(
             tooltip: l.logout,

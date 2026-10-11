@@ -125,6 +125,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeDark => 'Dark';
 
   @override
+  String get textSizeTooltip => 'Text size';
+
+  @override
+  String get textSizeTitle => 'Text size';
+
+  @override
+  String get textSizeSample => 'Sample text: Iced latte Rp 18,000';
+
+  @override
+  String get textSizeDecrease => 'Smaller';
+
+  @override
+  String get textSizeIncrease => 'Larger';
+
+  @override
+  String get textSizeReset => 'Reset';
+
+  @override
+  String get textSizeDone => 'Done';
+
+  @override
   String themeTooltip(String mode) {
     return 'Theme: $mode';
   }
