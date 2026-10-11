@@ -109,28 +109,42 @@ class HomePage extends ConsumerWidget {
                           const _TodayBoard(),
                           if (p.permissions.can('sales_orders', 'create')) ...[
                             const SizedBox(height: 12),
-                            _Stall(
-                              icon: Icons.point_of_sale,
-                              title: l.posTitle,
-                              hint: l.homeStallHint,
-                              onTap: () => context.go('/kasir'),
-                            ),
-                            const SizedBox(height: 12),
-                            _Stall(
-                              icon: Icons.payments_outlined,
-                              title: l.pettyMenu,
-                              hint: l.homePettyHint,
-                              onTap: () async {
-                                final shift = await ref.read(
-                                  shiftProvider.future,
-                                );
-                                if (!context.mounted) return;
-                                if (shift == null) {
-                                  await showOpenShiftDialog(context);
-                                  return;
-                                }
-                                await showPettyCashPage(context, shift.id);
-                              },
+                            IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: _Stall(
+                                      icon: Icons.point_of_sale,
+                                      title: l.posTitle,
+                                      hint: l.homeStallHint,
+                                      onTap: () => context.go('/kasir'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _Stall(
+                                      icon: Icons.payments_outlined,
+                                      title: l.pettyMenu,
+                                      hint: l.homePettyHint,
+                                      onTap: () async {
+                                        final shift = await ref.read(
+                                          shiftProvider.future,
+                                        );
+                                        if (!context.mounted) return;
+                                        if (shift == null) {
+                                          await showOpenShiftDialog(context);
+                                          return;
+                                        }
+                                        await showPettyCashPage(
+                                          context,
+                                          shift.id,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ],
@@ -404,61 +418,49 @@ class _Stall extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Column(
-      children: [
-        Material(
-          color: pal.surface.withValues(alpha: 0.95),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: pal.border),
-          ),
-          child: InkWell(
-            customBorder: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 14, 20),
-              child: Row(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: pal.primarySoft,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, size: 36, color: pal.primary),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          hint,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: pal.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, size: 32),
-                ],
+    // Dua kartu per baris: tata letak tegak (ikon di atas, teks di bawah) agar muat di setengah lebar layar.
+    return Material(
+      color: pal.surface.withValues(alpha: 0.95),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: pal.border),
+      ),
+      child: InkWell(
+        customBorder: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: pal.primarySoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: pal.primary),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                hint,
+                style: TextStyle(fontSize: 14, color: pal.textTertiary),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
