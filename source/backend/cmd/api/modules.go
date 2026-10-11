@@ -118,6 +118,10 @@ func mountModules(r chi.Router, d appDeps) error {
 	dashboard.NewHandler(dashboard.NewService(d.Pool, receivableSvc, payableSvc), perms, tokens, d.Log).Routes(r)
 	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
-	accounting.NewHandler(accounting.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	accSvc := accounting.NewService(d.Pool)
+	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
+	if d.Cfg.AutoJournal {
+		go accounting.NewScheduler(accSvc, d.Pool, d.Log).Run(d.Ctx) // draf jurnal otomatis tiap malam; berhenti saat shutdown
+	}
 	return nil
 }

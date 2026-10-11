@@ -3583,7 +3583,7 @@ type JournalGetRow struct {
 	Status     string
 	Narration  string
 	ReversesID pgtype.UUID
-	CreatedBy  uuid.UUID
+	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	PostedBy   pgtype.UUID
 	PostedAt   pgtype.Timestamptz
@@ -3624,7 +3624,7 @@ type JournalInsertParams struct {
 	SourceType pgtype.Text
 	SourceRef  pgtype.Text
 	ReversesID pgtype.UUID
-	CreatedBy  uuid.UUID
+	CreatedBy  pgtype.UUID
 }
 
 func (q *Queries) JournalInsert(ctx context.Context, arg JournalInsertParams) (uuid.UUID, error) {
@@ -3756,7 +3756,7 @@ type JournalLockGetRow struct {
 	Status     string
 	Narration  string
 	ReversesID pgtype.UUID
-	CreatedBy  uuid.UUID
+	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	PostedBy   pgtype.UUID
 	PostedAt   pgtype.Timestamptz

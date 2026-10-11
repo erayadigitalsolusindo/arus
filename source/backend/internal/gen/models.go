@@ -271,7 +271,7 @@ type JournalEntry struct {
 	SourceType pgtype.Text
 	SourceRef  pgtype.Text
 	ReversesID pgtype.UUID
-	CreatedBy  uuid.UUID
+	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	PostedBy   pgtype.UUID
 	PostedAt   pgtype.Timestamptz
