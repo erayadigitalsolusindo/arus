@@ -9,6 +9,7 @@ import '../../core/config/server_url.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/locale/locale_controller.dart';
+import '../../core/theme/text_scale_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/ocean_background.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -94,57 +95,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _editServer() async {
-    final l = AppLocalizations.of(context);
-    final c = TextEditingController(text: ref.read(serverUrlProvider));
-    String? err;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: Text(l.serverTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.serverHelp),
-              const SizedBox(height: 12),
-              TextField(
-                controller: c,
-                autofocus: true,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  labelText: l.serverLabel,
-                  hintText: 'http://192.168.1.10:8080',
-                  errorText: err,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-              onPressed: () async {
-                final saved = await ref
-                    .read(serverUrlProvider.notifier)
-                    .set(c.text);
-                if (saved) {
-                  if (ctx.mounted) Navigator.of(ctx).pop(true);
-                } else {
-                  setD(() => err = l.serverInvalid);
-                }
-              },
-              child: Text(l.save),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _ServerDialog(),
     );
-    c.dispose();
     if (ok == true && mounted) setState(() => _error = null);
   }
 
@@ -407,7 +361,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const Positioned(
                 top: 4,
                 right: 4,
-                child: Row(children: [LanguageButton(), ThemeToggleButton()]),
+                child: Row(
+                  children: [
+                    LanguageButton(),
+                    TextScaleButton(),
+                    ThemeToggleButton(),
+                  ],
+                ),
               ),
             ],
           ),
@@ -469,6 +429,76 @@ class _AlertBox extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Dialog alamat server. Controller dimiliki dialog sendiri agar dibuang setelah animasi tutup selesai.
+class _ServerDialog extends ConsumerStatefulWidget {
+  const _ServerDialog();
+
+  @override
+  ConsumerState<_ServerDialog> createState() => _ServerDialogState();
+}
+
+class _ServerDialogState extends ConsumerState<_ServerDialog> {
+  late final TextEditingController _c = TextEditingController(
+    text: ref.read(serverUrlProvider),
+  );
+  String? _err;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final l = AppLocalizations.of(context);
+    final saved = await ref.read(serverUrlProvider.notifier).set(_c.text);
+    if (!mounted) return;
+    if (saved) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() => _err = l.serverInvalid);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l.serverTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.serverHelp),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _c,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: InputDecoration(
+              labelText: l.serverLabel,
+              hintText: 'http://192.168.1.10:8080',
+              errorText: _err,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: _save,
+          child: Text(l.save),
+        ),
+      ],
     );
   }
 }

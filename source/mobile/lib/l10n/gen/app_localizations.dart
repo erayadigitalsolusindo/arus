@@ -308,6 +308,48 @@ abstract class AppLocalizations {
   /// **'Gelap'**
   String get themeDark;
 
+  /// No description provided for @textSizeTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran teks'**
+  String get textSizeTooltip;
+
+  /// No description provided for @textSizeTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran teks'**
+  String get textSizeTitle;
+
+  /// No description provided for @textSizeSample.
+  ///
+  /// In id, this message translates to:
+  /// **'Contoh teks: Kopi susu Rp 18.000'**
+  String get textSizeSample;
+
+  /// No description provided for @textSizeDecrease.
+  ///
+  /// In id, this message translates to:
+  /// **'Perkecil'**
+  String get textSizeDecrease;
+
+  /// No description provided for @textSizeIncrease.
+  ///
+  /// In id, this message translates to:
+  /// **'Perbesar'**
+  String get textSizeIncrease;
+
+  /// No description provided for @textSizeReset.
+  ///
+  /// In id, this message translates to:
+  /// **'Atur ulang'**
+  String get textSizeReset;
+
+  /// No description provided for @textSizeDone.
+  ///
+  /// In id, this message translates to:
+  /// **'Selesai'**
+  String get textSizeDone;
+
   /// No description provided for @themeTooltip.
   ///
   /// In id, this message translates to:
