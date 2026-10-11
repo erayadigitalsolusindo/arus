@@ -260,6 +260,7 @@ class _PrintReceiptButtonState extends ConsumerState<PrintReceiptButton> {
     final l = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OutlinedButton.icon(
           onPressed: _busy ? null : _print,
