@@ -1017,4 +1017,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeStallHint => 'Tap to start selling';
+
+  @override
+  String get pettyMenu => 'Petty cash';
+
+  @override
+  String get pettyTitle => 'Cashier petty cash';
+
+  @override
+  String get pettyBody =>
+      'Record money taken out of the drawer outside of sales (water refill, parking, etc.) or money added to the drawer. It is counted when you close the shift.';
+
+  @override
+  String get pettyOut => 'Cash out';
+
+  @override
+  String get pettyIn => 'Cash in';
+
+  @override
+  String get pettyAmount => 'Amount';
+
+  @override
+  String get pettyCategory => 'Category';
+
+  @override
+  String get pettyNote => 'Note';
+
+  @override
+  String get pettySave => 'Save';
+
+  @override
+  String get pettySaved => 'Petty cash recorded.';
+
+  @override
+  String get pettyHistory => 'This shift\'s entries';
+
+  @override
+  String get pettyEmpty => 'No petty cash on this shift yet.';
+
+  @override
+  String get pettyVoid => 'Void';
+
+  @override
+  String get pettyVoided => 'Voided';
+
+  @override
+  String get pettyVoidConfirm =>
+      'Void this entry? The expected drawer cash will be recalculated.';
+
+  @override
+  String pettyApprovedBy(String name) {
+    return 'Approved by $name';
+  }
+
+  @override
+  String pettyNeedApproval(String limit) {
+    return 'Cash out above $limit needs Owner/Supervisor approval (PIN).';
+  }
+
+  @override
+  String get pettyCatOperational => 'Operations';
+
+  @override
+  String get pettyCatMeal => 'Meals';
+
+  @override
+  String get pettyCatTransport => 'Parking/Transport';
+
+  @override
+  String get pettyCatSupplies => 'Supplies';
+
+  @override
+  String get pettyCatChange => 'Add change';
+
+  @override
+  String get pettyCatMisc => 'Other';
+
+  @override
+  String get errorPettyVoided => 'This petty cash entry is already voided.';
+
+  @override
+  String get errorNoCashMethod => 'The cash payment method is not available.';
+
+  @override
+  String get homePettyHint => 'Record cash in/out of the drawer';
 }

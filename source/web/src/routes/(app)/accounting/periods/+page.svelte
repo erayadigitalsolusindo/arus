@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Modal from '#lib/components/Modal.svelte';
-  import DatePicker from '#lib/components/DatePicker.svelte';
   import { accounting, todayISO, type Period } from '#lib/accounting/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, formatDateTime } from '#lib/i18n/index.ts';
@@ -10,12 +9,47 @@
   let rows = $state<Period[]>([]);
   let loading = $state(true);
   let error = $state('');
-  let pick = $state(todayISO());
   let busy = $state(false);
+  let year = $state(Number(todayISO().slice(0, 4)));
+  let closing = $state<string | null>(null); // YYYY-MM yang akan ditutup
   let reopening = $state<Period | null>(null);
   let reason = $state('');
 
   const month = (iso: string) => iso.slice(0, 7); // YYYY-MM
+  const thisMonth = todayISO().slice(0, 7);
+
+  const byMonth = $derived(new Map(rows.map((p) => [month(p.start_date), p])));
+  const closedCount = $derived(rows.filter((p) => p.status === 'closed').length);
+  const lastClosed = $derived(
+    rows
+      .filter((p) => p.status === 'closed')
+      .map((p) => month(p.start_date))
+      .sort()
+      .at(-1)
+  );
+  const years = $derived.by(() => {
+    const cur = Number(thisMonth.slice(0, 4));
+    const set = new Set<number>([cur, year, ...rows.map((p) => Number(p.start_date.slice(0, 4)))]);
+    return [...set].sort((a, b) => b - a);
+  });
+  const months = $derived(Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`));
+  const yearClosed = $derived(months.filter((m) => byMonth.get(m)?.status === 'closed').length);
+
+  /** Tutup buku berikutnya yang disarankan: bulan setelah bulan tertutup terakhir, tetapi tak melewati bulan berjalan. */
+  const suggested = $derived.by(() => {
+    let next: string;
+    if (lastClosed) {
+      const [y, m] = lastClosed.split('-').map(Number);
+      next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+    } else {
+      const open = rows.filter((p) => p.status === 'open').map((p) => month(p.start_date)).sort();
+      next = open[0] ?? thisMonth;
+    }
+    return next <= thisMonth ? next : null;
+  });
+
+  const monthName = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long' });
+  const monthLabel = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   async function load() {
     loading = true;
@@ -32,14 +66,16 @@
     void load();
   });
 
-  async function close(m: string) {
-    if (busy || !confirm(t('accounting.periods.closeConfirm', { period: m }))) return;
+  async function doClose() {
+    if (!closing || busy) return;
     busy = true;
     error = '';
     try {
-      await accounting.closePeriod(m);
+      await accounting.closePeriod(closing);
+      closing = null;
       await load();
     } catch (e) {
+      closing = null;
       error = errorMessage(e);
     } finally {
       busy = false;
@@ -65,7 +101,7 @@
   const inputClass = 'mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] text-[13px] outline-none focus:border-[var(--color-primary-500)]';
 </script>
 
-<main class="p-4 lg:p-6 space-y-4 max-w-3xl mx-auto w-full">
+<main class="p-4 lg:p-6 space-y-4 max-w-full mx-auto w-full">
   <div>
     <h1 class="font-display font-bold text-[19px]">{t('accounting.periods.title')}</h1>
     <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('accounting.periods.subtitle')}</p>
@@ -75,53 +111,117 @@
     <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] shrink-0"></i><span>{error}</span></div>
   {/if}
 
-  {#if can('accounting_periods', 'update')}
-    <div class="surface-card flex flex-wrap items-end gap-3">
+  <!-- Ringkasan -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="surface-card p-5 flex items-center gap-4">
+      <span class="grid place-items-center size-10 rounded-lg badge-danger"><i class="icon-lock text-[18px]"></i></span>
       <div>
-        <div class="font-semibold text-[13px]">{t('accounting.periods.closeTitle')}</div>
-        <div class="mt-1 w-44"><DatePicker bind:value={pick} clearable={false} /></div>
+        <div class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('accounting.periods.kpi.closed')}</div>
+        <div class="font-display font-bold text-[20px] leading-tight">{closedCount}</div>
       </div>
-      <button type="button" class="btn btn-primary" disabled={busy || !pick} onclick={() => close(month(pick))}><i class="icon-lock"></i> {t('accounting.periods.close')} {pick ? month(pick) : ''}</button>
-      <p class="text-[11.5px] text-[var(--text-tertiary)] w-full">{t('accounting.periods.closePick')}</p>
     </div>
-  {/if}
+    <div class="surface-card p-5 flex items-center gap-4">
+      <span class="grid place-items-center size-10 rounded-lg badge-success"><i class="icon-calendar-check text-[18px]"></i></span>
+      <div>
+        <div class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('accounting.periods.kpi.lastClosed')}</div>
+        <div class="font-display font-bold text-[20px] leading-tight">{lastClosed ? monthLabel(lastClosed) : '—'}</div>
+      </div>
+    </div>
+    <div class="surface-card p-5 flex items-center gap-4">
+      <span class="grid place-items-center size-10 rounded-lg bg-[var(--surface-sunken)]"><i class="icon-calendar-clock text-[18px]"></i></span>
+      <div>
+        <div class="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">{t('accounting.periods.kpi.next')}</div>
+        <div class="font-display font-bold text-[20px] leading-tight">{suggested ? monthLabel(suggested) : '—'}</div>
+      </div>
+      {#if suggested && can('accounting_periods', 'update')}
+        <button type="button" class="btn btn-sm btn-primary ms-auto" disabled={busy} onclick={() => (closing = suggested)}>{t('accounting.periods.close')}</button>
+      {/if}
+    </div>
+  </div>
 
-  <div class="surface-card !p-0 overflow-hidden">
-    <table class="w-full text-[12.5px]">
-      <thead>
-        <tr class="border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)] text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-          <th class="px-4 py-3 text-start" scope="col">{t('accounting.periods.col.period')}</th>
-          <th class="px-3 py-3 text-start" scope="col">{t('accounting.periods.col.status')}</th>
-          <th class="px-3 py-3 text-start" scope="col">{t('accounting.periods.col.closedAt')}</th>
-          <th class="px-3 py-3"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each rows as p (p.id)}
-          <tr class="border-b border-[var(--border-subtle)] last:border-0">
-            <td class="px-4 py-2.5 font-mono">{month(p.start_date)}</td>
-            <td class="px-3 py-2.5">
-              <span class="badge-soft {p.status === 'closed' ? 'badge-danger' : 'badge-success'}">{p.status === 'closed' ? t('accounting.periods.closed') : t('accounting.periods.open')}</span>
-            </td>
-            <td class="px-3 py-2.5">{p.closed_at ? formatDateTime(p.closed_at, { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
-            <td class="px-3 py-2.5 text-end">
-              {#if p.status === 'closed' && can('accounting_periods', 'approve')}
-                <button type="button" class="btn btn-sm" onclick={() => (reopening = p)}>{t('accounting.periods.reopen')}</button>
-              {:else if p.status === 'open' && can('accounting_periods', 'update')}
-                <button type="button" class="btn btn-sm" disabled={busy} onclick={() => close(month(p.start_date))}>{t('accounting.periods.close')}</button>
-              {/if}
-            </td>
-          </tr>
-        {:else}
-          <tr><td colspan="4" class="px-4 py-12 text-center text-[var(--text-tertiary)]">{loading ? '…' : t('accounting.periods.empty')}</td></tr>
-        {/each}
-      </tbody>
-    </table>
+  <!-- Kalender periode -->
+  <div class="surface-card p-5 space-y-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div>
+        <div class="font-semibold text-[14px]">{t('accounting.periods.calendar')}</div>
+        <div class="text-[11.5px] text-[var(--text-tertiary)]">{t('accounting.periods.yearSummary', { closed: yearClosed, year })}</div>
+      </div>
+      <div class="ms-auto flex items-center gap-1">
+        <button type="button" class="btn btn-sm" aria-label={t('accounting.periods.prevYear')} onclick={() => (year -= 1)}><i class="icon-chevron-left"></i></button>
+        <select class="h-8 px-2 rounded border border-[var(--border-default)] bg-[var(--surface-base)] text-[13px] font-semibold" bind:value={year} aria-label={t('accounting.periods.year')}>
+          {#each years as y (y)}<option value={y}>{y}</option>{/each}
+        </select>
+        <button type="button" class="btn btn-sm" aria-label={t('accounting.periods.nextYear')} onclick={() => (year += 1)}><i class="icon-chevron-right"></i></button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {#each months as m (m)}
+        {@const p = byMonth.get(m)}
+        {@const isClosed = p?.status === 'closed'}
+        {@const future = m > thisMonth}
+        <div class="rounded-lg border p-4 flex flex-col gap-3 {isClosed ? 'border-[var(--color-danger-300,var(--border-default))] bg-[var(--surface-sunken)]' : 'border-[var(--border-subtle)]'} {m === thisMonth ? 'ring-1 ring-[var(--color-primary-500)]' : ''}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-semibold text-[13px] capitalize">{monthName(m)}</div>
+            {#if isClosed}
+              <span class="badge-soft badge-danger"><i class="icon-lock text-[11px]"></i> {t('accounting.periods.closed')}</span>
+            {:else if future}
+              <span class="badge-soft">{t('accounting.periods.future')}</span>
+            {:else if p}
+              <span class="badge-soft badge-success">{t('accounting.periods.open')}</span>
+            {:else}
+              <span class="badge-soft">{t('accounting.periods.unused')}</span>
+            {/if}
+          </div>
+          <div class="text-[11px] text-[var(--text-tertiary)] min-h-[1.4em]">
+            {#if isClosed && p?.closed_at}
+              {t('accounting.periods.closedOn', { at: formatDateTime(p.closed_at, { dateStyle: 'medium', timeStyle: 'short' }) })}
+            {:else if m === thisMonth}
+              {t('accounting.periods.current')}
+            {/if}
+          </div>
+          <div class="mt-auto">
+            {#if isClosed && p && can('accounting_periods', 'approve')}
+              <button type="button" class="btn btn-sm w-full" disabled={busy} onclick={() => (reopening = p)}><i class="icon-lock-open"></i> {t('accounting.periods.reopen')}</button>
+            {:else if !isClosed && !future && can('accounting_periods', 'update')}
+              <button type="button" class="btn btn-sm w-full" disabled={busy} onclick={() => (closing = m)}><i class="icon-lock"></i> {t('accounting.periods.close')}</button>
+            {/if}
+          </div>
+        </div>
+      {/each}
+    </div>
+    {#if loading}<div class="text-center text-[12px] text-[var(--text-tertiary)]">…</div>{/if}
+  </div>
+
+  <!-- Penjelasan -->
+  <div class="surface-card p-5">
+    <div class="font-semibold text-[13px] mb-3">{t('accounting.periods.rulesTitle')}</div>
+    <ul class="space-y-1.5 text-[12.5px] text-[var(--text-secondary)]">
+      <li class="flex gap-2"><i class="icon-check text-[14px] mt-0.5 shrink-0"></i>{t('accounting.periods.rule1')}</li>
+      <li class="flex gap-2"><i class="icon-check text-[14px] mt-0.5 shrink-0"></i>{t('accounting.periods.rule2')}</li>
+      <li class="flex gap-2"><i class="icon-check text-[14px] mt-0.5 shrink-0"></i>{t('accounting.periods.rule3')}</li>
+    </ul>
   </div>
 </main>
 
+{#if closing}
+  <Modal title={t('accounting.periods.closeTitle', { period: monthLabel(closing) })} onclose={() => (closing = null)}>
+    <div class="space-y-3 text-[13px]">
+      <p>{t('accounting.periods.closeConfirm', { period: monthLabel(closing) })}</p>
+      <ul class="space-y-1.5 text-[12.5px] text-[var(--text-secondary)]">
+        <li class="flex gap-2"><i class="icon-triangle-alert text-[14px] mt-0.5 shrink-0"></i>{t('accounting.periods.rule1')}</li>
+        <li class="flex gap-2"><i class="icon-triangle-alert text-[14px] mt-0.5 shrink-0"></i>{t('accounting.periods.rule2')}</li>
+      </ul>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn" onclick={() => (closing = null)} disabled={busy}>{t('accounting.periods.cancel')}</button>
+        <button type="button" class="btn btn-primary" onclick={doClose} disabled={busy}><i class="icon-lock"></i> {t('accounting.periods.close')}</button>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
 {#if reopening}
-  <Modal title={t('accounting.periods.reopenTitle', { period: month(reopening.start_date) })} onclose={() => (reopening = null)}>
+  <Modal title={t('accounting.periods.reopenTitle', { period: monthLabel(month(reopening.start_date)) })} onclose={() => (reopening = null)}>
     <form class="space-y-3 text-[13px]" onsubmit={reopen}>
       <label class="block">
         <span class="font-semibold">{t('accounting.periods.reason')}</span>

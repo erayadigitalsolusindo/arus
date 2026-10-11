@@ -26,5 +26,9 @@
   .md :global(a) { color: var(--color-primary-600); text-decoration: underline; }
   .md :global(code) { font-family: ui-monospace, monospace; background: var(--surface-sunken); padding: 0.05rem 0.3rem; border-radius: 4px; }
   .md :global(pre) { background: var(--surface-sunken); padding: 0.6rem; border-radius: 6px; overflow-x: auto; }
+  .md :global(table) { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.92em; }
+  .md :global(th), .md :global(td) { border: 1px solid var(--border-subtle); padding: 0.3rem 0.55rem; text-align: start; white-space: nowrap; }
+  .md :global(th) { background: var(--surface-sunken); font-weight: 600; }
+  .md :global(strong) { font-weight: 600; }
   .md :global(blockquote) { border-inline-start: 3px solid var(--border-subtle); padding-inline-start: 0.75rem; color: var(--text-tertiary); }
 </style>

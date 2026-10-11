@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"aciraba/internal/accounting"
+	"aciraba/internal/ai"
 	"aciraba/internal/approval"
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
@@ -120,6 +121,13 @@ func mountModules(r chi.Router, d appDeps) error {
 	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	accSvc := accounting.NewService(d.Pool)
 	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
+	aiSvc, err := ai.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret, ai.Free{Key: d.Cfg.AIPlatformKey, Limit: d.Cfg.AIFreeDailyLimit}, d.Log)
+	if err != nil {
+		return err
+	}
+	aiSvc.WithAPIBase(d.Cfg.APIBaseURL)
+	ai.NewHandler(aiSvc, perms, tokens, d.Log).Routes(r)
+	ai.NewMCPHandler(aiSvc, perms, tokens, d.Redis, d.Log, d.Cfg.APIBaseURL, d.Cfg.AppBaseURL).Routes(r)
 	if d.Cfg.AutoJournal {
 		go accounting.NewScheduler(accSvc, d.Pool, d.Log).Run(d.Ctx) // draf jurnal otomatis tiap malam; berhenti saat shutdown
 	}

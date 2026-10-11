@@ -316,6 +316,7 @@ Berlaku untuk **kasir web dan Kasir Mobile**.
 | FR-POS-20 | **Biaya metode bayar**: ditanggung toko → dicatat sebagai biaya, total nota tetap. Ditanggung pelanggan → menjadi tagihan tambahan di luar total nota; pelanggan membayar total + biaya, tanpa pajak atas biaya tersebut. (Keputusan 2026-10-08.) | M | ✅ |
 | FR-POS-21 | 16 slot **pintasan barang** per kasir (sinkron di server). | C | ✅ |
 | FR-POS-22 | Nota maks 500 baris. | M | ✅ |
+| FR-POS-23 | **Kas kecil kasir** (keputusan 2026-10-11): kas keluar/masuk laci di luar penjualan (beli galon, parkir, tambah receh) pada shift terbuka; kategori + keterangan; kas keluar di atas batas outlet (`outlets.petty_cash_approval_limit`, bawaan Rp 100.000) wajib PIN penyetuju `shift_close.approve`; batal selama shift terbuka; ikut jadi "arus lain" di rekap tutup shift, rekap harian, dan struk. Web (`PettyCashModal`) + Android. | M | ✅ |
 
 **Urutan perhitungan nota (keputusan 2026-10-08; Q6 sebagian):**
 1. Harga satuan per baris = harga cabang (atau default) → harga grosir bila total qty dasar barang itu memenuhi tier → atau harga satuan tambahan.

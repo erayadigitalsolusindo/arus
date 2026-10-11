@@ -47,6 +47,7 @@ export default {
     users: 'Pengguna',
     roles: 'Role & Hak Akses',
     outlets: 'Outlet',
+    ai_assistant: 'HalloArus',
     audit_log: 'Audit Log'
   },
   users: {

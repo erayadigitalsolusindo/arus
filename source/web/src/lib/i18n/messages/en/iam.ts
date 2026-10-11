@@ -49,6 +49,7 @@ const iam: Messages['iam'] = {
     users: 'Users',
     roles: 'Roles & Permissions',
     outlets: 'Outlets',
+    ai_assistant: 'HalloArus',
     audit_log: 'Audit Log'
   },
   users: {

@@ -687,5 +687,45 @@
   "homeTodayTitle": "Penjualan hari ini",
   "homeTodayNotes": "Nota",
   "homeShiftLabel": "Shift",
-  "homeStallHint": "Ketuk untuk mulai berjualan"
+  "homeStallHint": "Ketuk untuk mulai berjualan",
+  "pettyMenu": "Kas kecil",
+  "pettyTitle": "Kas kecil kasir",
+  "pettyBody": "Catat uang yang keluar dari laci di luar penjualan (beli galon, parkir, dll.) atau uang yang ditambahkan ke laci. Ikut dihitung saat tutup shift.",
+  "pettyOut": "Kas keluar",
+  "pettyIn": "Kas masuk",
+  "pettyAmount": "Jumlah",
+  "pettyCategory": "Kategori",
+  "pettyNote": "Keterangan",
+  "pettySave": "Simpan",
+  "pettySaved": "Kas kecil dicatat.",
+  "pettyHistory": "Catatan shift ini",
+  "pettyEmpty": "Belum ada kas kecil di shift ini.",
+  "pettyVoid": "Batalkan",
+  "pettyVoided": "Dibatalkan",
+  "pettyVoidConfirm": "Batalkan catatan ini? Uang laci yang seharusnya dihitung ulang.",
+  "pettyApprovedBy": "Disetujui {name}",
+  "@pettyApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyNeedApproval": "Kas keluar di atas {limit} butuh persetujuan Owner/Supervisor (PIN).",
+  "@pettyNeedApproval": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyCatOperational": "Operasional",
+  "pettyCatMeal": "Konsumsi",
+  "pettyCatTransport": "Parkir/Transport",
+  "pettyCatSupplies": "Perlengkapan",
+  "pettyCatChange": "Tambah receh",
+  "pettyCatMisc": "Lain-lain",
+  "errorPettyVoided": "Catatan kas kecil ini sudah dibatalkan.",
+  "errorNoCashMethod": "Metode pembayaran tunai belum tersedia.",
+  "homePettyHint": "Catat uang keluar/masuk laci"
 }

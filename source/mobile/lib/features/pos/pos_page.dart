@@ -31,6 +31,7 @@ import 'salesperson_picker.dart';
 import 'shortcuts_strip.dart';
 import 'scan_page.dart';
 import 'shift_close_page.dart';
+import 'petty_cash_page.dart';
 import 'shift_dialog.dart';
 
 const _wideBreakpoint = 840.0;
@@ -82,6 +83,16 @@ class _PosPageState extends ConsumerState<PosPage> {
     if (openNew == null || !mounted) return;
     ref.read(cartProvider.notifier).clear();
     if (openNew) await showOpenShiftDialog(context);
+  }
+
+  /// Kas kecil hanya bisa dicatat pada shift terbuka; tanpa shift, tawarkan membuka shift.
+  Future<void> _pettyCash() async {
+    final shift = ref.read(shiftProvider).asData?.value;
+    if (shift == null) {
+      await showOpenShiftDialog(context);
+      return;
+    }
+    await showPettyCashPage(context, shift.id);
   }
 
   // Memakai context halaman (bukan laci yang sudah ditutup).
@@ -233,6 +244,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                   onClose: () => Navigator.of(context).pop(),
                   onSalesToday: () => showSalesTodayPage(context),
                   onCloseShift: _closeShift,
+                  onPettyCash: _pettyCash,
                   onSwitchOutlet: _switchOutlet,
                 ),
               ),
@@ -280,6 +292,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                       onClose: () => setState(() => _panelOpen = false),
                       onSalesToday: () => showSalesTodayPage(context),
                       onCloseShift: _closeShift,
+                      onPettyCash: _pettyCash,
                       onSwitchOutlet: _switchOutlet,
                     ),
                   ),
@@ -312,12 +325,14 @@ class OutletPanel extends ConsumerWidget {
     required this.onClose,
     required this.onSalesToday,
     required this.onCloseShift,
+    required this.onPettyCash,
     required this.onSwitchOutlet,
   });
 
   final VoidCallback onClose;
   final VoidCallback onSalesToday;
   final VoidCallback onCloseShift;
+  final VoidCallback onPettyCash;
   final VoidCallback onSwitchOutlet;
 
   @override
@@ -408,6 +423,16 @@ class OutletPanel extends ConsumerWidget {
           onTap: () {
             onClose();
             onSalesToday();
+          },
+        ),
+        const SizedBox(height: 8),
+        _PanelAction(
+          icon: Icons.payments_outlined,
+          label: l.pettyMenu,
+          filled: true,
+          onTap: () {
+            onClose();
+            onPettyCash();
           },
         ),
         const SizedBox(height: 8),
