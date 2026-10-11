@@ -264,6 +264,25 @@ type JournalLine struct {
 	Memo      string
 }
 
+type JournalTemplate struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Type      string
+	Narration string
+	CreatedBy uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type JournalTemplateLine struct {
+	TenantID   uuid.UUID
+	TemplateID uuid.UUID
+	LineNo     int32
+	AccountID  uuid.UUID
+	Side       string
+	Memo       string
+}
+
 type Member struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
@@ -430,6 +449,7 @@ type PaymentMethod struct {
 	FeePct    decimal.Decimal
 	FeeFlat   decimal.Decimal
 	FeeBearer string
+	AccountID pgtype.UUID
 }
 
 type PlatformAdmin struct {
