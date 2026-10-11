@@ -60,7 +60,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleJournals, authz.ActUpdate)).Put("/journals/{id}", h.UpdateJournal)
 		r.With(req(ModuleJournals, authz.ActDelete)).Delete("/journals/{id}", h.DeleteJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/post-batch", h.PostBatch)
-		r.With(req(ModuleJournals, authz.ActCreate)).Post("/auto/sales", h.GenerateSales)
+		r.With(req(ModuleJournals, authz.ActCreate)).Post("/auto/generate", h.Generate)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/{id}/post", h.PostJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/journals/{id}/reverse", h.ReverseJournal)
 		r.With(req(ModuleJournals, authz.ActApprove)).Post("/opening", h.PostOpening)
@@ -168,12 +168,12 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) GenerateSales(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
 	var in GenerateInput
 	if !httpx.DecodeJSONLimit(w, r, &in, 4<<10) {
 		return
 	}
-	res, err := h.svc.GenerateSalesDrafts(r.Context(), actor(r), in)
+	res, err := h.svc.GenerateDrafts(r.Context(), actor(r), in)
 	if err != nil {
 		h.fail(w, r, err)
 		return

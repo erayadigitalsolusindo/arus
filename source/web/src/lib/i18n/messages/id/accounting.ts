@@ -1,5 +1,5 @@
 export default {
-  type: { JU: 'Jurnal Umum', KM: 'Kas Masuk', KK: 'Kas Keluar', TK: 'Transfer Kas', OPENING: 'Saldo Awal', SALES: 'Penjualan', PURCHASE: 'Pembelian', AR: 'Piutang', AP: 'Hutang' },
+  type: { JU: 'Jurnal Umum', KM: 'Kas Masuk', KK: 'Kas Keluar', TK: 'Transfer Kas', OPENING: 'Saldo Awal', SALES: 'Penjualan', PURCHASE: 'Pembelian', AR: 'Piutang', AP: 'Hutang', WALLET: 'Deposit & Kredit' },
   class: { asset: 'Aset', liability: 'Kewajiban', equity: 'Ekuitas', revenue: 'Pendapatan', cogs: 'Harga Pokok', expense: 'Beban' },
   status: { draft: 'Draf', posted: 'Terposting' },
   accounts: {
@@ -101,10 +101,10 @@ export default {
     loadMore: 'Muat lagi',
     col: { doc: 'No. Jurnal', date: 'Tanggal', type: 'Jenis', narration: 'Keterangan', total: 'Total', status: 'Status', by: 'Dibuat oleh' },
     autoGenerate: 'Buat Draf Otomatis',
-    genTitle: 'Buat draf jurnal penjualan',
-    genHint: 'Sistem menjumlahkan nota penjualan per hari per outlet menjadi satu draf jurnal. Draf yang belum diposting dihitung ulang; yang sudah diposting hanya menerima draf selisih.',
+    genTitle: 'Buat draf jurnal otomatis',
+    genHint: 'Sistem menjumlahkan transaksi per hari per outlet menjadi satu draf jurnal per sumber: penjualan, retur penjualan, pembelian, retur pembelian, pelunasan piutang, pembayaran hutang, serta deposit dan kredit pemasok. Draf yang belum diposting dihitung ulang; yang sudah diposting hanya menerima draf selisih.',
     genDo: 'Buat Draf',
-    genNone: 'Tidak ada penjualan pada rentang ini.',
+    genNone: 'Tidak ada transaksi pada rentang ini.',
     genDone: '{created} draf dibuat, {updated} diperbarui, {adjusted} selisih, {unchanged} tidak berubah.',
     pickAll: 'Pilih semua draf',
     pickOne: 'Pilih draf ini',

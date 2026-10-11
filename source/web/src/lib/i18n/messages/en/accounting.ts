@@ -1,7 +1,7 @@
 import type { Messages } from '../../types.ts';
 
 const accounting: Messages['accounting'] = {
-  type: { JU: 'General Journal', KM: 'Cash In', KK: 'Cash Out', TK: 'Cash Transfer', OPENING: 'Opening Balance', SALES: 'Sales', PURCHASE: 'Purchases', AR: 'Receivables', AP: 'Payables' },
+  type: { JU: 'General Journal', KM: 'Cash In', KK: 'Cash Out', TK: 'Cash Transfer', OPENING: 'Opening Balance', SALES: 'Sales', PURCHASE: 'Purchases', AR: 'Receivables', AP: 'Payables', WALLET: 'Deposits & Credits' },
   class: { asset: 'Asset', liability: 'Liability', equity: 'Equity', revenue: 'Revenue', cogs: 'Cost of Goods', expense: 'Expense' },
   status: { draft: 'Draft', posted: 'Posted' },
   accounts: {
@@ -103,10 +103,10 @@ const accounting: Messages['accounting'] = {
     loadMore: 'Load more',
     col: { doc: 'Journal No.', date: 'Date', type: 'Type', narration: 'Description', total: 'Total', status: 'Status', by: 'Created by' },
     autoGenerate: 'Generate Auto Drafts',
-    genTitle: 'Generate sales journal drafts',
-    genHint: 'Sales receipts are summed per day per outlet into one journal draft. Unposted drafts are recalculated; posted ones only receive an adjustment draft.',
+    genTitle: 'Generate automatic journal drafts',
+    genHint: 'Transactions are summed per day per outlet into one journal draft per source: sales, sales returns, purchases, purchase returns, receivable settlements, payable payments, and member deposits / supplier credits. Unposted drafts are recalculated; posted ones only receive an adjustment draft.',
     genDo: 'Generate',
-    genNone: 'No sales in this range.',
+    genNone: 'No transactions in this range.',
     genDone: '{created} created, {updated} updated, {adjusted} adjustments, {unchanged} unchanged.',
     pickAll: 'Select all drafts',
     pickOne: 'Select this draft',

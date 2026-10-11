@@ -17,6 +17,7 @@ type salesEnv struct {
 	*env
 	outlet, item, unit, member uuid.UUID
 	cash, qris, qrisCust       uuid.UUID
+	deposit, supCredit         uuid.UUID
 	n                          int
 }
 
@@ -25,7 +26,7 @@ func newSalesEnv(t *testing.T) *salesEnv {
 	e := newEnv(t)
 	ctx := context.Background()
 	s := &salesEnv{env: e, outlet: e.otherOwner.OutletID, item: uuid.New(), unit: uuid.New(), member: uuid.New(),
-		cash: uuid.New(), qris: uuid.New(), qrisCust: uuid.New()}
+		cash: uuid.New(), qris: uuid.New(), qrisCust: uuid.New(), deposit: uuid.New(), supCredit: uuid.New()}
 	for _, st := range []struct {
 		sql  string
 		args []any
@@ -36,13 +37,15 @@ func newSalesEnv(t *testing.T) *salesEnv {
 		{`INSERT INTO payment_methods (id, tenant_id, name, kind, is_system) VALUES ($1, $2, 'Tunai', 'cash', true)`, []any{s.cash, e.other}},
 		{`INSERT INTO payment_methods (id, tenant_id, name, kind, fee_pct, fee_bearer) VALUES ($1, $2, 'QRIS', 'ewallet', 1, 'store')`, []any{s.qris, e.other}},
 		{`INSERT INTO payment_methods (id, tenant_id, name, kind, fee_pct, fee_bearer) VALUES ($1, $2, 'QRIS Pelanggan', 'ewallet', 1, 'customer')`, []any{s.qrisCust, e.other}},
+		{`INSERT INTO payment_methods (id, tenant_id, name, kind, is_system) VALUES ($1, $2, 'Deposit Member', 'deposit', true)`, []any{s.deposit, e.other}},
+		{`INSERT INTO payment_methods (id, tenant_id, name, kind, is_system) VALUES ($1, $2, 'Kredit Pemasok', 'supplier_credit', true)`, []any{s.supCredit, e.other}},
 	} {
 		if _, err := e.admin.Exec(ctx, st.sql, st.args...); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Cleanup(func() { // berjalan sebelum cleanup newEnv (LIFO)
-		for _, tbl := range []string{"sale_payments", "sale_lines", "sales", "payment_methods", "members", "items", "units"} {
+		for _, tbl := range []string{"supplier_credit_movements", "member_deposit_movements", "payable_payments", "receivable_payments", "payables", "receivables", "purchase_return_lines", "purchase_returns", "sales_return_lines", "sales_returns", "purchase_lines", "purchases", "suppliers", "sale_payments", "sale_lines", "sales", "payment_methods", "members", "items", "units"} {
 			_, _ = e.admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, e.other)
 		}
 	})
@@ -138,7 +141,7 @@ func TestSalesDailyDraft(t *testing.T) {
 	s.sale(t, "2026-03-10 14:00+07", "void", "99999", "0", "0", "0", "99999", "99999", "0", "0", "1", "1", "", cash("99999"))
 	s.sale(t, "2026-03-10 23:30+00", "completed", "777", "0", "0", "0", "777", "777", "0", "0", "1", "1", "", cash("777")) // = 11 Maret WIB
 
-	res, err := s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in)
+	res, err := s.svc.GenerateDrafts(ctx, s.otherOwner, in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +161,7 @@ func TestSalesDailyDraft(t *testing.T) {
 		"4100": "-42000", "2130": "-2000", "4200": "-1050", "1310": "-21000"})
 
 	// Dihitung ulang selama masih draf: tetap satu jurnal.
-	res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in)
+	res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, in)
 	if err != nil || res.Updated != 1 || *res.Items[0].JournalID != jid {
 		t.Fatalf("ulang: %+v %v", res, err)
 	}
@@ -167,7 +170,7 @@ func TestSalesDailyDraft(t *testing.T) {
 	if _, err := s.svc.Post(ctx, s.otherOwner, jid); err != nil {
 		t.Fatal(err)
 	}
-	if res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in); err != nil || res.Unchanged != 1 {
+	if res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, in); err != nil || res.Unchanged != 1 {
 		t.Fatalf("setelah posting: %+v %v", res, err)
 	}
 
@@ -175,7 +178,7 @@ func TestSalesDailyDraft(t *testing.T) {
 	if _, err := s.admin.Exec(ctx, `UPDATE sales SET status = 'void', void_reason = 'uji' WHERE id = $1`, s2); err != nil {
 		t.Fatal(err)
 	}
-	res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in)
+	res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, in)
 	if err != nil || res.Adjusted != 1 {
 		t.Fatalf("selisih: %+v %v", res, err)
 	}
@@ -187,13 +190,13 @@ func TestSalesDailyDraft(t *testing.T) {
 		t.Fatalf("draf selisih: %+v", adj)
 	}
 	wantNet(t, net(t, adj), map[string]string{"4100": "9000", "1130": "-8910", "6160": "-90", "5100": "-4000", "1310": "4000"})
-	if res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in); err != nil || res.Adjusted != 1 || *res.Items[0].JournalID != adj.ID {
+	if res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, in); err != nil || res.Adjusted != 1 || *res.Items[0].JournalID != adj.ID {
 		t.Fatalf("selisih dihitung ulang: %+v %v", res, err)
 	}
 	if _, err := s.svc.Post(ctx, s.otherOwner, adj.ID); err != nil {
 		t.Fatal(err)
 	}
-	if res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, in); err != nil || res.Unchanged != 1 {
+	if res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, in); err != nil || res.Unchanged != 1 {
 		t.Fatalf("setelah selisih diposting: %+v %v", res, err)
 	}
 	var rev decimal.Decimal
@@ -204,7 +207,7 @@ func TestSalesDailyDraft(t *testing.T) {
 
 	// Hari lain berisi nota 23:30 UTC = 11 Maret WIB: hanya muncul di 11 Maret.
 	next := accounting.GenerateInput{From: "2026-03-11", To: "2026-03-11", OutletID: s.outlet}
-	res, err = s.svc.GenerateSalesDrafts(ctx, s.otherOwner, next)
+	res, err = s.svc.GenerateDrafts(ctx, s.otherOwner, next)
 	if err != nil || res.Created != 1 {
 		t.Fatalf("11 Maret: %+v %v", res, err)
 	}
@@ -215,19 +218,19 @@ func TestSalesDailyDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 	var miss *accounting.MissingMappingError
-	if _, err := s.svc.GenerateSalesDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-03-12", To: "2026-03-12", OutletID: s.outlet}); !errors.As(err, &miss) || len(miss.Keys) != 1 || miss.Keys[0] != "fee_expense" {
+	if _, err := s.svc.GenerateDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-03-12", To: "2026-03-12", OutletID: s.outlet}); !errors.As(err, &miss) || len(miss.Keys) != 1 || miss.Keys[0] != "fee_expense" {
 		t.Fatalf("pemetaan hilang: %v", err)
 	}
 
 	// Akses: pengguna tanpa outlet ditolak; rentang salah ditolak.
-	if _, err := s.svc.GenerateSalesDrafts(ctx, s.limited, accounting.GenerateInput{From: day, To: day, OutletID: s.outlet}); !errors.Is(err, accounting.ErrOutletForbidden) {
+	if _, err := s.svc.GenerateDrafts(ctx, s.limited, accounting.GenerateInput{From: day, To: day, OutletID: s.outlet}); !errors.Is(err, accounting.ErrOutletForbidden) {
 		t.Fatalf("outlet terlarang: %v", err)
 	}
 	var fe accounting.FieldErrors
-	if _, err := s.svc.GenerateSalesDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-03-10", To: "2026-01-01"}); !errors.As(err, &fe) {
+	if _, err := s.svc.GenerateDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-03-10", To: "2026-01-01"}); !errors.As(err, &fe) {
 		t.Fatalf("rentang terbalik: %v", err)
 	}
-	if _, err := s.svc.GenerateSalesDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-01-01", To: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02")}); !errors.As(err, &fe) {
+	if _, err := s.svc.GenerateDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: "2026-01-01", To: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02")}); !errors.As(err, &fe) {
 		t.Fatalf("rentang terlalu panjang: %v", err)
 	}
 }
