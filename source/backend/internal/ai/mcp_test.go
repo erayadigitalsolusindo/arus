@@ -313,3 +313,29 @@ func TestOAuthValidation(t *testing.T) {
 		t.Fatal("prefix harus cocok")
 	}
 }
+
+// Claude mengirim metadata tambahan saat mendaftar (RFC 7591: server wajib mengabaikan yang tak dikenal).
+func TestRegisterIgnoresUnknownMetadata(t *testing.T) {
+	e := newMCP(t)
+	body := `{"client_name":"Claude","redirect_uris":["https://claude.ai/api/mcp/auth_callback"],"grant_types":["authorization_code","refresh_token"],
+		"response_types":["code"],"token_endpoint_auth_method":"none","scope":"mcp:read","client_uri":"https://claude.ai","software_id":"x"}`
+	r := httptest.NewRequest("POST", "/oauth/register", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	w := do(e.h.register, r)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("register dengan metadata tambahan: %d %s", w.Code, w.Body)
+	}
+	var reg struct {
+		ClientID string `json:"client_id"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &reg)
+	t.Cleanup(func() {
+		_, _ = e.admin.Exec(context.Background(), `DELETE FROM oauth_clients WHERE client_id = $1`, reg.ClientID)
+	})
+
+	bad := httptest.NewRequest("POST", "/oauth/register", strings.NewReader(`{"client_name":"x","redirect_uris":["http://evil.example/cb"]}`))
+	bad.Header.Set("Content-Type", "application/json")
+	if w := do(e.h.register, bad); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "invalid_redirect_uri") {
+		t.Fatalf("redirect http non-loopback harus ditolak: %d %s", w.Code, w.Body)
+	}
+}

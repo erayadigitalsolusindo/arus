@@ -112,7 +112,11 @@ func (h *MCPHandler) register(w http.ResponseWriter, r *http.Request) {
 		ClientName   string   `json:"client_name"`
 		RedirectURIs []string `json:"redirect_uris"`
 	}
-	if !httpx.DecodeJSONLimit(w, r, &in, 16<<10) {
+	// RFC 7591: server mengabaikan metadata yang tidak dikenal (Claude mengirim grant_types, response_types, scope, dll.),
+	// jadi TIDAK memakai httpx.DecodeJSON yang menolak field asing.
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	if err != nil || json.Unmarshal(raw, &in) != nil {
+		oauthError(w, http.StatusBadRequest, "invalid_client_metadata", "badan JSON tidak valid")
 		return
 	}
 	name := strings.TrimSpace(in.ClientName)
