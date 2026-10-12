@@ -284,6 +284,8 @@ type Service struct {
 	// shiftGuard != nil: nota baru hanya boleh disimpan bila kasir punya shift terbuka di outlet aktif (shift.Guard).
 	// nil di tes modul ini agar fixture tidak perlu membuka shift.
 	shiftGuard func(ctx context.Context, tx pgx.Tx, a authz.Actor) error
+	// payVerifier != nil: pembayaran QRIS EraPay harus punya charge lunas (lihat payverify.go).
+	payVerifier PayVerifier
 }
 
 func NewService(pool *pgxpool.Pool, approvals *approval.Service) *Service {
@@ -994,6 +996,14 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	if t, fe = settle(n, t); len(fe) > 0 {
 		return fe
 	}
+	var reuseSale *uuid.UUID
+	if ed != nil {
+		reuseSale = &ed.orig.ID
+	}
+	eraCharges, err := s.verifyExternalPayments(ctx, tx, a.TenantID, n, reuseSale)
+	if err != nil {
+		return err
+	}
 	// Pembayaran dari deposit member: wajib ada member di nota; saldo dipotong setelah nota tersimpan (lihat di bawah).
 	depKey, depAmt := depositPaid(n)
 	if depAmt.IsPositive() && mc.sm == nil {
@@ -1114,6 +1124,9 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			FeePct: p.feePct, FeeFlat: p.feeFlat, FeeAmount: p.fee, FeeBearer: p.bearer}); err != nil {
 			return err
 		}
+	}
+	if err := s.linkExternalPayments(ctx, tx, a.TenantID, hdr.ID, eraCharges); err != nil {
+		return err
 	}
 	if depAmt.IsPositive() {
 		if _, err := wallet.MemberDeposit.Apply(ctx, tx, wallet.Move{TenantID: a.TenantID, OwnerID: mc.sm.ID, OutletID: a.OutletID,
