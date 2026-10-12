@@ -250,6 +250,7 @@ const pos: Messages['pos'] = {
   depositBalance: 'Member deposit balance: {amount}',
   depositOver: 'exceeds the deposit balance',
   payRefFor: { transfer: 'Transfer ref. no.', debit: 'Card no. & TRX ID', credit_card: 'Card no. & TRX ID', ewallet: 'Ref. no. / TRX ID' },
+erapay: {    generate: 'Create QRIS code',    regenerate: 'Create new QR',    creating: 'Creating QR...',    scan: 'Ask the customer to scan and pay {amount}',    waiting: 'Waiting for payment... the sale is saved automatically once paid.',    paid: 'QRIS payment received',    qrAlt: 'QRIS code',    failed: 'QRIS payment failed. Create a new QR.',    expired: 'QR expired. Create a new QR.',    cancelled: 'Payment cancelled. Create a new QR.'  },
   payPaid: 'Received',
   payTotalPaid: 'Total Paid:',
   payShort: 'Short:',

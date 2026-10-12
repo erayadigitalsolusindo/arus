@@ -22,6 +22,7 @@ import (
 	"aciraba/internal/member"
 	"aciraba/internal/outlet"
 	"aciraba/internal/payable"
+	"aciraba/internal/erapay"
 	"aciraba/internal/paymentmethod"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
@@ -102,7 +103,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
-	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
+	pmSvc := paymentmethod.NewService(d.Pool)
+	eraSvc := erapay.NewService(d.Pool, erapay.NewClient(d.Cfg.EraPayBaseURL, d.Cfg.EraPayAPIKey), pmSvc)
+	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
@@ -110,7 +113,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	receivable.NewHandler(receivableSvc, perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	paymentmethod.NewHandler(paymentmethod.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
+	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
 	purchaseH := purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log)
 	purchaseH.Routes(r)
 	purchaseH.ReturnRoutes(r)
