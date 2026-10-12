@@ -65,7 +65,9 @@ const catalog: Messages['catalog'] = {
     subtitle: 'Methods the cashier can pick at checkout. Names are free-form, but each method has a type that sets its payment rules.',
     era: {
       title: 'EraPay QRIS',
-      desc: 'Accept QRIS payments at the cashier through EraPay. Set this store\'s API key (issued from the EraPay dashboard). The key is stored encrypted and is never shown again.',
+      desc: 'Accept QRIS payments at the cashier through EraPay.',
+      help: 'Paste this store\'s API key from the EraPay dashboard. The key is stored encrypted and will not be shown again.',
+      env: { production: 'Production', sandbox: 'Sandbox' },
       installed: 'Installed',
       none: 'Not set',
       keyLabel: 'EraPay API key',

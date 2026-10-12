@@ -64,7 +64,9 @@ export default {
     subtitle: 'Metode yang bisa dipilih kasir saat bayar. Nama bebas, tetapi tiap metode punya jenis yang menentukan aturan bayarnya.',
     era: {
       title: 'EraPay QRIS',
-      desc: 'Terima pembayaran QRIS di kasir lewat EraPay. Pasang API key toko ini (diterbitkan dari dashboard EraPay). Key disimpan terenkripsi dan tidak pernah ditampilkan lagi.',
+      desc: 'Terima pembayaran QRIS di kasir lewat EraPay.',
+      help: 'Tempel API key toko ini dari dashboard EraPay. Key disimpan terenkripsi dan tidak akan ditampilkan lagi.',
+      env: { production: 'Production', sandbox: 'Sandbox' },
       installed: 'Terpasang',
       none: 'Belum dipasang',
       keyLabel: 'API key EraPay',

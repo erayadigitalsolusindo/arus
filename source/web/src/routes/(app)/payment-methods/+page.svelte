@@ -246,22 +246,50 @@
   </div>
 
   {#if era?.server_ready && can('payment_methods', 'update')}
-    <section class="surface-card space-y-2.5" aria-labelledby="era-title">
-      <div class="flex flex-wrap items-center gap-2">
-        <h2 id="era-title" class="font-display font-bold text-[15px]"><i class="icon-qr-code me-1.5 text-[14px]"></i>{t('catalog.paymentMethods.era.title')}</h2>
-        <span class="text-[12px] {era.configured ? 'text-[var(--color-success-600)] font-semibold' : 'text-[var(--text-tertiary)]'}">
-          {#if era.configured}{t('catalog.paymentMethods.era.installed')}: ••••{era.key_hint} ({era.environment}){:else}{t('catalog.paymentMethods.era.none')}{/if}
+    <section class="surface-card !p-0 overflow-hidden" aria-labelledby="era-title">
+      <header class="flex flex-wrap items-center gap-3 px-4 py-3.5 border-b border-[var(--border-subtle)]">
+        <span class="grid place-items-center size-10 shrink-0 rounded-lg bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]">
+          <i class="icon-qr-code text-[20px]"></i>
         </span>
-      </div>
-      <p class="text-[12px] text-[var(--text-tertiary)] max-w-3xl">{t('catalog.paymentMethods.era.desc')}</p>
-      <form class="flex flex-wrap items-center gap-2" onsubmit={eraSave}>
-        <input type="password" class="{inputClass} sm:w-[28rem]" bind:value={eraKey} placeholder="epk_prd_…" autocomplete="off" spellcheck="false" maxlength="120" aria-label={t('catalog.paymentMethods.era.keyLabel')} />
-        <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={eraBusy || !eraKey.trim()}>{era.configured ? t('catalog.paymentMethods.era.replace') : t('catalog.paymentMethods.era.save')}</button>
+        <div class="min-w-0 grow">
+          <h2 id="era-title" class="font-display font-bold text-[15px] leading-tight">{t('catalog.paymentMethods.era.title')}</h2>
+          <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.era.desc')}</p>
+        </div>
         {#if era.configured}
-          <button type="button" class="btn !text-[12.5px]" onclick={eraRemove} disabled={eraBusy}>{t('catalog.paymentMethods.era.remove')}</button>
+          <div class="flex items-center gap-2">
+            <span class="badge-soft badge-success"><i class="icon-circle-check me-1 text-[12px]"></i>{t('catalog.paymentMethods.era.installed')}</span>
+            <span class="font-mono text-[12px] text-[var(--text-secondary)]" title={t('catalog.paymentMethods.era.keyLabel')}>epk_…{era.key_hint}</span>
+            {#if era.environment}<span class="badge-soft {era.environment === 'production' ? 'badge-info' : 'badge-warning'}">{t(`catalog.paymentMethods.era.env.${era.environment}` as 'catalog.paymentMethods.era.env.production')}</span>{/if}
+          </div>
+        {:else}
+          <span class="badge-soft badge-neutral">{t('catalog.paymentMethods.era.none')}</span>
+        {/if}
+      </header>
+      <form class="px-4 py-4 space-y-2" onsubmit={eraSave}>
+        <label for="era-key" class={labelClass}>{t('catalog.paymentMethods.era.keyLabel')}</label>
+        <div class="flex flex-wrap items-stretch gap-2">
+          <div class="relative grow basis-72">
+            <i class="icon-key-round text-[14px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"></i>
+            <input id="era-key" type="password" class="{inputClass} !ps-9 font-mono" bind:value={eraKey} placeholder="epk_prd_xxxxxxxx_…" autocomplete="off" spellcheck="false" maxlength="120" />
+          </div>
+          <button type="submit" class="btn btn-primary !text-[12.5px] whitespace-nowrap" disabled={eraBusy || !eraKey.trim()}>
+            <i class="icon-shield-check text-[14px]"></i>{eraBusy ? t('catalog.saving') : era.configured ? t('catalog.paymentMethods.era.replace') : t('catalog.paymentMethods.era.save')}
+          </button>
+          {#if era.configured}
+            <button type="button" class="btn !text-[12.5px] whitespace-nowrap text-[var(--color-danger-600)]" onclick={eraRemove} disabled={eraBusy}>
+              <i class="icon-trash-2 text-[14px]"></i>{t('catalog.paymentMethods.era.remove')}
+            </button>
+          {/if}
+        </div>
+        <p class="flex items-start gap-1.5 text-[12px] text-[var(--text-tertiary)]">
+          <i class="icon-lock text-[13px] mt-px shrink-0"></i><span>{t('catalog.paymentMethods.era.help')}</span>
+        </p>
+        {#if eraError}
+          <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
+            <i class="icon-circle-alert text-[14px] shrink-0 mt-px"></i><span>{eraError}</span>
+          </div>
         {/if}
       </form>
-      {#if eraError}<p role="alert" class="text-[12.5px] text-[var(--color-danger-600)]">{eraError}</p>{/if}
     </section>
   {/if}
 
