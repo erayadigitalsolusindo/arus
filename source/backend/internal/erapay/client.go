@@ -105,3 +105,38 @@ func (c *Client) do(ctx context.Context, method, path, idemKey string, body []by
 }
 
 var errNotFound = errors.New("erapay: pembayaran tidak ditemukan")
+
+// ErrKeyInvalid = EraPay menolak API key (tidak dikenal, dicabut, atau kedaluwarsa).
+var ErrKeyInvalid = errors.New("API key EraPay tidak valid")
+
+// KeyInfo = identitas API key menurut EraPay (GET /v1/api-keys/self).
+type KeyInfo struct {
+	Environment string   `json:"environment"` // "sandbox" | "production"
+	Scopes      []string `json:"scopes"`
+}
+
+// Self memeriksa key: dikenal, aktif, dan scope-nya.
+func (c *Client) Self(ctx context.Context) (KeyInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/v1/api-keys/self", nil)
+	if err != nil {
+		return KeyInfo{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.key)
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return KeyInfo{}, fmt.Errorf("erapay: %w", err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var k KeyInfo
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&k); err != nil {
+			return KeyInfo{}, fmt.Errorf("erapay: respons tidak valid")
+		}
+		return k, nil
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return KeyInfo{}, ErrKeyInvalid
+	}
+	return KeyInfo{}, fmt.Errorf("erapay: HTTP %d", resp.StatusCode)
+}

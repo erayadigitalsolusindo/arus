@@ -572,6 +572,96 @@ abstract class AppLocalizations {
   /// **'No. referensi'**
   String get payRef;
 
+  /// No description provided for @payEraGenerate.
+  ///
+  /// In id, this message translates to:
+  /// **'Buat QR QRIS'**
+  String get payEraGenerate;
+
+  /// No description provided for @payEraRegenerate.
+  ///
+  /// In id, this message translates to:
+  /// **'Buat ulang QR'**
+  String get payEraRegenerate;
+
+  /// No description provided for @payEraCreating.
+  ///
+  /// In id, this message translates to:
+  /// **'Membuat QR...'**
+  String get payEraCreating;
+
+  /// No description provided for @payEraScan.
+  ///
+  /// In id, this message translates to:
+  /// **'Minta pelanggan scan dan bayar {amount}'**
+  String payEraScan(String amount);
+
+  /// No description provided for @payEraWaiting.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunggu pembayaran... nota tersimpan otomatis setelah lunas.'**
+  String get payEraWaiting;
+
+  /// No description provided for @payEraPaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran QRIS diterima'**
+  String get payEraPaid;
+
+  /// No description provided for @payEraFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran QRIS gagal. Buat QR baru.'**
+  String get payEraFailed;
+
+  /// No description provided for @payEraExpired.
+  ///
+  /// In id, this message translates to:
+  /// **'QR kedaluwarsa. Buat QR baru.'**
+  String get payEraExpired;
+
+  /// No description provided for @payEraCancelled.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran dibatalkan. Buat QR baru.'**
+  String get payEraCancelled;
+
+  /// No description provided for @payEraNeedPaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Buat QR dan tunggu pembayaran diterima.'**
+  String get payEraNeedPaid;
+
+  /// No description provided for @errorEraDisabled.
+  ///
+  /// In id, this message translates to:
+  /// **'Integrasi EraPay belum diaktifkan di server.'**
+  String get errorEraDisabled;
+
+  /// No description provided for @errorEraNotConfigured.
+  ///
+  /// In id, this message translates to:
+  /// **'API key EraPay belum dipasang untuk toko ini. Minta pemilik memasangnya di Metode Pembayaran (web).'**
+  String get errorEraNotConfigured;
+
+  /// No description provided for @errorEraRejected.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay menolak tagihan QRIS ini.'**
+  String get errorEraRejected;
+
+  /// No description provided for @errorEraUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay tidak dapat dihubungi, coba lagi.'**
+  String get errorEraUnavailable;
+
+  /// No description provided for @errorEraNotPaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran QRIS belum lunas, tidak cocok, atau sudah dipakai nota lain.'**
+  String get errorEraNotPaid;
+
   /// No description provided for @payTotalDue.
   ///
   /// In id, this message translates to:

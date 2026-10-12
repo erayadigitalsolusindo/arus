@@ -94,6 +94,14 @@ class ApiError implements Exception {
         return l.errorForbidden;
       case 'IDEMPOTENCY_MISMATCH':
         return l.errorIdempotencyMismatch;
+      case 'ERAPAY_DISABLED':
+        return l.errorEraDisabled;
+      case 'ERAPAY_NOT_CONFIGURED':
+        return l.errorEraNotConfigured;
+      case 'ERAPAY_REJECTED':
+        return l.errorEraRejected;
+      case 'ERAPAY_UNAVAILABLE':
+        return l.errorEraUnavailable;
       case 'METHOD_INACTIVE':
         return l.errorMethodInactive;
       case 'PIN_REQUIRED':

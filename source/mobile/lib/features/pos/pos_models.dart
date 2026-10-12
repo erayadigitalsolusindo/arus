@@ -519,3 +519,50 @@ class SaleDraft {
     note: note,
   );
 }
+
+/// Status integrasi QRIS EraPay untuk toko ini (`GET /payments/erapay/config`).
+/// [methodId] = metode pembayaran "EraPay QRIS"; baris bayar dengan metode itu memakai QR, bukan nomor referensi manual.
+class EraPayConfig {
+  const EraPayConfig({this.enabled = false, this.methodId});
+
+  final bool enabled;
+  final String? methodId;
+
+  factory EraPayConfig.fromJson(Map<String, dynamic> j) => EraPayConfig(
+    enabled: j['enabled'] == true,
+    methodId: j['method_id'] == null ? null : '${j['method_id']}',
+  );
+}
+
+/// Satu tagihan QRIS EraPay. Nota baru boleh disimpan setelah [isPaid]; server memeriksa ulang saat nota disimpan.
+class EraCharge {
+  const EraCharge({
+    required this.id,
+    required this.status,
+    required this.amount,
+    this.qrValue = '',
+  });
+
+  final String id;
+
+  /// pending | succeeded | failed | expired | cancelled | unknown
+  final String status;
+  final Decimal amount;
+  final String qrValue;
+
+  bool get isPaid => status == 'succeeded';
+
+  /// Status akhir yang tidak akan berubah lagi (polling berhenti).
+  bool get isFinal =>
+      isPaid ||
+      status == 'failed' ||
+      status == 'expired' ||
+      status == 'cancelled';
+
+  factory EraCharge.fromJson(Map<String, dynamic> j) => EraCharge(
+    id: '${j['id']}',
+    status: '${j['status']}',
+    amount: dec(j['amount']),
+    qrValue: '${j['qr_value'] ?? ''}',
+  );
+}

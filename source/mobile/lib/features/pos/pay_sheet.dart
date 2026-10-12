@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api/api_error.dart';
@@ -34,7 +37,15 @@ class _PayRow {
   final TextEditingController amount;
   final TextEditingController ref = TextEditingController();
 
+  // QRIS EraPay: tagihan, status pembuatan, dan polling status (hanya dipakai bila metode = EraPay QRIS).
+  EraCharge? charge;
+  bool eraBusy = false;
+  ApiError? eraError;
+  int eraAttempt = 0;
+  Timer? timer;
+
   void dispose() {
+    timer?.cancel();
     amount.dispose();
     ref.dispose();
   }
@@ -61,6 +72,74 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
   Approver? _creditApprover;
   String _creditPin = '';
   final _creditKey = GlobalKey<ApproverFieldsState>();
+
+  // QRIS EraPay: id metode (null = tidak aktif) dan kunci idempotensi satu layar bayar; hasil `enough` terakhir dipakai
+  // untuk menyimpan nota otomatis begitu pembayaran lunas.
+  String? _eraId;
+  final String _eraKey = const Uuid().v4();
+  bool _lastEnough = false;
+
+  bool _isEra(_PayRow r) => _eraId != null && r.method.id == _eraId;
+
+  /// Charge masih sesuai nominal baris (mengubah nominal setelah QR dibuat membuat QR basi → buat ulang).
+  bool _eraFresh(_PayRow r) =>
+      r.charge != null && r.charge!.amount == parseInput(r.amount.text);
+
+  /// Baris EraPay hanya siap bila charge-nya lunas dan nominalnya masih sama (server memeriksa ulang saat simpan).
+  bool _eraSettled(_PayRow r) =>
+      !_isEra(r) ||
+      parseInput(r.amount.text) <= Decimal.zero ||
+      (_eraFresh(r) && r.charge!.isPaid);
+
+  Future<void> _eraStart(_PayRow r) async {
+    final amount = parseInput(r.amount.text);
+    if (amount <= Decimal.zero || r.eraBusy) return;
+    r.timer?.cancel();
+    // Kunci baru hanya bila sudah ada tagihan sebelumnya (nominal berubah / kedaluwarsa); gagal jaringan memakai kunci yang sama.
+    if (r.charge != null) r.eraAttempt++;
+    setState(() {
+      r.eraBusy = true;
+      r.eraError = null;
+    });
+    try {
+      final c = await ref
+          .read(posRepositoryProvider)
+          .eraCreateCharge(amount, '$_eraKey-q${r.eraAttempt}');
+      if (!mounted) return;
+      r.ref.text = c
+          .id; // dikirim sebagai ref_no; server mencocokkan dengan charge lunas
+      setState(() => r.charge = c);
+      _eraPoll(r);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => r.eraError = e);
+    } finally {
+      if (mounted) setState(() => r.eraBusy = false);
+    }
+  }
+
+  void _eraPoll(_PayRow r) {
+    r.timer?.cancel();
+    r.timer = Timer.periodic(const Duration(seconds: 3), (t) async {
+      final c = r.charge;
+      if (!mounted || c == null || _busy) return;
+      try {
+        final next = await ref.read(posRepositoryProvider).eraGetCharge(c.id);
+        if (!mounted || r.charge?.id != c.id) return;
+        setState(() => r.charge = next);
+        if (next.isFinal) {
+          t.cancel();
+          // Lunas → simpan nota otomatis (setelah frame, agar `enough` ikut diperbarui).
+          if (next.isPaid) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_busy && _lastEnough) _submit();
+            });
+          }
+        }
+      } on ApiError {
+        // jaringan putus: coba lagi pada putaran berikutnya
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -228,6 +307,8 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
     final methodsAsync = ref.watch(paymentMethodsProvider);
+    final era = ref.watch(eraPayConfigProvider).asData?.value;
+    _eraId = era?.enabled == true ? era!.methodId : null;
     final quote = ref.watch(cartProvider.select((c) => c.quote));
     final total = quote?.total ?? Decimal.zero;
 
@@ -257,15 +338,19 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               .where((r) => r.method.isDeposit)
               .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
           final depositOver = depositUsed > deposit;
-          final enough = _credit
-              ? hasMember &&
-                    _receivable > Decimal.zero &&
-                    _creditApprovalOk &&
-                    !depositOver
-              : _paid >= total &&
-                    total > Decimal.zero &&
-                    _rows.isNotEmpty &&
-                    !depositOver;
+          final eraOk = _rows.every(_eraSettled);
+          final enough =
+              eraOk &&
+              (_credit
+                  ? hasMember &&
+                        _receivable > Decimal.zero &&
+                        _creditApprovalOk &&
+                        !depositOver
+                  : _paid >= total &&
+                        total > Decimal.zero &&
+                        _rows.isNotEmpty &&
+                        !depositOver);
+          _lastEnough = enough;
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,6 +562,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
   String _errorText(AppLocalizations l) {
     final e = _error!;
     if (e.code == 'VALIDATION') {
+      if (e.fields.values.contains('ERAPAY_NOT_PAID')) return l.errorEraNotPaid;
       final c = e.fields['credit'];
       if (c == 'CREDIT_NOT_NEEDED') return l.payCreditNotNeeded;
       if (c == 'MEMBER_REQUIRED') return l.payCreditNoMember;
@@ -613,6 +699,148 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     ),
   );
 
+  /// Panel QRIS EraPay di bawah baris bayar: tombol buat QR → QR + menunggu → lunas. Nota tersimpan otomatis saat lunas.
+  Widget _eraPanel(BuildContext context, _PayRow r) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final c = r.charge;
+    final amount = parseInput(r.amount.text);
+    final fresh = _eraFresh(r);
+    final needNew = c == null || !fresh || (c.isFinal && !c.isPaid);
+
+    final Widget body;
+    if (needNew) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (c != null && fresh && c.isFinal && !c.isPaid)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                switch (c.status) {
+                  'expired' => l.payEraExpired,
+                  'cancelled' => l.payEraCancelled,
+                  _ => l.payEraFailed,
+                },
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pal.danger,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          FilledButton.tonalIcon(
+            onPressed: _busy || r.eraBusy || amount <= Decimal.zero
+                ? null
+                : () => _eraStart(r),
+            icon: const Icon(Icons.qr_code_2),
+            label: Text(
+              r.eraBusy
+                  ? l.payEraCreating
+                  : c == null
+                  ? l.payEraGenerate
+                  : l.payEraRegenerate,
+            ),
+          ),
+          if (c == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                l.payEraNeedPaid,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: pal.textTertiary, fontSize: 12),
+              ),
+            ),
+        ],
+      );
+    } else if (c.isPaid) {
+      body = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle, color: pal.success),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              l.payEraPaid,
+              style: TextStyle(color: pal.success, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      );
+    } else {
+      body = Column(
+        children: [
+          if (c.qrValue.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:
+                    Colors.white, // QR harus kontras tinggi di tema gelap juga
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: QrImageView(
+                data: c.qrValue,
+                size: 220,
+                backgroundColor: Colors.white,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            l.payEraScan(formatMoney(amount)),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  l.payEraWaiting,
+                  style: TextStyle(color: pal.textTertiary, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: pal.sunken,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            body,
+            if (r.eraError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  r.eraError!.message(l),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: pal.dangerText, fontSize: 12.5),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _row(BuildContext context, int i, List<PayMethodInfo> methods) {
     final l = AppLocalizations.of(context);
     final r = _rows[i];
@@ -643,6 +871,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                     ? null
                     : (v) {
                         r.method = methods.firstWhere((m) => m.id == v);
+                        r.timer?.cancel(); // ganti metode: hentikan polling QR
                         _edited();
                       },
               ),
@@ -733,6 +962,8 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               ],
             ),
           )
+        else if (_isEra(r))
+          _eraPanel(context, r)
         else if (!r.method.isDeposit)
           Padding(
             padding: const EdgeInsets.only(top: 8),

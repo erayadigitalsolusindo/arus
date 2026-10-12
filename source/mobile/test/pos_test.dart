@@ -469,6 +469,100 @@ void main() {
     },
   );
 
+  testWidgets(
+    'QRIS EraPay: buat QR, tunggu lunas, nota tersimpan otomatis dengan ref_no = id charge',
+    (tester) async {
+      final sales = <RequestOptions>[];
+      final charges = <RequestOptions>[];
+      var polls = 0;
+      final base = posServer(sales: sales);
+      final server = FakeAdapter((o) {
+        switch ('${o.method} ${o.path}') {
+          case 'GET /payments/erapay/config':
+            return json(200, {
+              'enabled': true,
+              'method_id': 'm4',
+              'server_ready': true,
+              'configured': true,
+            });
+          case 'GET /payment-methods/lookup':
+            return json(200, {
+              'data': [
+                {'id': 'm1', 'name': 'Tunai', 'kind': 'cash'},
+                {'id': 'm4', 'name': 'EraPay QRIS', 'kind': 'debit'},
+              ],
+            });
+          case 'POST /payments/erapay/charges':
+            charges.add(o);
+            return json(200, {
+              'id': 'c0000000-0000-4000-8000-000000000001',
+              'status': 'pending',
+              'amount': '12000.00',
+              'qr_value': '00020101021226550012COM.DOKU.WWW',
+            });
+          case 'GET /payments/erapay/charges/c0000000-0000-4000-8000-000000000001':
+            polls++;
+            return json(200, {
+              'id': 'c0000000-0000-4000-8000-000000000001',
+              'status': polls < 2 ? 'pending' : 'succeeded',
+              'amount': '12000.00',
+              'qr_value': '00020101021226550012COM.DOKU.WWW',
+            });
+        }
+        return base.handler(o);
+      });
+      await boot(tester, server);
+      await tester.tap(find.text('Kasir'));
+      await settle(tester);
+      await tester.tap(find.text('Kopi Bubuk'));
+      await settle(tester);
+      await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
+      await settle(tester, 400);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await settle(tester, 400);
+      await tester.pumpAndSettle();
+
+      // Pilih metode EraPay QRIS: muncul tombol buat QR, nota belum bisa disimpan.
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EraPay QRIS').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Buat QR QRIS'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.text('Buat QR QRIS'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(charges.single.headers['Idempotency-Key'], isNotEmpty);
+      expect(
+        Decimal.parse('${(charges.single.data as Map)['amount']}'),
+        Decimal.fromInt(12000),
+      );
+      expect(find.textContaining('Menunggu pembayaran'), findsOneWidget);
+      expect(sales, isEmpty);
+
+      // Poll pertama masih menunggu, poll kedua lunas → nota tersimpan otomatis.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(sales, isEmpty);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
+      final pay =
+          ((sales.single.data as Map)['payments'] as List).single as Map;
+      expect(pay['method_id'], 'm4');
+      expect(pay['ref_no'], 'c0000000-0000-4000-8000-000000000001');
+    },
+  );
+
   test('nominal tunai cepat: pecahan pembulatan di atas total, maks 4', () {
     String f(int need) =>
         quickCashAmounts(Decimal.fromInt(need))
