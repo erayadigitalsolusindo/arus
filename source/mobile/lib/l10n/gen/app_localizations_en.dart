@@ -268,6 +268,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payRef => 'Reference no.';
 
   @override
+  String get payEraGenerate => 'Create QRIS code';
+
+  @override
+  String get payEraRegenerate => 'Create new QR';
+
+  @override
+  String get payEraCreating => 'Creating QR...';
+
+  @override
+  String payEraScan(String amount) {
+    return 'Ask the customer to scan and pay $amount';
+  }
+
+  @override
+  String get payEraWaiting =>
+      'Waiting for payment... the sale is saved automatically once paid.';
+
+  @override
+  String get payEraPaid => 'QRIS payment received';
+
+  @override
+  String get payEraFailed => 'QRIS payment failed. Create a new QR.';
+
+  @override
+  String get payEraExpired => 'QR expired. Create a new QR.';
+
+  @override
+  String get payEraCancelled => 'Payment cancelled. Create a new QR.';
+
+  @override
+  String get payEraNeedPaid => 'Create the QR and wait for the payment.';
+
+  @override
+  String get errorEraDisabled =>
+      'EraPay integration is not enabled on the server.';
+
+  @override
+  String get errorEraNotConfigured =>
+      'No EraPay API key is set for this store. Ask the owner to set it under Payment Methods (web).';
+
+  @override
+  String get errorEraRejected => 'EraPay rejected this QRIS charge.';
+
+  @override
+  String get errorEraUnavailable => 'Cannot reach EraPay, please retry.';
+
+  @override
+  String get errorEraNotPaid =>
+      'The QRIS payment is unpaid, mismatched, or already used by another sale.';
+
+  @override
   String get payTotalDue => 'Amount due';
 
   @override

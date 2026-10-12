@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:decimal/decimal.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -115,6 +116,35 @@ class PosRepository {
       ),
     );
     return Quote.fromJson(r.data!);
+  });
+
+  /// Status QRIS EraPay toko ini; galat apa pun dianggap "tidak aktif" (metode tampil biasa, server tetap menolak nota tanpa charge lunas).
+  Future<EraPayConfig> eraPayConfig() async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>('/payments/erapay/config');
+      return EraPayConfig.fromJson(r.data!);
+    } on DioException {
+      return const EraPayConfig();
+    }
+  }
+
+  /// Buat tagihan QRIS; kunci yang sama mengembalikan tagihan yang sama (aman diulang).
+  Future<EraCharge> eraCreateCharge(Decimal amount, String idempotencyKey) =>
+      _guard(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/payments/erapay/charges',
+          data: {'amount': decToApi(amount, scale: 2)},
+          options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+        );
+        return EraCharge.fromJson(r.data!);
+      });
+
+  /// Status tagihan (server memutakhirkan dari EraPay bila masih menunggu).
+  Future<EraCharge> eraGetCharge(String id) => _guard(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/payments/erapay/charges/$id',
+    );
+    return EraCharge.fromJson(r.data!);
   });
 
   Future<SaleResult> createSale(
