@@ -9,6 +9,7 @@
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { checkName } from '#lib/validation.ts';
   import { focusOnMount } from '#lib/focus.ts';
+  import { erapay, type EraPayConfig } from '#lib/pos/erapay.ts';
 
   const PAGE = 20;
   // Jenis dasar yang boleh dipilih untuk metode baru. Tunai hanya satu (bawaan), jadi tidak ditawarkan.
@@ -52,6 +53,26 @@
   let filter = $state<'all' | 'active' | 'inactive'>('all');
   let editor = $state<Editor | null>(null);
   let busyId = $state<string | null>(null);
+
+  // EraPay QRIS: tombol aktivasi membuat metode "EraPay QRIS" bila server sudah punya kredensial EraPay.
+  let era = $state<EraPayConfig | null>(null);
+  let eraBusy = $state(false);
+  $effect(() => {
+    if (can('sales_orders', 'create')) void erapay.config().then((c) => (era = c)).catch(() => (era = null));
+  });
+  async function eraActivate() {
+    eraBusy = true;
+    notice = loadError = '';
+    try {
+      era = await erapay.setup();
+      notice = t('catalog.paymentMethods.eraActivated');
+      await load();
+    } catch (err) {
+      loadError = errorMessage(err);
+    } finally {
+      eraBusy = false;
+    }
+  }
 
   let seq = 0;
   async function load() {
@@ -201,7 +222,12 @@
       <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.subtitle')}</p>
     </div>
     {#if can('payment_methods', 'create')}
+      <div class="flex flex-wrap gap-2">
+      {#if era && era.server_ready && !era.enabled}
+        <button type="button" class="btn !text-[12.5px]" onclick={eraActivate} disabled={eraBusy}><i class="icon-qr-code text-[13px]"></i>{t('catalog.paymentMethods.eraActivate')}</button>
+      {/if}
       <button type="button" class="btn btn-primary !text-[12.5px]" onclick={openNew}><i class="icon-plus text-[13px]"></i>{t('catalog.paymentMethods.add')}</button>
+      </div>
     {/if}
   </div>
 

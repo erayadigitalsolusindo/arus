@@ -62,6 +62,7 @@ export default {
     docTitle: 'Data Metode Pembayaran | ACIRABA',
     title: 'Data Metode Pembayaran',
     subtitle: 'Metode yang bisa dipilih kasir saat bayar. Nama bebas, tetapi tiap metode punya jenis yang menentukan aturan bayarnya.',
+eraActivate: 'Aktifkan EraPay QRIS',    eraActivated: 'EraPay QRIS aktif. Kasir kini bisa menerima pembayaran QRIS.',
     add: 'Tambah Metode',
     edit: 'Ubah Metode',
     search: 'Cari nama metode…',
