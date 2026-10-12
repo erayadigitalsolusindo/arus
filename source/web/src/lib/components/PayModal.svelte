@@ -13,6 +13,7 @@
   import { focusOnMount } from '#lib/focus.ts';
   import { loadReceiptSettings, printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
   import ReceiptSettings from '#lib/components/ReceiptSettings.svelte';
+  import { erapay, eraFinal, type EraPayCharge } from '#lib/pos/erapay.ts';
 
   let {
     total,
@@ -187,8 +188,56 @@
   const depositC = $derived(toCents(member?.deposit ?? '0'));
   const depositUsed = $derived(entered.filter((m) => m.kind === 'deposit').reduce((s, m) => s + amountOf(m), 0n));
   const depositOver = $derived(depositUsed > depositC);
+  // QRIS EraPay: metode ini baru boleh disimpan setelah charge-nya lunas dan nominalnya masih sama (server memeriksa ulang).
+  let eraId = $state(''); // id metode EraPay QRIS ('' = tidak aktif)
+  let eraCharge = $state<EraPayCharge | null>(null);
+  let eraQr = $state(''); // gambar QR (data URL)
+  let eraBusy = $state(false);
+  let eraError = $state('');
+  let eraAttempt = 0;
+  let eraTimer: ReturnType<typeof setInterval> | undefined;
+  const eraM = $derived(eraId ? entered.find((m) => m.id === eraId) : undefined);
+  const eraStale = $derived(!!eraCharge && !!eraM && toCents(eraCharge.amount) !== amountOf(eraM));
+  const eraPending = $derived(!!eraM && !(eraCharge?.status === 'succeeded' && !eraStale));
+
+  async function eraStart() {
+    if (!eraM || eraBusy) return;
+    eraBusy = true;
+    eraError = '';
+    clearInterval(eraTimer);
+    try {
+      eraAttempt += 1;
+      const c = await erapay.create(dec(amountOf(eraM)), `${key}-q${eraAttempt}`);
+      eraCharge = c;
+      fields[eraM.id].ref = c.id;
+      eraQr = c.qr_value ? await (await import('qrcode')).toDataURL(c.qr_value, { margin: 1, width: 280 }) : '';
+      eraPoll();
+    } catch (e) {
+      eraError = errorMessage(e);
+    } finally {
+      eraBusy = false;
+    }
+  }
+  function eraPoll() {
+    clearInterval(eraTimer);
+    eraTimer = setInterval(async () => {
+      if (!eraCharge || submitting) return;
+      try {
+        const c = await erapay.get(eraCharge.id);
+        eraCharge = { ...eraCharge, ...c };
+        if (eraFinal(c.status)) {
+          clearInterval(eraTimer);
+          if (c.status === 'succeeded' && canSubmit) void submit(); // lunas -> nota tersimpan otomatis
+        }
+      } catch {
+        /* jaringan putus: coba lagi pada putaran berikutnya */
+      }
+    }, 3000);
+  }
+  $effect(() => () => clearInterval(eraTimer));
+
   const canSubmit = $derived(
-    methodsReady && !submitting && !nonCashOver && !depositOver && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
+    methodsReady && !submitting && !nonCashOver && !depositOver && !eraPending && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
   );
 
   function focusFirst() {
@@ -218,6 +267,10 @@
   }
 
   onMount(() => {
+    void erapay
+      .config()
+      .then((c) => (eraId = c.enabled ? (c.method_id ?? '') : ''))
+      .catch(() => (eraId = '')); // tanpa izin/server mati: metode tampil biasa, server tetap menolak nota tanpa charge lunas
     void paymentMethodsLookup
       .all('sale')
       .then(async (list) => {
@@ -471,7 +524,25 @@
             {#if m.kind === 'deposit'}
               <p class="text-[12px] {depositOver ? 'text-[var(--color-danger-600)] font-semibold' : 'text-[var(--text-tertiary)]'}">{t('pos.depositBalance', { amount: money(depositC) })}{#if depositOver} · {t('pos.depositOver')}{/if}</p>
             {/if}
-            {#if hasRef(m)}
+            {#if m.id === eraId}
+              <div class="rounded border border-[var(--border-default)] p-3 text-center space-y-2" aria-live="polite">
+                {#if !eraCharge || eraStale || eraCharge.status === 'failed' || eraCharge.status === 'expired' || eraCharge.status === 'cancelled'}
+                  {#if eraCharge && !eraStale && eraCharge.status !== 'pending'}
+                    <p class="text-[13px] font-semibold text-[var(--color-danger-600)]">{t(`pos.erapay.${eraCharge.status}` as 'pos.erapay.failed')}</p>
+                  {/if}
+                  <button type="button" class="btn btn-primary" onclick={eraStart} disabled={eraBusy || amountOf(m) <= 0n}>
+                    <i class="icon-qr-code me-1.5"></i>{eraBusy ? t('pos.erapay.creating') : eraCharge ? t('pos.erapay.regenerate') : t('pos.erapay.generate')}
+                  </button>
+                {:else if eraCharge.status === 'succeeded'}
+                  <p class="text-[14px] font-bold text-[var(--color-success-600)]"><i class="icon-check me-1"></i>{t('pos.erapay.paid')}</p>
+                {:else}
+                  {#if eraQr}<img src={eraQr} alt={t('pos.erapay.qrAlt')} class="mx-auto size-[260px] rounded bg-white p-1" />{/if}
+                  <p class="text-[13px] font-semibold">{t('pos.erapay.scan', { amount: money(amountOf(m)) })}</p>
+                  <p class="text-[12px] text-[var(--text-tertiary)]">{t('pos.erapay.waiting')}</p>
+                {/if}
+                {#if eraError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{eraError}</p>{/if}
+              </div>
+            {:else if hasRef(m)}
               <input data-pay bind:value={fields[m.id].ref} maxlength="100" autocomplete="off" placeholder={t(('pos.payRefFor.' + (m.kind === 'cash' ? 'transfer' : m.kind)) as 'pos.payRefFor.transfer')} aria-label={t('pos.payRef')} class="w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]" />
             {/if}
           </div>

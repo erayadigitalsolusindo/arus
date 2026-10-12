@@ -63,6 +63,7 @@ const catalog: Messages['catalog'] = {
     docTitle: 'Payment Methods | ACIRABA',
     title: 'Payment Methods',
     subtitle: 'Methods the cashier can pick at checkout. Names are free-form, but each method has a type that sets its payment rules.',
+eraActivate: 'Enable EraPay QRIS',    eraActivated: 'EraPay QRIS is on. The cashier can now accept QRIS payments.',
     add: 'Add Method',
     edit: 'Edit Method',
     search: 'Search method name…',
