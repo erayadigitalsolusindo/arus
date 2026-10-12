@@ -419,3 +419,8 @@ class ShiftController extends AsyncNotifier<ShiftInfo?> {
 final paymentMethodsProvider = FutureProvider.autoDispose<List<PayMethodInfo>>(
   (ref) => ref.read(posRepositoryProvider).paymentMethods(),
 );
+
+/// Status QRIS EraPay (metode + aktif/tidak) untuk layar bayar.
+final eraPayConfigProvider = FutureProvider.autoDispose<EraPayConfig>(
+  (ref) => ref.read(posRepositoryProvider).eraPayConfig(),
+);
