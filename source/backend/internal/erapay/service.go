@@ -219,7 +219,7 @@ func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 			return lerr
 		}
 		for i := range list {
-			if list[i].Name == MethodName && list[i].Kind == paymentmethod.KindEWallet {
+			if list[i].Name == MethodName && !paymentmethod.IsInternal(list[i].Kind) && list[i].Kind != paymentmethod.KindCash { // jenis boleh sudah diganti owner (mis. Debit)
 				m, err = &list[i], nil
 				if !list[i].Active {
 					m, err = s.methods.SetActive(ctx, a, list[i].ID, true)
