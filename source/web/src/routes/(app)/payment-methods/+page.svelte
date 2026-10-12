@@ -54,21 +54,40 @@
   let editor = $state<Editor | null>(null);
   let busyId = $state<string | null>(null);
 
-  // EraPay QRIS: tombol aktivasi membuat metode "EraPay QRIS" bila server sudah punya kredensial EraPay.
+  // EraPay QRIS: tiap toko memasang API key EraPay-nya sendiri (diverifikasi server, disimpan terenkripsi).
   let era = $state<EraPayConfig | null>(null);
+  let eraKey = $state('');
   let eraBusy = $state(false);
+  let eraError = $state('');
   $effect(() => {
-    if (can('sales_orders', 'create')) void erapay.config().then((c) => (era = c)).catch(() => (era = null));
+    if (can('payment_methods', 'update')) void erapay.config().then((c) => (era = c)).catch(() => (era = null));
   });
-  async function eraActivate() {
+  async function eraSave(e: SubmitEvent) {
+    e.preventDefault();
+    if (eraBusy || !eraKey.trim()) return;
     eraBusy = true;
-    notice = loadError = '';
+    eraError = notice = '';
     try {
-      era = await erapay.setup();
-      notice = t('catalog.paymentMethods.eraActivated');
+      era = await erapay.saveKey(eraKey.trim());
+      eraKey = '';
+      notice = t('catalog.paymentMethods.era.saved');
       await load();
     } catch (err) {
-      loadError = errorMessage(err);
+      eraError = errorMessage(err);
+    } finally {
+      eraBusy = false;
+    }
+  }
+  async function eraRemove() {
+    if (eraBusy || !confirm(t('catalog.paymentMethods.era.removeConfirm'))) return;
+    eraBusy = true;
+    eraError = notice = '';
+    try {
+      await erapay.removeKey();
+      era = await erapay.config();
+      notice = t('catalog.paymentMethods.era.removed');
+    } catch (err) {
+      eraError = errorMessage(err);
     } finally {
       eraBusy = false;
     }
@@ -222,14 +241,29 @@
       <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.subtitle')}</p>
     </div>
     {#if can('payment_methods', 'create')}
-      <div class="flex flex-wrap gap-2">
-      {#if era && era.server_ready && !era.enabled}
-        <button type="button" class="btn !text-[12.5px]" onclick={eraActivate} disabled={eraBusy}><i class="icon-qr-code text-[13px]"></i>{t('catalog.paymentMethods.eraActivate')}</button>
-      {/if}
       <button type="button" class="btn btn-primary !text-[12.5px]" onclick={openNew}><i class="icon-plus text-[13px]"></i>{t('catalog.paymentMethods.add')}</button>
-      </div>
     {/if}
   </div>
+
+  {#if era?.server_ready && can('payment_methods', 'update')}
+    <section class="surface-card space-y-2.5" aria-labelledby="era-title">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 id="era-title" class="font-display font-bold text-[15px]"><i class="icon-qr-code me-1.5 text-[14px]"></i>{t('catalog.paymentMethods.era.title')}</h2>
+        <span class="text-[12px] {era.configured ? 'text-[var(--color-success-600)] font-semibold' : 'text-[var(--text-tertiary)]'}">
+          {#if era.configured}{t('catalog.paymentMethods.era.installed')}: ••••{era.key_hint} ({era.environment}){:else}{t('catalog.paymentMethods.era.none')}{/if}
+        </span>
+      </div>
+      <p class="text-[12px] text-[var(--text-tertiary)] max-w-3xl">{t('catalog.paymentMethods.era.desc')}</p>
+      <form class="flex flex-wrap items-center gap-2" onsubmit={eraSave}>
+        <input type="password" class="{inputClass} sm:w-[28rem]" bind:value={eraKey} placeholder="epk_prd_…" autocomplete="off" spellcheck="false" maxlength="120" aria-label={t('catalog.paymentMethods.era.keyLabel')} />
+        <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={eraBusy || !eraKey.trim()}>{era.configured ? t('catalog.paymentMethods.era.replace') : t('catalog.paymentMethods.era.save')}</button>
+        {#if era.configured}
+          <button type="button" class="btn !text-[12.5px]" onclick={eraRemove} disabled={eraBusy}>{t('catalog.paymentMethods.era.remove')}</button>
+        {/if}
+      </form>
+      {#if eraError}<p role="alert" class="text-[12.5px] text-[var(--color-danger-600)]">{eraError}</p>{/if}
+    </section>
+  {/if}
 
   {#if notice}
     <div role="status" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-success">

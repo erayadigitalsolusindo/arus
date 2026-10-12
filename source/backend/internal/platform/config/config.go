@@ -40,9 +40,8 @@ type Config struct {
 	AIPlatformKey    string
 	AIFreeDailyLimit int
 
-	// EraPay (QRIS): kosongkan salah satunya = integrasi mati. API key (epk_prd_...) hanya dari env, jangan commit.
+	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
 	EraPayBaseURL string
-	EraPayAPIKey  string
 
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
@@ -73,7 +72,6 @@ func Load() (Config, error) {
 		AIPlatformKey:      strings.TrimSpace(os.Getenv("AI_PLATFORM_KEY")),
 		AIFreeDailyLimit:   10,
 		EraPayBaseURL:      strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
-		EraPayAPIKey:       strings.TrimSpace(os.Getenv("ERAPAY_API_KEY")),
 		AppBaseURL:         strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
 		SMTPHost:           os.Getenv("SMTP_HOST"),
 		SMTPUser:           os.Getenv("SMTP_USER"),
@@ -117,9 +115,6 @@ func Load() (Config, error) {
 	}
 	if !c.IsDev() && !strings.HasPrefix(c.APIBaseURL, "https://") {
 		errs = append(errs, errors.New("API_BASE_URL wajib https:// di luar development (alamat publik API untuk connector MCP)"))
-	}
-	if (c.EraPayBaseURL == "") != (c.EraPayAPIKey == "") {
-		errs = append(errs, errors.New("ERAPAY_BASE_URL dan ERAPAY_API_KEY harus diisi keduanya (atau dikosongkan keduanya)"))
 	}
 	if !c.IsDev() && c.EraPayBaseURL != "" && !strings.HasPrefix(c.EraPayBaseURL, "https://") {
 		errs = append(errs, errors.New("ERAPAY_BASE_URL wajib https:// di luar development"))

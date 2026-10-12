@@ -36,7 +36,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(sale).Get("/config", h.config)
 		r.With(sale).Post("/charges", h.create)
 		r.With(sale).Get("/charges/{id}", h.get)
-		r.With(authz.Require("payment_methods", authz.ActCreate)).Post("/setup", h.setup)
+		pm := authz.Require("payment_methods", authz.ActUpdate)
+		r.With(pm).Put("/key", h.saveKey)
+		r.With(pm).Delete("/key", h.removeKey)
 	})
 }
 
@@ -49,8 +51,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, ErrDisabled):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_DISABLED", "Integrasi EraPay belum diaktifkan di server.")
-	case errors.Is(err, ErrNotSetup):
-		httpx.Error(w, http.StatusConflict, "ERAPAY_NOT_SETUP", "Metode EraPay QRIS belum disiapkan.")
+	case errors.Is(err, ErrNotConfigured):
+		httpx.Error(w, http.StatusConflict, "ERAPAY_NOT_CONFIGURED", "API key EraPay belum dipasang untuk toko ini.")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	case errors.Is(err, ErrAmount):
@@ -59,6 +61,16 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "Kunci sudah dipakai untuk nominal lain.")
 	case errors.Is(err, ErrRejected):
 		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_REJECTED", "EraPay menolak tagihan QRIS ini.")
+	case errors.Is(err, ErrBadKey):
+		httpx.ValidationError(w, map[string]string{"api_key": "INVALID"})
+	case errors.Is(err, ErrKeyInvalid):
+		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_KEY_INVALID", "API key ditolak EraPay (tidak dikenal, dicabut, atau kedaluwarsa).")
+	case errors.Is(err, ErrKeyScope):
+		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_KEY_SCOPE", "API key harus punya izin payment:create dan payment:read.")
+	case errors.Is(err, ErrKeyEnvironment):
+		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_KEY_SANDBOX", "API key sandbox tidak boleh dipakai di server production.")
+	case errors.Is(err, ErrImpersonating):
+		httpx.Error(w, http.StatusForbidden, "IMPERSONATING", "Tidak tersedia pada sesi masuk-sebagai.")
 	case errors.Is(err, ErrUnavailable):
 		httpx.Error(w, http.StatusBadGateway, "ERAPAY_UNAVAILABLE", "EraPay tidak dapat dihubungi, coba lagi.")
 	default:
@@ -69,15 +81,6 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 func (h *Handler) config(w http.ResponseWriter, r *http.Request) {
 	cfg, err := h.svc.Config(r.Context(), actor(r))
-	if err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, cfg)
-}
-
-func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
-	cfg, err := h.svc.Setup(r.Context(), actor(r))
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -122,4 +125,27 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, c)
+}
+
+func (h *Handler) saveKey(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		APIKey string `json:"api_key"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &in, 4<<10) {
+		return
+	}
+	cfg, err := h.svc.SaveKey(r.Context(), actor(r), in.APIKey)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, cfg)
+}
+
+func (h *Handler) removeKey(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.RemoveKey(r.Context(), actor(r)); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
