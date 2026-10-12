@@ -269,8 +269,8 @@
         <label for="era-key" class={labelClass}>{t('catalog.paymentMethods.era.keyLabel')}</label>
         <div class="flex flex-wrap items-stretch gap-2">
           <div class="relative grow basis-72">
-            <i class="icon-key-round text-[14px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"></i>
-            <input id="era-key" type="password" class="{inputClass} !ps-9 font-mono" bind:value={eraKey} placeholder="epk_prd_xxxxxxxx_…" autocomplete="off" spellcheck="false" maxlength="120" />
+            <i class="icon-key-round text-[15px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" aria-hidden="true"></i>
+            <input id="era-key" type="password" class="{inputClass} font-mono" style="padding-inline-start: 2.5rem" bind:value={eraKey} placeholder="epk_prd_xxxxxxxx_…" autocomplete="off" spellcheck="false" maxlength="120" />
           </div>
           <button type="submit" class="btn btn-primary !text-[12.5px] whitespace-nowrap" disabled={eraBusy || !eraKey.trim()}>
             <i class="icon-shield-check text-[14px]"></i>{eraBusy ? t('catalog.saving') : era.configured ? t('catalog.paymentMethods.era.replace') : t('catalog.paymentMethods.era.save')}
