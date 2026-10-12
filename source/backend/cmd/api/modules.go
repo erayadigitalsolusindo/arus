@@ -16,13 +16,13 @@ import (
 	"aciraba/internal/authz"
 	"aciraba/internal/catalog"
 	"aciraba/internal/dashboard"
+	"aciraba/internal/erapay"
 	"aciraba/internal/iam"
 	"aciraba/internal/item"
 	"aciraba/internal/live"
 	"aciraba/internal/member"
 	"aciraba/internal/outlet"
 	"aciraba/internal/payable"
-	"aciraba/internal/erapay"
 	"aciraba/internal/paymentmethod"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
@@ -104,7 +104,10 @@ func mountModules(r chi.Router, d appDeps) error {
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	pmSvc := paymentmethod.NewService(d.Pool)
-	eraSvc := erapay.NewService(d.Pool, erapay.NewClient(d.Cfg.EraPayBaseURL, d.Cfg.EraPayAPIKey), pmSvc)
+	eraSvc, err := erapay.NewService(d.Pool, d.Cfg.EraPayBaseURL, d.Cfg.JWTSecret, !d.Cfg.IsDev(), pmSvc)
+	if err != nil {
+		return err
+	}
 	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)

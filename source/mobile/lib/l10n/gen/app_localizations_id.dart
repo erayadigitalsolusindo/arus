@@ -268,6 +268,56 @@ class AppLocalizationsId extends AppLocalizations {
   String get payRef => 'No. referensi';
 
   @override
+  String get payEraGenerate => 'Buat QR QRIS';
+
+  @override
+  String get payEraRegenerate => 'Buat ulang QR';
+
+  @override
+  String get payEraCreating => 'Membuat QR...';
+
+  @override
+  String payEraScan(String amount) {
+    return 'Minta pelanggan scan dan bayar $amount';
+  }
+
+  @override
+  String get payEraWaiting =>
+      'Menunggu pembayaran... nota tersimpan otomatis setelah lunas.';
+
+  @override
+  String get payEraPaid => 'Pembayaran QRIS diterima';
+
+  @override
+  String get payEraFailed => 'Pembayaran QRIS gagal. Buat QR baru.';
+
+  @override
+  String get payEraExpired => 'QR kedaluwarsa. Buat QR baru.';
+
+  @override
+  String get payEraCancelled => 'Pembayaran dibatalkan. Buat QR baru.';
+
+  @override
+  String get payEraNeedPaid => 'Buat QR dan tunggu pembayaran diterima.';
+
+  @override
+  String get errorEraDisabled => 'Integrasi EraPay belum diaktifkan di server.';
+
+  @override
+  String get errorEraNotConfigured =>
+      'API key EraPay belum dipasang untuk toko ini. Minta pemilik memasangnya di Metode Pembayaran (web).';
+
+  @override
+  String get errorEraRejected => 'EraPay menolak tagihan QRIS ini.';
+
+  @override
+  String get errorEraUnavailable => 'EraPay tidak dapat dihubungi, coba lagi.';
+
+  @override
+  String get errorEraNotPaid =>
+      'Pembayaran QRIS belum lunas, tidak cocok, atau sudah dipakai nota lain.';
+
+  @override
   String get payTotalDue => 'Total tagihan';
 
   @override

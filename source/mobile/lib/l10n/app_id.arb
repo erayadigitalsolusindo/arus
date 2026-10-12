@@ -100,6 +100,21 @@
   "payExact": "Uang pas",
   "payAddMethod": "Tambah metode",
   "payRef": "No. referensi",
+  "payEraGenerate": "Buat QR QRIS",
+  "payEraRegenerate": "Buat ulang QR",
+  "payEraCreating": "Membuat QR...",
+  "payEraScan": "Minta pelanggan scan dan bayar {amount}",
+  "payEraWaiting": "Menunggu pembayaran... nota tersimpan otomatis setelah lunas.",
+  "payEraPaid": "Pembayaran QRIS diterima",
+  "payEraFailed": "Pembayaran QRIS gagal. Buat QR baru.",
+  "payEraExpired": "QR kedaluwarsa. Buat QR baru.",
+  "payEraCancelled": "Pembayaran dibatalkan. Buat QR baru.",
+  "payEraNeedPaid": "Buat QR dan tunggu pembayaran diterima.",
+  "errorEraDisabled": "Integrasi EraPay belum diaktifkan di server.",
+  "errorEraNotConfigured": "API key EraPay belum dipasang untuk toko ini. Minta pemilik memasangnya di Metode Pembayaran (web).",
+  "errorEraRejected": "EraPay menolak tagihan QRIS ini.",
+  "errorEraUnavailable": "EraPay tidak dapat dihubungi, coba lagi.",
+  "errorEraNotPaid": "Pembayaran QRIS belum lunas, tidak cocok, atau sudah dipakai nota lain.",
   "payTotalDue": "Total tagihan",
   "payPaid": "Dibayar",
   "payChange": "Kembalian",
@@ -148,6 +163,13 @@
   "@posShiftOpenedAt": {
     "placeholders": {
       "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@payEraScan": {
+    "placeholders": {
+      "amount": {
         "type": "String"
       }
     }
