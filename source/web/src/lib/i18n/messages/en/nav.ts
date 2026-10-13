@@ -19,6 +19,8 @@ const nav: Messages['nav'] = {
   accCashBank: 'Cash & Bank',
   accLedger: 'General Ledger',
   accGeneralJournal: 'General Journal',
+  accBankReconciliation: 'Bank Reconciliation',
+  accPettyCashReport: 'Petty Cash Report',
   accTrialBalance: 'Trial Balance',
   accBalanceSheet: 'Balance Sheet',
   accIncomeStatement: 'Income Statement',

@@ -189,6 +189,8 @@ export const siakNav: NavGroup[] = [
         children: [
           { labelKey: 'nav.accLedger', module: 'general_ledger', href: '/accounting/ledger' },
           { labelKey: 'nav.accGeneralJournal', module: 'general_ledger', href: '/accounting/general-journal' },
+          { labelKey: 'nav.accBankReconciliation', module: 'general_ledger', href: '/accounting/bank-reconciliation' },
+          { labelKey: 'nav.accPettyCashReport', module: 'general_ledger', href: '/accounting/petty-cash' },
           { labelKey: 'nav.accTrialBalance', module: 'general_ledger', href: '/accounting/trial-balance' },
           { labelKey: 'nav.accBalanceSheet', module: 'general_ledger', href: '/accounting/balance-sheet' },
           { labelKey: 'nav.accIncomeStatement', module: 'general_ledger', href: '/accounting/income-statement' }

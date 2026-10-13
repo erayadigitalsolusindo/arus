@@ -17,6 +17,8 @@ export default {
   accCashBank: 'Kas dan Bank',
   accLedger: 'Buku Besar',
   accGeneralJournal: 'Jurnal Umum',
+  accBankReconciliation: 'Rekonsiliasi Bank',
+  accPettyCashReport: 'Laporan Kas Kecil',
   accTrialBalance: 'Neraca Saldo',
   accBalanceSheet: 'Neraca Keuangan',
   accIncomeStatement: 'Laba Rugi',

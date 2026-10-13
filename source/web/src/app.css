@@ -167,3 +167,15 @@
 input[type='checkbox']:disabled:not(:checked) {
   opacity: 0.5;
 }
+
+/* Input nominal uang: sembunyikan spinner bawaan browser, angka rata kanan. */
+input.money-field {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input.money-field::-webkit-inner-spin-button,
+input.money-field::-webkit-outer-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}

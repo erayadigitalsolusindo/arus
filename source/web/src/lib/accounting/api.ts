@@ -91,6 +91,15 @@ export type BalanceSheet = {
 
 export type CashBankRow = { account_id: string; code: string; name: string; opening: string; debit: string; credit: string; closing: string };
 export type CashBank = { from: string; to: string; rows: CashBankRow[]; total: CashBankRow };
+export type BankReconciliationLine = { line_id: string; date: string; doc_no: string; type: JournalType; narration: string; memo: string; debit: string; credit: string; matched: boolean };
+export type BankReconciliation = {
+  id: string; account_id: string; account_code: string; account_name: string; outlet_id: string; month: string; status: 'draft' | 'completed';
+  statement_opening: string; statement_closing: string; book_opening: string; book_closing: string; matched_debit: string; matched_credit: string;
+  outstanding_debit: string; outstanding_credit: string; adjusted_bank: string; difference: string; balanced: boolean; completed_at?: string;
+  lines: BankReconciliationLine[];
+};
+export type PettyCashCategoryRow = { category: string; entries: number; in: string; out: string; net: string };
+export type PettyCashReport = { from: string; to: string; rows: PettyCashCategoryRow[]; total: PettyCashCategoryRow };
 
 export type GeneralJournalEntry = { id: string; doc_no: string; date: string; type: JournalType; narration: string; lines: JournalLine[] };
 export type GeneralJournalPage = { items: GeneralJournalEntry[]; next_cursor?: string };
@@ -115,6 +124,7 @@ export const accounting = {
   periods: () => api<{ items: Period[] }>('/accounting/periods').then((r) => r.items),
   closePeriod: (month: string) => api<Period>(`/accounting/periods/${month}/close`, json('POST')),
   reopenPeriod: (month: string, reason: string) => api<Period>(`/accounting/periods/${month}/reopen`, json('POST', { reason })),
+  createYearEndDraft: (year: number) => api<Journal>(`/accounting/year-end/${year}/draft`, json('POST')),
 
   journals: (p: { from: string; to: string; status?: string; type?: string; cursor?: string; limit?: number }) => api<JournalPage>(`/accounting/journals?${qs(p)}`),
   journal: (id: string) => api<Journal>(`/accounting/journals/${id}`),
@@ -134,6 +144,14 @@ export const accounting = {
   incomeStatement: (p: { from: string; to: string }) => api<IncomeStatement>(`/accounting/reports/income-statement?${qs(p)}`),
   balanceSheet: (asOf: string) => api<BalanceSheet>(`/accounting/reports/balance-sheet?${qs({ as_of: asOf })}`),
   cashBank: (p: { from: string; to: string }) => api<CashBank>(`/accounting/reports/cash-bank?${qs(p)}`),
+  findBankReconciliation: (p: { account_id: string; month: string }) => api<BankReconciliation>(`/accounting/bank-reconciliations?${qs(p)}`),
+  bankReconciliation: (id: string) => api<BankReconciliation>(`/accounting/bank-reconciliations/${id}`),
+  startBankReconciliation: (b: { account_id: string; month: string; statement_opening: string; statement_closing: string }) =>
+    api<BankReconciliation>('/accounting/bank-reconciliations', json('POST', b)),
+  updateBankReconciliation: (id: string, b: { statement_opening: string; statement_closing: string; matched_line_ids: string[] }) =>
+    api<BankReconciliation>(`/accounting/bank-reconciliations/${id}`, json('PUT', b)),
+  completeBankReconciliation: (id: string) => api<BankReconciliation>(`/accounting/bank-reconciliations/${id}/complete`, json('POST')),
+  pettyCashReport: (p: { from: string; to: string }) => api<PettyCashReport>(`/accounting/reports/petty-cash?${qs(p)}`),
   generalJournal: (p: { from: string; to: string; cursor?: string; limit?: number }) => api<GeneralJournalPage>(`/accounting/reports/general-journal?${qs(p)}`),
 
   ledger: (p: { account_id: string; from: string; to: string; cursor?: string; limit?: number }) => api<Ledger>(`/accounting/ledger?${qs(p)}`)
