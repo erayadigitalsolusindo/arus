@@ -240,6 +240,13 @@ func (s *Service) SaveDraft(ctx context.Context, a authz.Actor, id uuid.UUID, in
 			if cur.Status != "draft" {
 				return ErrJournalPosted
 			}
+			var sourceType pgtype.Text
+			if err := tx.QueryRow(ctx, `SELECT source_type FROM journal_entries WHERE tenant_id = $1 AND id = $2`, a.TenantID, id).Scan(&sourceType); err != nil {
+				return err
+			}
+			if sourceType.Valid && sourceType.String == yearEndSource {
+				return ErrYearEndDraftLocked
+			}
 			if cur.Type != in.Type {
 				return FieldErrors{"type": sanitize.Invalid}
 			}
@@ -343,7 +350,15 @@ func postTx(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UUID, action 
 		}
 	}
 	month := monthStart(e.EntryDate.Time)
-	if err := lockPeriodShare(ctx, q, a.TenantID, month); err != nil {
+	yearEnd, err := yearEndEntry(ctx, tx, a.TenantID, e)
+	if err != nil {
+		return err
+	}
+	if yearEnd {
+		if err := lockYearPeriods(ctx, tx, a.TenantID, e.EntryDate.Time.Year(), false); err != nil {
+			return err
+		}
+	} else if err := lockPeriodShare(ctx, q, a.TenantID, month); err != nil {
 		return err
 	}
 	no, err := q.JournalNextNo(ctx, gen.JournalNextNoParams{TenantID: a.TenantID, Type: e.Type, Year: int32(e.EntryDate.Time.Year())})

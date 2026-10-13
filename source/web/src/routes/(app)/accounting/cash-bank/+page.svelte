@@ -78,7 +78,10 @@
           {#each data?.rows ?? [] as r (r.account_id)}
             <tr class="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--color-primary)]/5">
               <td class="px-4 py-2.5 font-mono whitespace-nowrap">
-                <a class="text-[var(--color-primary-600)] hover:underline" href="/accounting/ledger?account={r.account_id}&from={from}&to={to}">{r.code}</a>
+                <div class="flex flex-col items-start">
+                  <a class="text-[var(--color-primary-600)] hover:underline" href="/accounting/ledger?account={r.account_id}&from={from}&to={to}">{r.code}</a>
+                  <a class="font-sans text-[10.5px] text-[var(--text-tertiary)] hover:text-[var(--color-primary-600)]" href="/accounting/bank-reconciliation?account_id={r.account_id}&month={from.slice(0, 7)}">{t('accounting.cashBank.reconcile')}</a>
+                </div>
               </td>
               <td class="px-3 py-2.5">{r.name}</td>
               <td class="px-3 py-2.5 text-end tabular-nums">{money(r.opening)}</td>
