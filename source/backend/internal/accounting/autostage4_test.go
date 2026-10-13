@@ -54,9 +54,29 @@ func TestStage4Drafts(t *testing.T) {
 			id, s.other, s.outlet, shift, s.cash, dir, amount, cat, user, "pc-"+id.String(), day+" 12:00+07", v)
 	}
 	move("out", "15000", "Galon", false)
+	move("out", "3000", "Galon", false)
 	move("out", "5000", "Parkir", false)
 	move("in", "30000", "Tambah receh", false)
 	move("out", "99999", "Salah catat", true)
+	nextDayID := uuid.New()
+	s.exec(t, `INSERT INTO cash_movements (id, tenant_id, outlet_id, shift_id, method_id, direction, amount, category, created_by, idem_key, created_at)
+		VALUES ($1, $2, $3, $4, $5, 'out', 99999, 'Besok', $6, $7, $8::timestamptz)`,
+		nextDayID, s.other, s.outlet, shift, s.cash, user, "pc-"+nextDayID.String(), "2026-03-23 00:01+07")
+
+	pettyReport, err := s.svc.PettyCashReport(ctx, s.otherOwner, s.outlet, day, day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pettyReport.Rows) != 3 || pettyReport.Total.Entries != 4 || pettyReport.Total.In != "30000.00" || pettyReport.Total.Out != "23000.00" || pettyReport.Total.Net != "7000.00" {
+		t.Fatalf("laporan kas kecil: %+v", pettyReport)
+	}
+	byCategory := map[string]accounting.PettyCashCategoryRow{}
+	for _, row := range pettyReport.Rows {
+		byCategory[row.Category] = row
+	}
+	if row := byCategory["Galon"]; row.Entries != 2 || row.Out != "18000.00" || row.Net != "-18000.00" {
+		t.Errorf("agregat kategori Galon: %+v", row)
+	}
 
 	res, err := s.svc.GenerateDrafts(ctx, s.otherOwner, accounting.GenerateInput{From: day, To: day, OutletID: s.outlet,
 		Sources: []string{accounting.SourceStockCountsDaily, accounting.SourceShiftVarianceDaily, accounting.SourcePettyCashDaily}})
@@ -72,7 +92,7 @@ func TestStage4Drafts(t *testing.T) {
 	}{
 		accounting.SourceStockCountsDaily:   {"STOCK", map[string]string{"5200": "8000", "1310": "-8000"}},
 		accounting.SourceShiftVarianceDaily: {"CASH", map[string]string{"6900": "2000", "1110": "-2000", "1130": "500", "4900": "-500"}},
-		accounting.SourcePettyCashDaily:     {"CASH", map[string]string{"6900": "20000", "1110": "10000", "1120": "-30000"}},
+		accounting.SourcePettyCashDaily:     {"CASH", map[string]string{"6900": "23000", "1110": "7000", "1120": "-30000"}},
 	}
 	for _, it := range res.Items {
 		j, err := s.svc.Get(ctx, s.otherOwner, *it.JournalID)

@@ -53,6 +53,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModulePeriods, authz.ActView)).Get("/periods", h.ListPeriods)
 		r.With(req(ModulePeriods, authz.ActUpdate)).Post("/periods/{month}/close", h.ClosePeriod)
 		r.With(req(ModulePeriods, authz.ActApprove)).Post("/periods/{month}/reopen", h.ReopenPeriod)
+		r.With(req(ModuleJournals, authz.ActCreate)).Post("/year-end/{year}/draft", h.CreateYearEndDraft)
 
 		r.With(req(ModuleJournals, authz.ActView)).Get("/journals", h.ListJournals)
 		r.With(req(ModuleJournals, authz.ActView)).Get("/journals/{id}", h.GetJournal)
@@ -77,7 +78,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/income-statement", h.IncomeStatement)
 		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/balance-sheet", h.BalanceSheet)
 		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/cash-bank", h.CashBank)
+		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/petty-cash", h.PettyCashReport)
 		r.With(req(ModuleLedger, authz.ActView)).Get("/reports/general-journal", h.GeneralJournal)
+		r.With(req(ModuleLedger, authz.ActView)).Get("/bank-reconciliations", h.FindBankReconciliation)
+		r.With(req(ModuleLedger, authz.ActView)).Get("/bank-reconciliations/{id}", h.GetBankReconciliation)
+		r.With(req(ModuleJournals, authz.ActCreate)).Post("/bank-reconciliations", h.StartBankReconciliation)
+		r.With(req(ModuleJournals, authz.ActUpdate)).Put("/bank-reconciliations/{id}", h.UpdateBankReconciliation)
+		r.With(req(ModuleJournals, authz.ActApprove)).Post("/bank-reconciliations/{id}/complete", h.CompleteBankReconciliation)
 	})
 }
 
@@ -244,6 +251,20 @@ func (h *Handler) ReopenPeriod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := h.svc.ReopenPeriod(r.Context(), actor(r), chi.URLParam(r, "month"), in.Reason)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) CreateYearEndDraft(w http.ResponseWriter, r *http.Request) {
+	year, err := strconv.Atoi(chi.URLParam(r, "year"))
+	if err != nil {
+		httpx.ValidationError(w, map[string]string{"year": "INVALID"})
+		return
+	}
+	res, err := h.svc.CreateYearEndDraft(r.Context(), actor(r), year)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -429,11 +450,90 @@ func (h *Handler) CashBank(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) PettyCashReport(w http.ResponseWriter, r *http.Request) {
+	h.report(w, r, func(a authz.Actor, o uuid.UUID, q url.Values) (any, error) {
+		return h.svc.PettyCashReport(r.Context(), a, o, q.Get("from"), q.Get("to"))
+	})
+}
+
 func (h *Handler) GeneralJournal(w http.ResponseWriter, r *http.Request) {
 	h.report(w, r, func(a authz.Actor, o uuid.UUID, q url.Values) (any, error) {
 		limit, _ := strconv.Atoi(q.Get("limit"))
 		return h.svc.GeneralJournal(r.Context(), a, o, q.Get("from"), q.Get("to"), q.Get("cursor"), limit)
 	})
+}
+
+func (h *Handler) GetBankReconciliation(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.svc.GetBankReconciliation(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) FindBankReconciliation(w http.ResponseWriter, r *http.Request) {
+	accountID, ok := queryID(w, r, "account_id")
+	if !ok {
+		return
+	}
+	if accountID == uuid.Nil {
+		httpx.ValidationError(w, map[string]string{"account_id": "REQUIRED"})
+		return
+	}
+	res, err := h.svc.FindBankReconciliation(r.Context(), actor(r), accountID, r.URL.Query().Get("month"))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) StartBankReconciliation(w http.ResponseWriter, r *http.Request) {
+	var in BankReconciliationInput
+	if !httpx.DecodeJSONLimit(w, r, &in, 8<<10) {
+		return
+	}
+	res, err := h.svc.StartBankReconciliation(r.Context(), actor(r), in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, res)
+}
+
+func (h *Handler) UpdateBankReconciliation(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var in BankReconciliationUpdate
+	if !httpx.DecodeJSONLimit(w, r, &in, 64<<10) {
+		return
+	}
+	res, err := h.svc.UpdateBankReconciliation(r.Context(), actor(r), id, in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) CompleteBankReconciliation(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.svc.CompleteBankReconciliation(r.Context(), actor(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -483,6 +583,24 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		e(http.StatusConflict, "TEMPLATE_LIMIT", "Jumlah template mencapai batas.")
 	case errors.Is(err, ErrCOAExists):
 		e(http.StatusConflict, "COA_EXISTS", "Bagan akun sudah ada.")
+	case errors.Is(err, ErrYearEndPeriodsOpen):
+		e(http.StatusConflict, "YEAR_END_PERIODS_OPEN", "Tutup semua 12 periode tahun tersebut sebelum membuat jurnal penutup.")
+	case errors.Is(err, ErrYearEndAlreadyPosted):
+		e(http.StatusConflict, "YEAR_END_ALREADY_POSTED", "Jurnal penutup tahun ini sudah diposting.")
+	case errors.Is(err, ErrYearEndNoActivity):
+		e(http.StatusUnprocessableEntity, "YEAR_END_NO_ACTIVITY", "Tidak ada saldo pendapatan atau beban yang perlu ditutup.")
+	case errors.Is(err, ErrYearEndRetainedEarningsMissing):
+		e(http.StatusUnprocessableEntity, "YEAR_END_RETAINED_EARNINGS_MISSING", "Akun buku aktif 3200 Laba Ditahan tidak ditemukan.")
+	case errors.Is(err, ErrYearEndDraftLocked):
+		e(http.StatusConflict, "YEAR_END_DRAFT_LOCKED", "Ubah jurnal penutup dengan membuat ulang draf tutup tahun.")
+	case errors.Is(err, ErrYearEndInvalid):
+		e(http.StatusConflict, "YEAR_END_INVALID", "Jurnal penutup tidak memenuhi aturan tutup tahun.")
+	case errors.Is(err, ErrBankReconCompleted):
+		e(http.StatusConflict, "BANK_RECONCILIATION_COMPLETED", "Rekonsiliasi bank ini sudah selesai dan terkunci.")
+	case errors.Is(err, ErrBankReconUnbalanced):
+		e(http.StatusConflict, "BANK_RECONCILIATION_UNBALANCED", "Saldo bank yang disesuaikan belum sama dengan saldo buku.")
+	case errors.Is(err, ErrBankReconTooManyLines):
+		e(http.StatusUnprocessableEntity, "BANK_RECONCILIATION_TOO_MANY_LINES", "Terlalu banyak transaksi untuk satu bulan; pecah periode pemeriksaan.")
 	default:
 		h.log.ErrorContext(r.Context(), "accounting", "err", err, "path", r.URL.Path)
 		e(http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
