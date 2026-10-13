@@ -30,6 +30,11 @@ func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssue
 }
 
 func (h *Handler) Routes(r chi.Router) {
+	r.Route("/ecosystem/erapay", func(r chi.Router) {
+		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
+		r.Get("/status", h.ecosystemStatus)
+		r.Post("/activate", h.activateEcosystem)
+	})
 	r.Route("/payments/erapay", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		sale := authz.Require("sales_orders", authz.ActCreate)
@@ -73,10 +78,44 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusForbidden, "IMPERSONATING", "Tidak tersedia pada sesi masuk-sebagai.")
 	case errors.Is(err, ErrUnavailable):
 		httpx.Error(w, http.StatusBadGateway, "ERAPAY_UNAVAILABLE", "EraPay tidak dapat dihubungi, coba lagi.")
+	case errors.Is(err, ErrEcosystemNotConfigured):
+		httpx.Error(w, http.StatusServiceUnavailable, "ERAPAY_ECOSYSTEM_UNAVAILABLE", "Koneksi Ekosistem EraPay belum dikonfigurasi di server.")
+	case errors.Is(err, ErrEcosystemOwner):
+		httpx.Error(w, http.StatusForbidden, "ECOSYSTEM_OWNER_REQUIRED", "Hanya Owner toko yang dapat mengaktifkan EraPay.")
+	case errors.Is(err, ErrEcosystemEmail):
+		httpx.Error(w, http.StatusConflict, "EMAIL_NOT_VERIFIED", "Verifikasi email akun Anda sebelum mengaktifkan EraPay.")
+	case errors.Is(err, ErrEcosystemTerms):
+		httpx.Error(w, http.StatusBadRequest, "ERAPAY_TERMS_REQUIRED", "Setujui syarat EraPay untuk melanjutkan.")
+	case errors.Is(err, ErrEcosystemAmbiguous):
+		httpx.Error(w, http.StatusConflict, "ERAPAY_ECOSYSTEM_AMBIGUOUS", "Lebih dari satu merchant EraPay cocok. Hubungi dukungan EraPay sebelum mengaktifkan.")
 	default:
 		h.log.Error("erapay gagal", "err", err, "req_id", middleware.GetReqID(r.Context()))
 		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
 	}
+}
+
+func (h *Handler) ecosystemStatus(w http.ResponseWriter, r *http.Request) {
+	status, err := h.svc.EcosystemStatus(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, status)
+}
+
+func (h *Handler) activateEcosystem(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		AcceptedTerms bool `json:"accepted_terms"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &in, 1024) {
+		return
+	}
+	status, err := h.svc.ActivateEcosystem(r.Context(), actor(r), in.AcceptedTerms)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, status)
 }
 
 func (h *Handler) config(w http.ResponseWriter, r *http.Request) {

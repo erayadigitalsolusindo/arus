@@ -4,12 +4,22 @@
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { session, logout } from '#lib/auth/session.svelte.ts';
   import { initials } from '#lib/auth/initials.ts';
+  import Modal from '#lib/components/Modal.svelte';
+  import { api } from '#lib/api/client.ts';
+  import { errorMessage } from '#lib/i18n/errors.ts';
 
   let { onmenu }: { onmenu: () => void } = $props();
 
   type Theme = 'light' | 'dark';
   let theme = $state<Theme>(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   let menu = $state<'' | 'notif' | 'user'>('');
+  type EcosystemStatus = { active: boolean; merchant_status?: string; owner_role?: string };
+  let ecosystemOpen = $state(false);
+  let ecosystemLoading = $state(false);
+  let ecosystemActivating = $state(false);
+  let ecosystemStatus = $state<EcosystemStatus | null>(null);
+  let ecosystemError = $state('');
+  let acceptedErapayTerms = $state(false);
   function toggle(name: 'notif' | 'user') {
     menu = menu === name ? '' : name;
   }
@@ -28,6 +38,41 @@
       localStorage.setItem('theme', theme);
     } catch {
       /* penyimpanan diblokir: abaikan */
+    }
+  }
+
+  async function refreshEcosystem() {
+    ecosystemLoading = true;
+    ecosystemStatus = null;
+    ecosystemError = '';
+    try {
+      ecosystemStatus = await api<EcosystemStatus>('/ecosystem/erapay/status');
+    } catch (error) {
+      ecosystemError = errorMessage(error);
+    } finally {
+      ecosystemLoading = false;
+    }
+  }
+
+  function openEcosystem() {
+    menu = '';
+    acceptedErapayTerms = false;
+    ecosystemOpen = true;
+    void refreshEcosystem();
+  }
+
+  async function activateErapay() {
+    ecosystemActivating = true;
+    ecosystemError = '';
+    try {
+      ecosystemStatus = await api<EcosystemStatus>('/ecosystem/erapay/activate', {
+        method: 'POST',
+        body: JSON.stringify({ accepted_terms: acceptedErapayTerms })
+      });
+    } catch (error) {
+      ecosystemError = errorMessage(error);
+    } finally {
+      ecosystemActivating = false;
     }
   }
 </script>
@@ -130,7 +175,7 @@
         {#if menu === 'user'}
           <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
             <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
-            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</a>
+            <button type="button" onclick={(e) => { e.stopPropagation(); openEcosystem(); }} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</button>
             <button type="button" onclick={logout} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</button>
           </div>
         {/if}
@@ -138,3 +183,48 @@
     </div>
   </div>
 </header>
+
+{#if ecosystemOpen}
+  <Modal title={t('shell.ecosystem.title')} onclose={() => (ecosystemOpen = false)}>
+    <div class="surface-card p-4 sm:p-5">
+      <div class="flex items-center justify-between gap-4">
+        <img src="/erapay-logo.svg" alt="EraPay" class="h-12 w-44 object-contain object-left" />
+        {#if ecosystemLoading}
+          <span class="badge">{t('shell.ecosystem.checking')}</span>
+        {:else if ecosystemStatus}
+          <span class="badge {ecosystemStatus.active ? 'badge-success' : 'badge-muted'}">
+            {ecosystemStatus.active ? t('shell.ecosystem.active') : t('shell.ecosystem.inactive')}
+          </span>
+        {:else}
+          <span class="badge badge-muted">{t('shell.ecosystem.unknown')}</span>
+        {/if}
+      </div>
+
+      {#if ecosystemLoading}
+        <p class="mt-4 text-sm text-[var(--text-secondary)]">{t('shell.ecosystem.checkingDetails')}</p>
+      {:else if ecosystemError}
+        <div class="mt-4" role="alert">
+          <p class="text-sm text-[var(--color-danger-600)]">{ecosystemError}</p>
+          <button type="button" class="btn btn-secondary mt-3" onclick={() => void refreshEcosystem()}>
+            <i class="icon-refresh-cw me-1.5"></i>{t('shell.ecosystem.retry')}
+          </button>
+        </div>
+      {:else if ecosystemStatus?.active}
+        <p class="mt-4 text-sm font-semibold">{t('shell.ecosystem.ownerConnected')}</p>
+        {#if ecosystemStatus.merchant_status !== 'approved'}
+          <p class="mt-2 text-xs text-[var(--text-secondary)]">{t('shell.ecosystem.reviewPending')}</p>
+        {/if}
+      {:else if ecosystemStatus}
+        <p class="mt-4 text-sm text-[var(--text-secondary)]">{t('shell.ecosystem.intro')}</p>
+        <label class="mt-4 flex items-start gap-2.5 text-xs leading-5">
+          <input type="checkbox" bind:checked={acceptedErapayTerms} class="mt-0.5 size-4 accent-[var(--color-primary-600)]" />
+          <span>{t('shell.ecosystem.acceptTerms')}</span>
+        </label>
+        <p class="mt-2 text-xs text-[var(--text-tertiary)]">{t('shell.ecosystem.ownerInvite')}</p>
+        <button type="button" class="btn btn-primary mt-4 w-full" disabled={!acceptedErapayTerms || ecosystemActivating} onclick={() => void activateErapay()}>
+          {#if ecosystemActivating}<i class="icon-loader-circle me-1.5 animate-spin"></i>{t('shell.ecosystem.activating')}{:else}<i class="icon-link me-1.5"></i>{t('shell.ecosystem.activate')}{/if}
+        </button>
+      {/if}
+    </div>
+  </Modal>
+{/if}
