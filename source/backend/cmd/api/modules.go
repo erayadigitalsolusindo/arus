@@ -108,6 +108,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err != nil {
 		return err
 	}
+	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken)
 	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)

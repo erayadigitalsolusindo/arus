@@ -2,7 +2,8 @@
 
 > **Perbarui di akhir setiap sesi** (ringkas, tanggal absolut, buang info usang; target ≤ ±80 baris). Roadmap/centang: `docs/ROADMAP.md`. Lingkungan dev: `docs/DEV-ENV.md`. Riwayat: `docs/SESSION-LOG.md` (Grep, jangan dibaca penuh).
 
-## Posisi (2026-10-11)
+## Posisi (2026-10-13)
+- **Ekosistem EraPay:** menu akun → Ekosistem kini mengecek/menautkan tenant UUID melalui API provisioning server-ke-server. Merchant lama hanya ditautkan bila email Owner + nama usaha cocok tunggal; selain itu dibuat idempoten dengan membership `merchant_owner`. Email owner harus terverifikasi, persetujuan syarat dicatat, merchant baru tetap `submitted` sampai review ERAPAY. Tes Go kedua backend + `npm run check` lulus; tes DB ERAPAY di-skip karena `ERAPAY_TEST_DATABASE_URL` tidak tersedia. **Belum untuk deploy:** jalankan migration ERAPAY `0018`, set token `ERAPAY_ARUS_PROVISION_TOKEN` yang sama di kedua backend, lalu restart API.
 - Fondasi, auth/RLS/role/audit, master katalog, item, stok (saldo awal, opname, mutasi, pecah satuan, kartu stok), member + poin + deposit, kasir web lengkap (kredit/piutang, retur, kupon, shift, struk), pembelian (HPP per cabang, hutang, retur beli), dasbor "toko baik-baik saja?" (verdict + pemeriksaan, stok menipis, perbandingan cabang, bulan lalu) sudah ada. Detail per kotak: `docs/ROADMAP.md`. Sisa Fase 6: saldo awal hutang, pembatalan pembayaran, PO.
 - Kesiapan go-live pilot ±60–65%; penghalangnya kini di luar layar kasir. Kasir web: PRD FR-POS 20/22 ✅ (sisa catatan per baris + offline).
 - Git (2026-10-11): `main` bersih; PR #29 (dasbor + `items.min_stock`, migration `00055`), #30 (kasir klasik), #31 (matriks izin + halaman 404/500 bertema bawah laut) sudah ter-merge. Migration terakhir = `00057`. Tidak ada `.github/` (CI belum ada).

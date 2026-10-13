@@ -29,24 +29,30 @@ const (
 )
 
 var (
-	ErrDisabled       = errors.New("integrasi EraPay belum diaktifkan di server")
-	ErrNotConfigured  = errors.New("API key EraPay belum dipasang untuk toko ini")
-	ErrNotFound       = errors.New("tagihan tidak ditemukan")
-	ErrAmount         = errors.New("nominal QRIS harus rupiah bulat dan di atas nol")
-	ErrKeyConflict    = errors.New("kunci idempotensi sudah dipakai untuk nominal lain")
-	ErrChargeNotOK    = errors.New("pembayaran EraPay belum lunas, tidak cocok, atau sudah dipakai nota lain")
-	ErrUnavailable    = errors.New("EraPay tidak dapat dihubungi, coba lagi")
-	ErrBadKey         = errors.New("format API key EraPay tidak valid")
-	ErrKeyScope       = errors.New("API key EraPay harus punya izin payment:create dan payment:read")
-	ErrKeyEnvironment = errors.New("API key sandbox tidak boleh dipakai di server production")
-	ErrImpersonating  = errors.New("tidak tersedia pada sesi masuk-sebagai")
-	keyFormat         = regexp.MustCompile(`^epk_(prd|sbx)_[0-9a-f]{8}_[0-9a-f]{64}$`)
+	ErrDisabled               = errors.New("integrasi EraPay belum diaktifkan di server")
+	ErrNotConfigured          = errors.New("API key EraPay belum dipasang untuk toko ini")
+	ErrNotFound               = errors.New("tagihan tidak ditemukan")
+	ErrAmount                 = errors.New("nominal QRIS harus rupiah bulat dan di atas nol")
+	ErrKeyConflict            = errors.New("kunci idempotensi sudah dipakai untuk nominal lain")
+	ErrChargeNotOK            = errors.New("pembayaran EraPay belum lunas, tidak cocok, atau sudah dipakai nota lain")
+	ErrUnavailable            = errors.New("EraPay tidak dapat dihubungi, coba lagi")
+	ErrEcosystemNotConfigured = errors.New("koneksi provisioning EraPay belum dikonfigurasi")
+	ErrEcosystemOwner         = errors.New("hanya Owner yang dapat mengaktifkan ekosistem EraPay")
+	ErrEcosystemEmail         = errors.New("email Owner harus diverifikasi sebelum aktivasi EraPay")
+	ErrEcosystemTerms         = errors.New("syarat EraPay harus disetujui")
+	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
+	ErrBadKey                 = errors.New("format API key EraPay tidak valid")
+	ErrKeyScope               = errors.New("API key EraPay harus punya izin payment:create dan payment:read")
+	ErrKeyEnvironment         = errors.New("API key sandbox tidak boleh dipakai di server production")
+	ErrImpersonating          = errors.New("tidak tersedia pada sesi masuk-sebagai")
+	keyFormat                 = regexp.MustCompile(`^epk_(prd|sbx)_[0-9a-f]{8}_[0-9a-f]{64}$`)
 )
 
 // Service: tiap tenant memakai API key EraPay-nya sendiri (tersimpan terenkripsi). Alamat API EraPay sama untuk semua (env server).
 type Service struct {
 	pool        *pgxpool.Pool
 	baseURL     string // kosong = integrasi mati
+	provisioner *ProvisioningClient
 	box         *secretBox
 	methods     *paymentmethod.Service
 	requireProd bool // di luar development: hanya key production yang diterima

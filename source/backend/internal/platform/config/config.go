@@ -41,7 +41,8 @@ type Config struct {
 	AIFreeDailyLimit int
 
 	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
-	EraPayBaseURL string
+	EraPayBaseURL        string
+	EraPayProvisionToken string // shared server-to-server secret; never sent to the browser
 
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
@@ -60,23 +61,24 @@ func Load() (Config, error) {
 	_ = godotenv.Load()
 
 	c := Config{
-		Env:                getenv("APP_ENV", "development"),
-		HTTPAddr:           getenv("HTTP_ADDR", ":8080"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		RedisURL:           os.Getenv("REDIS_URL"),
-		JWTSecret:          os.Getenv("JWT_SECRET"),
-		TrustProxy:         os.Getenv("TRUST_PROXY") == "true",
-		UploadDir:          getenv("UPLOAD_DIR", "./data/uploads"),
-		PlatformSetupToken: os.Getenv("PLATFORM_SETUP_TOKEN"),
-		APIBaseURL:         strings.TrimRight(getenv("API_BASE_URL", "http://localhost:8080"), "/"),
-		AIPlatformKey:      strings.TrimSpace(os.Getenv("AI_PLATFORM_KEY")),
-		AIFreeDailyLimit:   10,
-		EraPayBaseURL:      strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
-		AppBaseURL:         strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
-		SMTPHost:           os.Getenv("SMTP_HOST"),
-		SMTPUser:           os.Getenv("SMTP_USER"),
-		SMTPPass:           os.Getenv("SMTP_PASS"),
-		SMTPFrom:           getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+		Env:                  getenv("APP_ENV", "development"),
+		HTTPAddr:             getenv("HTTP_ADDR", ":8080"),
+		DatabaseURL:          os.Getenv("DATABASE_URL"),
+		RedisURL:             os.Getenv("REDIS_URL"),
+		JWTSecret:            os.Getenv("JWT_SECRET"),
+		TrustProxy:           os.Getenv("TRUST_PROXY") == "true",
+		UploadDir:            getenv("UPLOAD_DIR", "./data/uploads"),
+		PlatformSetupToken:   os.Getenv("PLATFORM_SETUP_TOKEN"),
+		APIBaseURL:           strings.TrimRight(getenv("API_BASE_URL", "http://localhost:8080"), "/"),
+		AIPlatformKey:        strings.TrimSpace(os.Getenv("AI_PLATFORM_KEY")),
+		AIFreeDailyLimit:     10,
+		EraPayBaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
+		EraPayProvisionToken: strings.TrimSpace(os.Getenv("ERAPAY_ARUS_PROVISION_TOKEN")),
+		AppBaseURL:           strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
+		SMTPHost:             os.Getenv("SMTP_HOST"),
+		SMTPUser:             os.Getenv("SMTP_USER"),
+		SMTPPass:             os.Getenv("SMTP_PASS"),
+		SMTPFrom:             getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
 	}
 	c.AutoJournal = !c.IsDev()
 	if v := os.Getenv("AUTO_JOURNAL"); v != "" {
@@ -118,6 +120,9 @@ func Load() (Config, error) {
 	}
 	if !c.IsDev() && c.EraPayBaseURL != "" && !strings.HasPrefix(c.EraPayBaseURL, "https://") {
 		errs = append(errs, errors.New("ERAPAY_BASE_URL wajib https:// di luar development"))
+	}
+	if c.EraPayProvisionToken != "" && len(c.EraPayProvisionToken) < 32 {
+		errs = append(errs, errors.New("ERAPAY_ARUS_PROVISION_TOKEN minimal 32 karakter bila diisi"))
 	}
 	if !c.IsDev() && c.SMTPHost == "" {
 		errs = append(errs, errors.New("SMTP_HOST wajib di luar development (email verifikasi dan reset password)"))
