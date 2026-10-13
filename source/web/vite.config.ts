@@ -23,5 +23,5 @@ export default defineConfig({
       adapter: adapter({ fallback: 'index.html' })
     })
   ],
-  server: { port: 5173, strictPort: true }
+  server: { port: 5200, strictPort: true }
 });

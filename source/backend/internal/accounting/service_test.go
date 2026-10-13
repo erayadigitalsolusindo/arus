@@ -66,7 +66,7 @@ func newEnv(t *testing.T) *env {
 	t.Cleanup(func() {
 		for _, tid := range []uuid.UUID{e.tenant, e.other} {
 			_, _ = admin.Exec(ctx, `UPDATE journal_entries SET reverses_id = NULL WHERE tenant_id = $1`, tid)
-			for _, tbl := range []string{"audit_log", "account_period_balances", "journal_lines", "journal_entries", "journal_counters", "accounting_periods", "account_mappings",
+			for _, tbl := range []string{"audit_log", "bank_reconciliation_matches", "bank_reconciliations", "account_period_balances", "journal_lines", "journal_entries", "journal_counters", "accounting_periods", "account_mappings",
 				"accounts", "user_outlets", "users", "roles", "outlets"} {
 				_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tid)
 			}
@@ -382,6 +382,85 @@ func TestReverseConcurrent(t *testing.T) {
 	}
 	if d, c := e.balance(t, "1110"); !d.Equal(c) {
 		t.Fatalf("saldo tidak netral: %s vs %s", d, c)
+	}
+}
+
+func TestYearEndClosingDraft(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	const year = 2024
+	e.account(t, "3200", "Laba Ditahan", "ledger", "equity", false)
+
+	postEntry := func(date string, lines []accounting.LineInput) {
+		t.Helper()
+		journal, err := e.svc.SaveDraft(ctx, e.owner, uuid.Nil, accounting.JournalInput{Date: date, Type: "JU", Narration: "Transaksi uji", Lines: lines})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.svc.Post(ctx, e.owner, journal.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	postEntry("2024-03-15", []accounting.LineInput{ln(e.acc["1110"], "100000", "0"), ln(e.acc["4100"], "0", "100000")})
+	postEntry("2024-06-10", []accounting.LineInput{ln(e.acc["6100"], "25000", "0"), ln(e.acc["1110"], "0", "25000")})
+
+	if _, err := e.svc.CreateYearEndDraft(ctx, e.owner, year); !errors.Is(err, accounting.ErrYearEndPeriodsOpen) {
+		t.Fatalf("draf saat periode masih terbuka: err = %v, want ErrYearEndPeriodsOpen", err)
+	}
+	for month := 1; month <= 12; month++ {
+		if _, err := e.svc.ClosePeriod(ctx, e.owner, fmt.Sprintf("%d-%02d", year, month)); err != nil {
+			t.Fatalf("tutup periode %d-%02d: %v", year, month, err)
+		}
+	}
+
+	draft, err := e.svc.CreateYearEndDraft(ctx, e.owner, year)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if draft.Status != "draft" || draft.Type != "JU" || draft.Date != "2024-12-31" || draft.TotalDebit != "100000.00" || draft.TotalCredit != "100000.00" {
+		t.Fatalf("draf penutup: %+v", draft)
+	}
+	lineByCode := map[string]accounting.Line{}
+	for _, line := range draft.Lines {
+		lineByCode[line.AccountCode] = line
+	}
+	if line := lineByCode["4100"]; line.Debit != "100000.00" || line.Credit != "0.00" {
+		t.Errorf("baris pendapatan: %+v", line)
+	}
+	if line := lineByCode["6100"]; line.Debit != "0.00" || line.Credit != "25000.00" {
+		t.Errorf("baris beban: %+v", line)
+	}
+	if line := lineByCode["3200"]; line.Debit != "0.00" || line.Credit != "75000.00" {
+		t.Errorf("baris laba ditahan: %+v", line)
+	}
+
+	duplicate, err := e.svc.CreateYearEndDraft(ctx, e.owner, year)
+	if err != nil || duplicate.ID != draft.ID {
+		t.Fatalf("pembuatan ulang draf harus idempoten: id=%s err=%v", duplicate.ID, err)
+	}
+	if _, err := e.svc.SaveDraft(ctx, e.owner, draft.ID, accounting.JournalInput{Date: draft.Date, Type: "JU", Lines: []accounting.LineInput{ln(e.acc["4100"], "1", "0")}}); !errors.Is(err, accounting.ErrYearEndDraftLocked) {
+		t.Fatalf("ubah draf penutup biasa: err = %v, want ErrYearEndDraftLocked", err)
+	}
+	if _, err := e.svc.Post(ctx, e.owner, draft.ID); err != nil {
+		t.Fatalf("posting draf penutup ke tahun tertutup: %v", err)
+	}
+	if _, err := e.svc.CreateYearEndDraft(ctx, e.owner, year); !errors.Is(err, accounting.ErrYearEndAlreadyPosted) {
+		t.Fatalf("buat ulang setelah posting: err = %v, want ErrYearEndAlreadyPosted", err)
+	}
+
+	income, err := e.svc.IncomeStatement(ctx, e.owner, e.outlet, "2024-01-01", "2024-12-31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if income.Revenue.Total != "100000.00" || income.Expenses.Total != "25000.00" || income.NetProfit != "75000.00" {
+		t.Fatalf("laba rugi historis setelah penutupan: %+v", income)
+	}
+	balance, err := e.svc.BalanceSheet(ctx, e.owner, e.outlet, "2024-12-31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !balance.Balanced || balance.UnclosedProfit != "0.00" || balance.TotalAssets != "75000.00" || balance.Equity.Total != "75000.00" {
+		t.Fatalf("neraca setelah penutupan: %+v", balance)
 	}
 }
 

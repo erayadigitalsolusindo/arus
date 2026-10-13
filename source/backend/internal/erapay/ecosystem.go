@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -46,6 +47,13 @@ func NewProvisioningClient(baseURL, token string) *ProvisioningClient {
 	return &ProvisioningClient{baseURL: baseURL, token: token, http: &http.Client{Timeout: 12 * time.Second}}
 }
 
+// logRemote mencatat penolakan EraPay (status + potongan body, tanpa token) agar
+// ErrUnavailable di sisi klien tetap bisa didiagnosis dari log server.
+func logRemote(op string, resp *http.Response) {
+	snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	slog.Warn("erapay provisioning ditolak", "op", op, "status", resp.StatusCode, "body", string(snippet))
+}
+
 func (c *ProvisioningClient) Status(ctx context.Context, tenantID uuid.UUID) (remoteTenantLink, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s", c.baseURL, tenantID), nil)
@@ -62,10 +70,12 @@ func (c *ProvisioningClient) Status(ctx context.Context, tenantID uuid.UUID) (re
 		return remoteTenantLink{}, nil
 	}
 	if resp.StatusCode != http.StatusOK {
+		logRemote("status", resp)
 		return remoteTenantLink{}, ErrUnavailable
 	}
 	var link remoteTenantLink
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&link); err != nil {
+		slog.Warn("erapay provisioning: body status tak terbaca", "err", err)
 		return remoteTenantLink{}, ErrUnavailable
 	}
 	return link, nil
@@ -87,10 +97,11 @@ func (c *ProvisioningClient) Ensure(ctx context.Context, tenantID uuid.UUID, bus
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "ensure", "err", err)
 		return remoteTenantLink{}, ErrUnavailable
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		if resp.StatusCode == http.StatusConflict {
 			var envelope struct {
 				Error struct {
@@ -101,10 +112,13 @@ func (c *ProvisioningClient) Ensure(ctx context.Context, tenantID uuid.UUID, bus
 				return remoteTenantLink{}, ErrEcosystemAmbiguous
 			}
 		}
+		logRemote("ensure", resp)
 		return remoteTenantLink{}, ErrUnavailable
 	}
 	var link remoteTenantLink
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&link); err != nil || !link.Linked || link.OwnerRole != "merchant_owner" {
+		slog.Warn("erapay provisioning: respons ensure tak valid", "status", resp.StatusCode, "err", err,
+			"linked", link.Linked, "owner_role", link.OwnerRole)
 		return remoteTenantLink{}, ErrUnavailable
 	}
 	return link, nil

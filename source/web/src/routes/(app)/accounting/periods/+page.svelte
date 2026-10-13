@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Modal from '#lib/components/Modal.svelte';
-  import { accounting, todayISO, type Period } from '#lib/accounting/api.ts';
+  import { accounting, todayISO, type Journal, type Period } from '#lib/accounting/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -11,6 +11,7 @@
   let error = $state('');
   let busy = $state(false);
   let year = $state(Number(todayISO().slice(0, 4)));
+  let yearDraft = $state<Journal | null>(null);
   let closing = $state<string | null>(null); // YYYY-MM yang akan ditutup
   let reopening = $state<Period | null>(null);
   let reason = $state('');
@@ -98,6 +99,19 @@
       busy = false;
     }
   }
+  async function createYearEndDraft() {
+    if (busy) return;
+    busy = true;
+    error = '';
+    yearDraft = null;
+    try {
+      yearDraft = await accounting.createYearEndDraft(year);
+    } catch (cause) {
+      error = errorMessage(cause);
+    } finally {
+      busy = false;
+    }
+  }
   const inputClass = 'mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] text-[13px] outline-none focus:border-[var(--color-primary-500)]';
 </script>
 
@@ -144,7 +158,7 @@
     <div class="flex flex-wrap items-center gap-3">
       <div>
         <div class="font-semibold text-[14px]">{t('accounting.periods.calendar')}</div>
-        <div class="text-[11.5px] text-[var(--text-tertiary)]">{t('accounting.periods.yearSummary', { closed: yearClosed, year })}</div>
+        <div class="text-[11.5px] text-[var(--text-tertiary)]">{t('accounting.periods.yearSummary', { closed: yearClosed, year: String(year) })}</div>
       </div>
       <div class="ms-auto flex items-center gap-1">
         <button type="button" class="btn btn-sm" aria-label={t('accounting.periods.prevYear')} onclick={() => (year -= 1)}><i class="icon-chevron-left"></i></button>
@@ -153,7 +167,17 @@
         </select>
         <button type="button" class="btn btn-sm" aria-label={t('accounting.periods.nextYear')} onclick={() => (year += 1)}><i class="icon-chevron-right"></i></button>
       </div>
+      {#if year < Number(thisMonth.slice(0, 4)) && yearClosed === 12 && can('journals', 'create')}
+        <button type="button" class="btn btn-sm btn-primary" disabled={busy} onclick={createYearEndDraft}><i class="icon-book-check"></i> {t('accounting.periods.createYearEnd')}</button>
+      {/if}
     </div>
+
+    {#if yearDraft}
+      <div role="status" class="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--color-success-300,var(--border-subtle))] bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px]">
+        <span>{t('accounting.periods.yearEndDraftReady', { year: yearDraft.date.slice(0, 4) })}</span>
+        <a class="btn btn-sm" href="/accounting/journals">{t('accounting.periods.openJournals')} <i class="icon-arrow-right"></i></a>
+      </div>
+    {/if}
 
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {#each months as m (m)}

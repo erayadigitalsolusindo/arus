@@ -225,9 +225,10 @@ const (
 
 // Akuntansi SIAK (COA, periode, jurnal).
 const (
-	EntityAccount          = "account"
-	EntityAccountingPeriod = "accounting_period"
-	EntityJournal          = "journal"
+	EntityAccount            = "account"
+	EntityAccountingPeriod   = "accounting_period"
+	EntityJournal            = "journal"
+	EntityBankReconciliation = "bank_reconciliation"
 
 	ActionAccountCreate    = "account.create"
 	ActionAccountUpdate    = "account.update"
@@ -238,11 +239,14 @@ const (
 	ActionPeriodClose  = "accounting_period.close"
 	ActionPeriodReopen = "accounting_period.reopen"
 
-	ActionJournalSave         = "journal.save" // buat/ubah draf
-	ActionJournalDelete       = "journal.delete"
-	ActionJournalPost         = "journal.post"
-	ActionJournalReverse      = "journal.reverse"
-	ActionJournalAutoGenerate = "journal.auto_generate" // draf jurnal otomatis (penjualan harian, dst.)
+	ActionJournalSave                = "journal.save" // buat/ubah draf
+	ActionJournalDelete              = "journal.delete"
+	ActionJournalPost                = "journal.post"
+	ActionJournalReverse             = "journal.reverse"
+	ActionJournalAutoGenerate        = "journal.auto_generate" // draf jurnal otomatis (penjualan harian, dst.)
+	ActionBankReconciliationStart    = "bank_reconciliation.start"
+	ActionBankReconciliationUpdate   = "bank_reconciliation.update"
+	ActionBankReconciliationComplete = "bank_reconciliation.complete"
 )
 
 // Asisten AI (HalloArus): hanya pengaturan (API key/model) dan pemakaian; asisten sendiri tidak menulis data bisnis.

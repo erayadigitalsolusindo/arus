@@ -52,12 +52,13 @@ func cumulativeBefore(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, outlets 
 
 // reportData = akun buku + saldo kumulatif sebelum `from` dan sampai `to` (inklusif), dalam satu transaksi (snapshot konsisten).
 type reportData struct {
-	accounts []Account
-	opening  map[uuid.UUID]sums // entry_date < from
-	closing  map[uuid.UUID]sums // entry_date <= to
+	accounts  []Account
+	opening   map[uuid.UUID]sums // entry_date < from
+	closing   map[uuid.UUID]sums // entry_date <= to
+	yearClose map[uuid.UUID]sums // closing journal movements inside the report range
 }
 
-func loadReport(ctx context.Context, s *Service, a authz.Actor, outlet uuid.UUID, from, to time.Time) (reportData, error) {
+func loadReport(ctx context.Context, s *Service, a authz.Actor, outlet uuid.UUID, from, to time.Time, includeYearClose bool) (reportData, error) {
 	outlets, err := scopeOutlets(a, outlet)
 	if err != nil {
 		return reportData{}, err
@@ -87,7 +88,33 @@ func loadReport(ctx context.Context, s *Service, a authz.Actor, outlet uuid.UUID
 			return err
 		}
 		rd.closing, err = cumulativeBefore(ctx, tx, a.TenantID, outlets, to.AddDate(0, 0, 1))
-		return err
+		if err != nil {
+			return err
+		}
+		if !includeYearClose {
+			return nil
+		}
+		rd.yearClose = map[uuid.UUID]sums{}
+		rows, err = tx.Query(ctx, `
+			SELECT l.account_id, sum(l.debit), sum(l.credit)
+			FROM journal_lines l JOIN journal_entries h ON h.tenant_id = l.tenant_id AND h.id = l.entry_id
+			WHERE l.tenant_id = $1 AND h.status = 'posted' AND h.source_type = 'year_close'
+			  AND l.entry_date >= $2 AND l.entry_date <= $3
+			  AND ($4::uuid[] IS NULL OR h.outlet_id = ANY($4))
+			GROUP BY l.account_id`, a.TenantID, pgDate(from), pgDate(to), outlets)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id uuid.UUID
+			var closing sums
+			if err := rows.Scan(&id, &closing.debit, &closing.credit); err != nil {
+				return err
+			}
+			rd.yearClose[id] = closing
+		}
+		return rows.Err()
 	})
 	return rd, err
 }
@@ -138,7 +165,7 @@ func (s *Service) TrialBalance(ctx context.Context, a authz.Actor, outlet uuid.U
 	if err != nil {
 		return TrialBalance{}, err
 	}
-	rd, err := loadReport(ctx, s, a, outlet, from, to)
+	rd, err := loadReport(ctx, s, a, outlet, from, to, false)
 	if err != nil {
 		return TrialBalance{}, err
 	}
@@ -212,12 +239,15 @@ func (s *Service) IncomeStatement(ctx context.Context, a authz.Actor, outlet uui
 	if err != nil {
 		return IncomeStatement{}, err
 	}
-	rd, err := loadReport(ctx, s, a, outlet, from, to)
+	rd, err := loadReport(ctx, s, a, outlet, from, to, true)
 	if err != nil {
 		return IncomeStatement{}, err
 	}
 	amount := func(acc Account) decimal.Decimal {
 		mv := rd.movement(acc.ID)
+		closing := rd.yearClose[acc.ID]
+		mv.debit = mv.debit.Sub(closing.debit)
+		mv.credit = mv.credit.Sub(closing.credit)
 		return signed(acc.NormalSide, mv.debit, mv.credit)
 	}
 	out := IncomeStatement{From: from.Format(dateLayout), To: to.Format(dateLayout)}
@@ -250,7 +280,7 @@ func (s *Service) BalanceSheet(ctx context.Context, a authz.Actor, outlet uuid.U
 	if !ok {
 		return BalanceSheet{}, FieldErrors{"as_of": sanitize.Invalid}
 	}
-	rd, err := loadReport(ctx, s, a, outlet, asOf, asOf)
+	rd, err := loadReport(ctx, s, a, outlet, asOf, asOf, false)
 	if err != nil {
 		return BalanceSheet{}, err
 	}
@@ -305,7 +335,7 @@ func (s *Service) CashBank(ctx context.Context, a authz.Actor, outlet uuid.UUID,
 	if err != nil {
 		return CashBank{}, err
 	}
-	rd, err := loadReport(ctx, s, a, outlet, from, to)
+	rd, err := loadReport(ctx, s, a, outlet, from, to, false)
 	if err != nil {
 		return CashBank{}, err
 	}
