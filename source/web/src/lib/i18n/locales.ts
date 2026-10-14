@@ -2,7 +2,8 @@
 // (bertipe `Messages`, jadi kunci yang kurang langsung gagal di `npm run check`).
 export const LOCALES = {
   id: { name: 'Bahasa Indonesia', short: 'ID', intl: 'id-ID' },
-  en: { name: 'English', short: 'EN', intl: 'en-US' }
+  en: { name: 'English', short: 'EN', intl: 'en-US' },
+  ja: { name: '日本語', short: 'JA', intl: 'ja-JP' }
 } as const;
 
 export type Locale = keyof typeof LOCALES;
