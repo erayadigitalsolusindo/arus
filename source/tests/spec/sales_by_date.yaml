@@ -139,6 +139,45 @@
           return_total: "0.00"
           net_total: "0.00"
 
+- name: "Laporan per tanggal - sembunyikan hari kosong"
+  description: hide_empty=true hanya mengembalikan hari beraktivitas (jual/batal/retur); tanpa itu deret tanggal penuh.
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-15"
+      to: "2026-01-16"
+      hide_empty: "true"
+  setup:
+    - id: sales_scenario
+      type: sales_batch
+      outlet: test-outlet
+      cashier: kasir-1
+      notes:
+        - doc_no: "TST-20260115-0001"
+          status: completed
+          subtotal: "100000"
+          discount: "0"
+          tax_store: "10000"
+          tax_gov: "0"
+          total: "110000"
+          paid: "110000"
+          change: "10000"
+          receivable: "0"
+          payments:
+            - method: cash
+              amount: "110000"
+  expect:
+    status: 200
+    body:
+      from: "2026-01-15"
+      to: "2026-01-16"
+      data:
+        - date: "2026-01-15"
+          sale_count: 1
+          paid: "100000.00"
+          net_total: "100000.00"
+
 - name: "Laporan per tanggal - validasi from > to"
   request:
     method: GET

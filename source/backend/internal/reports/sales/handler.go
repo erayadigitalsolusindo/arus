@@ -1,11 +1,13 @@
 package sales
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"aciraba/internal/authz"
+	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 )
 
@@ -15,19 +17,25 @@ const (
 )
 
 type Handler struct {
-	svc *Service
+	svc      *Service
+	resolver *authz.Resolver
+	tokens   *pauth.TokenIssuer
+	log      *slog.Logger
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssuer, log *slog.Logger) *Handler {
+	return &Handler{svc: svc, resolver: resolver, tokens: tokens, log: log}
 }
 
-// Routes: GET /reports/sales/by-date
+// Routes: GET /reports/sales/by-date (butuh login + izin sales_reports.view; tenant/outlet dari token).
 func (h *Handler) Routes(r chi.Router) {
-	r.Get("/reports/sales/by-date", h.ByDate)
+	r.Route("/reports/sales", func(r chi.Router) {
+		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/by-date", h.ByDate)
+	})
 }
 
-// ByDate: GET /reports/sales/by-date?from=&to=&outlet_id=&cashier_id=&all_outlets=
+// ByDate: GET /reports/sales/by-date?from=&to=&outlet_id=&cashier_id=&all_outlets=&hide_empty=
 func (h *Handler) ByDate(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	p := ByDateParams{
@@ -36,6 +44,7 @@ func (h *Handler) ByDate(w http.ResponseWriter, r *http.Request) {
 		From:       qs.Get("from"),
 		To:         qs.Get("to"),
 		CashierID:  qs.Get("cashier_id"),
+		HideEmpty:  qs.Get("hide_empty") == "true",
 	}
 	result, err := h.svc.ByDate(r.Context(), actor(r), p)
 	if err != nil {

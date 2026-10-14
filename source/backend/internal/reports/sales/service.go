@@ -49,6 +49,9 @@ type ByDateParams struct {
 	OutletID   string
 	From, To   string
 	CashierID  string
+	// HideEmpty = true: hari tanpa penjualan/void/retur tidak dikembalikan
+	// (hasil lebih ringkas untuk rentang panjang; default false = deret tanggal penuh).
+	HideEmpty bool
 }
 
 // DayRow satu baris tanggal pada laporan.
@@ -155,9 +158,26 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 
 		result.From, result.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
 
+		// Laporan 1 tahun menyentuh ratusan ribu baris untuk agregasi + sort;
+		// beri ruang sort/hash transaksi ini agar tidak tumpah ke disk.
+		// SET LOCAL hanya berlaku di transaksi ini (aman untuk pooler).
+		if _, err := tx.Exec(ctx, "SET LOCAL work_mem = '64MB'"); err != nil {
+			return err
+		}
+
+		// Prefilter UTC untuk indeks: tanggal lokal [fd, td] di zona waktu APAPUN
+		// (offset ekstrem UTC+14 s/d UTC−12) selalu berada dalam [fd−1 hari, td+2 hari)
+		// UTC. Memangkas pemindaian ke rentang indeks sales_outlet_time_idx
+		// (tenant, outlet, created_at); filter tanggal lokal yang tepat tetap
+		// dipegang predikat (created_at AT TIME ZONE ...) di tiap CTE.
+		dayStart := func(d time.Time, addDays int) time.Time {
+			return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, addDays)
+		}
+		padFrom, padTo := dayStart(fd, -1), dayStart(td, 2)
+
 		// ── 1. Sales + payment breakdown per date ────────────────────────────
 		rows, err := tx.Query(ctx, byDateSalesSQL,
-			a.TenantID, outlets, fd, td, cashier)
+			a.TenantID, outlets, fd, td, cashier, padFrom, padTo)
 		if err != nil {
 			return err
 		}
@@ -168,7 +188,7 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 			var sc, vc int
 			var subtotal, discount, taxStore, taxGov, total, paid, receivable, voidTotal decimal.Decimal
 			var methodID pgtype.UUID
-			var methodName, methodKind string
+			var methodName, methodKind pgtype.Text
 			var mAmt, mFee, mSurch decimal.Decimal
 
 			if err := rows.Scan(
@@ -202,11 +222,11 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 				row.VoidTotal = voidTotal.StringFixed(2)
 			}
 
-			if methodName != "" {
+			if methodName.Valid && methodName.String != "" {
 				row.Methods = append(row.Methods, MethodRow{
 					MethodID:  methodID.String(),
-					Name:      methodName,
-					Kind:      methodKind,
+					Name:      methodName.String,
+					Kind:      methodKind.String,
 					Amount:    mAmt.StringFixed(2),
 					Fee:       mFee.StringFixed(2),
 					Surcharge: mSurch.StringFixed(2),
@@ -220,7 +240,7 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 
 		// ── 2. Returns per return_date ─────────────────────────────────────
 		rrows, err := tx.Query(ctx, byDateReturnsSQL,
-			a.TenantID, outlets, fd, td, cashier)
+			a.TenantID, outlets, fd, td, cashier, padFrom, padTo)
 		if err != nil {
 			return err
 		}
@@ -245,6 +265,9 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 		// ── 3. Sort + compute net_total ────────────────────────────────────
 		sorted := make([]DayRow, 0, len(days))
 		for _, row := range days {
+			if p.HideEmpty && row.SaleCount == 0 && row.VoidCount == 0 && row.ReturnCount == 0 {
+				continue // hari tanpa aktivitas penjualan/void/retur disembunyikan
+			}
 			paid, _ := decimal.NewFromString(row.Paid)
 			void, _ := decimal.NewFromString(row.VoidTotal)
 			ret, _ := decimal.NewFromString(row.ReturnTotal)
@@ -299,20 +322,25 @@ sales_hdr AS (
     WHERE s.tenant_id = $1
       AND s.outlet_id = ANY($2::uuid[])
       AND s.status IN ('completed', 'void')
+      AND s.created_at >= $6 AND s.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
       AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
     GROUP BY (s.created_at AT TIME ZONE o.timezone)::date
 ),
--- Payment breakdown per date per method. paid netto per method dihitung di LATERAL.
-pay_hdr AS (
+-- Payment breakdown per date per method. paid netto per method: tunai dikurangi kembalian per nota.
+pay_sub AS (
     SELECT
         (s.created_at AT TIME ZONE o.timezone)::date AS sale_date,
+        s.id                                          AS sale_id,
+        s.change                                      AS sale_change,
         p.method_id,
-        pm.name  AS method_name,
-        pm.kind  AS method_kind,
-        sum(p.amount) - CASE WHEN p.method = 'cash' THEN s.change ELSE 0 END AS amount,
+        pm.name                                       AS method_name,
+        pm.kind                                       AS method_kind,
+            -- Netto tunai = Σ pembayaran tunai − kembalian nota ini.
+        coalesce(sum(p.amount), 0)
+            - CASE WHEN pm.kind = 'cash' THEN s.change ELSE 0 END AS amt,
             -- fee: biaya MDR yang ditanggung toko (mengurangi pendapatan).
-        coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'store'), 0) AS fee,
+        coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'store'), 0)    AS fee,
             -- surcharge: biaya MDR yang ditagihkan ke pelanggan (tambahan di luar total nota).
         coalesce(sum(p.fee_amount) FILTER (WHERE p.fee_bearer = 'customer'), 0) AS surcharge
     FROM sales s
@@ -322,9 +350,22 @@ pay_hdr AS (
     WHERE s.tenant_id = $1
       AND s.outlet_id = ANY($2::uuid[])
       AND s.status = 'completed'
+      AND s.created_at >= $6 AND s.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
       AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
-    GROUP BY (s.created_at AT TIME ZONE o.timezone)::date, p.method_id, pm.name, pm.kind, s.change
+    GROUP BY (s.created_at AT TIME ZONE o.timezone)::date, s.id, s.change, p.method_id, pm.name, pm.kind
+),
+pay_hdr AS (
+    SELECT
+        sale_date,
+        method_id,
+        method_name,
+        method_kind,
+        sum(amt)        AS amount,
+        sum(fee)        AS fee,
+        sum(surcharge)  AS surcharge
+    FROM pay_sub
+    GROUP BY sale_date, method_id, method_name, method_kind
 )
 SELECT
     d.day::text                        AS date,
@@ -370,6 +411,7 @@ ret_hdr AS (
     WHERE r.tenant_id = $1
       AND r.outlet_id = ANY($2::uuid[])
       AND r.status = 'completed'
+      AND r.created_at >= $6 AND r.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
       AND (r.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
     GROUP BY (r.created_at AT TIME ZONE o.timezone)::date
