@@ -87,7 +87,6 @@ export const nav: NavGroup[] = [
         icon: 'file-text',
         children: [
           { labelKey: 'nav.salesList', module: 'sales_list', href: '/sales' },
-          { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' },
           { labelKey: 'nav.cashShifts', module: 'cash_shifts', href: '/shifts' },
           { labelKey: 'nav.sellPriceHistory', module: 'sell_price_history', href: '/sell-price-history' },
           { labelKey: 'nav.memberReceivables', module: 'member_receivables', href: '/receivables' }
@@ -127,6 +126,20 @@ export const nav: NavGroup[] = [
       { id: 'stockConversion', labelKey: 'nav.stockConversion', icon: 'split', module: 'stock_conversion', href: '/stock-conversion' },
       { id: 'stockOpname', labelKey: 'nav.stockOpname', icon: 'clipboard-check', module: 'stock_opname', href: '/stock-opname' },
       { id: 'stockTransfer', labelKey: 'nav.stockTransfer', icon: 'arrow-left-right', module: 'stock_transfer', href: '/stock-transfer' }
+    ]
+  },
+  {
+    titleKey: 'nav.group.reports',
+    items: [
+      {
+        id: 'salesReports',
+        labelKey: 'nav.salesReports',
+        icon: 'file-bar-chart',
+        module: 'sales_reports',
+        children: [
+          { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' }
+        ]
+      }
     ]
   },
   {

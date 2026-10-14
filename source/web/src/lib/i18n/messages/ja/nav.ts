@@ -1,7 +1,7 @@
 import type { Messages } from '../../types.ts';
 
 const nav: Messages['nav'] = {
-  group: { siak: 'SIAK Aciraba', main: 'メイン', masterData: 'マスターデータ', sales: '販売', purchasing: '仕入', adjustments: '調整', system: 'システム' },
+  group: { siak: 'SIAK Aciraba', main: 'メイン', masterData: 'マスターデータ', sales: '販売', reports: 'レポート', purchasing: '仕入', adjustments: '調整', system: 'システム' },
   dashboard: 'ダッシュボード',
   liveSales: 'ライブ売上',
   users: 'ユーザー',
@@ -43,6 +43,7 @@ const nav: Messages['nav'] = {
   salesReturns: '売上返品',
   salesData: '売上データ',
   salesList: '売上一覧',
+  salesReports: '売上レポート',
   salesByDate: '日付別',
   cashShifts: 'レジシフト一覧',
   pettyCash: '小口現金',

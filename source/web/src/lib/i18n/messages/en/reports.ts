@@ -5,6 +5,7 @@ const reports: Messages['reports'] = {
   title: 'Sales by Date',
   subtitle: 'Grand total and payment method breakdown per day',
   range: 'Date Range',
+  hideEmpty: 'Hide days without sales',
   date: 'Date',
   saleCount: 'Invoices',
   voidCount: 'Void',
@@ -28,3 +29,5 @@ const reports: Messages['reports'] = {
   netTotal: 'Net',
   noData: 'No data for this range.',
 };
+
+export default reports;

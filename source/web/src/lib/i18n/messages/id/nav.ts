@@ -1,5 +1,5 @@
 export default {
-  group: { siak: 'SIAK Aciraba', main: 'Utama', masterData: 'Master Data', sales: 'Penjualan', purchasing: 'Pembelian', adjustments: 'Penyesuaian', system: 'Sistem' },
+  group: { siak: 'SIAK Aciraba', main: 'Utama', masterData: 'Master Data', sales: 'Penjualan', reports: 'Laporan', purchasing: 'Pembelian', adjustments: 'Penyesuaian', system: 'Sistem' },
   dashboard: 'Dashboard',
   liveSales: 'Penjualan Langsung',
   users: 'Pengguna',
@@ -41,6 +41,7 @@ export default {
   salesReturns: 'Retur Penjualan',
   salesData: 'Data Penjualan',
   salesList: 'Daftar Penjualan',
+  salesReports: 'Laporan Penjualan',
   salesByDate: 'Per Tanggal',
   cashShifts: 'Daftar Shift Kasir',
   pettyCash: 'Kas Kecil',
