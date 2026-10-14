@@ -26,15 +26,43 @@
     }
   }
 
+  /** Normalisasi input kode/singkat/intl: NFKC mengubah full-width IME (ｊａ) jadi ASCII (ja), lalu lowercase. */
+  function normCode(s: string) {
+    return s.normalize('NFKC').trim().toLowerCase();
+  }
+  /** Intl distandarkan ke xx-XX (region uppercase) kendati diketik ja-jp / ja_JP / full-width. */
+  function normIntl(s: string) {
+    const n = s.normalize('NFKC').trim();
+    const m = n.match(/^([a-z]{2})[-–—_\s]([a-z]{2})$/i);
+    return m ? `${m[1].toLowerCase()}-${m[2].toUpperCase()}` : n.replace(/[-–—_\s]/g, '-');
+  }
+
+  function validate(f: typeof form): string {
+    if (!/^[a-z]{2}$/.test(f.code)) return t('platform.languages.codeHelp');
+    if (f.name.trim().length < 1 || f.name.trim().length > 100) return t('platform.languages.name');
+    if (f.short.trim().length < 2 || f.short.trim().length > 6) return t('platform.languages.short');
+    if (!/^[a-z]{2}-[A-Z]{2}$/.test(normIntl(f.intl))) return t('platform.languages.intlHelp');
+    return '';
+  }
+
   async function save() {
     saving = true;
     notice = '';
     try {
       if (editing) {
-        await platformApi.updateLanguage(editing.code, { name: form.name, active: form.active, sort_order: form.sort_order });
+        await platformApi.updateLanguage(editing.code, { name: form.name.trim(), active: form.active, sort_order: form.sort_order });
         notice = t('platform.languages.saved');
       } else {
-        await platformApi.createLanguage({ code: form.code, name: form.name, short: form.short, intl: form.intl, sort_order: form.sort_order });
+        const body = {
+          code: normCode(form.code),
+          name: form.name.trim(),
+          short: form.short.trim().toUpperCase(),
+          intl: normIntl(form.intl),
+          sort_order: form.sort_order
+        };
+        const problem = validate(body as typeof form);
+        if (problem) throw new Error(problem);
+        await platformApi.createLanguage(body);
         notice = t('platform.languages.created');
       }
       showModal = false;
@@ -150,20 +178,20 @@
         <h2 class="font-semibold text-[15px]">{editing ? t('platform.languages.editTitle') : t('platform.languages.addTitle')}</h2>
         <button type="button" aria-label={t('platform.languages.close')} class="header-icon-btn !size-7" onclick={() => (showModal = false)}><i class="icon-x text-[14px]"></i></button>
       </div>
-      <form onsubmit={(e) => { e.preventDefault(); save(); }} class="p-5 space-y-4">
+      <form onsubmit={(e) => { e.preventDefault(); save(); }} novalidate class="p-5 space-y-4">
         {#if !editing}
           <div>
             <label for="lang-code" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.code')}</label>
-            <input id="lang-code" type="text" bind:value={form.code} maxlength="2" pattern="[a-z]{2}" title={t('platform.languages.codeHelp')} required class="form-input !text-[13px]" placeholder="ja" autocomplete="off" name="lang-code" />
+            <input id="lang-code" type="text" bind:value={form.code} maxlength="2" class="form-input !text-[13px]" placeholder="ja" autocomplete="off" name="lang-code" />
             <p class="mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.languages.codeHelp')}</p>
           </div>
           <div>
             <label for="lang-short" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.short')}</label>
-            <input id="lang-short" type="text" bind:value={form.short} maxlength="6" required class="form-input !text-[13px]" placeholder="JA" />
+            <input id="lang-short" type="text" bind:value={form.short} maxlength="6" class="form-input !text-[13px]" placeholder="JA" />
           </div>
           <div>
             <label for="lang-intl" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.intl')}</label>
-            <input id="lang-intl" type="text" bind:value={form.intl} maxlength="6" pattern="[a-z]{2}-[A-Z]{2}" title={t('platform.languages.intlHelp')} required class="form-input !text-[13px]" placeholder="ja-JP" />
+            <input id="lang-intl" type="text" bind:value={form.intl} maxlength="6" class="form-input !text-[13px]" placeholder="ja-JP" />
             <p class="mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.languages.intlHelp')}</p>
           </div>
         {/if}
