@@ -53,6 +53,17 @@ export type PlatformAuditItem = {
   created_at: string;
 };
 
+export type LanguageRow = {
+  code: string;
+  name: string;
+  short: string;
+  intl: string;
+  protected: boolean;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 const json = (v: unknown) => JSON.stringify(v);
 
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
@@ -86,5 +97,12 @@ export const platformApi = {
     const q = new URLSearchParams({ limit: '50' });
     for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '') q.set(k, String(v));
     return papi<{ items: PlatformAuditItem[]; next_before?: number }>(`/platform/audit?${q}`);
-  }
+  },
+
+  languages: () => papi<{ items: LanguageRow[] }>('/platform/languages'),
+  createLanguage: (body: { code: string; name: string; short: string; intl: string; sort_order: number }) =>
+    papi<{ code: string }>('/platform/languages', { method: 'POST', body: json(body) }),
+  updateLanguage: (code: string, body: { name: string; active: boolean; sort_order: number }) =>
+    papi<void>(`/platform/languages/${code}`, { method: 'PUT', body: json(body) }),
+  deleteLanguage: (code: string) => papi<void>(`/platform/languages/${code}`, { method: 'DELETE' })
 };

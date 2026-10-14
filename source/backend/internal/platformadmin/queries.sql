@@ -49,3 +49,14 @@ WHERE u.tenant_id = $1 ORDER BY u.created_at, u.id;
 
 -- name: PlatformRecoveryRemaining :one
 SELECT count(*) FROM platform_recovery_codes WHERE admin_id = $1 AND used_at IS NULL;
+
+-- ---- languages ----
+
+-- name: PlatformCreateLanguage :one
+SELECT platform_create_language(sqlc.arg(actor_id), sqlc.arg(code), sqlc.arg(name), sqlc.arg(short), sqlc.arg(intl), sqlc.arg(sort_order));
+
+-- name: PlatformUpdateLanguage :one
+SELECT platform_update_language(sqlc.arg(actor_id), sqlc.arg(code), sqlc.arg(name), sqlc.arg(active), sqlc.arg(sort_order));
+
+-- name: PlatformDeleteLanguage :one
+SELECT platform_delete_language(sqlc.arg(actor_id), sqlc.arg(code));

@@ -13,7 +13,7 @@ export default {
     evening: 'Selamat malam',
     subtitle: 'Pusat kendali ARUS: pantau semua tenant, kelola akses, dan telusuri setiap tindakan lewat audit.'
   },
-  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
+  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', languages: 'Bahasa', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',
@@ -201,5 +201,36 @@ export default {
       platform_tenant_edit_window: 'Mengubah batas waktu edit nota',
       platform_impersonate: 'Masuk sebagai tenant'
     }
+  },
+  languages: {
+    title: 'Pengaturan Bahasa',
+    subtitle: 'Kelola bahasa yang tersedia. Bahasa Indonesia dan English tidak dapat dihapus.',
+    add: 'Tambah Bahasa',
+    addTitle: 'Tambah Bahasa',
+    editTitle: 'Edit Bahasa',
+    code: 'Kode',
+    codeHelp: '2 huruf kecil, contoh: ar, zh, ja',
+    name: 'Nama',
+    short: 'Singkat',
+    intl: 'Locale Intl',
+    intlHelp: 'Format: id-ID, en-US, ar-SA',
+    order: 'Urutan',
+    status: 'Status',
+    actions: 'Aksi',
+    protected: 'Terlindungi',
+    active: 'Aktif',
+    inactive: 'Nonaktif',
+    edit: 'Edit',
+    delete: 'Hapus',
+    save: 'Simpan',
+    cancel: 'Batal',
+    close: 'Tutup',
+    saving: 'Menyimpan…',
+    created: 'Bahasa ditambahkan.',
+    saved: 'Perubahan tersimpan.',
+    deleted: 'Bahasa dihapus.',
+    deleteConfirm: 'Hapus bahasa ini? Tindakan tidak dapat dibatalkan.',
+    loading: 'Memuat…',
+    empty: 'Belum ada bahasa.'
   }
 };
