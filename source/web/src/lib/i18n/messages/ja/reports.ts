@@ -5,6 +5,7 @@ const reports: Messages['reports'] = {
   title: '日付別売上',
   subtitle: '日次集計と支払方法別内訳',
   range: '日付範囲',
+  hideEmpty: '売上のない日を隠す',
   date: '日付',
   saleCount: '伝票数',
   voidCount: 'キャンセル',
@@ -28,3 +29,5 @@ const reports: Messages['reports'] = {
   netTotal: '净额',
   noData: 'この範囲にデータがありません。',
 };
+
+export default reports;

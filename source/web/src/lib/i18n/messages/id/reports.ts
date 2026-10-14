@@ -4,6 +4,7 @@ export default {
   title: 'Penjualan Per Tanggal',
   subtitle: 'Grand total dan breakdown metode pembayaran per hari',
   range: 'Rentang Tanggal',
+  hideEmpty: 'Sembunyikan hari tanpa penjualan',
   // Tabel
   date: 'Tanggal',
   saleCount: 'Jumlah Nota',

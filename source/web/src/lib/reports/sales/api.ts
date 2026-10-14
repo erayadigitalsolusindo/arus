@@ -42,6 +42,7 @@ export async function salesByDate(params: {
 	outlet_id?: string;
 	cashier_id?: string;
 	all_outlets?: boolean;
+	hide_empty?: boolean;
 }): Promise<SalesByDateResult> {
 	const qs = new URLSearchParams();
 	qs.set('from', params.from);
@@ -49,5 +50,6 @@ export async function salesByDate(params: {
 	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
 	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
 	if (params.all_outlets) qs.set('all_outlets', 'true');
-	return api(`reports/sales/by-date?${qs}`, { auth: true });
+	if (params.hide_empty) qs.set('hide_empty', 'true');
+	return api(`/reports/sales/by-date?${qs}`);
 }
