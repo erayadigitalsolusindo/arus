@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -92,6 +93,11 @@ func (h *Handler) Routes(r chi.Router) {
 
 			r.Put("/platform/mobile/apk", h.APKUpload)
 			r.Delete("/platform/mobile/apk", h.APKDelete)
+
+			r.Get("/platform/languages", h.ListLanguages)
+			r.Post("/platform/languages", h.CreateLanguage)
+			r.Put("/platform/languages/{code}", h.UpdateLanguage)
+			r.Delete("/platform/languages/{code}", h.DeleteLanguage)
 		})
 	})
 }
@@ -591,4 +597,119 @@ func (h *Handler) Audit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, page)
+}
+
+// ---- languages ----
+
+func (h *Handler) ListLanguages(w http.ResponseWriter, r *http.Request) {
+	list, err := h.svc.ListLanguages(r.Context(), actor(r))
+	if err != nil {
+		h.internal(w, r, "daftar bahasa gagal", err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": list})
+}
+
+type createLanguageRequest struct {
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Short    string `json:"short"`
+	Intl     string `json:"intl"`
+	SortOrder int    `json:"sort_order"`
+}
+
+func (h *Handler) CreateLanguage(w http.ResponseWriter, r *http.Request) {
+	var req createLanguageRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	// Validasi sederhana
+	if len(req.Code) != 2 || req.Code != strings.ToLower(req.Code) {
+		httpx.ValidationError(w, map[string]string{"code": "INVALID"})
+		return
+	}
+	if len(req.Name) < 1 || len(req.Name) > 100 {
+		httpx.ValidationError(w, map[string]string{"name": "INVALID"})
+		return
+	}
+	if len(req.Short) < 2 || len(req.Short) > 6 {
+		httpx.ValidationError(w, map[string]string{"short": "INVALID"})
+		return
+	}
+	if len(req.Intl) != 5 || req.Intl[2] != '-' {
+		httpx.ValidationError(w, map[string]string{"intl": "INVALID"})
+		return
+	}
+	if req.SortOrder < 0 {
+		httpx.ValidationError(w, map[string]string{"sort_order": "INVALID"})
+		return
+	}
+	code, err := h.svc.CreateLanguage(r.Context(), actor(r), req.Code, req.Name, req.Short, req.Intl, req.SortOrder)
+	if errors.Is(err, ErrLanguageTaken) {
+		httpx.Error(w, http.StatusConflict, "CODE_TAKEN", "Kode bahasa sudah terpakai.")
+		return
+	} else if errors.Is(err, ErrInvalidSession) {
+		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi tidak valid.")
+		return
+	} else if err != nil {
+		h.internal(w, r, "buat bahasa gagal", err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, map[string]string{"code": code})
+}
+
+type updateLanguageRequest struct {
+	Name      string `json:"name"`
+	Active    bool   `json:"active"`
+	SortOrder int    `json:"sort_order"`
+}
+
+func (h *Handler) UpdateLanguage(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Kode bahasa tidak ditemukan.")
+		return
+	}
+	var req updateLanguageRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if len(req.Name) < 1 || len(req.Name) > 100 {
+		httpx.ValidationError(w, map[string]string{"name": "INVALID"})
+		return
+	}
+	if req.SortOrder < 0 {
+		httpx.ValidationError(w, map[string]string{"sort_order": "INVALID"})
+		return
+	}
+	if err := h.svc.UpdateLanguage(r.Context(), actor(r), code, req.Name, req.Active, req.SortOrder); errors.Is(err, ErrNotFound) {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Kode bahasa tidak ditemukan.")
+		return
+	} else if errors.Is(err, ErrInvalidSession) {
+		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi tidak valid.")
+		return
+	} else if err != nil {
+		h.internal(w, r, "ubah bahasa gagal", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteLanguage(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Kode bahasa tidak ditemukan.")
+		return
+	}
+	if err := h.svc.DeleteLanguage(r.Context(), actor(r), code); errors.Is(err, ErrLanguageProtected) {
+		httpx.Error(w, http.StatusConflict, "PROTECTED", "Bahasa dilindungi tidak dapat dihapus.")
+		return
+	} else if errors.Is(err, ErrInvalidSession) {
+		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi tidak valid.")
+		return
+	} else if err != nil {
+		h.internal(w, r, "hapus bahasa gagal", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
