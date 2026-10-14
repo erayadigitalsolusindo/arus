@@ -132,7 +132,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	accSvc := accounting.NewService(d.Pool)
 	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
 	reportsSalesSvc := reports_sales.NewService(d.Pool)
-	reports_sales.NewHandler(reportsSalesSvc).Routes(r)
+	reports_sales.NewHandler(reportsSalesSvc, perms, tokens, d.Log).Routes(r)
 	aiSvc, err := ai.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret, ai.Free{Key: d.Cfg.AIPlatformKey, Limit: d.Cfg.AIFreeDailyLimit}, d.Log)
 	if err != nil {
 		return err
