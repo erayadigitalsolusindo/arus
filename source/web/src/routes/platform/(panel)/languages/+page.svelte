@@ -34,7 +34,7 @@
         await platformApi.updateLanguage(editing.code, { name: form.name, active: form.active, sort_order: form.sort_order });
         notice = t('platform.languages.saved');
       } else {
-        await platformApi.createLanguage(form);
+        await platformApi.createLanguage({ code: form.code, name: form.name, short: form.short, intl: form.intl, sort_order: form.sort_order });
         notice = t('platform.languages.created');
       }
       showModal = false;
@@ -154,16 +154,16 @@
         {#if !editing}
           <div>
             <label for="lang-code" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.code')}</label>
-            <input id="lang-code" type="text" bind:value={form.code} maxlength="2" pattern="[a-z]{2}" required class="form-input !text-[13px]" placeholder="ar" />
+            <input id="lang-code" type="text" bind:value={form.code} maxlength="2" pattern="[a-z]{2}" title={t('platform.languages.codeHelp')} required class="form-input !text-[13px]" placeholder="ja" autocomplete="off" name="lang-code" />
             <p class="mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.languages.codeHelp')}</p>
           </div>
           <div>
             <label for="lang-short" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.short')}</label>
-            <input id="lang-short" type="text" bind:value={form.short} maxlength="6" required class="form-input !text-[13px]" placeholder="AR" />
+            <input id="lang-short" type="text" bind:value={form.short} maxlength="6" required class="form-input !text-[13px]" placeholder="JA" />
           </div>
           <div>
             <label for="lang-intl" class="block text-[12.5px] font-medium mb-1.5">{t('platform.languages.intl')}</label>
-            <input id="lang-intl" type="text" bind:value={form.intl} maxlength="6" pattern="[a-z]{2}-[A-Z]{2}" required class="form-input !text-[13px]" placeholder="ar-SA" />
+            <input id="lang-intl" type="text" bind:value={form.intl} maxlength="6" pattern="[a-z]{2}-[A-Z]{2}" title={t('platform.languages.intlHelp')} required class="form-input !text-[13px]" placeholder="ja-JP" />
             <p class="mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.languages.intlHelp')}</p>
           </div>
         {/if}
