@@ -16,7 +16,7 @@
   import { t, formatCurrency, formatDate, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
 
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string | number) => formatCurrency(Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const q3 = (s: string) => formatNumber(Number(s), { maximumFractionDigits: 3 });
   const inputClass = 'h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]';
   const label = 'text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';

@@ -41,6 +41,7 @@ export default {
   salesReturns: 'Retur Penjualan',
   salesData: 'Data Penjualan',
   salesList: 'Daftar Penjualan',
+  salesByDate: 'Per Tanggal',
   cashShifts: 'Daftar Shift Kasir',
   pettyCash: 'Kas Kecil',
   sellPriceHistory: 'History Harga Jual',

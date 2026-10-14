@@ -9,7 +9,7 @@
   import { t, formatCurrency, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
 
-  const money = (value: string | number) => formatCurrency(Number(value), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (value: string | number) => formatCurrency(Number(value), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const qtyFmt = (value: string) => formatNumber(Number(value), { maximumFractionDigits: 3 });
   const inputClass = 'h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]';
   const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';

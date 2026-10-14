@@ -244,7 +244,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter the opening cash in the drawer before you start selling.';
 
   @override
-  String get shiftOpeningCash => 'Opening cash (Rp)';
+  String get shiftOpeningCash => 'Opening cash (\$)';
 
   @override
   String get shiftOpenSubmit => 'Open shift';
@@ -256,7 +256,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payMethod => 'Method';
 
   @override
-  String get payAmount => 'Amount (Rp)';
+  String get payAmount => 'Amount (\$)';
 
   @override
   String get payExact => 'Exact amount';
@@ -485,7 +485,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shiftColExpected => 'Expected';
 
   @override
-  String get shiftColCounted => 'Counted (Rp)';
+  String get shiftColCounted => 'Counted (\$)';
 
   @override
   String get shiftColDiff => 'Difference';
@@ -748,10 +748,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adjustTabDiscount => 'Discount';
 
   @override
-  String get adjustNewPrice => 'New unit price (Rp)';
+  String get adjustNewPrice => 'New unit price (\$)';
 
   @override
-  String get adjustDiscountRp => 'Discount (Rp)';
+  String get adjustDiscountRp => 'Discount (\$)';
 
   @override
   String get adjustDiscountPct => 'Discount (%)';
@@ -824,7 +824,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get costsName => 'Cost name';
 
   @override
-  String get costsAmount => 'Amount (Rp)';
+  String get costsAmount => 'Amount (\$)';
 
   @override
   String get costsRemove => 'Remove';

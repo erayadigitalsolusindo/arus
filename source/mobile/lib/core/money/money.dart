@@ -1,6 +1,26 @@
 import 'package:decimal/decimal.dart';
 
 /// Uang dan qty memakai [Decimal] (tidak pernah double). API mengirim/menerima string desimal.
+/// Nilai uang di server selalu Rupiah; simbol mata uang tampilan ikut bahasa (opsi "simbol ikut bahasa").
+
+String _moneyLocale = 'id'; // id/en/ja aktif. Simbol uang disamakan ke web.
+String get moneyLocale => _moneyLocale;
+
+/// Simbol mata uang untuk bahasa aktif (id → "Rp ", en → "$ ", ja → "¥ ").
+String currencySymbolFor(String locale) => switch (locale) {
+      'en' => '\$ ',
+      'ja' => '¥ ',
+      _ => 'Rp ',
+    };
+
+/// Normalisasi bahasa untuk simbol uang; bahasa tak dikenal jatuh ke 'id'.
+String moneyLocaleName(String? localeName) {
+  final v = (localeName ?? '').toLowerCase();
+  return (v == 'en' || v == 'ja' || v == 'id') ? v : 'id';
+}
+
+/// Dipanggil controller bahasa pada `_apply`.
+void setMoneyLocale(String? localeName) => _moneyLocale = moneyLocaleName(localeName);
 
 Decimal dec(Object? v) {
   if (v == null) return Decimal.zero;
@@ -19,6 +39,7 @@ String decToApi(Decimal d, {int scale = 3}) {
 }
 
 /// "Rp 1.234.500" atau "Rp 1.234.500,50" (desimal hanya bila ada sen). Pemisah ribuan titik, desimal koma.
+/// Simbol mengikuti bahasa aktif (`moneyLocale`), mis. en → "$ ", ja → "¥ ".
 String formatMoney(Decimal d, {bool symbol = true}) {
   final neg = d < Decimal.zero;
   final abs = neg ? -d : d;
@@ -26,7 +47,7 @@ String formatMoney(Decimal d, {bool symbol = true}) {
   final parts = fixed.split('.');
   final grouped = _group(parts[0]);
   final frac = parts.length > 1 && parts[1] != '00' ? ',${parts[1]}' : '';
-  return '${neg ? '-' : ''}${symbol ? 'Rp ' : ''}$grouped$frac';
+  return '${neg ? '-' : ''}${symbol ? currencySymbolFor(_moneyLocale) : ''}$grouped$frac';
 }
 
 /// Qty tanpa nol di belakang: 2.000 → "2", 1.5 → "1,5".
@@ -44,9 +65,9 @@ String _group(String digits) {
   return b.toString();
 }
 
-/// Membaca isian pengguna ("15.000", "15000,50", "1 500") menjadi Decimal; kosong/rusak → 0.
+/// Membaca isian pengguna ("15.000", "15000,50", "1 500", "$ 99") menjadi Decimal; kosong/rusak → 0.
 Decimal parseInput(String raw) {
-  var s = raw.trim().replaceAll(RegExp(r'[Rp\s]'), '');
+  var s = raw.trim().replaceAll(RegExp(r'[Rp$\s¥]'), '');
   if (s.isEmpty) return Decimal.zero;
   // Format Indonesia: titik = ribuan, koma = desimal.
   if (s.contains(',')) {

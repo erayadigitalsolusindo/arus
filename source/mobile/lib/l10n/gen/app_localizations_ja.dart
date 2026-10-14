@@ -239,7 +239,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shiftOpenHint => '販売を始める前に、レジ引き出しの開始現金を入力してください。';
 
   @override
-  String get shiftOpeningCash => '開始現金 (Rp)';
+  String get shiftOpeningCash => '開始現金 (円)';
 
   @override
   String get shiftOpenSubmit => 'シフトを開く';
@@ -251,7 +251,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get payMethod => '方法';
 
   @override
-  String get payAmount => '金額 (Rp)';
+  String get payAmount => '金額 (円)';
 
   @override
   String get payExact => 'ちょうどの金額';
@@ -474,7 +474,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shiftColExpected => '期待値';
 
   @override
-  String get shiftColCounted => '現金（Rp）';
+  String get shiftColCounted => '現金（円）';
 
   @override
   String get shiftColDiff => '差額';
@@ -732,10 +732,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get adjustTabDiscount => '値引き';
 
   @override
-  String get adjustNewPrice => '新しい単価 (Rp)';
+  String get adjustNewPrice => '新しい単価 (円)';
 
   @override
-  String get adjustDiscountRp => '値引き (Rp)';
+  String get adjustDiscountRp => '値引き (円)';
 
   @override
   String get adjustDiscountPct => '値引き (%)';
@@ -807,7 +807,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get costsName => '費用名';
 
   @override
-  String get costsAmount => '金額 (Rp)';
+  String get costsAmount => '金額 (円)';
 
   @override
   String get costsRemove => '削除';

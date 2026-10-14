@@ -24,7 +24,7 @@
     onchanged: () => void;
   } = $props();
 
-  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   /** sen → string desimal untuk API, tanpa float. */
   const dec = (c: bigint) => (c % 100n === 0n ? String(c / 100n) : `${c / 100n}.${String(c % 100n).padStart(2, '0')}`);
 
