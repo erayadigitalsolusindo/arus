@@ -2,5 +2,6 @@ import type { Locale } from '../locales.ts';
 import type { Messages } from '../types.ts';
 import id from './id/index.ts';
 import en from './en/index.ts';
+import ja from './ja/index.ts';
 
-export const messages: Record<Locale, Messages> = { id, en };
+export const messages: Record<Locale, Messages> = { id, en, ja };
