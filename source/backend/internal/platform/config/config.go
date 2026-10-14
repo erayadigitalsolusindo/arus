@@ -44,6 +44,10 @@ type Config struct {
 	EraPayBaseURL        string
 	EraPayProvisionToken string // shared server-to-server secret; never sent to the browser
 
+	// EraPayReconcile: penjadwal rekonsiliasi nota yang disimpan paksa (erapay_pending) ke EraPay.
+	// Bawaan: nyala di luar development (di dev mati agar API yang dijalankan ulang tidak menulis ke data pengguna tanpa diminta).
+	EraPayReconcile bool
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
@@ -83,6 +87,10 @@ func Load() (Config, error) {
 	c.AutoJournal = !c.IsDev()
 	if v := os.Getenv("AUTO_JOURNAL"); v != "" {
 		c.AutoJournal = v == "true"
+	}
+	c.EraPayReconcile = !c.IsDev()
+	if v := os.Getenv("ERAPAY_RECONCILE"); v != "" {
+		c.EraPayReconcile = v == "true"
 	}
 	if v := os.Getenv("AI_FREE_DAILY_LIMIT"); v != "" {
 		n, err := strconv.Atoi(v)
