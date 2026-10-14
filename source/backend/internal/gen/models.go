@@ -52,6 +52,17 @@ type AccountingPeriod struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type AiSetting struct {
+	TenantID  uuid.UUID
+	ApiKeyEnc string
+	KeyHint   string
+	Model     string
+	UpdatedBy uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+	Provider  string
+	Active    bool
+}
+
 type AppSetting struct {
 	Key         string
 	Value       []byte
@@ -72,6 +83,28 @@ type AuditLog struct {
 	Ip        string
 	RequestID string
 	CreatedAt pgtype.Timestamptz
+}
+
+type BankReconciliation struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	OutletID         uuid.UUID
+	AccountID        uuid.UUID
+	PeriodMonth      pgtype.Date
+	StatementOpening decimal.Decimal
+	StatementClosing decimal.Decimal
+	Status           string
+	CreatedBy        uuid.UUID
+	CompletedBy      pgtype.UUID
+	CompletedAt      pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+}
+
+type BankReconciliationMatch struct {
+	TenantID         uuid.UUID
+	ReconciliationID uuid.UUID
+	JournalLineID    uuid.UUID
+	MatchedAt        pgtype.Timestamptz
 }
 
 type Brand struct {
@@ -169,6 +202,38 @@ type Category struct {
 	Active    bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ErapayCharge struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	OutletID        pgtype.UUID
+	MethodID        uuid.UUID
+	IdempotencyKey  string
+	Amount          decimal.Decimal
+	Status          string
+	ErapayPaymentID pgtype.Text
+	QrValue         pgtype.Text
+	ExpiresAt       pgtype.Timestamptz
+	SaleID          pgtype.UUID
+	CreatedBy       uuid.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type ErapayMethod struct {
+	TenantID  uuid.UUID
+	MethodID  uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type ErapaySetting struct {
+	TenantID    uuid.UUID
+	ApiKeyEnc   string
+	KeyHint     string
+	Environment string
+	UpdatedBy   uuid.UUID
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type Item struct {
@@ -309,6 +374,22 @@ type JournalTemplateLine struct {
 	Memo       string
 }
 
+type McpGrant struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	UserID           uuid.UUID
+	OutletID         uuid.UUID
+	ClientID         uuid.UUID
+	ClientName       string
+	AccessHash       string
+	AccessExpiresAt  pgtype.Timestamptz
+	RefreshHash      string
+	RefreshExpiresAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	LastUsedAt       pgtype.Timestamptz
+	RevokedAt        pgtype.Timestamptz
+}
+
 type Member struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
@@ -385,6 +466,13 @@ type MemberPointMovement struct {
 	Note          string
 	ActorID       pgtype.UUID
 	CreatedAt     pgtype.Timestamptz
+}
+
+type OauthClient struct {
+	ClientID     uuid.UUID
+	Name         string
+	RedirectUris []string
+	CreatedAt    pgtype.Timestamptz
 }
 
 type Outlet struct {
@@ -506,6 +594,18 @@ type PlatformAuditLog struct {
 	Ip         string
 	RequestID  string
 	CreatedAt  pgtype.Timestamptz
+}
+
+type PlatformLanguage struct {
+	Code      string
+	Name      string
+	Short     string
+	Intl      string
+	Protected bool
+	Active    bool
+	SortOrder int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }
 
 type PlatformRecoveryCode struct {

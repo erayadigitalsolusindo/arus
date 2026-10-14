@@ -29,6 +29,9 @@ const (
 	ActionTenantStatus  = "platform.tenant_status"
 	ActionEditWindow    = "platform.tenant_edit_window"
 	ActionImpersonate   = "platform.impersonate"
+	ActionLanguageCreate = "platform.language_create"
+	ActionLanguageUpdate = "platform.language_update"
+	ActionLanguageDelete = "platform.language_delete"
 
 	platformRole = "platform"
 )

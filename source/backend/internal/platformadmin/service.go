@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"aciraba/internal/authz"
@@ -32,6 +33,8 @@ var (
 	ErrLastAdmin          = errors.New("admin aktif terakhir")
 	ErrSelf               = errors.New("tidak boleh pada diri sendiri")
 	ErrOutletNotFound     = errors.New("outlet tidak ditemukan")
+	ErrLanguageTaken      = errors.New("kode bahasa sudah terpakai")
+	ErrLanguageProtected  = errors.New("bahasa dilindungi tidak dapat dihapus")
 )
 
 const (
@@ -137,4 +140,96 @@ func (s *Service) acquire(ctx context.Context) error {
 func sameSecret(a, b string) bool {
 	ha, hb := sha256.Sum256([]byte(a)), sha256.Sum256([]byte(b))
 	return subtle.ConstantTimeCompare(ha[:], hb[:]) == 1
+}
+
+// ---- languages ----
+
+type Language struct {
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	Short     string    `json:"short"`
+	Intl      string    `json:"intl"`
+	Protected bool      `json:"protected"`
+	Active    bool      `json:"active"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (s *Service) ListLanguages(ctx context.Context, a Actor) ([]Language, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT code, name, short, intl, protected, active, sort_order, created_at
+		FROM platform_list_languages($1)`, a.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Language{}
+	for rows.Next() {
+		var (
+			r       Language
+			sort    int32
+			created pgtype.Timestamptz
+		)
+		if err := rows.Scan(&r.Code, &r.Name, &r.Short, &r.Intl, &r.Protected, &r.Active, &sort, &created); err != nil {
+			return nil, err
+		}
+		r.SortOrder = int(sort)
+		r.CreatedAt = created.Time
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) CreateLanguage(ctx context.Context, a Actor, code, name, short, intl string, sortOrder int) (string, error) {
+	_, err := gen.New(s.Pool).PlatformCreateLanguage(ctx, gen.PlatformCreateLanguageParams{
+		ActorID: a.ID, Code: code, Name: name, Short: short, Intl: intl, SortOrder: int32(sortOrder),
+	})
+	switch {
+	case pgCode(err) == "23505" || pgCode(err) == "P0001": // duplikat kode (PK bentrok / fungsi menolak)
+		return "", ErrLanguageTaken
+	case pgCode(err) == "42501": // fungsi DB menolak karena bukan platform admin aktif
+		return "", ErrInvalidSession
+	}
+	if err != nil {
+		return "", err
+	}
+	s.record(ctx, a, ActionLanguageCreate, uuid.Nil, "", map[string]any{"code": code, "name": name, "short": short, "intl": intl, "sort_order": sortOrder})
+	return code, nil
+}
+
+func (s *Service) UpdateLanguage(ctx context.Context, a Actor, code, name string, active bool, sortOrder int) error {
+	ok, err := gen.New(s.Pool).PlatformUpdateLanguage(ctx, gen.PlatformUpdateLanguageParams{
+		ActorID: a.ID, Code: code, Name: name, Active: active, SortOrder: int32(sortOrder),
+	})
+	switch {
+	case pgCode(err) == "42501":
+		return ErrInvalidSession
+	}
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	s.record(ctx, a, ActionLanguageUpdate, uuid.Nil, "", map[string]any{"code": code, "name": name, "active": active, "sort_order": sortOrder})
+	return nil
+}
+
+func (s *Service) DeleteLanguage(ctx context.Context, a Actor, code string) error {
+	_, err := gen.New(s.Pool).PlatformDeleteLanguage(ctx, gen.PlatformDeleteLanguageParams{
+		ActorID: a.ID, Code: code,
+	})
+	switch {
+	case pgCode(err) == "P0001": // platform_delete_language menolak protected
+		return ErrLanguageProtected
+	case pgCode(err) == "42501":
+		return ErrInvalidSession
+	}
+	if err != nil {
+		return err
+	}
+	s.record(ctx, a, ActionLanguageDelete, uuid.Nil, "", map[string]any{"code": code})
+	return nil
 }
