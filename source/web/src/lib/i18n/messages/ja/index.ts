@@ -1,0 +1,34 @@
+import type { Messages } from '../../types.ts';
+import common from './common.ts';
+import errors from './errors.ts';
+import auth from './auth.ts';
+import nav from './nav.ts';
+import shell from './shell.ts';
+import dashboard from './dashboard.ts';
+import iam from './iam.ts';
+import account from './account.ts';
+import outlets from './outlets.ts';
+import audit from './audit.ts';
+import legal from './legal.ts';
+import platform from './platform.ts';
+import catalog from './catalog.ts';
+import vouchers from './vouchers.ts';
+import items from './items.ts';
+import stock from './stock.ts';
+import pos from './pos.ts';
+import members from './members.ts';
+import sales from './sales.ts';
+import receivables from './receivables.ts';
+import payables from './payables.ts';
+import purchaseReturns from './purchaseReturns.ts';
+import settle from './settle.ts';
+import purchases from './purchases.ts';
+import deposits from './deposits.ts';
+import supplierCredits from './supplierCredits.ts';
+import shift from './shift.ts';
+import accounting from './accounting.ts';
+import ai from './ai.ts';
+
+const ja: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai };
+
+export default ja;
