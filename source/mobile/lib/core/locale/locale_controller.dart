@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/gen/app_localizations.dart';
+import '../money/money.dart';
 import '../session/session_controller.dart';
 
 /// Pilihan bahasa per perangkat: null = ikut HP (bawaan), atau `id` / `en` / `ja`. Disimpan di SharedPreferences.
@@ -31,7 +32,8 @@ class LocaleController extends Notifier<Locale?> {
 
   void _apply(Locale? l) {
     state = l;
-    // Bahasa untuk pesan/email dari server.
+    // Bahasa untuk pesan/email dari server dan simbol mata uang (tampilan).
+    setMoneyLocale(l?.languageCode);
     if (l != null) ref.read(apiClientProvider).setLanguage(l.languageCode);
   }
 

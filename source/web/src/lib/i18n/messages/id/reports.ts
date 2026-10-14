@@ -1,0 +1,31 @@
+// Kamus halaman laporan penjualan per tanggal.
+export default {
+  docTitle: 'Laporan Penjualan Per Tanggal',
+  title: 'Penjualan Per Tanggal',
+  subtitle: 'Grand total dan breakdown metode pembayaran per hari',
+  range: 'Rentang Tanggal',
+  // Tabel
+  date: 'Tanggal',
+  saleCount: 'Jumlah Nota',
+  voidCount: 'Nota Batal',
+  subtotal: 'Subtotal',
+  discount: 'Diskon',
+  taxStore: 'Pajak Toko',
+  taxGov: 'Pajak Negara',
+  total: 'Total',
+  paid: 'Diterima',
+  receivable: 'Piutang',
+  voidTotal: 'Total Batal',
+  methods: 'Metode Bayar',
+  methodName: 'Nama',
+  methodKind: 'Jenis',
+  methodAmount: 'Jumlah',
+  methodFee: 'Fee MDR',
+  methodSurcharge: 'Surcharge',
+  returns: 'Retur',
+  returnCount: 'Jml Retur',
+  returnTotal: 'Total Retur',
+  netTotal: 'Bersih',
+  // Placeholder
+  noData: 'Tidak ada data untuk rentang ini.',
+};

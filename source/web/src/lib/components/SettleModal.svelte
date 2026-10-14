@@ -30,7 +30,7 @@
 
   type Note = { id: string; doc: string; sub: string; date: string; due?: string; balance: string };
 
-  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   /** sen → string desimal untuk API, tanpa float. */
   const dec = (c: bigint) => (c % 100n === 0n ? String(c / 100n) : `${c / 100n}.${String(c % 100n).padStart(2, '0')}`);
   const inputClass = 'w-full h-9 px-2 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]';

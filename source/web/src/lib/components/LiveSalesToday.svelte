@@ -16,7 +16,7 @@
     return () => live.stop();
   });
 
-  const rp = (n: number) => formatCurrency(n, 'IDR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const rp = (n: number) => formatCurrency(n, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const num = (s: string | undefined) => Number(s ?? 0);
 
   const d = $derived(live.data);

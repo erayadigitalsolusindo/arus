@@ -538,7 +538,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 
 | ID | Kebutuhan |
 |---|---|
-| NFR-UX-01 | Antarmuka multi-bahasa (Indonesia = sumber, Inggris); format Rupiah (`Rp1.234.567`) dan tanggal `dd/mm/yyyy`. |
+| NFR-UX-01 | Antarmuka multi-bahasa (Indonesia = sumber, Inggris, Jepang); format uang mengikuti bahasa aktif — **simbol mata uang tampilan** id → `Rp`, en → `$` (USD), ja → `¥` (JPY), **nilai tetap Rupiah** (tanpa konversi; keputusan pengguna 2026-10-14) — dan tanggal `dd/mm/yyyy`. |
 | NFR-UX-02 | Zona waktu per outlet (WIB/WITA/WIT); penyimpanan dalam UTC (`timestamptz`). Hari bisnis (nomor nota, laporan harian) mengikuti zona waktu outlet. |
 | NFR-UX-03 | Kasir web dapat dioperasikan penuh dengan keyboard + scanner. |
 | NFR-UX-04 | Desain konsisten mengikuti template Dreams Core; mendukung mode terang/gelap; animasi menghormati `prefers-reduced-motion`. |

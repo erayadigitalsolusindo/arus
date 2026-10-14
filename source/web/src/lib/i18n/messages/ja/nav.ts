@@ -43,6 +43,7 @@ const nav: Messages['nav'] = {
   salesReturns: '売上返品',
   salesData: '売上データ',
   salesList: '売上一覧',
+  salesByDate: '日付別',
   cashShifts: 'レジシフト一覧',
   pettyCash: '小口現金',
   sellPriceHistory: '販売価格履歴',

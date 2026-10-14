@@ -32,7 +32,7 @@
     ondone: (acc: WalletAccount, docNo: string) => void;
   } = $props();
 
-  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string | bigint) => formatCurrency(typeof v === 'bigint' ? centsToNumber(v) : Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const inputClass = 'w-full h-10 px-3 text-[13px] rounded border border-[var(--border-default)] bg-[var(--surface-base)] outline-none focus:border-[var(--color-primary-500)]';
 
   let methods = $state<PaymentMethod[]>([]);

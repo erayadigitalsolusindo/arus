@@ -11,7 +11,7 @@
 
   let p = $state<Purchase | null>(null);
   let error = $state('');
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { maximumFractionDigits: 2 });
+  const money = (v: string | number) => formatCurrency(Number(v), { maximumFractionDigits: 2 });
   const qty = (v: string) => formatNumber(Number(v), { maximumFractionDigits: 3 });
 
   onMount(async () => {

@@ -9,7 +9,7 @@
   import { errorMessage } from '#lib/i18n/errors.ts';
 
   const PAGE = 50;
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { maximumFractionDigits: 2 });
+  const money = (v: string | number) => formatCurrency(Number(v), { maximumFractionDigits: 2 });
   const inputClass = 'h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]';
   const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
