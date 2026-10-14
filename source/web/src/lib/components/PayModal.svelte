@@ -199,6 +199,29 @@
   const eraM = $derived(eraId ? entered.find((m) => m.id === eraId) : undefined);
   const eraStale = $derived(!!eraCharge && !!eraM && toCents(eraCharge.amount) !== amountOf(eraM));
   const eraPending = $derived(!!eraM && !(eraCharge?.status === 'succeeded' && !eraStale));
+  // Force-save: penyedia EraPay tidak dapat dihubungi (webhook bermasalah) — kasir tetap bisa menyimpan nota yang
+  // charge-nya masih menunggu, dengan persetujuan PIN penyetuju berizin `qris_force`. Nota ditandai "perlu dicek".
+  const eraCanForce = $derived(!!eraCharge && !eraStale && (eraCharge.status === 'pending' || eraCharge.status === 'unknown'));
+  let eraForce = $state(false);
+  let eraForceApprovers = $state<Approver[] | null>(null);
+  let eraForceApproverId = $state('');
+  let eraForcePin = $state('');
+  async function eraEnableForce() {
+    eraForce = true;
+    eraForceApproverId = '';
+    eraForcePin = '';
+    if (eraForceApprovers === null) {
+      eraForceApprovers = [];
+      try {
+        const l = await approvals.approvers('qris_force');
+        eraForceApprovers = l;
+        if (l.length === 1) eraForceApproverId = l[0].id;
+      } catch (e) {
+        eraError = errorMessage(e);
+        eraForceApprovers = [];
+      }
+    }
+  }
 
   async function eraStart() {
     if (!eraM || eraBusy) return;
@@ -237,7 +260,8 @@
   $effect(() => () => clearInterval(eraTimer));
 
   const canSubmit = $derived(
-    methodsReady && !submitting && !nonCashOver && !depositOver && !eraPending && (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
+    methodsReady && !submitting && !nonCashOver && !depositOver && (!eraPending || (eraCanForce && eraForce && eraForceApproverId !== '' && /^[0-9]{6}$/.test(eraForcePin))) &&
+      (isCredit ? !!member && receivable > 0n && approvalOk : entered.length > 0 && paid >= total)
   );
 
   function focusFirst() {
@@ -331,10 +355,12 @@
     error = '';
     try {
       const base = build();
+      const forceEra = eraCanForce && eraForce && eraForceApproverId !== ''; // pendekatan aman: kirim flag hanya bila benar-benar force
       const payload = {
           ...base,
           ...(isCredit ? { credit: true } : {}),
           ...(overLimit && !baseApproval ? { approval: { user_id: creditApproverId, pin: creditPin } } : {}),
+          ...(forceEra ? { force_erapay: true, approval: { user_id: eraForceApproverId, pin: eraForcePin } } : {}),
           payments: entered.map((m) => {
             const f = fields[m.id];
             const ref = f.ref.trim().slice(0, 100);
@@ -423,6 +449,12 @@
           <i class="icon-printer text-[14px]"></i>{printing ? t('pos.receipt.printing') : printed ? t('pos.receipt.reprint') : t('pos.receipt.print')}
         </button>
       </div>
+      {#if done.erapay_pending}
+        <div class="rounded border border-[var(--color-warning-500)]/40 bg-[color-mix(in_oklab,var(--color-warning-500)_10%,transparent)] px-3 py-2 text-start text-[12.5px]">
+          <p class="font-bold text-[var(--color-warning-600)]"><i class="icon-shield-alert me-1"></i>{t('pos.erapay.pendingTitle')}</p>
+          <p class="text-[var(--text-secondary)]">{t('pos.erapay.pendingNotice')}</p>
+        </div>
+      {/if}
       <details class="text-start text-[12px] text-[var(--text-secondary)]">
         <summary class="cursor-pointer select-none">{t('pos.receipt.settings')}</summary>
         <div class="mt-2"><ReceiptSettings onchange={(v) => (receipt = v)} /></div>
@@ -539,6 +571,25 @@
                   {#if eraQr}<img src={eraQr} alt={t('pos.erapay.qrAlt')} class="mx-auto size-[260px] rounded bg-white p-1" />{/if}
                   <p class="text-[13px] font-semibold">{t('pos.erapay.scan', { amount: money(amountOf(m)) })}</p>
                   <p class="text-[12px] text-[var(--text-tertiary)]">{t('pos.erapay.waiting')}</p>
+                  {#if eraCanForce && !eraForce}
+                    <button type="button" class="btn btn-outline" onclick={() => void eraEnableForce()}>
+                      <i class="icon-shield-alert me-1"></i>{t('pos.erapay.forceShow')}
+                    </button>
+                  {:else if eraForce}
+                    <div class="text-start space-y-1.5 rounded border border-[var(--color-warning-500)]/40 bg-[color-mix(in_oklab,var(--color-warning-500)_10%,transparent)] p-2">
+                      <p class="text-[12.5px] font-semibold text-[var(--color-warning-600)]">{t('pos.erapay.forceHint')}</p>
+                      <label class="block">
+                        <span class="text-[12px] font-semibold">{t('pos.override.approver')}</span>
+                        <div class="mt-0.5"><Select bind:value={eraForceApproverId} ariaLabel={t('pos.override.approver')} options={[{ value: '', label: t('pos.override.pickApprover'), disabled: true }, ...(eraForceApprovers ?? []).map((a) => ({ value: a.id, label: a.name }))]} /></div>
+                        {#if eraForceApprovers && eraForceApprovers.length === 0 && !eraError}<p class="text-[11.5px] text-[var(--color-danger-600)]">{t('pos.erapay.forceNoApprovers')}</p>{/if}
+                      </label>
+                      <label class="block">
+                        <span class="text-[12px] font-semibold">{t('pos.override.pin')}</span>
+                        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" bind:value={eraForcePin} autocomplete="new-password" class="mt-0.5 w-full h-9 px-2 rounded border border-[var(--border-default)] bg-[var(--surface-base)] text-center tracking-[0.4em] outline-none focus:border-[var(--color-primary-500)]" />
+                      </label>
+                      <button type="button" class="btn btn-sm" onclick={() => ((eraForce = false), (eraForcePin = ''), (eraError = ''))}>{t('pos.payCancel')}</button>
+                    </div>
+                  {/if}
                 {/if}
                 {#if eraError}<p role="alert" class="text-[12px] text-[var(--color-danger-600)]">{eraError}</p>{/if}
               </div>
