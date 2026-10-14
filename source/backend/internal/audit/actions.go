@@ -120,6 +120,12 @@ const (
 	ActionSaleSuperseded = "sale.superseded" // pada nota lama: sudah digantikan revisi
 	ActionSaleVoid       = "sale.void"
 	ActionSaleReprint    = "sale.reprint" // cetak ulang struk (detail: doc_no, copy)
+
+	// Force-save & rekonsiliasi EraPay QRIS: pemakaian PIN penyetuju untuk menyimpan nota yang belum terverifikasi lunas,
+	// lalu hasil pengecekan penjadwal rekonsiliasi ke EraPay.
+	ActionSaleEraPayForce  = "sale.erapay_force"  // nota disimpan dengan penanda "perlu dicek EraPay" (approval PIN)
+	ActionSaleEraPayPaid   = "sale.erapay_paid"   // rekonsiliasi: pembayaran ternyata lunas → penanda dihapus
+	ActionSaleEraPayUnpaid = "sale.erapay_unpaid" // rekonsiliasi: pembayaran tidak lunas → nota dibatalkan (stok kembali)
 )
 
 const (

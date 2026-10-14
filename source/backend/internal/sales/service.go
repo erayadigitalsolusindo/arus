@@ -168,6 +168,10 @@ type Request struct {
 	// Credit = nota kredit: bagian yang belum dibayar (total − pembayaran/DP) menjadi piutang member. Wajib memilih member.
 	// Melewati limit piutang member butuh persetujuan PIN penyetuju berizin credit_limit.approve (Approval).
 	Credit bool `json:"credit"`
+	// ForceEraPay = simpan nota walau pembayaran EraPay QRIS belum terverifikasi lunas (penyedia down). Nota diberi penanda
+	// `erapay_pending` ("perlu dicek di EraPay") dan disimpan hanya dengan persetujuan PIN penyetuju berizin
+	// qris_force.approve; penjadwal rekonsiliasi akan memverifikasi ke EraPay dan membatalkan nota otomatis bila tak lunas.
+	ForceEraPay bool `json:"force_erapay"`
 }
 
 // ---- Hasil ----
@@ -246,6 +250,9 @@ type Sale struct {
 	SupersededBy   *uuid.UUID `json:"superseded_by,omitempty"`
 	RevisionReason string     `json:"revision_reason,omitempty"`
 	VoidReason     string     `json:"void_reason,omitempty"`
+	// EraPayPending = nota disimpan paksa saat EraPay/DOKU tidak dapat dihubungi: pembayaran QRIS belum terverifikasi
+	// lunas dan masih perlu dicek di EraPay. Dicetak di struk; penjadwal rekonsiliasi memverifikasi dan membatalkan bila tak lunas.
+	EraPayPending bool `json:"erapay_pending"`
 }
 
 // CostInfo = satu baris rincian biaya lain-lain pada nota.
@@ -356,6 +363,7 @@ type norm struct {
 	salesperson *uuid.UUID
 	vouchers    []string // kode kupon (HURUF BESAR, tanpa duplikat)
 	credit      bool
+	forceEraPay bool
 	// keep (hanya edit nota): baris nota asli per item|satuan. Baris yang cocok mempertahankan harga, harga normal, dan HPP
 	// saat transaksi awal (tidak dihitung ulang dari master); hanya baris baru yang memakai harga/HPP sekarang.
 	keep map[string][]gen.SalesLinesRow
@@ -363,7 +371,7 @@ type norm struct {
 
 func normalize(in Request) (norm, FieldErrors) {
 	f := FieldErrors{}
-	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints, credit: in.Credit}
+	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints, credit: in.Credit, forceEraPay: in.ForceEraPay}
 	if in.MemberID != nil && *in.MemberID == uuid.Nil {
 		n.memberID = nil
 	}
@@ -1000,9 +1008,20 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	if ed != nil {
 		reuseSale = &ed.orig.ID
 	}
-	eraCharges, err := s.verifyExternalPayments(ctx, tx, a.TenantID, n, reuseSale)
+	eraCharges, eraPending, err := s.verifyExternalPayments(ctx, tx, a.TenantID, n, reuseSale)
 	if err != nil {
 		return err
+	}
+	// Force-save pasar QRIS belum terverifikasi lunas: wajib disetujui PIN penyetuju berizin qris_force, dan pemakaian
+	// PIN yang sama juga dicatat di audit log lewat entri sale.erapay_force (lihat di bawah).
+	var qrisApprover approval.Approver
+	if eraPending {
+		if s.approvals == nil || approvalIn == nil {
+			return approval.ErrPinRequired
+		}
+		if qrisApprover, err = s.approvals.VerifyFor(ctx, tx, a, approval.ModuleQrisForce, a.OutletID, approvalIn.UserID, approvalIn.PIN); err != nil {
+			return err
+		}
 	}
 	// Pembayaran dari deposit member: wajib ada member di nota; saldo dipotong setelah nota tersimpan (lihat di bawah).
 	depKey, depAmt := depositPaid(n)
@@ -1052,6 +1071,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge, Receivable: t.receivable,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
+			ErapayPending: eraPending,
 		})
 	} else {
 		// Revisi: nomor = nomor asli + penanda revisi; kasir & tanggal bisnis dibawa dari nota asli.
@@ -1064,6 +1084,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 			TaxStore: t.taxStore, TaxGov: t.taxGov, OtherCost: t.other, Total: t.total, Paid: t.paid, Change: t.change, Surcharge: t.surcharge, Receivable: t.receivable,
 			MemberID: pgtype.UUID{Bytes: mc.id(), Valid: mc.sm != nil}, PointsEarned: int32(mc.earn), PointsRedeemed: int32(n.redeemApplied(mc)), RedeemAmount: mc.redeemAmt,
 			SalespersonID: pgtype.UUID{Bytes: n.salespersonBytes(), Valid: n.salesperson != nil},
+			ErapayPending: eraPending,
 			CreatedAt:     ed.orig.CreatedAt, RootID: pgtype.UUID{Bytes: ed.rootID, Valid: true}, Revision: ed.orig.Revision + 1,
 			SupersedesID: pgtype.UUID{Bytes: ed.orig.ID, Valid: true}, RevisionReason: pgtype.Text{String: ed.reason, Valid: true},
 			RevisedBy: cashier,
@@ -1195,16 +1216,30 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		}
 	}
 	if ed == nil {
-		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details})
+		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleCreate, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details}); err != nil {
+			return err
+		}
+	} else {
+		details["previous_doc_no"], details["previous_total"] = ed.orig.DocNo, ed.orig.Total.String()
+		details["revision"], details["reason"] = ed.orig.Revision+1, ed.reason
+		details["approver_id"], details["approver"] = ed.editor.ID.String(), ed.editor.Name
+		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleEdit, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details}); err != nil {
+			return err
+		}
+		if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleSuperseded, Entity: audit.EntitySale, EntityID: ed.orig.ID.String(),
+			Details: map[string]any{"doc_no": ed.orig.DocNo, "superseded_by": docNo, "reason": ed.reason, "approver_id": ed.editor.ID.String(), "approver": ed.editor.Name}}); err != nil {
+			return err
+		}
 	}
-	details["previous_doc_no"], details["previous_total"] = ed.orig.DocNo, ed.orig.Total.String()
-	details["revision"], details["reason"] = ed.orig.Revision+1, ed.reason
-	details["approver_id"], details["approver"] = ed.editor.ID.String(), ed.editor.Name
-	if err := audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleEdit, Entity: audit.EntitySale, EntityID: hdr.ID.String(), Details: details}); err != nil {
-		return err
+	// Pemakaian PIN penyetuju untuk force-save QRIS tercatat di audit dengan jelas "untuk apa": penanda perlu-cek-EraPay.
+	if eraPending {
+		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+			Action: audit.ActionSaleEraPayForce, Entity: audit.EntitySale, EntityID: hdr.ID.String(),
+			Details: map[string]any{"doc_no": docNo, "approver_id": qrisApprover.ID.String(), "approver": qrisApprover.Name,
+				"reason": "pembayaran EraPay QRIS belum terverifikasi lunas; nota ditandai perlu dicek di EraPay"},
+		})
 	}
-	return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{Action: audit.ActionSaleSuperseded, Entity: audit.EntitySale, EntityID: ed.orig.ID.String(),
-		Details: map[string]any{"doc_no": ed.orig.DocNo, "superseded_by": docNo, "reason": ed.reason, "approver_id": ed.editor.ID.String(), "approver": ed.editor.Name}})
+	return nil
 }
 
 func keepKey(item, unit uuid.UUID) string { return item.String() + "|" + unit.String() }
@@ -1287,7 +1322,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			Total: h.Total.StringFixed(2), Paid: h.Paid.StringFixed(2), Change: h.Change.StringFixed(2), Surcharge: h.Surcharge.StringFixed(2), Receivable: h.Receivable.StringFixed(2),
 			Salesperson: spi, Member: mi, PointsEarned: int(h.PointsEarned), PointsRedeemed: int(h.PointsRedeemed), RedeemAmount: h.RedeemAmount.StringFixed(2),
 			Lines: make([]Line, 0, len(ls)), Payments: make([]Payment, 0, len(ps)),
-			Revision: int(h.Revision), RootID: h.ID, RevisionReason: h.RevisionReason, VoidReason: h.VoidReason}
+			Revision: int(h.Revision), RootID: h.ID, RevisionReason: h.RevisionReason, VoidReason: h.VoidReason, EraPayPending: h.ErapayPending}
 		if h.RootID.Valid {
 			out.RootID = uuid.UUID(h.RootID.Bytes)
 		}

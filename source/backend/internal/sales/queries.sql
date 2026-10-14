@@ -36,10 +36,10 @@ RETURNING last_no;
 -- DO NOTHING pada kunci idempotensi: pengiriman ulang tidak membuat nota ganda (pemanggil lalu membaca nota lama).
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
-                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id, erapay_pending)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
         @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge, @receivable,
-        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'))
+        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'), @erapay_pending)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at;
 
@@ -72,6 +72,7 @@ SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
        s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name,
+       s.erapay_pending,
        s.revision, s.root_id, s.supersedes_id, s.superseded_by, coalesce(s.void_reason, '')::text AS void_reason,
        coalesce(s.revision_reason, '')::text AS revision_reason
 FROM sales s LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
@@ -295,11 +296,11 @@ SELECT voucher_id FROM sale_vouchers WHERE tenant_id = @tenant_id AND sale_id = 
 -- (tanggal bisnis tidak bergeser), revised_at = saat edit.
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
-                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id, erapay_pending,
                    created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
 VALUES (@tenant_id, @outlet_id, @doc_no, @idempotency_key, @request_hash, sqlc.narg('cashier_id'), sqlc.narg('approved_by'), @note, @subtotal, @discount,
         @tax_store_pct, @tax_gov_pct, @tax_store, @tax_gov, @other_cost, @total, @paid, @change, @surcharge, @receivable,
-        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'),
+        sqlc.narg('member_id'), @points_earned, @points_redeemed, @redeem_amount, sqlc.narg('salesperson_id'), @erapay_pending,
         @created_at, @root_id, @revision, @supersedes_id, @revision_reason, now(), @revised_by)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at;
@@ -311,6 +312,11 @@ WHERE tenant_id = @tenant_id AND id = @id AND status = 'completed';
 -- name: SalesMarkVoid :execrows
 UPDATE sales SET status = 'void', void_reason = @reason, voided_at = now(), voided_by = sqlc.narg('voided_by')
 WHERE tenant_id = @tenant_id AND id = @id AND status = 'completed';
+
+-- name: SalesClearEraPayPending :execrows
+-- Rekonsiliasi EraPay: pembayaran ternyata lunas → hapus penanda "perlu dicek EraPay".
+UPDATE sales SET erapay_pending = false
+WHERE tenant_id = @tenant_id AND id = @id AND erapay_pending;
 
 -- name: SalesRevisionChain :many
 -- Seluruh versi satu nota (asli + revisi), urut revisi.

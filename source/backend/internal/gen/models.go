@@ -880,6 +880,7 @@ type Sale struct {
 	VoidedBy       pgtype.UUID
 	Surcharge      decimal.Decimal
 	Receivable     decimal.Decimal
+	ErapayPending  bool
 }
 
 type SaleCost struct {

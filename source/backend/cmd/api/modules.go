@@ -109,7 +109,8 @@ func mountModules(r chi.Router, d appDeps) error {
 		return err
 	}
 	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken)
-	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
+	salesSvc := sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc)
+	salesH := sales.NewHandler(salesSvc, perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
@@ -138,6 +139,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	ai.NewMCPHandler(aiSvc, perms, tokens, d.Redis, d.Log, d.Cfg.APIBaseURL, d.Cfg.AppBaseURL).Routes(r)
 	if d.Cfg.AutoJournal {
 		go accounting.NewScheduler(accSvc, d.Pool, d.Log).Run(d.Ctx) // draf jurnal otomatis tiap malam; berhenti saat shutdown
+	}
+	if d.Cfg.EraPayReconcile {
+		go sales.NewEraPayReconciler(salesSvc, d.Pool, d.Log).Run(d.Ctx) // verifikasi nota paksa ke EraPay; berhenti saat shutdown
 	}
 	return nil
 }

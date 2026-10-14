@@ -8428,6 +8428,25 @@ func (q *Queries) SalesByIdemKey(ctx context.Context, arg SalesByIdemKeyParams) 
 	return i, err
 }
 
+const salesClearEraPayPending = `-- name: SalesClearEraPayPending :execrows
+UPDATE sales SET erapay_pending = false
+WHERE tenant_id = $1 AND id = $2 AND erapay_pending
+`
+
+type SalesClearEraPayPendingParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Rekonsiliasi EraPay: pembayaran ternyata lunas → hapus penanda "perlu dicek EraPay".
+func (q *Queries) SalesClearEraPayPending(ctx context.Context, arg SalesClearEraPayPendingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, salesClearEraPayPending, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const salesCostInsert = `-- name: SalesCostInsert :exec
 INSERT INTO sale_costs (tenant_id, sale_id, position, name, amount)
 VALUES ($1, $2, $3, $4, $5)
@@ -8493,6 +8512,7 @@ SELECT s.id, s.outlet_id, s.doc_no, s.status, s.note, s.subtotal, s.discount, s.
        s.member_id, coalesce(mb.code, '')::text AS member_code, coalesce(mb.name, '')::text AS member_name,
        s.points_earned, s.points_redeemed, s.redeem_amount,
        s.salesperson_id, coalesce(sp.name, '')::text AS salesperson_name,
+       s.erapay_pending,
        s.revision, s.root_id, s.supersedes_id, s.superseded_by, coalesce(s.void_reason, '')::text AS void_reason,
        coalesce(s.revision_reason, '')::text AS revision_reason
 FROM sales s LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
@@ -8537,6 +8557,7 @@ type SalesGetRow struct {
 	RedeemAmount    decimal.Decimal
 	SalespersonID   pgtype.UUID
 	SalespersonName string
+	ErapayPending   bool
 	Revision        int32
 	RootID          pgtype.UUID
 	SupersedesID    pgtype.UUID
@@ -8578,6 +8599,7 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 		&i.RedeemAmount,
 		&i.SalespersonID,
 		&i.SalespersonName,
+		&i.ErapayPending,
 		&i.Revision,
 		&i.RootID,
 		&i.SupersedesID,
@@ -8591,10 +8613,10 @@ func (q *Queries) SalesGet(ctx context.Context, arg SalesGetParams) (SalesGetRow
 const salesInsert = `-- name: SalesInsert :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
-                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id)
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id, erapay_pending)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25)
+        $21, $22, $23, $24, $25, $26)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -8625,6 +8647,7 @@ type SalesInsertParams struct {
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
 	SalespersonID  pgtype.UUID
+	ErapayPending  bool
 }
 
 type SalesInsertRow struct {
@@ -8660,6 +8683,7 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 		arg.PointsRedeemed,
 		arg.RedeemAmount,
 		arg.SalespersonID,
+		arg.ErapayPending,
 	)
 	var i SalesInsertRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
@@ -8669,12 +8693,12 @@ func (q *Queries) SalesInsert(ctx context.Context, arg SalesInsertParams) (Sales
 const salesInsertRevision = `-- name: SalesInsertRevision :one
 INSERT INTO sales (tenant_id, outlet_id, doc_no, idempotency_key, request_hash, cashier_id, approved_by, note, subtotal, discount,
                    tax_store_pct, tax_gov_pct, tax_store, tax_gov, other_cost, total, paid, change, surcharge, receivable,
-                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id,
+                   member_id, points_earned, points_redeemed, redeem_amount, salesperson_id, erapay_pending,
                    created_at, root_id, revision, supersedes_id, revision_reason, revised_at, revised_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25,
-        $26, $27, $28, $29, $30, now(), $31)
+        $21, $22, $23, $24, $25, $26,
+        $27, $28, $29, $30, $31, now(), $32)
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id, created_at
 `
@@ -8705,6 +8729,7 @@ type SalesInsertRevisionParams struct {
 	PointsRedeemed int32
 	RedeemAmount   decimal.Decimal
 	SalespersonID  pgtype.UUID
+	ErapayPending  bool
 	CreatedAt      pgtype.Timestamptz
 	RootID         pgtype.UUID
 	Revision       int32
@@ -8747,6 +8772,7 @@ func (q *Queries) SalesInsertRevision(ctx context.Context, arg SalesInsertRevisi
 		arg.PointsRedeemed,
 		arg.RedeemAmount,
 		arg.SalespersonID,
+		arg.ErapayPending,
 		arg.CreatedAt,
 		arg.RootID,
 		arg.Revision,
