@@ -17,7 +17,7 @@ const platform: Messages['platform'] = {
   },
   nav: {
     groupMain: 'Platform',
-    groupSystem: 'System', mobile: 'Mobile App', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
+    groupSystem: 'System', mobile: 'Mobile App', languages: 'Languages', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',
@@ -205,6 +205,37 @@ const platform: Messages['platform'] = {
       platform_tenant_edit_window: 'Changed the receipt edit window',
       platform_impersonate: 'Entered as tenant'
     }
+  },
+  languages: {
+    title: 'Language Settings',
+    subtitle: 'Manage available languages. Indonesian and English cannot be deleted.',
+    add: 'Add Language',
+    addTitle: 'Add Language',
+    editTitle: 'Edit Language',
+    code: 'Code',
+    codeHelp: '2 lowercase letters, e.g.: ar, zh, ja',
+    name: 'Name',
+    short: 'Short',
+    intl: 'Intl Locale',
+    intlHelp: 'Format: id-ID, en-US, ar-SA',
+    order: 'Order',
+    status: 'Status',
+    actions: 'Actions',
+    protected: 'Protected',
+    active: 'Active',
+    inactive: 'Inactive',
+    edit: 'Edit',
+    delete: 'Delete',
+    save: 'Save',
+    cancel: 'Cancel',
+    close: 'Close',
+    saving: 'Saving…',
+    created: 'Language added.',
+    saved: 'Changes saved.',
+    deleted: 'Language deleted.',
+    deleteConfirm: 'Delete this language? This cannot be undone.',
+    loading: 'Loading…',
+    empty: 'No languages yet.'
   }
 };
 

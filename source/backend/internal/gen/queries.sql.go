@@ -6205,6 +6205,51 @@ func (q *Queries) PlatformAuditList(ctx context.Context, arg PlatformAuditListPa
 	return items, nil
 }
 
+const platformCreateLanguage = `-- name: PlatformCreateLanguage :one
+
+SELECT platform_create_language($1, $2, $3, $4, $5, $6)
+`
+
+type PlatformCreateLanguageParams struct {
+	ActorID   uuid.UUID
+	Code      string
+	Name      string
+	Short     string
+	Intl      string
+	SortOrder int32
+}
+
+// ---- languages ----
+func (q *Queries) PlatformCreateLanguage(ctx context.Context, arg PlatformCreateLanguageParams) (string, error) {
+	row := q.db.QueryRow(ctx, platformCreateLanguage,
+		arg.ActorID,
+		arg.Code,
+		arg.Name,
+		arg.Short,
+		arg.Intl,
+		arg.SortOrder,
+	)
+	var platform_create_language string
+	err := row.Scan(&platform_create_language)
+	return platform_create_language, err
+}
+
+const platformDeleteLanguage = `-- name: PlatformDeleteLanguage :one
+SELECT platform_delete_language($1, $2)
+`
+
+type PlatformDeleteLanguageParams struct {
+	ActorID uuid.UUID
+	Code    string
+}
+
+func (q *Queries) PlatformDeleteLanguage(ctx context.Context, arg PlatformDeleteLanguageParams) (bool, error) {
+	row := q.db.QueryRow(ctx, platformDeleteLanguage, arg.ActorID, arg.Code)
+	var platform_delete_language bool
+	err := row.Scan(&platform_delete_language)
+	return platform_delete_language, err
+}
+
 const platformRecoveryRemaining = `-- name: PlatformRecoveryRemaining :one
 SELECT count(*) FROM platform_recovery_codes WHERE admin_id = $1 AND used_at IS NULL
 `
@@ -6359,6 +6404,31 @@ func (q *Queries) PlatformTenantUsers(ctx context.Context, tenantID uuid.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const platformUpdateLanguage = `-- name: PlatformUpdateLanguage :one
+SELECT platform_update_language($1, $2, $3, $4, $5)
+`
+
+type PlatformUpdateLanguageParams struct {
+	ActorID   uuid.UUID
+	Code      string
+	Name      string
+	Active    bool
+	SortOrder int32
+}
+
+func (q *Queries) PlatformUpdateLanguage(ctx context.Context, arg PlatformUpdateLanguageParams) (bool, error) {
+	row := q.db.QueryRow(ctx, platformUpdateLanguage,
+		arg.ActorID,
+		arg.Code,
+		arg.Name,
+		arg.Active,
+		arg.SortOrder,
+	)
+	var platform_update_language bool
+	err := row.Scan(&platform_update_language)
+	return platform_update_language, err
 }
 
 const posShortcutClear = `-- name: PosShortcutClear :exec
