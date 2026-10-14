@@ -1,0 +1,896 @@
+{
+  "@@locale": "ja",
+  "appName": "ARUS",
+  "loginTitleLine1": "レジアクセス",
+  "loginTitleLine2": "ARUS (Aciraba Upgrade System)",
+  "loginSubtitle": "続行するにはログインしてください",
+  "loginEmail": "メールアドレス",
+  "loginEmailHint": "you@company.com",
+  "loginPassword": "パスワード",
+  "loginShowPassword": "パスワードを表示",
+  "loginHidePassword": "パスワードを隠す",
+  "loginRemember": "ログイン状態を保持",
+  "loginSubmit": "ログイン",
+  "loginEmailRequired": "メールアドレスは必須です。",
+  "loginEmailInvalid": "メールアドレスの形式が正しくありません。",
+  "loginPasswordRequired": "パスワードは必須です。",
+  "loginServer": "サーバー",
+  "logout": "ログアウト",
+  "homeWelcome": "ようこそ、{name}さん",
+  "@homeWelcome": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOutlet": "アクティブな店舗",
+  "homeTenant": "事業",
+  "homeComingSoon": "レジ画面を準備しています。",
+  "errorNetwork": "サーバーに接続できません。",
+  "errorTimeout": "サーバーが応答しません。もう一度お試しください。",
+  "errorUnknown": "エラーが発生しました。もう一度お試しください。",
+  "errorInvalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
+  "errorInvalidCredentialsLeft": "メールアドレスまたはパスワードが正しくありません。あと{count}回失敗するとアカウントが一時的にロックされます。",
+  "@errorInvalidCredentialsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorAccountDisabled": "このアカウントは無効化されています。管理者に連絡してください。",
+  "errorNoOutlet": "このアカウントにはアクティブな店舗がありません。管理者に連絡してください。",
+  "errorAccountLocked": "失敗回数が多すぎます。{minutes}分後にもう一度お試しください。",
+  "@errorAccountLocked": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "errorRateLimited": "試行回数が多すぎます。しばらくしてから再試行してください。",
+  "errorUnavailable": "サービスが一時的に利用できません。後でもう一度お試しください。",
+  "errorInternal": "サーバーでエラーが発生しました。",
+  "errorSessionInvalid": "セッションが終了しました。もう一度ログインしてください。",
+  "themeSystem": "システムに従う",
+  "themeLight": "ライト",
+  "themeDark": "ダーク",
+  "textSizeTooltip": "文字サイズ",
+  "textSizeTitle": "文字サイズ",
+  "textSizeSample": "サンプルテキスト:ミルクコーヒー Rp 18.000",
+  "textSizeDecrease": "小さく",
+  "textSizeIncrease": "大きく",
+  "textSizeReset": "リセット",
+  "textSizeDone": "完了",
+  "themeTooltip": "テーマ: {mode}",
+  "posTitle": "レジ",
+  "posSearchHint": "名前、コード、バーコードで検索",
+  "posSearchEmpty": "商品が見つかりません。",
+  "posCartTitle": "カート",
+  "posItemsCount": "{count} 点",
+  "posSubtotal": "小計",
+  "posDiscount": "値引き",
+  "posTaxLine": "消費税",
+  "posOtherCost": "その他の費用",
+  "posTotal": "合計",
+  "posPay": "支払い",
+  "posTaxToggle": "消費税を計算",
+  "posClearCart": "カートを空にする",
+  "posRemoveLine": "削除",
+  "posStock": "在庫 {qty}",
+  "posStockShort": "在庫不足（在庫 {qty}）",
+  "posBelowCost": "原価を下回る価格",
+  "posQuoteFailed": "合計を計算できませんでした。",
+  "posPanelOutlet": "店舗",
+  "posPanelCashier": "キャッシャー",
+  "posPanelBusiness": "事業",
+  "posPanelShift": "シフト",
+  "posPanelToggle": "店舗情報",
+  "posBackHome": "ホームに戻る",
+  "posShiftOpenedAt": "{time} に開始",
+  "posShiftNone": "まだシフトがありません",
+  "shiftOpenTitle": "シフトを開く",
+  "shiftOpenHint": "販売を始める前に、レジ引き出しの開始現金を入力してください。",
+  "shiftOpeningCash": "開始現金 (Rp)",
+  "shiftOpenSubmit": "シフトを開く",
+  "payTitle": "支払い",
+  "payMethod": "方法",
+  "payAmount": "金額 (Rp)",
+  "payExact": "ちょうどの金額",
+  "payAddMethod": "方法を追加",
+  "payRef": "参照番号",
+  "payEraGenerate": "QRISコードを作成",
+  "payEraRegenerate": "QRを再作成",
+  "payEraCreating": "QRを作成中…",
+  "payEraScan": "お客様に {amount} のスキャンと支払いをお願いしてください",
+  "payEraWaiting": "支払い待ち…お支払い完了後にノートが自動保存されます。",
+  "payEraPaid": "QRIS支払いを受け付けました",
+  "payEraFailed": "QRIS支払いが失敗しました。新しいQRを作成してください。",
+  "payEraExpired": "QRの有効期限が切れました。新しいQRを作成してください。",
+  "payEraCancelled": "支払いがキャンセルされました。新しいQRを作成してください。",
+  "payEraNeedPaid": "QRを作成し、支払い完了を待ってください。",
+  "errorEraDisabled": "EraPay統合がサーバーで有効になっていません。",
+  "errorEraNotConfigured": "この店舗にEraPay APIキーが設定されていません。オーナーに支払い方法（Web）で設定してもらってください。",
+  "errorEraRejected": "EraPayがこのQRIS請求を拒否しました。",
+  "errorEraUnavailable": "EraPayに接続できません。もう一度お試しください。",
+  "errorEraNotPaid": "QRIS支払いが未完了、金額不一致、または他のノートに使用済みです。",
+  "payTotalDue": "請求合計",
+  "payPaid": "支払い済み",
+  "payChange": "お釣り",
+  "payShortBy": "{amount} 不足",
+  "paySubmit": "支払いを完了する",
+  "payProcessing": "処理中…",
+  "paySuccessTitle": "取引が完了しました",
+  "paySuccessDoc": "ノート番号 {docNo}",
+  "payNewSale": "新しい取引",
+  "payChangeDue": "お釣り {amount}",
+  "errorShiftRequired": "販売前にシフトを開いてください。",
+  "errorStockInsufficient": "いずれかの商品の在庫が不足しています。",
+  "errorValidation": "入力内容が不正です。確認してください。",
+  "errorForbidden": "この操作を行う権限がありません。",
+  "errorIdempotencyMismatch": "リクエストが前回の取引と競合しています。もう一度お試しください。",
+  "errorMethodInactive": "この支払い方法は無効です。",
+  "errorEditWindow": "編集可能な期間を超えています。",
+  "@themeTooltip": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@posItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@posStock": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@posStockShort": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@posShiftOpenedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@payEraScan": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@payShortBy": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@paySuccessDoc": {
+    "placeholders": {
+      "docNo": {
+        "type": "String"
+      }
+    }
+  },
+  "@payChangeDue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "serverTitle": "サーバーアドレス",
+  "serverHelp": "ARUSサーバーを選択します。実機スマホでテストするには、同じネットワークのPCのIPアドレスを入力します（例: http://192.168.1.10:8080）。",
+  "serverLabel": "サーバーアドレス",
+  "serverInvalid": "http:// または https:// で始まり、アドレスが含まれている必要があります。",
+  "save": "保存",
+  "posCartEmptyTitle": "カートは空です",
+  "posCartEmptyHint": "商品を選んで販売を始めましょう",
+  "languageTooltip": "言語",
+  "languageSystem": "端末に従う",
+  "outletSwitch": "店舗切り替え",
+  "outletSwitchTitle": "店舗を選択",
+  "outletSwitched": "現在 {name} の店舗です",
+  "@outletSwitched": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "outletApprovalTitle": "店舗切り替えの承認",
+  "outletApprovalBody": "レジから {name} への切り替えにはオーナー/スーパーバイザーの承認が必要です。現在のカートは空になります。",
+  "@outletApprovalBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "outletApprovalNone": "移動先の店舗に承認者がいません。",
+  "outletApprover": "承認者",
+  "outletPin": "承認者PIN（6桁）",
+  "outletApprovalConfirm": "承認して切り替え",
+  "errorPinRequired": "オーナー/スーパーバイザーの承認（PIN）が必要です。",
+  "errorInvalidPin": "承認者またはPINが正しくありません。",
+  "errorPinLocked": "試行回数が多すぎたためPINが一時的にロックされています。後でもう一度お試しください。",
+  "posShiftCloseTooltip": "シフトを閉じる",
+  "posSalesTodayTooltip": "本日の売上",
+  "shiftCloseTitle": "シフト {doc} を閉じる",
+  "@shiftCloseTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseBody": "各方法の引き出しにある現金を数えて下に入力してください。差額にはメモとオーナー/スーパーバイザーの承認が必要です。",
+  "shiftCloseOpened": "{time} に開始",
+  "@shiftCloseOpened": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseSales": "{count} ノート、{total}",
+  "@shiftCloseSales": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseVoid": "{count} 件のキャンセル",
+  "@shiftCloseVoid": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCloseReceivable": "売掛金 {amount}",
+  "@shiftCloseReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftColExpected": "期待値",
+  "shiftColCounted": "現金（Rp）",
+  "shiftColDiff": "差額",
+  "shiftFillExpected": "期待値で埋める",
+  "shiftTotalDiff": "差額合計",
+  "shiftNote": "差額メモ",
+  "shiftNoteHint": "差額の原因を説明（3文字以上）",
+  "shiftNeedApproval": "差額があります:オーナー/スーパーバイザーの承認が必要です。",
+  "shiftApprovalNone": "この店舗に承認者がいません。",
+  "shiftCloseSubmit": "シフトを閉じる",
+  "shiftChangedNotice": "サマリー表示後に新しい取引がありました。サマリーは再読み込み済みです。数え直してください。",
+  "shiftClosedTitle": "シフト {doc} を閉じました",
+  "@shiftClosedTitle": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftClosedBody": "サマリーは固定され、サーバーに保存されました。",
+  "shiftTotalExpected": "期待値",
+  "shiftTotalCounted": "数えた額",
+  "shiftOpenNew": "新しいシフトを開く",
+  "shiftDone": "完了",
+  "errorShiftRecapChanged": "サマリー表示後に新しい取引がありました。サマリーを再読み込みしてから数え直してください。",
+  "errorShiftDiffNote": "差額にはメモと承認が必要です。",
+  "errorShiftClosed": "このシフトはすでに閉じています。",
+  "errorShiftAlreadyOpen": "この店舗のシフトはすでに開いています。",
+  "salesTodayTitle": "本日の売上",
+  "salesTodaySummary": "{count} ノート、{total}",
+  "@salesTodaySummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTodaySearch": "ノート番号を検索",
+  "salesTodayEmpty": "まだ売上がありません。",
+  "salesTodayTruncated": "リストが切り詰められました。検索で絞り込んでください。",
+  "saleVoidBadge": "キャンセル",
+  "saleReturnedBadge": "返品 {amount}",
+  "@saleReturnedBadge": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saleCreditBadge": "売掛",
+  "saleDetailCashier": "キャッシャー {name}",
+  "@saleDetailCashier": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleDetailMember": "メンバー {name}",
+  "@saleDetailMember": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReason": "キャンセル理由: {reason}",
+  "@saleVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "saleSubtotal": "小計",
+  "saleDiscount": "値引き",
+  "saleTax": "消費税",
+  "saleOtherCost": "その他の費用",
+  "saleTotal": "合計",
+  "salePaid": "支払い済み",
+  "saleChange": "お釣り",
+  "saleReceivable": "売掛金",
+  "posScanTooltip": "カメラでバーコードをスキャン",
+  "scanTitle": "商品をスキャン",
+  "scanTorch": "ライト",
+  "scanSwitchCamera": "カメラ切り替え",
+  "scanHint": "カメラを商品のバーコードに向けてください",
+  "scanDone": "完了",
+  "scanPermissionDenied": "カメラの権限が拒否されました。スマホの設定でARUSにカメラの使用を許可してください。",
+  "scanCameraError": "カメラを開けませんでした。",
+  "scanAdded": "{name} をカートに追加しました",
+  "@scanAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scanNotFound": "コード {code} は見つかりません",
+  "@scanNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "scanAmbiguous": "コード {code} が複数の商品と一致します。手動で検索してください",
+  "@scanAmbiguous": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "memberChoose": "メンバーを選択",
+  "memberChange": "メンバーを変更",
+  "memberGeneral": "一般のお客様",
+  "memberSearchHint": "名前、コード、電話番号で検索",
+  "memberSearchEmpty": "メンバーが見つかりません。",
+  "memberRemove": "メンバーを外す",
+  "memberPoints": "{points} ポイント",
+  "@memberPoints": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberPointsAndDeposit": "{points} ポイント・デポジット {deposit}",
+  "@memberPointsAndDeposit": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "deposit": {
+        "type": "String"
+      }
+    }
+  },
+  "memberEarn": "+{points} ポイント",
+  "@memberEarn": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "memberRedeemTitle": "ポイント交換",
+  "memberRedeemAvailable": "最大 {points} ポイント交換できます（価値 {value}）",
+  "@memberRedeemAvailable": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "memberRedeemField": "交換するポイント",
+  "memberRedeemAll": "すべて",
+  "memberRedeemNone": "このメンバーのポイントはこのノートでまだ交換できません。",
+  "memberRedeemReset": "交換をキャンセル",
+  "memberRedeemDone": "適用",
+  "memberRedeemValue": "値引き {amount}",
+  "@memberRedeemValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "errorRedeemInvalid": "交換ポイントが上限を超えています。数を減らしてください。",
+  "payDepositOver": "デポジットが残高を超えています（{amount}）",
+  "@payDepositOver": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustTitle": "価格/値引きの変更",
+  "adjustBody": "承認者（オーナー/スーパーバイザー）のPINによる承認が必要です。",
+  "adjustItem": "商品",
+  "adjustListPrice": "通常価格",
+  "adjustTabPrice": "価格変更",
+  "adjustTabDiscount": "値引き",
+  "adjustNewPrice": "新しい単価 (Rp)",
+  "adjustDiscountRp": "値引き (Rp)",
+  "adjustDiscountPct": "値引き (%)",
+  "adjustUnitTotal": "行の合計",
+  "adjustUnitPerUnit": "単価あたり",
+  "adjustPercentPreview": "単価あたりの値引き {amount}",
+  "@adjustPercentPreview": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustChecking": "PINを確認中…",
+  "adjustApply": "適用",
+  "adjustReset": "通常価格に戻す",
+  "adjustEditTooltip": "価格/値引きの変更",
+  "adjustBadgePrice": "価格変更",
+  "adjustBadgeDiscount": "値引き {amount}",
+  "@adjustBadgeDiscount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adjustApprovedBy": "{name} が承認",
+  "@adjustApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurcharge": "支払い方法の手数料",
+  "payCharged": "お客様に請求",
+  "payFeeCustomer": "手数料 {rate} = {fee}、お客様に請求されます（お客様は {amount} 支払います）",
+  "@payFeeCustomer": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "payFeeStore": "手数料 {rate} = {fee}、店舗負担",
+  "@payFeeStore": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paySurchargeDone": "方法手数料 {surcharge}・請求 {charged}",
+  "@paySurchargeDone": {
+    "placeholders": {
+      "surcharge": {
+        "type": "String"
+      },
+      "charged": {
+        "type": "String"
+      }
+    }
+  },
+  "costsTitle": "メモとその他の費用",
+  "costsHint": "明細付きのその他の費用（最大20）、例:送料や梱包費。",
+  "costsName": "費用名",
+  "costsAmount": "金額 (Rp)",
+  "costsRemove": "削除",
+  "costsAdd": "費用を追加",
+  "costsTotal": "その他の費用合計",
+  "costsDone": "適用",
+  "costsClear": "すべて削除",
+  "posCostsButton": "メモとその他の費用",
+  "posTaxStore": "店舗税 ({pct}%)",
+  "@posTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posTaxGov": "政府税 ({pct}%)",
+  "@posTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "posCostUnnamed": "その他の費用",
+  "payModePay": "支払い",
+  "payModeCredit": "掛け売り",
+  "payCreditNoMember": "掛け売りはメンバー限定です。先にカートでメンバーを選択してください。",
+  "payCreditNotNeeded": "頭金が合計を支払っています。「支払い」モードを使用してください。",
+  "payCreditDpAdd": "頭金（DP）を追加",
+  "payCreditReceivable": "売掛金（未払残高）",
+  "payCreditDue": "支払期日",
+  "payCreditDueDays": "ノートから {days} 日",
+  "@payCreditDueDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "payCreditNoDue": "期日なし",
+  "payCreditLimit": "与信限度",
+  "payCreditNoLimit": "無制限",
+  "payCreditOutstanding": "現在の売掛金",
+  "payCreditAfter": "このノート後の売掛金",
+  "payCreditOverLimit": "メンバーの与信限度を超えています。承認者とそのPINが必要です。",
+  "payCreditSameApprover": "認証者（価格/値引き変更）と同じ与信限度承認者を使用します。",
+  "errorCreditLimit": "メンバーの売掛金が与信限度を超えています。承認者（PIN）の承認が必要です。",
+  "paySuccessReceivable": "売掛金 {amount}",
+  "@paySuccessReceivable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paySuccessDue": "支払期日 {date}",
+  "@paySuccessDue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingHoldTitle": "ノートを保留",
+  "pendingLabel": "ラベル（任意）",
+  "pendingLabelHint": "お客様名または特徴",
+  "pendingHold": "保留",
+  "pendingHoldTooltip": "ノートを保留",
+  "pendingListTooltip": "保留中のノート",
+  "pendingFull": "保留リストがいっぱいです（最大 {max}）。先に1つ開くか削除してください。",
+  "@pendingFull": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingSaved": "ノートを Pending {no} として保留しました",
+  "@pendingSaved": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpened": "Pending {no} を開きました",
+  "@pendingOpened": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingOpenedSwapped": "Pending {no} を開きました;以前の内容は Pending {saved} として保存されました",
+  "@pendingOpenedSwapped": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingTitle": "保留中のノート（{count}/{max}）",
+  "@pendingTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingHint": "このスマホに保存され、24時間で期限切れになります。開くと価格と在庫が再計算されます。",
+  "pendingEmpty": "保留中のノートがありません。",
+  "pendingNo": "Pending {no}",
+  "@pendingNo": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingLines": "{count} 行",
+  "@pendingLines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingDelete": "削除",
+  "pendingDeleteAsk": "Pending {no} を削除しますか？",
+  "@pendingDeleteAsk": {
+    "placeholders": {
+      "no": {
+        "type": "int"
+      }
+    }
+  },
+  "shortcutsEmpty": "まだショートカットがありません。右のアイコンをタップして設定してください。",
+  "shortcutsManage": "商品ショートカットを管理",
+  "shortcutsTitle": "商品ショートカット",
+  "shortcutsHint": "あなたの16スロット（Webレジと同じ）です。スロットをタップして商品を割り当ててください。",
+  "shortcutsSlotEmpty": "空 — タップして商品を割り当て",
+  "shortcutsInactive": "無効な商品",
+  "shortcutsClear": "スロットを空にする",
+  "salespersonLabel": "営業担当",
+  "salespersonNone": "一般（営業担当なし）",
+  "salespersonSearch": "営業担当を検索",
+  "salespersonEmpty": "営業担当が見つかりません。",
+  "payQuickAmounts": "受け取った現金",
+  "categoryAll": "すべて",
+  "noteLabel": "ノートのメモ",
+  "noteHint": "例:お客様名、預かり、配送先住所",
+  "homeGreetMorning": "おはようございます、{name}さん",
+  "@homeGreetMorning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeGreetNoon": "こんにちは、{name}さん",
+  "@homeGreetNoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeGreetAfternoon": "こんばんは、{name}さん",
+  "@homeGreetAfternoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeGreetNight": "おやすみなさい、{name}さん",
+  "@homeGreetNight": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeTodayTitle": "本日の売上",
+  "homeTodayNotes": "ノート",
+  "homeShiftLabel": "シフト",
+  "homeStallHint": "タップして販売を開始",
+  "pettyMenu": "小口現金",
+  "pettyTitle": "キャッシャー小口現金",
+  "pettyBody": "販売以外で引き出しから出たお金（水の補充、駐車場など）や引き出しに追加したお金を記録します。シフトを閉じるときに計算されます。",
+  "pettyOut": "現金払出",
+  "pettyIn": "現金投入",
+  "pettyAmount": "金額",
+  "pettyCategory": "カテゴリ",
+  "pettyNote": "メモ",
+  "pettySave": "保存",
+  "pettySaved": "小口現金を記録しました。",
+  "pettyHistory": "このシフトの記録",
+  "pettyEmpty": "このシフトにはまだ小口現金がありません。",
+  "pettyVoid": "キャンセル",
+  "pettyVoided": "キャンセル済み",
+  "pettyVoidConfirm": "この記録をキャンセルしますか？期待される引き出し現金が再計算されます。",
+  "pettyApprovedBy": "{name} が承認",
+  "@pettyApprovedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyNeedApproval": "{limit} を超える現金払出にはオーナー/スーパーバイザーの承認（PIN）が必要です。",
+  "@pettyNeedApproval": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "pettyCatOperational": "運営",
+  "pettyCatMeal": "飲食",
+  "pettyCatTransport": "駐車場/移動",
+  "pettyCatSupplies": "消耗品",
+  "pettyCatChange": "釣り銭補充",
+  "pettyCatMisc": "その他",
+  "errorPettyVoided": "この小口現金記録はすでにキャンセルされています。",
+  "errorNoCashMethod": "現金支払い方法が利用できません。",
+  "homePettyHint": "引き出しの入出金を記録",
+  "updateTitle": "アップデートがあります",
+  "updateVersions": "インストール済み {current} → 新バージョン {latest}",
+  "@updateVersions": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "updateBody": "ARUSを最新バージョンに更新して続行してください。",
+  "updateNow": "今すぐ更新",
+  "updateRetry": "再試行",
+  "updateDownloading": "アップデートをダウンロード中…",
+  "updateInstalling": "インストーラーを開いています…",
+  "updatePermission": "開いた画面でARUSにアプリのインストールを許可し、ここに戻って「今すぐ更新」をタップしてください。",
+  "updateFailed": "アップデートをダウンロードできませんでした。接続を確認して再試行してください。",
+  "appVersion": "バージョン {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverPresetProd": "本番",
+  "serverPresetEmulator": "エミュレーター",
+  "serverPresetCustom": "または他のアドレスを入力:",
+  "posPanelVersion": "アプリバージョン",
+  "printerMenu": "レシートプリンター",
+  "printerTitle": "レシートプリンター（Bluetooth）",
+  "printerHint": "先にAndroid設定>Bluetoothでプリンターをペアリングし、ここで選択してください。この設定はこのスマホだけに適用されます。",
+  "printerRefresh": "リストを再読み込み",
+  "printerNonePaired": "ペアリング済みのBluetoothデバイスがまだありません。Android設定でプリンターをペアリングしてから再読み込みしてください。",
+  "printerPaper": "用紙幅",
+  "printerPaper58": "58 mm",
+  "printerPaper80": "80 mm",
+  "printerCut": "用紙を自動カット",
+  "printerAuto": "支払い後にレシートを自動印刷",
+  "printerTest": "プリンターをテスト",
+  "printerTestSent": "テストページを送信しました。",
+  "printerNotConfigured": "プリンターが選択されていません。先にBluetoothプリンターを選択してください。",
+  "printerPermissionDenied": "Bluetoothの権限が拒否されました。アプリ設定でARUSにBluetoothの使用を許可してください。",
+  "printerBluetoothOff": "Bluetoothがオフです。オンにしてから再試行してください。",
+  "printerConnectFailed": "プリンターに接続できません。プリンターの電源が入っていて、スマホの近くにあることを確認してください。",
+  "printerWriteFailed": "プリンターへのデータ送信に失敗しました。プリンターを確認してから再試行してください。",
+  "printReceipt": "レシートを印刷",
+  "printReprint": "再印刷",
+  "printPrinting": "印刷中…",
+  "printFailed": "レシート印刷に失敗しました: {error}",
+  "@printFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptNo": "番号",
+  "receiptDate": "日付",
+  "receiptCashier": "キャッシャー",
+  "receiptMember": "メンバー",
+  "receiptSalesperson": "営業",
+  "receiptCopy": "*** {n} 枚目のコピー ***",
+  "@receiptCopy": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptVoid": "*** キャンセル済み ***",
+  "receiptSuperseded": "*** 改訂で差し替え ***",
+  "receiptLineDiscount": "値引き",
+  "receiptSubtotal": "小計",
+  "receiptDiscount": "割引",
+  "receiptVoucher": "クーポン {code}",
+  "@receiptVoucher": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptRedeem": "{points} ポイント交換",
+  "@receiptRedeem": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptTaxStore": "店舗税 {pct}%",
+  "@receiptTaxStore": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptTaxGov": "税 {pct}%",
+  "@receiptTaxGov": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptOtherCost": "その他の費用",
+  "receiptTotal": "合計",
+  "receiptSurcharge": "支払い手数料",
+  "receiptCharged": "請求合計",
+  "receiptReceivable": "売掛",
+  "receiptDue": "支払期日",
+  "receiptChange": "お釣り",
+  "receiptSaved": "お得額",
+  "receiptPointsEarned": "獲得ポイント",
+  "receiptTestTitle": "プリンターのテストページ"
+}

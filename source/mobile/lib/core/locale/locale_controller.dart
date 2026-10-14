@@ -5,13 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../session/session_controller.dart';
 
-/// Pilihan bahasa per perangkat: null = ikut HP (bawaan), atau `id` / `en`. Disimpan di SharedPreferences.
+/// Pilihan bahasa per perangkat: null = ikut HP (bawaan), atau `id` / `en` / `ja`. Disimpan di SharedPreferences.
 final localeProvider = NotifierProvider<LocaleController, Locale?>(
   LocaleController.new,
 );
 
 class LocaleController extends Notifier<Locale?> {
   static const _key = 'arus.locale';
+  static const _candidates = {'id', 'en', 'ja'};
 
   @override
   Locale? build() {
@@ -22,7 +23,7 @@ class LocaleController extends Notifier<Locale?> {
   Future<void> _load() async {
     try {
       final v = (await SharedPreferences.getInstance()).getString(_key);
-      if (v == 'id' || v == 'en') _apply(Locale(v!));
+      if (v != null && _candidates.contains(v)) _apply(Locale(v));
     } catch (_) {
       // Penyimpanan tidak tersedia: tetap ikut HP.
     }
@@ -67,6 +68,7 @@ class LanguageButton extends ConsumerWidget {
         PopupMenuItem(value: '', child: Text(l.languageSystem)),
         const PopupMenuItem(value: 'id', child: Text('Bahasa Indonesia')),
         const PopupMenuItem(value: 'en', child: Text('English')),
+        const PopupMenuItem(value: 'ja', child: Text('日本語')),
       ],
     );
   }
