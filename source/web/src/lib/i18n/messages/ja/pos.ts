@@ -192,6 +192,7 @@ const pos: Messages['pos'] = {
     change: '釣銭',
     saved: 'お得額',
     pointsEarned: '獲得ポイント',
+    erapayPending: '*** EraPayの確認が必要 ***',
     print: 'レシートを印刷',
     reprint: '再印刷',
     printing: '印刷中…',
@@ -260,7 +261,12 @@ const pos: Messages['pos'] = {
     qrAlt: 'QRISコード',
     failed: 'QRIS支払いに失敗しました。新しいQRを作成してください。',
     expired: 'QRの有効期限が切れました。新しいQRを作成してください。',
-    cancelled: '支払いがキャンセルされました。新しいQRを作成してください。'
+    cancelled: '支払いがキャンセルされました。新しいQRを作成してください。',
+    forceShow: 'EraPayに接続できない場合は強制保存',
+    forceHint: '強制保存: 伝票は保存され「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は取消しされ、在庫が戻ります。オーナー/スーパーバイザーの承認が必要です。',
+    forceNoApprovers: 'EraPayの確認を承認できるPINを持つオーナー/スーパーバイザーがいません。権限を付与し、PINを設定してもらってください。',
+    pendingTitle: 'QRIS支払いがまだ未確認です',
+    pendingNotice: '伝票は「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は自動的に取消しされ、在庫が戻ります。'
   },
   payPaid: '受領額',
   payTotalPaid: '支払合計:',
