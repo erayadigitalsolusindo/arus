@@ -33,7 +33,7 @@ import (
 	"aciraba/internal/posshortcut"
 	"aciraba/internal/purchasing"
 	"aciraba/internal/receivable"
-	"aciraba/internal/reports/sales"
+	reports_sales "aciraba/internal/reports/sales"
 	"aciraba/internal/sales"
 	"aciraba/internal/shift"
 	"aciraba/internal/stock"
