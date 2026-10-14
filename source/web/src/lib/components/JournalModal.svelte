@@ -54,6 +54,7 @@
   // ---- Draf lokal (hanya mode halaman, jurnal baru) ----
   const draftPath = '/accounting/journals/new';
   const draftOwner = session.tenant && session.outlet && session.user ? `${session.tenant.id}:${session.outlet.id}:${session.user.id}` : '';
+  /* svelte-ignore state_referenced_locally */
   const useDraft = page && !id && !opening && draftOwner !== '';
   type Draft = { owner: string; type: string; date: string; narration: string; rows: Omit<Row, 'k'>[] };
   const collect = (): Draft => ({

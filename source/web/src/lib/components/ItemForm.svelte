@@ -115,8 +115,11 @@
   if (canWrite) {
     const d = drafts.load<Draft>(draftPath);
     if (d) {
+      /* svelte-ignore state_referenced_locally */
       ({ sku, barcode, origin, name, weight, minStock, cost, sellPrice, kind, active, allowNegative, belowCost, description } = d);
+      /* svelte-ignore state_referenced_locally */
       ({ unitId, unitLabel, categoryId, categoryLabel, brandId, brandLabel, principalId, principalLabel, supplierId, supplierLabel } = d);
+      /* svelte-ignore state_referenced_locally */
       ({ outletPrices, defaultTiers, outletTierSets, unitRows } = d);
       restored = true;
     }
