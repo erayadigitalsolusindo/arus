@@ -21,6 +21,7 @@ let current = $state<Locale>(detect());
 function applyHtmlLang(locale: Locale) {
   document.documentElement.lang = locale;
 }
+/* svelte-ignore state_referenced_locally */
 applyHtmlLang(current);
 
 export const i18n = {
