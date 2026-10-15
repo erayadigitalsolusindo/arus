@@ -29,6 +29,9 @@ const (
 
 	// MaxAPKBytes = batas ukuran APK. Proxy di depan API harus mengizinkan body sebesar ini.
 	MaxAPKBytes = 150 << 20
+
+	// apkUploadTimeout = batas total satu unggahan (menggantikan Read/WriteTimeout server yang 30 dtk).
+	apkUploadTimeout = 10 * time.Minute
 )
 
 var apkVersionRe = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z._+-]{0,31}$`)
@@ -146,6 +149,13 @@ func (h *Handler) APKUpload(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusServiceUnavailable, "APK_DISABLED", "Penyimpanan APK tidak aktif.")
 		return
 	}
+	// http.Server memakai Read/WriteTimeout 30 dtk untuk semua rute; APK sampai 150 MB lewat jaringan seluler/ISP
+	// butuh lebih lama. Tanpa ini koneksi diputus di tengah unggahan dan browser hanya melihat "gagal terhubung".
+	rc := http.NewResponseController(w)
+	deadline := time.Now().Add(apkUploadTimeout)
+	_ = rc.SetReadDeadline(deadline)
+	_ = rc.SetWriteDeadline(deadline)
+
 	r.Body = http.MaxBytesReader(w, r.Body, MaxAPKBytes+1<<20)
 	mr, err := r.MultipartReader()
 	if err != nil {
