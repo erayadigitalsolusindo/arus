@@ -92,6 +92,7 @@ class PosRepository {
           {'name': c.name, 'amount': decToApi(c.amount, scale: 2)},
       ],
     if (d.credit) 'credit': true,
+    if (d.forceEraPay) 'force_erapay': true,
     'salesperson_id': ?d.salesperson?.id,
     if (d.note.trim().isNotEmpty) 'note': d.note.trim(),
     'member_id': ?d.member?.id,

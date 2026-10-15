@@ -191,6 +191,7 @@ export default {
     change: 'Kembali',
     saved: 'Anda hemat',
     pointsEarned: 'Poin didapat',
+    erapayPending: '*** PERLU DI CEK DI ERAPAY ***',
     print: 'Cetak struk',
     reprint: 'Cetak ulang',
     printing: 'Mencetak…',
@@ -259,7 +260,12 @@ export default {
     qrAlt: 'Kode QRIS',
     failed: 'Pembayaran QRIS gagal. Buat QR baru.',
     expired: 'QR kedaluwarsa. Buat QR baru.',
-    cancelled: 'Pembayaran dibatalkan. Buat QR baru.'
+    cancelled: 'Pembayaran dibatalkan. Buat QR baru.',
+    forceShow: 'EraPay tidak dapat dihubungi? Simpan paksa',
+    forceHint: 'Simpan paksa: nota disimpan & ditandai "perlu dicek di EraPay", lalu dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan & stok kembali. Butuh persetujuan Owner/Supervisor.',
+    forceNoApprovers: 'Belum ada Owner/Supervisor ber-PIN yang boleh menyetujui pengecekan EraPay. Atur izin & PIN-nya terlebih dahulu.',
+    pendingTitle: 'Pembayaran QRIS belum terverifikasi',
+    pendingNotice: 'Nota ditandai "perlu dicek di EraPay" & dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan otomatis & stok dikembalikan.'
   },
   payPaid: 'Diterima',
   payTotalPaid: 'Total Bayar:',

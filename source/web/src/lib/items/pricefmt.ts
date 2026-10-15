@@ -2,7 +2,7 @@
 import { t, formatCurrency } from '#lib/i18n/index.ts';
 import type { PriceChange, PriceEvent } from './api.ts';
 
-const money = (v: string) => formatCurrency(Number(v), 'IDR', { maximumFractionDigits: 2 });
+const money = (v: string) => formatCurrency(Number(v), { maximumFractionDigits: 2 });
 
 /** Set tier dari server berbentuk "min:harga,min:harga" → "≥3 · Rp11.500, ≥6 · Rp11.000". */
 const tiers = (v: string) =>

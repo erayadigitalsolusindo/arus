@@ -1,0 +1,204 @@
+# Spec test: Laporan Penjualan Per Tanggal
+# Format: YAML with input + expected output
+# Backend service: GET /reports/sales/by-date
+
+- name: "Laporan per tanggal - grand total + breakdown metode"
+  description: |
+    Nota completed pada 2 tanggal berbeda, plus void dan retur.
+    paid netto = Σ(paid − change) per completed sale.
+    void_total ditampilkan positif (supaya net = paid − void − return).
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-15"
+      to: "2026-01-15"
+  setup:
+    # Outlet: test-outlet (timezone Asia/Jakarta)
+    # Kasir: kasir-1
+    - id: sales_scenario
+      type: sales_batch
+      outlet: test-outlet
+      cashier: kasir-1
+      notes:
+        # Nota 1: Tunai Rp 110.000, kembalian Rp 10.000 → paid netto = 100.000
+        - doc_no: "TST-20260115-0001"
+          status: completed
+          subtotal: "100000"
+          discount: "0"
+          tax_store: "10000"
+          tax_gov: "0"
+          total: "110000"
+          paid: "110000"
+          change: "10000"
+          receivable: "0"
+          payments:
+            - method: cash
+              amount: "110000"
+        # Nota 2: QRIS Rp 55.000, tanpa kembalian
+        - doc_no: "TST-20260115-0002"
+          status: completed
+          subtotal: "50000"
+          discount: "0"
+          tax_store: "5000"
+          tax_gov: "0"
+          total: "55000"
+          paid: "55000"
+          change: "0"
+          receivable: "0"
+          payments:
+            - method: ewallet
+              method_name: "QRIS BCA"
+              amount: "55000"
+        # Nota 3: Void, tunai Rp 30.000 (sebelum dibatalkan)
+        - doc_no: "TST-20260115-0003"
+          status: void
+          subtotal: "25000"
+          discount: "0"
+          tax_store: "2500"
+          tax_gov: "0"
+          total: "27500"
+          paid: "30000"
+          change: "2500"
+          receivable: "0"
+          payments:
+            - method: cash
+              amount: "30000"
+        # Retur Nota 1: Rp 20.000 (uang kembali ke pelanggan)
+        - doc_no: "RTN-20260115-0001"
+          sale_ref: "TST-20260115-0001"
+          status: completed
+          return_date: "2026-01-15"
+          subtotal: "18000"
+          discount: "0"
+          tax_amount: "2000"
+          total: "20000"
+          receivable_cut: "0"
+          refund: "20000"
+          refund_method: cash
+  expect:
+    status: 200
+    body:
+      from: "2026-01-15"
+      to: "2026-01-15"
+      data:
+        - date: "2026-01-15"
+          sale_count: 2
+          void_count: 1
+          subtotal: "150000.00"        # Σ nota completed subtotal
+          discount: "0.00"
+          tax_store: "15000.00"       # 10000 + 5000
+          tax_gov: "0.00"
+          total: "165000.00"           # 110000 + 55000
+          paid: "155000.00"            # (110000-10000) + 55000 = 100000 + 55000
+          receivable: "0.00"
+          void_total: "27500.00"       # ditampilkan positif
+          return_count: 1
+          return_total: "20000.00"
+          net_total: "117500.00"      # 155000 - 27500 - 20000
+          methods:
+            # cash netto = Σ paid cash − change = 110000 - 10000 = 100000
+            - name: "Tunai"
+              kind: "cash"
+              amount: "100000.00"
+              fee: "0.00"
+              surcharge: "0.00"
+            - name: "QRIS BCA"
+              kind: "ewallet"
+              amount: "55000.00"
+              fee: "0.00"
+              surcharge: "0.00"
+
+- name: "Laporan per tanggal - rentang tanpa data"
+  description: Tanggal tanpa transaksi sama sekali harus muncul dengan nilai 0, bukan absent.
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-20"
+      to: "2026-01-20"
+  setup: []
+  expect:
+    status: 200
+    body:
+      from: "2026-01-20"
+      to: "2026-01-20"
+      data:
+        - date: "2026-01-20"
+          sale_count: 0
+          void_count: 0
+          subtotal: "0.00"
+          discount: "0.00"
+          tax_store: "0.00"
+          tax_gov: "0.00"
+          total: "0.00"
+          paid: "0.00"
+          receivable: "0.00"
+          void_total: "0.00"
+          return_count: 0
+          return_total: "0.00"
+          net_total: "0.00"
+
+- name: "Laporan per tanggal - sembunyikan hari kosong"
+  description: hide_empty=true hanya mengembalikan hari beraktivitas (jual/batal/retur); tanpa itu deret tanggal penuh.
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-15"
+      to: "2026-01-16"
+      hide_empty: "true"
+  setup:
+    - id: sales_scenario
+      type: sales_batch
+      outlet: test-outlet
+      cashier: kasir-1
+      notes:
+        - doc_no: "TST-20260115-0001"
+          status: completed
+          subtotal: "100000"
+          discount: "0"
+          tax_store: "10000"
+          tax_gov: "0"
+          total: "110000"
+          paid: "110000"
+          change: "10000"
+          receivable: "0"
+          payments:
+            - method: cash
+              amount: "110000"
+  expect:
+    status: 200
+    body:
+      from: "2026-01-15"
+      to: "2026-01-16"
+      data:
+        - date: "2026-01-15"
+          sale_count: 1
+          paid: "100000.00"
+          net_total: "100000.00"
+
+- name: "Laporan per tanggal - validasi from > to"
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-31"
+      to: "2026-01-01"
+  expect:
+    status: 400
+    body:
+      error:
+        code: "VALIDATION_ERROR"
+
+- name: "Laporan per tanggal - tanpa izin"
+  description: Pengguna tanpa modul sales_reports mendapat 403.
+  request:
+    method: GET
+    path: /reports/sales/by-date
+    params:
+      from: "2026-01-15"
+      to: "2026-01-15"
+  as: unprivileged_user  # user tanpa sales_reports
+  expect:
+    status: 403

@@ -41,7 +41,7 @@
   // Kolom stok per bucket (huruf pertama: D = display, G = gudang, R = retur) lalu Σ = total.
   // HPP per cabang: mode semua cabang menampilkan rentang termurah–termahal; selain itu HPP outlet aktif.
   function costRange(r: Row, field: 'avg_cost' | 'last_cost'): string {
-    const fmt = (v: number) => formatCurrency(v, 'IDR', { maximumFractionDigits: 2 });
+    const fmt = (v: number) => formatCurrency(v, { maximumFractionDigits: 2 });
     const vals = (r.outlets ?? []).map((o) => Number(o[field]));
     if (!allMode || vals.length === 0) return fmt(Number(r[field]));
     const lo = Math.min(...vals);
@@ -294,7 +294,7 @@
                           <td class="py-1.5">{o.name} <span class="font-mono text-[11px] text-[var(--text-tertiary)]">{o.code}</span></td>
                           {#each STOCK_COLS as c (c.bucket)}<td class="py-1.5 text-end tabular-nums {stockClass(r, o.stock[c.bucket])}">{stockText(r, o.stock[c.bucket])}</td>{/each}
                           <td class="py-1.5 text-end font-semibold tabular-nums {stockClass(r, o.stock.total)}">{stockText(r, o.stock.total)}</td>
-                          <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.avg_cost), 'IDR', { maximumFractionDigits: 2 })}</td>
+                          <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.avg_cost), { maximumFractionDigits: 2 })}</td>
                           <td class="py-1.5 text-end whitespace-nowrap">{formatCurrency(Number(o.price))}</td>
                         </tr>
                       {/each}

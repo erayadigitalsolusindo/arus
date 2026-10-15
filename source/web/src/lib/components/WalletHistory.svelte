@@ -10,7 +10,7 @@
     onmore
   }: { entries: WalletEntry[]; hasMore?: boolean; loading?: boolean; onmore?: () => void } = $props();
 
-  const money = (v: string) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string) => formatCurrency(Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 </script>
 
 <div class="overflow-x-auto scroll-thin rounded-lg border border-[var(--border-subtle)]">

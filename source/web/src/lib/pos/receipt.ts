@@ -115,6 +115,7 @@ export function receiptLines(rc: Receipt, paper: Paper, copy = 0): ReceiptLine[]
   if (copy > 0) centered(t('pos.receipt.copy', { n: copy }), { bold: true });
   if (sale.status === 'void') centered(t('pos.receipt.void'), { bold: true });
   else if (sale.status === 'superseded') centered(t('pos.receipt.superseded'), { bold: true });
+  if (sale.erapay_pending) centered(t('pos.receipt.erapayPending'), { bold: true });
   rule();
 
   let lineDisc = 0n;

@@ -31,6 +31,8 @@ export type SaleInput = {
   credit?: boolean;
   /** Wajib bila ada baris dengan unit_price (ubah harga): penyetuju Owner/Supervisor + PIN-nya. */
   approval?: { user_id: string; pin: string };
+  /** Simpan paksa nota QRIS EraPay yang belum terverifikasi lunas (penyedia down). Wajib approval berizin qris_force. */
+  force_erapay?: boolean;
 };
 
 /** Piutang yang melekat pada nota kredit (keadaan sekarang). */
@@ -76,6 +78,8 @@ export type Sale = {
   superseded_by?: string;
   revision_reason?: string;
   void_reason?: string;
+  /** Nota disimpan paksa karena pembayaran QRIS EraPay belum terverifikasi lunas ("perlu dicek di EraPay"). */
+  erapay_pending?: boolean;
 };
 
 /** Hasil hitung server tanpa menyimpan (pratinjau kasir): harga grosir/satuan/pajak outlet sudah diterapkan. */

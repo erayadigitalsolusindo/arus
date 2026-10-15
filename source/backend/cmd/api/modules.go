@@ -33,6 +33,8 @@ import (
 	"aciraba/internal/posshortcut"
 	"aciraba/internal/purchasing"
 	"aciraba/internal/receivable"
+	reports_sales "aciraba/internal/reports/sales"
+	reports_stock "aciraba/internal/reports/stock"
 	"aciraba/internal/sales"
 	"aciraba/internal/shift"
 	"aciraba/internal/stock"
@@ -109,7 +111,8 @@ func mountModules(r chi.Router, d appDeps) error {
 		return err
 	}
 	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken)
-	salesH := sales.NewHandler(sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc), perms, tokens, d.Log).WithNotifier(liveHub.Notify)
+	salesSvc := sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc)
+	salesH := sales.NewHandler(salesSvc, perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
 	salesH.ReturnRoutes(r)
@@ -129,6 +132,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
 	accSvc := accounting.NewService(d.Pool)
 	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
+	reportsSalesSvc := reports_sales.NewService(d.Pool)
+	reports_sales.NewHandler(reportsSalesSvc, perms, tokens, d.Log).Routes(r)
+	reports_stock.NewHandler(reports_stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	aiSvc, err := ai.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret, ai.Free{Key: d.Cfg.AIPlatformKey, Limit: d.Cfg.AIFreeDailyLimit}, d.Log)
 	if err != nil {
 		return err
@@ -138,6 +144,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	ai.NewMCPHandler(aiSvc, perms, tokens, d.Redis, d.Log, d.Cfg.APIBaseURL, d.Cfg.AppBaseURL).Routes(r)
 	if d.Cfg.AutoJournal {
 		go accounting.NewScheduler(accSvc, d.Pool, d.Log).Run(d.Ctx) // draf jurnal otomatis tiap malam; berhenti saat shutdown
+	}
+	if d.Cfg.EraPayReconcile {
+		go sales.NewEraPayReconciler(salesSvc, d.Pool, d.Log).Run(d.Ctx) // verifikasi nota paksa ke EraPay; berhenti saat shutdown
 	}
 	return nil
 }

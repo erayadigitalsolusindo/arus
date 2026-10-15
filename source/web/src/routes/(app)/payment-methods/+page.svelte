@@ -155,7 +155,7 @@
   function feeText(m: PaymentMethod): string {
     const parts: string[] = [];
     if (Number(m.fee_pct) > 0) parts.push(`${formatNumber(Number(m.fee_pct), { maximumFractionDigits: 2 })}%`);
-    if (Number(m.fee_flat) > 0) parts.push(formatCurrency(Number(m.fee_flat), 'IDR', { maximumFractionDigits: 2 }));
+    if (Number(m.fee_flat) > 0) parts.push(formatCurrency(Number(m.fee_flat), { maximumFractionDigits: 2 }));
     if (!parts.length) return t('catalog.paymentMethods.noFee');
     return `${parts.join(' + ')} · ${t(m.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore')}`;
   }

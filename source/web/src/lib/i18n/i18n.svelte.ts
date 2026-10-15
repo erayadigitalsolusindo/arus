@@ -21,6 +21,7 @@ let current = $state<Locale>(detect());
 function applyHtmlLang(locale: Locale) {
   document.documentElement.lang = locale;
 }
+/* svelte-ignore state_referenced_locally */
 applyHtmlLang(current);
 
 export const i18n = {
@@ -99,8 +100,11 @@ export function formatNumber(n: number | bigint, options?: Intl.NumberFormatOpti
   return new Intl.NumberFormat(i18n.intl, options).format(n);
 }
 
-/** Uang rupiah dengan 2 desimal secara default (tampilan; perhitungan tetap di server). */
-export function formatCurrency(n: number | bigint, currency = 'IDR', options?: Intl.NumberFormatOptions): string {
+/** Uang dengan simbol mata uang mengikuti bahasa aktif (nilai tetap Rupiah dari server; tampilan saja).
+ *  Dukungan dua bentuk: `formatCurrency(n)` / `formatCurrency(n, { …options })` / `formatCurrency(n, 'USD', { ... })`. */
+export function formatCurrency(n: number | bigint, currencyOrOptions?: string | Intl.NumberFormatOptions, maybeOptions?: Intl.NumberFormatOptions): string {
+  const currency = typeof currencyOrOptions === 'string' ? currencyOrOptions : LOCALES[i18n.locale].currency;
+  const options = typeof currencyOrOptions === 'string' ? maybeOptions : currencyOrOptions;
   return new Intl.NumberFormat(i18n.intl, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2, ...options }).format(n);
 }
 

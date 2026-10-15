@@ -90,7 +90,7 @@ const catalog: Messages['catalog'] = {
     nameHint: '例: QRIS BCA、GoPay、Mandiri振込。',
     fee: '手数料（MDR）',
     feePct: '手数料（%）',
-    feeFlat: '固定手数料（Rp）',
+    feeFlat: '固定手数料',
     feeHint: 'パーセント、金額、またはその両方を入力します。手数料なしの場合は空のままにします。',
     feeCash: '現金には手数料はかかりません。',
     presets: 'クイック選択（銀行/電子ウォレット）',

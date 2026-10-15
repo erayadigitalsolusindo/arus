@@ -46,7 +46,7 @@
   });
 
   // ---- format ----
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const money = (v: string | number) => formatCurrency(Number(v), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const compact = (v: number) => formatNumber(v, { notation: 'compact', maximumFractionDigits: 1 });
   const pct = (p: number) => formatNumber(p / 100, { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' });
   const localDate = (s: string) => {

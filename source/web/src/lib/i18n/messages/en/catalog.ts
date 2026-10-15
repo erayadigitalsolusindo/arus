@@ -90,7 +90,7 @@ const catalog: Messages['catalog'] = {
     nameHint: 'Examples: QRIS BCA, GoPay, Mandiri Transfer.',
     fee: 'Fee (MDR)',
     feePct: 'Fee (%)',
-    feeFlat: 'Flat fee (IDR)',
+    feeFlat: 'Flat fee',
     feeHint: 'Enter a percentage, an amount, or both. Leave empty for no fee.',
     feeCash: 'Cash carries no fee.',
     presets: 'Quick picks (bank / e-wallet)',

@@ -129,6 +129,29 @@ export const nav: NavGroup[] = [
     ]
   },
   {
+    titleKey: 'nav.group.reports',
+    items: [
+      {
+        id: 'salesReports',
+        labelKey: 'nav.salesReports',
+        icon: 'file-bar-chart',
+        module: 'sales_reports',
+        children: [
+          { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' },
+          { labelKey: 'nav.salesDetail', module: 'sales_reports', href: '/reports/sales/detail' }
+        ]
+      },
+      {
+        id: 'masterReports',
+        labelKey: 'nav.masterReports',
+        icon: 'database',
+        children: [
+          { labelKey: 'nav.stockReport', module: 'stock_reports', href: '/reports/stock/valuation' }
+        ]
+      }
+    ]
+  },
+  {
     titleKey: 'nav.group.system',
     items: [
       { id: 'users', labelKey: 'nav.users', icon: 'users', module: 'users', href: '/users' },

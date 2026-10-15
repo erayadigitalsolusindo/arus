@@ -186,6 +186,24 @@ class _PosPageState extends ConsumerState<PosPage> {
                 ),
               ),
             ],
+            if (r.erapayPending) ...[
+              const SizedBox(height: 10),
+              Text(
+                l.payEraPendingTitle,
+                style: TextStyle(
+                  color: context.pal.warningText,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l.payEraPendingNotice,
+                style: TextStyle(
+                  color: context.pal.textTertiary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),

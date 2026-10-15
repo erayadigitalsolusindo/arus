@@ -89,7 +89,7 @@
       ]
     }
   ];
-  const money = (c: bigint) => formatCurrency(centsToNumber(c), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (c: bigint) => formatCurrency(centsToNumber(c), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ---------- Katalog ----------
   let q = $state('');
@@ -2120,7 +2120,7 @@
               onchange={(e) => renamePending(n, e.currentTarget.value)}
               onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             />
-            {#if n.total}<span class="shrink-0 font-bold tabular-nums text-[13px]">{formatCurrency(Number(n.total), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>{/if}
+            {#if n.total}<span class="shrink-0 font-bold tabular-nums text-[13px]">{formatCurrency(Number(n.total), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>{/if}
             <button type="button" class="btn btn-primary btn-sm" onclick={() => openPending(n)}>{t('pos.pendingOpen')}</button>
             <button type="button" class="header-icon-btn" aria-label={t('pos.pendingDelete')} title={t('pos.pendingDelete')} onclick={() => deletePending(n)}><i class="icon-trash-2 text-[15px]"></i></button>
           </li>

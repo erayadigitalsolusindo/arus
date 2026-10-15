@@ -244,7 +244,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter the opening cash in the drawer before you start selling.';
 
   @override
-  String get shiftOpeningCash => 'Opening cash (Rp)';
+  String get shiftOpeningCash => 'Opening cash (\$)';
 
   @override
   String get shiftOpenSubmit => 'Open shift';
@@ -256,7 +256,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payMethod => 'Method';
 
   @override
-  String get payAmount => 'Amount (Rp)';
+  String get payAmount => 'Amount (\$)';
 
   @override
   String get payExact => 'Exact amount';
@@ -299,6 +299,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get payEraNeedPaid => 'Create the QR and wait for the payment.';
+
+  @override
+  String get payEraForceShow => 'EraPay unreachable? Force save';
+
+  @override
+  String get payEraForceHint =>
+      'Force save: the sale is saved and flagged \"check with EraPay\", then reconciled automatically. If it turns out unpaid, the sale is voided and stock restored. Owner/Supervisor approval required.';
+
+  @override
+  String get payEraPendingTitle => 'QRIS payment not verified yet';
+
+  @override
+  String get payEraPendingNotice =>
+      'The sale is flagged \"check with EraPay\" and reconciled automatically. If it turns out unpaid, the sale is voided automatically and stock restored.';
 
   @override
   String get errorEraDisabled =>
@@ -485,7 +499,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shiftColExpected => 'Expected';
 
   @override
-  String get shiftColCounted => 'Counted (Rp)';
+  String get shiftColCounted => 'Counted (\$)';
 
   @override
   String get shiftColDiff => 'Difference';
@@ -748,10 +762,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adjustTabDiscount => 'Discount';
 
   @override
-  String get adjustNewPrice => 'New unit price (Rp)';
+  String get adjustNewPrice => 'New unit price (\$)';
 
   @override
-  String get adjustDiscountRp => 'Discount (Rp)';
+  String get adjustDiscountRp => 'Discount (\$)';
 
   @override
   String get adjustDiscountPct => 'Discount (%)';
@@ -824,7 +838,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get costsName => 'Cost name';
 
   @override
-  String get costsAmount => 'Amount (Rp)';
+  String get costsAmount => 'Amount (\$)';
 
   @override
   String get costsRemove => 'Remove';
@@ -1298,6 +1312,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiptSuperseded => '*** REPLACED BY REVISION ***';
+
+  @override
+  String get receiptEraPending => '*** CHECK WITH ERAPAY ***';
 
   @override
   String get receiptLineDiscount => 'Discount';
