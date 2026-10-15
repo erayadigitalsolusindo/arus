@@ -41,6 +41,7 @@ export default {
     purchase_invoices: 'Faktur Pembelian',
     purchase_returns: 'Retur Pembelian',
     purchase_list: 'Daftar Pembelian',
+    purchase_reports: 'Laporan Pembelian (per faktur, barang & tanggal)',
     buy_price_history: 'History Harga Beli',
     supplier_payables: 'Hutang Suplier',
     supplier_credits: 'Kredit Pemasok (pencairan)',

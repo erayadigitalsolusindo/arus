@@ -148,6 +148,18 @@ export const nav: NavGroup[] = [
         ]
       },
       {
+        id: 'purchaseReports',
+        labelKey: 'nav.purchaseReports',
+        icon: 'file-bar-chart',
+        module: 'purchase_reports',
+        children: [
+          { labelKey: 'nav.purchaseReportInvoice', module: 'purchase_reports', href: '/reports/purchases/invoices' },
+          { labelKey: 'nav.purchaseReportInvoiceDetail', module: 'purchase_reports', href: '/reports/purchases/invoice-detail' },
+          { labelKey: 'nav.purchaseReportItem', module: 'purchase_reports', href: '/reports/purchases/items' },
+          { labelKey: 'nav.purchaseReportByDate', module: 'purchase_reports', href: '/reports/purchases/by-date' }
+        ]
+      },
+      {
         id: 'masterReports',
         labelKey: 'nav.masterReports',
         icon: 'database',
