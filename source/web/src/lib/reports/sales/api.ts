@@ -412,3 +412,148 @@ export function salesCashiersFileUrl(params: SalesCashiersParams, format: 'xlsx'
 	qs.set('format', format);
 	return `/reports/sales/cashiers?${qs}`;
 }
+
+// ── Penjualan per faktur detail (datar, dengan isi barang) ──────────────────────
+
+// GET /reports/sales/invoice-detail — respons sama dengan /detail (dikelompokkan per tanggal;
+// halaman meratakannya). Paginasi keyset.
+export async function salesInvoiceDetail(params: SalesDetailParams): Promise<SalesDetailResult> {
+	return api(`/reports/sales/invoice-detail?${detailQuery(params)}`);
+}
+
+export function salesInvoiceDetailFileUrl(params: SalesDetailParams, format: 'xlsx' | 'pdf'): string {
+	const qs = detailQuery({ ...params, cursor: undefined });
+	qs.set('format', format);
+	return `/reports/sales/invoice-detail?${qs}`;
+}
+
+// ── Omset per pelanggan & pelanggan per faktur (non member tidak ikut) ──────────
+
+export type CustomerRow = {
+	member_id: string;
+	code: string;
+	name: string;
+	phone: string;
+	invoice_count: number;
+	subtotal: string;
+	discount: string;
+	total: string;
+	average: string;
+	last_date: string;
+};
+
+export type CustomerSummary = {
+	customer_count: number;
+	invoice_count: number;
+	subtotal: string;
+	discount: string;
+	total: string;
+};
+
+export type SalesCustomersResult = {
+	from: string;
+	to: string;
+	data: CustomerRow[];
+	summary: CustomerSummary;
+	truncated?: boolean;
+};
+
+export type SalesCustomersParams = {
+	from: string;
+	to: string;
+	outlet_id?: string;
+	cashier_id?: string;
+	q?: string;
+	sort?: string;
+	all_outlets?: boolean;
+	limit?: number;
+};
+
+function customersQuery(params: SalesCustomersParams): URLSearchParams {
+	const qs = new URLSearchParams();
+	qs.set('from', params.from);
+	qs.set('to', params.to);
+	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
+	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
+	if (params.q) qs.set('q', params.q);
+	if (params.sort) qs.set('sort', params.sort);
+	if (params.all_outlets) qs.set('all_outlets', 'true');
+	if (params.limit) qs.set('limit', String(params.limit));
+	return qs;
+}
+
+// GET /reports/sales/customers (JSON; top-N pelanggan, total seluruh pelanggan di summary).
+export async function salesCustomers(params: SalesCustomersParams): Promise<SalesCustomersResult> {
+	return api(`/reports/sales/customers?${customersQuery(params)}`);
+}
+
+export function salesCustomersFileUrl(params: SalesCustomersParams, format: 'xlsx' | 'pdf'): string {
+	const qs = customersQuery({ ...params, limit: undefined });
+	qs.set('format', format);
+	return `/reports/sales/customers?${qs}`;
+}
+
+export type CustInvSale = {
+	id: string;
+	doc_no: string;
+	date: string;
+	time: string;
+	outlet_code: string;
+	cashier_name: string;
+	subtotal: string;
+	discount: string;
+	total: string;
+	paid: string;
+	receivable: string;
+	lines?: DetailLine[];
+};
+
+export type CustomerInvoicesResult = {
+	from: string;
+	to: string;
+	with_items: boolean;
+	customers: (CustomerRow & { sales: CustInvSale[] })[];
+	next_cursor?: string;
+};
+
+export type CustomerInvoicesParams = {
+	from: string;
+	to: string;
+	member_id?: string; // kosong = semua pelanggan (hanya untuk ekspor)
+	outlet_id?: string;
+	cashier_id?: string;
+	q?: string;
+	sort?: string;
+	with_items?: boolean;
+	all_outlets?: boolean;
+	cursor?: string;
+	limit?: number;
+};
+
+function customerInvoicesQuery(params: CustomerInvoicesParams): URLSearchParams {
+	const qs = new URLSearchParams();
+	qs.set('from', params.from);
+	qs.set('to', params.to);
+	if (params.member_id) qs.set('member_id', params.member_id);
+	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
+	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
+	if (params.q) qs.set('q', params.q);
+	if (params.sort) qs.set('sort', params.sort);
+	if (params.with_items) qs.set('with_items', 'true');
+	if (params.all_outlets) qs.set('all_outlets', 'true');
+	if (params.cursor) qs.set('cursor', params.cursor);
+	if (params.limit) qs.set('limit', String(params.limit));
+	return qs;
+}
+
+// GET /reports/sales/customer-invoices?member_id= (JSON, satu pelanggan, keyset) — dimuat saat akordion dibuka.
+export async function salesCustomerInvoices(params: CustomerInvoicesParams): Promise<CustomerInvoicesResult> {
+	return api(`/reports/sales/customer-invoices?${customerInvoicesQuery(params)}`);
+}
+
+// Ekspor semua pelanggan hasil filter (tanpa member_id/cursor); with_items=true → PDF/Excel sampai barang.
+export function salesCustomerInvoicesFileUrl(params: CustomerInvoicesParams, format: 'xlsx' | 'pdf'): string {
+	const qs = customerInvoicesQuery({ ...params, member_id: undefined, cursor: undefined, limit: undefined });
+	qs.set('format', format);
+	return `/reports/sales/customer-invoices?${qs}`;
+}
