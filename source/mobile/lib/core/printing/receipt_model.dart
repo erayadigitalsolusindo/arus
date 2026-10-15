@@ -124,6 +124,7 @@ class ReceiptData {
     required this.dueDate,
     required this.change,
     required this.note,
+    this.erapayPending = false,
   });
 
   final ReceiptStore store;
@@ -155,6 +156,9 @@ class ReceiptData {
   final String dueDate;
   final Decimal change;
   final String note;
+
+  /// Disimpan paksa saat EraPay tidak dapat dihubungi: pembayaran QRIS belum terverifikasi lunas.
+  final bool erapayPending;
 
   factory ReceiptData.fromJson(Map<String, dynamic> j) {
     final s = (j['sale'] as Map).cast<String, dynamic>();
@@ -200,6 +204,7 @@ class ReceiptData {
           : '',
       change: dec(s['change']),
       note: '${s['note'] ?? ''}',
+      erapayPending: s['erapay_pending'] == true,
     );
   }
 }

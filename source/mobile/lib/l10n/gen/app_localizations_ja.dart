@@ -295,6 +295,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String get payEraNeedPaid => 'QRを作成し、支払い完了を待ってください。';
 
   @override
+  String get payEraForceShow => 'EraPayに接続できない場合は強制保存';
+
+  @override
+  String get payEraForceHint =>
+      '強制保存: 伝票は保存され「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は取消しされ、在庫が戻ります。オーナー/スーパーバイザーの承認が必要です。';
+
+  @override
+  String get payEraPendingTitle => 'QRIS支払いがまだ未確認です';
+
+  @override
+  String get payEraPendingNotice =>
+      '伝票は「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は自動的に取消しされ、在庫が戻ります。';
+
+  @override
   String get errorEraDisabled => 'EraPay統合がサーバーで有効になっていません。';
 
   @override
@@ -1269,6 +1283,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get receiptSuperseded => '*** 改訂で差し替え ***';
+
+  @override
+  String get receiptEraPending => '*** EraPayの確認が必要 ***';
 
   @override
   String get receiptLineDiscount => '値引き';

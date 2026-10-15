@@ -301,6 +301,20 @@ class AppLocalizationsId extends AppLocalizations {
   String get payEraNeedPaid => 'Buat QR dan tunggu pembayaran diterima.';
 
   @override
+  String get payEraForceShow => 'EraPay tidak dapat dihubungi? Simpan paksa';
+
+  @override
+  String get payEraForceHint =>
+      'Simpan paksa: nota disimpan & ditandai \"perlu dicek di EraPay\", lalu dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan & stok kembali. Butuh persetujuan Owner/Supervisor.';
+
+  @override
+  String get payEraPendingTitle => 'Pembayaran QRIS belum terverifikasi';
+
+  @override
+  String get payEraPendingNotice =>
+      'Nota ditandai \"perlu dicek di EraPay\" & dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan otomatis & stok dikembalikan.';
+
+  @override
   String get errorEraDisabled => 'Integrasi EraPay belum diaktifkan di server.';
 
   @override
@@ -1300,6 +1314,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get receiptSuperseded => '*** DIGANTI REVISI ***';
+
+  @override
+  String get receiptEraPending => '*** PERLU DI CEK DI ERAPAY ***';
 
   @override
   String get receiptLineDiscount => 'Potongan';

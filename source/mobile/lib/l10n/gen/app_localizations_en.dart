@@ -301,6 +301,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payEraNeedPaid => 'Create the QR and wait for the payment.';
 
   @override
+  String get payEraForceShow => 'EraPay unreachable? Force save';
+
+  @override
+  String get payEraForceHint =>
+      'Force save: the sale is saved and flagged \"check with EraPay\", then reconciled automatically. If it turns out unpaid, the sale is voided and stock restored. Owner/Supervisor approval required.';
+
+  @override
+  String get payEraPendingTitle => 'QRIS payment not verified yet';
+
+  @override
+  String get payEraPendingNotice =>
+      'The sale is flagged \"check with EraPay\" and reconciled automatically. If it turns out unpaid, the sale is voided automatically and stock restored.';
+
+  @override
   String get errorEraDisabled =>
       'EraPay integration is not enabled on the server.';
 
@@ -1298,6 +1312,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiptSuperseded => '*** REPLACED BY REVISION ***';
+
+  @override
+  String get receiptEraPending => '*** CHECK WITH ERAPAY ***';
 
   @override
   String get receiptLineDiscount => 'Discount';

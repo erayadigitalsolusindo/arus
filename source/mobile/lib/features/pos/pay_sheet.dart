@@ -79,6 +79,24 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
   final String _eraKey = const Uuid().v4();
   bool _lastEnough = false;
 
+  // Force-save QRIS: penyedia EraPay tidak dapat dihubungi (charge terus menunggu) — kasir tetap bisa
+  // menyimpan nota dengan persetujuan PIN penyetuju berizin `qris_force`. Nota ditandai "perlu dicek
+  // di EraPay" dan dicek otomatis oleh penjadwal; bila ternyata tidak lunas, nota dibatalkan.
+  bool _eraForceOn = false;
+  Approver? _eraForceApprover;
+  String _eraForcePin = '';
+  final _eraForceKey = GlobalKey<ApproverFieldsState>();
+
+  bool get _eraForceOk =>
+      _eraForceApprover != null && RegExp(r'^\d{6}$').hasMatch(_eraForcePin);
+
+  /// Charge QRIS masih menunggu dengan nominal yang cocoki baris: boleh disimpan paksa.
+  bool _eraCanForce(_PayRow r) =>
+      _isEra(r) &&
+      r.charge != null &&
+      _eraFresh(r) &&
+      (r.charge!.status == 'pending' || r.charge!.status == 'unknown');
+
   bool _isEra(_PayRow r) => _eraId != null && r.method.id == _eraId;
 
   /// Charge masih sesuai nominal baris (mengubah nominal setelah QR dibuat membuat QR basi → buat ulang).
@@ -95,6 +113,10 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     final amount = parseInput(r.amount.text);
     if (amount <= Decimal.zero || r.eraBusy) return;
     r.timer?.cancel();
+    // QR baru: batal dulu mode force-save (charge lama diganti).
+    _eraForceOn = false;
+    _eraForceApprover = null;
+    _eraForcePin = '';
     // Kunci baru hanya bila sudah ada tagihan sebelumnya (nominal berubah / kedaluwarsa); gagal jaringan memakai kunci yang sama.
     if (r.charge != null) r.eraAttempt++;
     setState(() {
@@ -248,26 +270,38 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
           ),
     ];
     _key ??= const Uuid().v4();
+    // Force-save QRIS: kirim force_erapay + persetujuan qris_force (menggantikan persetujuan lain).
+    final forceEra =
+        _eraForceOn && _eraForceOk && _eraForceApprover != null && _rows.any(_eraCanForce);
     try {
       SaleResult? result;
       for (var attempt = 0; attempt < 2 && result == null; attempt++) {
         try {
+          final base = _credit
+              ? cart
+                  .draft(forPay: true)
+                  .asCredit(
+                    _needCreditApproval
+                        ? ApprovalGrant(
+                            userId: _creditApprover!.id,
+                            name: _creditApprover!.name,
+                            pin: _creditPin,
+                          )
+                        : cart.draft(forPay: true).approval,
+                  )
+              : cart.draft(forPay: true);
           result = await ref
               .read(posRepositoryProvider)
               .createSale(
-                _credit
-                    ? cart
-                          .draft(forPay: true)
-                          .asCredit(
-                            _needCreditApproval
-                                ? ApprovalGrant(
-                                    userId: _creditApprover!.id,
-                                    name: _creditApprover!.name,
-                                    pin: _creditPin,
-                                  )
-                                : cart.draft(forPay: true).approval,
-                          )
-                    : cart.draft(forPay: true),
+                forceEra
+                    ? base.asForceEraPay(
+                        ApprovalGrant(
+                          userId: _eraForceApprover!.id,
+                          name: _eraForceApprover!.name,
+                          pin: _eraForcePin,
+                        ),
+                      )
+                    : base,
                 payments: payments,
                 idempotencyKey: _key!,
               );
@@ -294,6 +328,10 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
           if (e.code == 'INVALID_PIN' || e.code == 'CREDIT_LIMIT_EXCEEDED') {
             _creditPin = '';
             _creditKey.currentState?.clearPin();
+          }
+          if (e.code == 'INVALID_PIN') {
+            _eraForcePin = '';
+            _eraForceKey.currentState?.clearPin();
           }
         });
       }
@@ -338,7 +376,9 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               .where((r) => r.method.isDeposit)
               .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
           final depositOver = depositUsed > deposit;
-          final eraOk = _rows.every(_eraSettled);
+          final eraOk = _rows.every(
+            (r) => _eraSettled(r) || (_eraForceOn && _eraForceOk && _eraCanForce(r)),
+          );
           final enough =
               eraOk &&
               (_credit
@@ -810,6 +850,48 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               ),
             ],
           ),
+          if (_eraCanForce(r)) ...[
+            const SizedBox(height: 10),
+            Text(
+              l.payEraForceHint,
+              style: TextStyle(color: pal.textTertiary, fontSize: 11.5),
+            ),
+            if (!_eraForceOn)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _busy || r.eraBusy
+                      ? null
+                      : () => setState(() => _eraForceOn = true),
+                  icon: const Icon(Icons.warning_amber, size: 18),
+                  label: Text(l.payEraForceShow),
+                ),
+              ),
+          ],
+          if (_eraForceOn && _eraCanForce(r)) ...[
+            ApproverFields(
+              key: _eraForceKey,
+              purpose: 'qris_force',
+              enabled: !_busy,
+              onChanged: (a, pin) => setState(() {
+                _eraForceApprover = a;
+                _eraForcePin = pin;
+              }),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => setState(() {
+                          _eraForceOn = false;
+                          _eraForceApprover = null;
+                          _eraForcePin = '';
+                        }),
+                child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+              ),
+            ),
+          ],
         ],
       );
     }
