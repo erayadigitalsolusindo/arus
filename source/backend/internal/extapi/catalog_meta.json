@@ -158,6 +158,1076 @@
         { "name": "outlet_id", "type": "uuid" }
       ],
       "responses": [{ "status": 200, "body": { "from": "2026-10-01", "to": "2026-10-31", "rows": [{ "account_code": "1110", "account_name": "Kas", "debit": "1000000.00", "credit": "0.00" }], "balanced": true } }]
+    },
+    "POST /sales": {
+      "summary": "Buat nota penjualan",
+      "description": "Menyimpan satu nota. Harga, pajak, potongan kupon, dan total dihitung server dari master; klien hanya mengirim barang, qty, dan pembayaran. Satu panggilan = satu transaksi DB (stok, poin member, kupon, piutang ikut berubah atomik). Shift kasir outlet aktif harus terbuka. Header Idempotency-Key wajib. Pratinjau tanpa menyimpan: POST /sales/quote (body sama).",
+      "body": [
+        { "name": "lines", "type": "array", "required": true, "description": "Baris nota. Tiap baris: { item_id (uuid, wajib), unit_id (uuid; kosong = satuan dasar), qty (desimal 3 digit, wajib), discount (rupiah untuk seluruh baris), unit_price (harga pengganti; wajib disertai approval), note }." },
+        { "name": "payments", "type": "array", "description": "Pembayaran: { method_id (uuid dari /payment-methods, disarankan), method (jenis dasar cash|debit|credit_card|ewallet|transfer|deposit; untuk pemanggil lama), amount (string desimal, yang DITERIMA), ref_no }. Tunai boleh melebihi sisa (selisih = kembalian); non-tunai tidak boleh melebihi." },
+        { "name": "discount", "type": "decimal", "description": "Potongan global nota (rupiah)." },
+        { "name": "other_cost", "type": "decimal", "description": "Biaya lain-lain satu angka. Jika other_costs dikirim, angka ini harus sama dengan totalnya." },
+        { "name": "other_costs", "type": "array", "description": "Rincian biaya lain: { name, amount }." },
+        { "name": "apply_tax", "type": "boolean", "description": "true = terapkan pajak toko & negara sesuai tarif outlet." },
+        { "name": "voucher_codes", "type": "array", "description": "Kode kupon belanja global (string); potongan dihitung server sebelum pajak." },
+        { "name": "member_id", "type": "uuid", "description": "Member pemilik nota (poin dihitung otomatis)." },
+        { "name": "redeem_points", "type": "integer", "description": "Poin ditukar jadi potongan; wajib member_id." },
+        { "name": "salesperson_id", "type": "uuid", "description": "Salesman untuk laporan/komisi; kosong = Umum." },
+        { "name": "credit", "type": "boolean", "description": "true = nota kredit: sisa yang belum dibayar menjadi piutang member (wajib member_id)." },
+        { "name": "note", "type": "string", "description": "Catatan nota." },
+        { "name": "approval", "type": "object", "description": "{ user_id, pin } Owner/Supervisor penyetuju. Wajib untuk unit_price pengganti dan untuk melewati limit kredit member." },
+        { "name": "force_erapay", "type": "boolean", "description": "Simpan walau pembayaran QRIS EraPay belum terverifikasi; butuh approval berizin qris_force.approve. Nota ditandai erapay_pending." }
+      ],
+      "request": { "body": { "lines": [{ "item_id": "0b1f…", "qty": "2", "discount": "0" }], "payments": [{ "method_id": "7d3a…", "amount": "50000" }], "apply_tax": false, "note": "" } },
+      "responses": [
+        { "status": 201, "description": "Nota baru tersimpan", "body": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "outlet_id": "a7c2…", "cashier": "Rina", "created_at": "2026-10-16T03:12:44Z", "note": "", "lines": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit_id": "4be1…", "unit": "Gelas", "factor": "1", "qty": "2.000", "unit_price": "18000.00", "discount": "0.00", "line_total": "36000.00", "note": "" }], "payments": [{ "method": "cash", "method_id": "7d3a…", "method_name": "Tunai", "amount": "50000.00", "ref_no": "", "fee_pct": "0", "fee": "0.00", "fee_bearer": "store" }], "subtotal": "36000.00", "discount": "0.00", "tax_store_pct": "0", "tax_gov_pct": "0", "tax_store": "0.00", "tax_gov": "0.00", "other_cost": "0.00", "total": "36000.00", "paid": "36000.00", "change": "14000.00", "surcharge": "0.00", "receivable": "0.00", "points_earned": 0, "points_redeemed": 0, "redeem_amount": "0.00", "vouchers": [], "other_costs": [], "revision": 1, "root_id": "9c4e…", "erapay_pending": false } },
+        { "status": 200, "description": "Replay: Idempotency-Key yang sama sudah pernah menyimpan; nota yang sama dikembalikan dan header Idempotent-Replay: true dikirim.", "body": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed" } }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib (8–100 karakter: huruf, angka, _ . : -)." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Idempotency-Key sudah dipakai untuk isi permintaan yang berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid; rincian di error.fields dengan kunci mis. lines.0.qty, lines.0.item_id, discount, other_cost, voucher_codes, redeem_points, credit. Nilai: REQUIRED, INVALID, TOO_MANY, MEMBER_REQUIRED, UNIT_UNKNOWN, ITEM_UNAVAILABLE, DISCOUNT_TOO_HIGH, BELOW_COST, PAYMENT_SHORT, NON_CASH_OVER." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok salah satu barang tidak cukup; nota ditolak seluruhnya." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Barang tidak berstok." },
+        { "status": 409, "code": "SHIFT_REQUIRED", "description": "Belum ada shift kasir terbuka di outlet aktif." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." },
+        { "status": 403, "code": "CREDIT_LIMIT_EXCEEDED", "description": "Piutang member melewati limit kredit; kirim approval (PIN penyetuju berizin credit_limit.approve)." },
+        { "status": 409, "code": "DEPOSIT_INSUFFICIENT", "description": "Saldo deposit member tidak mencukupi untuk pembayaran metode deposit." },
+        { "status": 403, "code": "PIN_REQUIRED", "description": "Persetujuan (approval) wajib untuk aksi ini namun tidak dikirim." },
+        { "status": 403, "code": "INVALID_PIN", "description": "Penyetuju atau PIN salah." },
+        { "status": 429, "code": "PIN_LOCKED", "description": "Terlalu banyak percobaan PIN; lihat retry_after." },
+        { "status": 403, "code": "FORBIDDEN", "description": "Penyetuju tidak punya izin yang dibutuhkan." }
+      ],
+      "notes": ["Idempotency-Key dibuat klien per percobaan bayar; ulangi dengan kunci yang sama saat jaringan gagal agar tidak terjadi nota ganda.", "Uang dikirim dan dibaca sebagai string desimal; jangan memakai float.", "Gunakan GET /sales/{id}/receipt untuk model struk."]
+    },
+    "POST /sales/quote": {
+      "summary": "Hitung nota (pratinjau)",
+      "description": "Menghitung harga, potongan, kupon, poin, pajak, dan total di server tanpa menyimpan apa pun. Body identik dengan POST /sales (payments dan Idempotency-Key tidak diperlukan). Tiap baris hasil dapat memuat issue (STOCK_INSUFFICIENT atau BELOW_COST), available, list_price, dan price_override.",
+      "body": [
+        { "name": "lines", "type": "array", "required": true, "description": "Sama seperti POST /sales: { item_id, unit_id, qty, discount, unit_price, note }." },
+        { "name": "discount", "type": "decimal" },
+        { "name": "other_cost", "type": "decimal" },
+        { "name": "other_costs", "type": "array" },
+        { "name": "apply_tax", "type": "boolean" },
+        { "name": "voucher_codes", "type": "array" },
+        { "name": "member_id", "type": "uuid" },
+        { "name": "redeem_points", "type": "integer" },
+        { "name": "credit", "type": "boolean" },
+        { "name": "approval", "type": "object", "description": "{ user_id, pin } bila memakai unit_price pengganti." }
+      ],
+      "request": { "body": { "lines": [{ "item_id": "0b1f…", "qty": "2" }], "apply_tax": true } },
+      "responses": [{ "status": 200, "body": { "lines": [{ "item_id": "0b1f…", "name": "Kopi Susu", "qty": "2.000", "unit_price": "18000.00", "discount": "0.00", "line_total": "36000.00", "list_price": "18000.00" }], "subtotal": "36000.00", "discount": "0.00", "tax_store_pct": "0", "tax_gov_pct": "11", "tax_store": "0.00", "tax_gov": "3960.00", "other_cost": "0.00", "total": "39960.00", "redeem_amount": "0.00", "points_earn": 0, "vouchers": [], "voucher_amount": "0.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid (lihat error.fields, kunci seperti POST /sales)." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." },
+        { "status": 403, "code": "INVALID_PIN", "description": "Penyetuju atau PIN salah (bila approval dikirim)." }
+      ]
+    },
+    "GET /sales": {
+      "summary": "Daftar nota kasir (ringkas)",
+      "description": "Nota yang dibuat kredensial/kasir ini di outlet aktif, beserta total per metode bayar, arus uang lain (bayar piutang, retur, dll.), dan perkiraan isi laci. Tanpa from/to = hari ini (zona waktu outlet). Rentang maksimum 62 hari; hasil dipotong di 500 baris (truncated). Untuk daftar semua kasir dan paginasi keyset gunakan GET /sales/all.",
+      "query": [
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD; kosong = hari ini." },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD; kosong = hari ini." },
+        { "name": "q", "type": "string", "description": "Cari nomor nota; bila diisi, ringkasan retur tidak dihitung." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "created_at": "2026-10-16T03:12:44Z", "cashier": "Rina", "line_count": 1, "total": "36000.00", "surcharge": "0.00", "receivable": "0.00", "methods": { "cash": "36000.00" }, "pays": [{ "method_id": "7d3a…", "name": "Tunai", "kind": "cash", "amount": "36000.00" }], "returned": "0.00" }], "total": "36000.00", "surcharge": "0.00", "received": "36000.00", "totals": { "cash": "36000.00" }, "by_method": [{ "method_id": "7d3a…", "name": "Tunai", "kind": "cash", "amount": "36000.00" }], "flows": [], "drawer": [{ "method_id": "7d3a…", "name": "Tunai", "kind": "cash", "amount": "36000.00" }], "returns": { "count": 0, "total": "0.00" }, "net_total": "36000.00", "from": "2026-10-16", "to": "2026-10-16", "truncated": false } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "from/to bukan tanggal YYYY-MM-DD, to sebelum from, atau rentang melebihi 62 hari (error.fields.from / error.fields.to = INVALID)." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." }
+      ]
+    },
+    "GET /sales/all": {
+      "summary": "Daftar penjualan lengkap (keyset)",
+      "description": "Semua nota (semua kasir) pada rentang tanggal, outlet aktif atau semua outlet yang boleh diakses. Paginasi keyset: lanjutkan dengan next_cursor. summary dihitung atas seluruh hasil filter, bukan hanya halaman ini. Kolom cost/profit hanya ada bila kredensial punya izin sales_cost. Rentang maksimum 366 hari.",
+      "query": [
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD; kosong = hari ini." },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "scope", "type": "string", "description": "\"all\" = semua outlet yang boleh diakses; selain itu outlet aktif saja." },
+        { "name": "q", "type": "string", "description": "Cari nomor nota atau nama member." },
+        { "name": "status", "type": "string", "description": "completed | void; kosong = semua." },
+        { "name": "method", "type": "string", "description": "Jenis metode bayar: cash | debit | credit_card | ewallet | transfer | deposit." },
+        { "name": "cashier_id", "type": "uuid", "description": "Saring per kasir." },
+        { "name": "cursor", "type": "string", "description": "Nilai next_cursor dari respons sebelumnya." },
+        { "name": "limit", "type": "integer", "description": "Baris per halaman (default 50, maks. 200)." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "created_at": "2026-10-16T03:12:44Z", "outlet": { "id": "a7c2…", "code": "PST", "name": "Pusat" }, "cashier": "Rina", "line_count": 1, "revision": 1, "subtotal": "36000.00", "line_discount": "0.00", "discount": "0.00", "manual_discount": "0.00", "voucher_amount": "0.00", "voucher_codes": [], "redeem_amount": "0.00", "points_redeemed": 0, "points_earned": 0, "price_overrides": 0, "tax_store": "0.00", "tax_gov": "0.00", "other_cost": "0.00", "total": "36000.00", "receivable": "0.00", "methods": { "cash": "36000.00" }, "returned": "0.00" }], "summary": { "count": 1, "completed_count": 1, "total": "36000.00", "receivable": "0.00", "discount": "0.00", "methods": { "cash": "36000.00" }, "by_method": [{ "method_id": "7d3a…", "name": "Tunai", "kind": "cash", "amount": "36000.00", "fee": "0.00", "surcharge": "0.00" }] }, "from": "2026-10-16", "to": "2026-10-16", "all_outlets": false, "next_cursor": "" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Tanggal/status/metode/cursor/cashier_id tidak valid atau rentang melebihi 366 hari (rincian di error.fields)." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." }
+      ],
+      "notes": ["Tanpa total baris: ikuti next_cursor sampai kosong."]
+    },
+    "GET /sales/{id}": {
+      "summary": "Detail nota",
+      "description": "Satu nota lengkap (baris, pembayaran, pajak, member, poin, kupon, status revisi/batal). Nota outlet lain hanya terbaca bila outlet itu boleh diakses kredensial. Untuk HPP, laba, gerakan stok, retur, dan riwayat audit gunakan GET /sales/{id}/detail.",
+      "responses": [{ "status": 200, "body": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "outlet_id": "a7c2…", "cashier": "Rina", "created_at": "2026-10-16T03:12:44Z", "lines": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "factor": "1", "qty": "2.000", "unit_price": "18000.00", "discount": "0.00", "line_total": "36000.00" }], "payments": [{ "method": "cash", "method_name": "Tunai", "amount": "50000.00" }], "subtotal": "36000.00", "discount": "0.00", "total": "36000.00", "paid": "36000.00", "change": "14000.00", "receivable": "0.00", "revision": 1, "root_id": "9c4e…", "erapay_pending": false } }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ada, id bukan uuid, atau milik tenant lain." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Nota milik outlet yang tidak boleh diakses kredensial." }
+      ]
+    },
+    "GET /sales/{id}/detail": {
+      "summary": "Detail nota lengkap",
+      "description": "Nota + harga daftar vs harga jual per baris, jumlah yang sudah diretur, gerakan stok (ledger), seluruh revisi, dokumen retur, dan riwayat audit. Field unit_cost, line_cost, profit, cost, profit_net hanya ada bila kredensial punya izin sales_cost.",
+      "responses": [{ "status": 200, "body": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "lines": [{ "position": 1, "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "factor": "1", "qty": "2.000", "base_qty": "2.000", "list_price": "18000.00", "unit_price": "18000.00", "price_override": false, "discount": "0.00", "line_total": "36000.00", "returned_qty": "0.000" }], "outlet": { "id": "a7c2…", "code": "PST", "name": "Pusat" }, "line_discount": "0.00", "manual_discount": "0.00", "voucher_amount": "0.00", "base_qty_total": "2.000", "revisions": [{ "id": "9c4e…", "doc_no": "INV-20261016-0001", "revision": 1, "status": "completed", "created_at": "2026-10-16T03:12:44Z", "total": "36000.00" }], "stock": [{ "id": 1201, "at": "2026-10-16T03:12:44Z", "type": "SALE", "bucket": "display", "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "delta": "-2.000", "balance_after": "48.000", "actor": "Rina" }], "events": [], "returns": [], "returned_total": "0.00", "net_total": "36000.00", "total": "36000.00" } }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Nota milik outlet yang tidak boleh diakses kredensial." }
+      ]
+    },
+    "GET /sales/{id}/receipt": {
+      "summary": "Model struk nota",
+      "description": "Data struk yang disusun server (identitas toko, nota, waktu lokal outlet, jumlah cetak ulang) agar isi struk identik di semua perangkat.",
+      "responses": [{ "status": 200, "body": { "store": { "tenant_name": "Toko Kopi", "outlet_code": "PST", "outlet_name": "Pusat", "address": "Jl. Mawar 1", "phone": "0812…", "header": "", "footer": "Terima kasih" }, "sale": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "total": "36000.00" }, "local_time": "16/10/2026 10:12", "reprints": 0 } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }, { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Outlet nota tidak boleh diakses." }]
+    },
+    "POST /sales/{id}/receipt/reprint": {
+      "summary": "Catat cetak ulang struk",
+      "description": "Mencatat satu cetak ulang struk di log audit dan mengembalikan nomor salinan (1 = cetak ulang pertama). Dipanggil sebelum mencetak salinan.",
+      "responses": [{ "status": 200, "body": { "copy": 1 } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }, { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Outlet nota tidak boleh diakses." }]
+    },
+    "PUT /sales/{id}": {
+      "summary": "Edit nota (buat revisi)",
+      "description": "Mengganti nota dengan revisi baru: nota lama ditandai tergantikan (stok, poin, kupon, deposit dibalik) dan nota baru bernomor <nota>-R<n> dibuat. Body = isi POST /sales ditambah reason. Header Idempotency-Key wajib. Harus dari outlet nota itu, dalam batas hari edit tenant, dengan approval Owner/Supervisor berizin sale_edit.approve. Baris yang tidak berubah mempertahankan harga/HPP aslinya. Pratinjau: POST /sales/{id}/quote.",
+      "body": [
+        { "name": "reason", "type": "string", "required": true, "description": "Alasan edit, 3–200 karakter." },
+        { "name": "lines", "type": "array", "required": true, "description": "Seluruh baris nota baru (bukan selisih); format seperti POST /sales." },
+        { "name": "payments", "type": "array", "description": "Seluruh pembayaran nota baru." },
+        { "name": "approval", "type": "object", "required": true, "description": "{ user_id, pin } penyetuju berizin sale_edit.approve." },
+        { "name": "discount", "type": "decimal" },
+        { "name": "other_costs", "type": "array" },
+        { "name": "apply_tax", "type": "boolean" },
+        { "name": "voucher_codes", "type": "array" },
+        { "name": "member_id", "type": "uuid" },
+        { "name": "credit", "type": "boolean" }
+      ],
+      "request": { "body": { "reason": "Salah qty", "approval": { "user_id": "55aa…", "pin": "******" }, "lines": [{ "item_id": "0b1f…", "qty": "3" }], "payments": [{ "method_id": "7d3a…", "amount": "60000" }] } },
+      "responses": [
+        { "status": 201, "description": "Revisi dibuat", "body": { "id": "b81d…", "doc_no": "INV-20261016-0001-R2", "status": "completed", "revision": 2, "root_id": "9c4e…", "supersedes_id": "9c4e…", "revision_reason": "Salah qty", "total": "54000.00" } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama sudah pernah menyimpan revisi ini (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "VALIDATION", "description": "reason atau isian nota tidak valid (error.fields)." },
+        { "status": 403, "code": "PIN_REQUIRED", "description": "Persetujuan Owner/Supervisor wajib." },
+        { "status": 403, "code": "INVALID_PIN", "description": "Penyetuju atau PIN salah." },
+        { "status": 403, "code": "EDIT_WINDOW_CLOSED", "description": "Batas hari edit nota sudah lewat." },
+        { "status": 409, "code": "SALE_NOT_EDITABLE", "description": "Nota sudah dibatalkan atau digantikan revisi." },
+        { "status": 409, "code": "SALE_HAS_RETURNS", "description": "Nota punya retur aktif." },
+        { "status": 409, "code": "RECEIVABLE_PAID", "description": "Piutang nota sudah dibayar sebagian/seluruhnya." },
+        { "status": 409, "code": "OUTLET_MISMATCH", "description": "Nota milik outlet lain; edit harus dari outlet nota." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok tidak cukup untuk isi revisi." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }
+      ]
+    },
+    "POST /sales/{id}/quote": {
+      "summary": "Hitung ulang edit nota (pratinjau)",
+      "description": "Pratinjau hasil hitung edit nota tanpa menyimpan. Body sama dengan POST /sales/quote.",
+      "request": { "body": { "lines": [{ "item_id": "0b1f…", "qty": "3" }] } },
+      "responses": [{ "status": 200, "body": { "lines": [{ "item_id": "0b1f…", "qty": "3.000", "unit_price": "18000.00", "line_total": "54000.00" }], "subtotal": "54000.00", "discount": "0.00", "total": "54000.00" } }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." },
+        { "status": 409, "code": "SALE_NOT_EDITABLE", "description": "Nota sudah dibatalkan atau digantikan revisi." },
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid (error.fields)." }
+      ]
+    },
+    "POST /sales/{id}/void": {
+      "summary": "Batalkan nota",
+      "description": "Membatalkan satu nota: stok dikembalikan, poin member dan kupon dibalik, deposit yang dipakai dikembalikan. Status menjadi void dan tidak bisa dibuka lagi. Wajib alasan dan persetujuan Owner/Supervisor (izin sale_edit.approve + PIN). Nota harus dalam batas hari edit tenant, tanpa retur aktif maupun pembayaran piutang.",
+      "body": [
+        { "name": "reason", "type": "string", "required": true, "description": "Alasan pembatalan, 3–200 karakter." },
+        { "name": "approval", "type": "object", "required": true, "description": "{ user_id, pin } penyetuju." }
+      ],
+      "request": { "body": { "reason": "Salah input pelanggan", "approval": { "user_id": "55aa…", "pin": "******" } } },
+      "responses": [{ "status": 200, "description": "Nota setelah dibatalkan", "body": { "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "void", "void_reason": "Salah input pelanggan", "total": "36000.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "reason kosong atau di luar 3–200 karakter (error.fields.reason)." },
+        { "status": 403, "code": "PIN_REQUIRED", "description": "Persetujuan wajib." },
+        { "status": 403, "code": "INVALID_PIN", "description": "Penyetuju atau PIN salah." },
+        { "status": 429, "code": "PIN_LOCKED", "description": "Terlalu banyak percobaan PIN." },
+        { "status": 403, "code": "EDIT_WINDOW_CLOSED", "description": "Batas hari edit nota sudah lewat." },
+        { "status": 409, "code": "SALE_NOT_EDITABLE", "description": "Nota sudah dibatalkan atau digantikan revisi." },
+        { "status": 409, "code": "SALE_HAS_RETURNS", "description": "Nota punya retur aktif; batalkan retur dulu." },
+        { "status": 409, "code": "RECEIVABLE_PAID", "description": "Piutang nota sudah dibayar sebagian/seluruhnya." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Outlet nota tidak boleh diakses." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }
+      ]
+    },
+    "GET /stock/opening/status": {
+      "summary": "Status saldo awal stok",
+      "description": "Status penguncian saldo awal outlet aktif dan ringkasan isian (jumlah barang berstok, yang sudah punya saldo, total qty per bucket). Setelah dikunci, perubahan stok hanya lewat opname/mutasi/transaksi.",
+      "responses": [{ "status": 200, "body": { "locked": false, "start_date": null, "locked_at": null, "stats": { "items": 120, "filled": 80, "display": "540.000", "warehouse": "1200.000", "returns": "0.000" } } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Outlet aktif tidak ditemukan." }]
+    },
+    "GET /stock/opening/items": {
+      "summary": "Daftar barang beserta saldo per bucket",
+      "description": "Barang berstok dengan saldo outlet aktif per bucket (display = etalase, warehouse = gudang, returns = retur), dalam satuan dasar. Dipakai untuk mengisi saldo awal dan melihat saldo stok saat ini. Endpoint serupa dengan bentuk respons sama: GET /stock/conversions/items, /stock/transfers/items, /stock/counts/items.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Cari nama/SKU/barcode." },
+        { "name": "limit", "type": "integer", "description": "Baris per halaman (ada batas maksimum server)." },
+        { "name": "offset", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "display": "48.000", "warehouse": "200.000", "returns": "0.000" }], "total": 1 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid atau terlalu panjang (error.fields.q)." }]
+    },
+    "PUT /stock/opening/items/{id}": {
+      "summary": "Set saldo awal satu barang",
+      "description": "Menetapkan saldo awal barang {id} pada satu bucket outlet aktif. qty adalah saldo target (bukan selisih) dan dicatat sebagai movement OPENING. Hanya sebelum saldo awal dikunci.",
+      "body": [
+        { "name": "bucket", "type": "string", "required": true, "description": "display | warehouse | returns" },
+        { "name": "qty", "type": "decimal", "required": true, "description": "Saldo target ≥ 0, maks. 3 desimal." }
+      ],
+      "request": { "body": { "bucket": "warehouse", "qty": "200" } },
+      "responses": [{ "status": 200, "body": { "bucket": "warehouse", "qty": "200.000" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "bucket/qty tidak valid (error.fields.bucket, error.fields.qty = REQUIRED | INVALID)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Barang tidak ditemukan." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Barang tidak berstok (jasa)." },
+        { "status": 409, "code": "OPENING_LOCKED", "description": "Saldo awal sudah dikunci; gunakan stok opname." }
+      ]
+    },
+    "POST /stock/opening/lock": {
+      "summary": "Kunci saldo awal",
+      "description": "Menetapkan tanggal mulai operasional outlet aktif dan mengunci saldo awal. Tidak bisa dibuka lagi.",
+      "body": [{ "name": "start_date", "type": "date", "required": true, "description": "YYYY-MM-DD" }],
+      "request": { "body": { "start_date": "2026-10-01" } },
+      "responses": [{ "status": 200, "body": { "locked": true, "start_date": "2026-10-01", "locked_at": "2026-10-16T03:00:00Z" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "start_date kosong atau bukan YYYY-MM-DD." },
+        { "status": 409, "code": "ALREADY_LOCKED", "description": "Tanggal mulai operasional sudah dikunci." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Outlet aktif tidak ditemukan." }
+      ]
+    },
+    "GET /stock/card": {
+      "summary": "Kartu stok",
+      "description": "Riwayat mutasi stok satu barang di outlet aktif dari ledger append-only, dengan saldo awal, total masuk/keluar, saldo akhir periode (mencakup seluruh periode, bukan hanya halaman ini), dan saldo berjalan per baris. Periode menurut zona waktu outlet; tanpa from/to = 30 hari terakhir; maksimum 366 hari. Paginasi keyset lewat cursor.",
+      "query": [
+        { "name": "item_id", "type": "uuid", "required": true, "description": "Barang berstok." },
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "bucket", "type": "string", "description": "display | warehouse | returns; kosong = jumlah semua bucket." },
+        { "name": "cursor", "type": "integer", "description": "Nilai next_cursor dari respons sebelumnya." },
+        { "name": "limit", "type": "integer", "description": "Default 100, maks. 200." }
+      ],
+      "responses": [{ "status": 200, "body": { "item": { "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas" }, "from": "2026-09-16", "to": "2026-10-16", "bucket": "", "opening": "100.000", "in": "50.000", "out": "102.000", "closing": "48.000", "rows": [{ "id": 1201, "at": "2026-10-16T03:12:44Z", "bucket": "display", "ref_type": "SALE", "ref_id": "9c4e…", "note": "INV-20261016-0001", "actor": "Rina", "qty_delta": "-2.000", "balance": "48.000" }], "next_cursor": null } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "item_id kosong/bukan uuid, bucket/from/cursor tidak valid, atau to sebelum from / rentang > 366 hari (error.fields.to)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Barang tidak ditemukan." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Barang tidak berstok." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." }
+      ],
+      "notes": ["ref_type: OPENING | SALE | SALE_VOID | SALE_RETURN | PURCHASE | PURCHASE_RETURN | PURCHASE_VOID | OPNAME | TRANSFER_OUT | TRANSFER_IN | UNIT_CONVERSION | ADJUSTMENT."]
+    },
+    "GET /stock/card/items": {
+      "summary": "Pencarian barang untuk kartu stok",
+      "description": "Barang berstok (termasuk yang diarsipkan) untuk dipilih pada kartu stok.",
+      "query": [{ "name": "q", "type": "string", "description": "Cari nama/SKU." }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas" }] } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid atau terlalu panjang." }]
+    },
+    "GET /stock/conversions": {
+      "summary": "Riwayat pecah satuan",
+      "description": "Dokumen pecah satuan (mis. 1 dus → 12 pcs) outlet aktif, terbaru dulu.",
+      "query": [{ "name": "limit", "type": "integer" }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "3f9a…", "doc_no": "CNV-20261016-0001", "from": { "id": "0b1f…", "sku": "KOP-DUS", "name": "Kopi Dus", "unit": "Dus", "qty": "1.000" }, "to": { "id": "0b20…", "sku": "KOP-PCS", "name": "Kopi Pcs", "unit": "Pcs", "qty": "12.000" }, "from_unit_cost": "120000.00", "to_unit_cost": "10000.00", "cost_applied": true, "note": "", "actor": "Rina", "created_at": "2026-10-16T03:12:44Z" }], "total": 1 } }]
+    },
+    "GET /stock/conversions/{id}": {
+      "summary": "Detail pecah satuan",
+      "responses": [{ "status": 200, "body": { "id": "3f9a…", "doc_no": "CNV-20261016-0001", "from": { "id": "0b1f…", "name": "Kopi Dus", "unit": "Dus", "qty": "1.000" }, "to": { "id": "0b20…", "name": "Kopi Pcs", "unit": "Pcs", "qty": "12.000" }, "from_unit_cost": "120000.00", "to_unit_cost": "10000.00", "cost_applied": true, "note": "", "actor": "Rina", "created_at": "2026-10-16T03:12:44Z" } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ditemukan." }]
+    },
+    "POST /stock/conversions": {
+      "summary": "Buat pecah satuan",
+      "description": "Mengurangi barang asal dan menambah barang tujuan pada bucket display outlet aktif dalam satu transaksi (stok asal tidak boleh minus). HPP barang tujuan dihitung dari nilai barang asal. Header Idempotency-Key wajib (8–100 karakter).",
+      "body": [
+        { "name": "from_item_id", "type": "uuid", "required": true, "description": "Barang asal." },
+        { "name": "from_qty", "type": "decimal", "required": true, "description": "Qty asal > 0, maks. 3 desimal." },
+        { "name": "to_item_id", "type": "uuid", "required": true, "description": "Barang tujuan; harus berbeda dari asal." },
+        { "name": "to_qty", "type": "decimal", "required": true, "description": "Qty hasil > 0, maks. 3 desimal." },
+        { "name": "note", "type": "string", "description": "Catatan, maks. 1000 karakter." }
+      ],
+      "request": { "body": { "from_item_id": "0b1f…", "from_qty": "1", "to_item_id": "0b20…", "to_qty": "12", "note": "" } },
+      "responses": [
+        { "status": 201, "description": "Dokumen baru", "body": { "id": "3f9a…", "doc_no": "CNV-20261016-0001", "from": { "id": "0b1f…", "qty": "1.000" }, "to": { "id": "0b20…", "qty": "12.000" }, "cost_applied": true } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true); stok tidak berubah lagi." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci sudah dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid: from_qty/to_qty (REQUIRED | INVALID), from_item_id/to_item_id (REQUIRED | INVALID | SAME_ITEM), note." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Salah satu barang tidak berstok." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok barang asal tidak cukup." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." }
+      ]
+    },
+    "GET /stock/transfers": {
+      "summary": "Daftar mutasi stok antar outlet",
+      "description": "Mutasi yang keluar (out) atau masuk (in) outlet aktif, terbaru dulu, paginasi keyset. summary memuat jumlah kiriman menunggu diterima dan yang masih di perjalanan.",
+      "query": [
+        { "name": "direction", "type": "string", "description": "out (default) | in" },
+        { "name": "status", "type": "string", "description": "sent | received | cancelled" },
+        { "name": "q", "type": "string", "description": "Cari nomor dokumen." },
+        { "name": "cursor", "type": "string", "description": "Nilai next_cursor." },
+        { "name": "limit", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "7a11…", "doc_no": "TRF-20261016-0001", "from": { "id": "a7c2…", "code": "PST", "name": "Pusat" }, "from_bucket": "warehouse", "to": { "id": "a7c3…", "code": "CBG", "name": "Cabang" }, "to_bucket": "display", "status": "sent", "note": "", "sent_by": "Rina", "sent_at": "2026-10-16T03:12:44Z", "received_at": null, "cancelled_at": null, "line_count": 2, "qty_sent": "30.000", "qty_short": "0.000" }], "next_cursor": "", "has_more": false, "summary": { "to_receive": 0, "in_transit": 1 } } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "direction/status/cursor tidak valid." }]
+    },
+    "GET /stock/transfers/destinations": {
+      "summary": "Outlet tujuan mutasi",
+      "description": "Outlet aktif tenant yang bisa menjadi tujuan (outlet aktif sendiri ikut untuk mutasi antar bucket).",
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "a7c3…", "code": "CBG", "name": "Cabang" }] } }]
+    },
+    "GET /stock/transfers/{id}": {
+      "summary": "Detail mutasi stok",
+      "responses": [{ "status": 200, "body": { "id": "7a11…", "doc_no": "TRF-20261016-0001", "from": { "id": "a7c2…", "code": "PST", "name": "Pusat" }, "from_bucket": "warehouse", "to": { "id": "a7c3…", "code": "CBG", "name": "Cabang" }, "to_bucket": "display", "status": "sent", "note": "", "sent_by": "Rina", "sent_at": "2026-10-16T03:12:44Z", "line_count": 1, "qty_sent": "30.000", "qty_short": "0.000", "lines": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "qty_sent": "30.000", "qty_received": null, "unit_cost": "9000.00" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ada." }, { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Dokumen bukan milik outlet yang boleh diakses." }]
+    },
+    "POST /stock/transfers": {
+      "summary": "Kirim mutasi stok",
+      "description": "Mengurangi stok outlet aktif (bucket asal) dan membuat dokumen berstatus sent; stok baru masuk di tujuan setelah diterima (POST /stock/transfers/{id}/receive). Outlet asal selalu outlet aktif kredensial. Header Idempotency-Key wajib (8–100 karakter).",
+      "body": [
+        { "name": "to_outlet_id", "type": "uuid", "required": true, "description": "Outlet tujuan (dari /stock/transfers/destinations)." },
+        { "name": "from_bucket", "type": "string", "required": true, "description": "display | warehouse | returns" },
+        { "name": "to_bucket", "type": "string", "required": true, "description": "display | warehouse | returns. Tujuan sama persis dengan asal (outlet dan bucket) ditolak." },
+        { "name": "note", "type": "string", "description": "Catatan." },
+        { "name": "lines", "type": "array", "required": true, "description": "{ item_id, qty } tanpa barang ganda, maks. 200 baris. qty > 0, maks. 3 desimal." }
+      ],
+      "request": { "body": { "to_outlet_id": "a7c3…", "from_bucket": "warehouse", "to_bucket": "display", "note": "", "lines": [{ "item_id": "0b1f…", "qty": "30" }] } },
+      "responses": [
+        { "status": 201, "description": "Mutasi terkirim", "body": { "id": "7a11…", "doc_no": "TRF-20261016-0001", "status": "sent", "qty_sent": "30.000" } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "to_outlet_id (REQUIRED | INVALID), from_bucket/to_bucket (INVALID | SAME_LOCATION), lines (REQUIRED | TOO_MANY), lines item_id (REQUIRED | DUPLICATE | INVALID), qty." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok bucket asal tidak cukup." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Ada barang tidak berstok." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." }
+      ]
+    },
+    "POST /stock/transfers/{id}/receive": {
+      "summary": "Terima mutasi stok",
+      "description": "Outlet tujuan menerima kiriman dan stok masuk ke bucket tujuan. Tanpa lines = diterima penuh. Dengan lines, wajib memuat semua barang dokumen; qty diterima 0 ≤ qty ≤ dikirim, selisih tercatat sebagai kurang kirim.",
+      "body": [{ "name": "lines", "type": "array", "description": "Opsional: { item_id, qty } qty yang benar-benar diterima untuk seluruh barang dokumen." }],
+      "request": { "body": { "lines": [{ "item_id": "0b1f…", "qty": "29" }] } },
+      "responses": [{ "status": 200, "description": "Dokumen setelah diterima", "body": { "id": "7a11…", "doc_no": "TRF-20261016-0001", "status": "received", "qty_sent": "30.000", "qty_short": "1.000" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "lines tidak memuat semua barang (lines), item_id INVALID | DUPLICATE, qty INVALID | OVER_SENT." },
+        { "status": 409, "code": "TRANSFER_NOT_PENDING", "description": "Mutasi sudah diterima atau dibatalkan." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Bukan outlet tujuan mutasi." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ditemukan." }
+      ]
+    },
+    "POST /stock/transfers/{id}/cancel": {
+      "summary": "Batalkan mutasi stok",
+      "description": "Membatalkan kiriman yang belum diterima; stok dikembalikan ke outlet dan bucket asal. Boleh oleh pengirim maupun penerima (menolak kiriman).",
+      "body": [{ "name": "reason", "type": "string", "required": true, "description": "Alasan, minimal 3 karakter, maks. 200." }],
+      "request": { "body": { "reason": "Salah tujuan" } },
+      "responses": [{ "status": 200, "body": { "id": "7a11…", "doc_no": "TRF-20261016-0001", "status": "cancelled", "cancel_reason": "Salah tujuan" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "reason kosong, < 3 karakter, atau tidak valid." },
+        { "status": 409, "code": "TRANSFER_NOT_PENDING", "description": "Mutasi sudah diterima atau dibatalkan." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Outlet bukan pengirim maupun penerima." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ditemukan." }
+      ]
+    },
+    "GET /stock/counts": {
+      "summary": "Daftar stok opname",
+      "description": "Sesi opname outlet aktif (sesi draf dan opname langsung) beserta ringkasan.",
+      "query": [
+        { "name": "status", "type": "string", "description": "draft | completed | cancelled" },
+        { "name": "kind", "type": "string", "description": "session | quick" },
+        { "name": "q", "type": "string", "description": "Cari nomor dokumen." },
+        { "name": "limit", "type": "integer" },
+        { "name": "offset", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "c501…", "doc_no": "OPN-20261016-0001", "bucket": "display", "status": "completed", "note": "", "created_by": "Rina", "created_at": "2026-10-16T03:00:00Z", "completed_at": "2026-10-16T04:00:00Z", "cancelled_at": null, "lines": 20, "counted": 20, "differences": 3, "completed_by": "Rina", "kind": "session", "diff_amount": "-45000.00" }], "total": 1, "summary": { "open": 0, "done": 1, "diff_lines": 3, "plus": "0.00", "minus": "-45000.00" } } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "status/kind/q tidak valid." }]
+    },
+    "POST /stock/counts": {
+      "summary": "Buat sesi opname (draf)",
+      "description": "Membuka sesi opname berstatus draf untuk satu bucket outlet aktif. Isi barang dengan POST /stock/counts/{id}/items, masukkan hasil hitung per barang, lalu selesaikan.",
+      "body": [
+        { "name": "bucket", "type": "string", "required": true, "description": "display | warehouse | returns" },
+        { "name": "note", "type": "string", "description": "Catatan." }
+      ],
+      "request": { "body": { "bucket": "display", "note": "Opname akhir bulan" } },
+      "responses": [{ "status": 201, "description": "Detail sesi", "body": { "id": "c501…", "doc_no": "OPN-20261016-0001", "bucket": "display", "status": "draft", "kind": "session", "items": [], "diff_value": "0.00", "diff_plus": "0.00", "diff_minus": "0.00" } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "bucket tidak valid atau note terlalu panjang." }]
+    },
+    "POST /stock/counts/quick": {
+      "summary": "Opname langsung",
+      "description": "Menyesuaikan stok langsung tanpa draf dan tanpa konfirmasi, dalam satu transaksi, dicatat sebagai satu dokumen berstatus completed. Mode replace: stok bucket diganti sebesar qty (≥ 0). Mode adjust: qty = tambah/kurang terhadap stok (≠ 0, boleh negatif). Maks. 200 barang. Butuh izin approve.",
+      "body": [
+        { "name": "bucket", "type": "string", "required": true, "description": "display | warehouse | returns" },
+        { "name": "mode", "type": "string", "required": true, "description": "replace | adjust" },
+        { "name": "note", "type": "string" },
+        { "name": "items", "type": "array", "required": true, "description": "{ item_id, qty } tanpa barang ganda." }
+      ],
+      "request": { "body": { "bucket": "display", "mode": "adjust", "note": "Barang rusak", "items": [{ "item_id": "0b1f…", "qty": "-2" }] } },
+      "responses": [{ "status": 201, "description": "Detail dokumen opname", "body": { "id": "c502…", "doc_no": "OPN-20261016-0002", "bucket": "display", "status": "completed", "kind": "quick", "mode": "adjust", "items": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "snapshot": "50.000", "current": "50.000", "counted": "48.000", "diff": "-2.000", "unit_cost": "9000.00", "value": "-18000.00" }], "diff_value": "-18000.00", "diff_plus": "0.00", "diff_minus": "-18000.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "bucket, mode (INVALID), items (REQUIRED | TOO_MANY), items.N.item_id (REQUIRED | DUPLICATE), items.N.qty (INVALID)." },
+        { "status": 422, "code": "NOT_STOCKED", "description": "Ada barang tidak berstok." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Mode adjust akan membuat stok minus." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Barang tidak ditemukan." }
+      ]
+    },
+    "GET /stock/counts/{id}": {
+      "summary": "Detail stok opname",
+      "description": "Sesi opname lengkap dengan barisnya. snapshot = stok saat barang ditambahkan, current = stok sekarang, counted = hasil hitung (null bila belum), diff = counted − snapshot, value = diff × HPP.",
+      "responses": [{ "status": 200, "body": { "id": "c501…", "doc_no": "OPN-20261016-0001", "bucket": "display", "status": "draft", "kind": "session", "lines": 1, "counted": 1, "differences": 1, "items": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "snapshot": "50.000", "current": "50.000", "counted": "48.000", "diff": "-2.000", "unit_cost": "9000.00", "value": "-18000.00" }], "diff_value": "-18000.00", "diff_plus": "0.00", "diff_minus": "-18000.00" } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Sesi tidak ditemukan." }, { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Sesi milik outlet yang tidak boleh diakses." }]
+    },
+    "POST /stock/counts/{id}/items": {
+      "summary": "Tambah barang ke sesi opname",
+      "description": "Menambahkan barang berstok ke sesi draf lewat gabungan (union) penyaring. Maksimum 5000 barang per sesi.",
+      "body": [
+        { "name": "all", "type": "boolean", "description": "true = semua barang berstok aktif." },
+        { "name": "item_ids", "type": "array", "description": "Daftar item_id (uuid)." },
+        { "name": "category_id", "type": "uuid", "description": "Seluruh barang kategori ini." },
+        { "name": "brand_id", "type": "uuid", "description": "Seluruh barang merek ini." }
+      ],
+      "request": { "body": { "item_ids": ["0b1f…"] } },
+      "responses": [{ "status": 200, "body": { "added": 1 } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Tidak ada penyaring (error.fields.scope = REQUIRED) atau terlalu banyak (item_ids / scope = TOO_MANY)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Sesi tidak ditemukan." }
+      ],
+      "notes": ["Sesi yang sudah selesai atau dibatalkan saat ini ditolak server dengan HTTP 500 INTERNAL (galat internal \"sesi opname sudah selesai atau dibatalkan\" belum dipetakan handler ke kode khusus)."]
+    },
+    "PUT /stock/counts/{id}/items/{itemId}": {
+      "summary": "Isi hasil hitung satu barang",
+      "description": "Menyimpan hasil hitung fisik barang pada sesi draf. Tidak mengubah stok sebelum sesi diselesaikan.",
+      "body": [{ "name": "counted_qty", "type": "decimal", "required": true, "description": "Hasil hitung ≥ 0, maks. 3 desimal." }],
+      "request": { "body": { "counted_qty": "48" } },
+      "responses": [{ "status": 204, "description": "Tersimpan tanpa isi." }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "counted_qty tidak valid (error.fields.counted_qty = INVALID)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Sesi atau barang dalam sesi tidak ditemukan." }
+      ]
+    },
+    "DELETE /stock/counts/{id}/items/{itemId}": {
+      "summary": "Keluarkan barang dari sesi opname",
+      "description": "Menghapus satu barang dari sesi draf.",
+      "responses": [{ "status": 204, "description": "Terhapus tanpa isi." }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Sesi atau barang tidak ditemukan." }]
+    },
+    "POST /stock/counts/{id}/complete": {
+      "summary": "Selesaikan stok opname",
+      "description": "Menerapkan selisih (hasil hitung − stok) ke ledger sebagai movement OPNAME dan menandai sesi completed. Hanya barang yang sudah dihitung yang disesuaikan. Butuh izin approve.",
+      "responses": [{ "status": 200, "description": "Detail sesi setelah selesai", "body": { "id": "c501…", "doc_no": "OPN-20261016-0001", "status": "completed", "completed_by": "Rina", "diff_value": "-18000.00" } }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Sesi tidak ditemukan." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Penyesuaian membuat stok minus." }
+      ],
+      "notes": ["Sesi tanpa barang yang dihitung atau yang sudah selesai/dibatalkan saat ini dijawab HTTP 500 INTERNAL (galat internal belum dipetakan handler)."]
+    },
+    "POST /stock/counts/{id}/cancel": {
+      "summary": "Batalkan sesi opname",
+      "description": "Membatalkan sesi draf; stok tidak berubah.",
+      "responses": [{ "status": 204, "description": "Dibatalkan tanpa isi." }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Sesi tidak ditemukan." }]
+    },
+    "POST /purchases": {
+      "summary": "Buat nota pembelian",
+      "description": "Mencatat pembelian dari pemasok: stok masuk ke bucket display/gudang outlet aktif, HPP rata-rata tertimbang diperbarui, dan untuk pembelian kredit dibuat hutang. Total dan HPP baris dihitung server (diskon bertingkat → PPN masukan → biaya lain dialokasikan ke baris). Satu panggilan = satu transaksi DB. Header Idempotency-Key wajib. Pratinjau tanpa menyimpan: POST /purchases/quote.",
+      "body": [
+        { "name": "supplier_id", "type": "uuid", "required": true, "description": "Pemasok (dari /catalog/suppliers)." },
+        { "name": "payment_type", "type": "string", "required": true, "description": "cash | credit" },
+        { "name": "supplier_invoice_no", "type": "string", "description": "Nomor faktur dari pemasok." },
+        { "name": "purchase_date", "type": "date", "description": "YYYY-MM-DD; kosong = hari ini (zona waktu outlet). Tidak boleh di masa depan atau lebih dari 400 hari ke belakang." },
+        { "name": "due_date", "type": "date", "description": "Hanya kredit; tidak sebelum purchase_date dan maks. 5 tahun sesudahnya. Kosong = tanpa jatuh tempo." },
+        { "name": "tax_pct", "type": "decimal", "description": "PPN masukan dalam persen atas subtotal (mis. \"11\")." },
+        { "name": "other_costs", "type": "array", "description": "Biaya lain: { name, amount } (maks. 20); dialokasikan ke HPP baris." },
+        { "name": "note", "type": "string" },
+        { "name": "lines", "type": "array", "required": true, "description": "Maks. 500 baris: { item_id (uuid), qty_display, qty_warehouse (satuan dasar; minimal salah satu > 0), unit_price (harga beli per satuan dasar, sebelum diskon & PPN), discounts (maks. 4 tingkat bertingkat; < 100 = persen, ≥ 100 = rupiah) }." }
+      ],
+      "request": { "body": { "supplier_id": "5be2…", "payment_type": "credit", "supplier_invoice_no": "SUP-2210", "purchase_date": "2026-10-16", "due_date": "2026-11-15", "tax_pct": "11", "other_costs": [{ "name": "Ongkir", "amount": "50000" }], "note": "", "lines": [{ "item_id": "0b1f…", "qty_display": "0", "qty_warehouse": "100", "unit_price": "9000", "discounts": ["5"] }] } },
+      "responses": [
+        { "status": 201, "description": "Nota baru", "body": { "id": "e1a4…", "doc_no": "PUR-20261016-0001", "outlet_id": "a7c2…", "supplier_id": "5be2…", "supplier_name": "PT Kopi Jaya", "supplier_invoice_no": "SUP-2210", "purchase_date": "2026-10-16", "payment_type": "credit", "due_date": "2026-11-15", "status": "completed", "subtotal": "855000.00", "tax_pct": "11.00", "tax_amount": "94050.00", "other_cost": "50000.00", "total": "999050.00", "lines": [{ "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "qty_display": "0.000", "qty_warehouse": "100.000", "qty": "100.000", "unit_price": "9000.00", "discounts": ["5.00"], "line_total": "855000.00", "cost_alloc": "50000.00", "unit_cost": "9050.00", "stock_before": "50.000", "avg_before": "8800.00", "avg_after": "8966.67" }], "costs": [{ "name": "Ongkir", "amount": "50000.00" }], "payable": { "id": "d204…", "amount": "999050.00", "due_date": "2026-11-15", "paid": "0.00", "returned": "0.00", "balance": "999050.00" }, "revision": 1, "returns": [] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama sudah pernah menyimpan (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib (8–100 karakter)." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci sudah dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid; error.fields mis. supplier_id, payment_type, purchase_date, due_date, tax_pct, other_costs.N.name/amount, lines, lines.N.item_id / qty_display / qty_warehouse / unit_price / discounts. Nilai: REQUIRED, INVALID, TOO_MANY, ITEM_UNAVAILABLE, dll." },
+        { "status": 422, "code": "ITEM_UNAVAILABLE", "description": "Barang tidak tersedia untuk pembelian (tidak ada, tidak aktif, atau bukan barang berstok)." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." }
+      ],
+      "notes": ["Uang sebagai string desimal; jangan float."]
+    },
+    "POST /purchases/quote": {
+      "summary": "Hitung nota pembelian (pratinjau)",
+      "description": "Menghitung total, alokasi biaya lain, HPP baris, dan HPP rata-rata baru dengan aturan yang sama dengan POST /purchases, tanpa menyimpan. Pemasok dan jenis pembayaran tidak wajib. Body sama dengan POST /purchases.",
+      "request": { "body": { "tax_pct": "11", "lines": [{ "item_id": "0b1f…", "qty_warehouse": "100", "unit_price": "9000", "discounts": ["5"] }] } },
+      "responses": [{ "status": 200, "body": { "lines": [{ "item_id": "0b1f…", "qty": "100.000", "line_total": "855000.00", "cost_alloc": "0.00", "unit_cost": "8550.00", "stock_before": "50.000", "avg_before": "8800.00", "avg_after": "8633.33" }], "subtotal": "855000.00", "tax_pct": "11.00", "tax_amount": "94050.00", "other_cost": "0.00", "total": "949050.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid (error.fields)." },
+        { "status": 422, "code": "ITEM_UNAVAILABLE", "description": "Barang tidak tersedia." }
+      ]
+    },
+    "GET /purchases": {
+      "summary": "Daftar pembelian",
+      "description": "Nota pembelian outlet aktif, terbaru dulu, paginasi keyset. summary mencakup seluruh hasil filter. Tanpa from/to = 30 hari terakhir; rentang maksimum 366 hari.",
+      "query": [
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD (tanggal pembelian)." },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "supplier_id", "type": "uuid" },
+        { "name": "payment_type", "type": "string", "description": "cash | credit" },
+        { "name": "q", "type": "string", "description": "Cari nomor nota / nomor faktur pemasok / nama pemasok." },
+        { "name": "cursor", "type": "string", "description": "next_cursor dari respons sebelumnya." },
+        { "name": "limit", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "e1a4…", "doc_no": "PUR-20261016-0001", "supplier_id": "5be2…", "supplier_name": "PT Kopi Jaya", "supplier_invoice_no": "SUP-2210", "purchase_date": "2026-10-16", "payment_type": "credit", "due_date": "2026-11-15", "status": "completed", "total": "999050.00", "lines": 1, "created_at": "2026-10-16T03:12:44Z", "created_by": "Rina" }], "has_more": false, "next_cursor": "", "summary": { "count": 1, "total": "999050.00", "credit_total": "999050.00" } } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "from/to/supplier_id/payment_type/cursor tidak valid atau rentang > 366 hari." }]
+    },
+    "GET /purchases/items": {
+      "summary": "Cari barang untuk form pembelian",
+      "description": "Maks. 20 barang berstok aktif dengan HPP rata-rata, harga beli terakhir, dan stok total di outlet aktif.",
+      "query": [{ "name": "q", "type": "string", "description": "Nama, SKU, atau barcode." }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "barcode": "8999999000012", "name": "Kopi Susu", "unit": "Gelas", "avg_cost": "8800.00", "last_cost": "9000.00", "stock_total": "250.000" }] } }]
+    },
+    "GET /purchases/price-history": {
+      "summary": "Riwayat harga beli",
+      "description": "Harga beli per barang per pembelian (termasuk harga sebelumnya untuk perbandingan), paginasi keyset. Rentang maksimum 366 hari.",
+      "query": [
+        { "name": "from", "type": "date" },
+        { "name": "to", "type": "date" },
+        { "name": "q", "type": "string", "description": "Cari barang (maks. panjang dibatasi)." },
+        { "name": "supplier_id", "type": "uuid" },
+        { "name": "item_id", "type": "uuid" },
+        { "name": "cursor", "type": "string" },
+        { "name": "limit", "type": "integer", "description": "Default 50, maks. 200." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "purchase_id": "e1a4…", "position": 1, "doc_no": "PUR-20261016-0001", "purchase_date": "2026-10-16", "created_at": "2026-10-16T03:12:44Z", "outlet_name": "Pusat", "supplier_id": "5be2…", "supplier_name": "PT Kopi Jaya", "item_id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "qty": "100.000", "unit_price": "9000", "discounts": ["5.00"], "unit_cost": "9050.00", "prev_price": "8800" }], "next_cursor": "" } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "from/to/cursor/supplier_id/item_id tidak valid, q TOO_LONG, atau rentang > 366 hari." }]
+    },
+    "GET /purchases/{id}": {
+      "summary": "Detail pembelian",
+      "description": "Nota lengkap: baris dengan HPP dan rata-rata sebelum/sesudah, biaya lain, hutang, retur terkait, riwayat audit, dan rantai revisi/pembatalan.",
+      "responses": [{ "status": 200, "body": { "id": "e1a4…", "doc_no": "PUR-20261016-0001", "outlet_code": "PST", "outlet_name": "Pusat", "supplier_id": "5be2…", "supplier_name": "PT Kopi Jaya", "purchase_date": "2026-10-16", "payment_type": "credit", "due_date": "2026-11-15", "status": "completed", "subtotal": "855000.00", "tax_pct": "11.00", "tax_amount": "94050.00", "other_cost": "50000.00", "total": "999050.00", "created_by": "Rina", "lines": [{ "item_id": "0b1f…", "name": "Kopi Susu", "qty": "100.000", "unit_price": "9000.00", "line_total": "855000.00", "unit_cost": "9050.00" }], "costs": [{ "name": "Ongkir", "amount": "50000.00" }], "payable": { "id": "d204…", "amount": "999050.00", "paid": "0.00", "returned": "0.00", "balance": "999050.00" }, "events": [], "revision": 1, "revision_reason": "", "superseded_by": null, "supersedes_id": null, "void_reason": "", "returns": [] } }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ada atau id bukan uuid." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "Nota milik outlet yang tidak boleh diakses." }
+      ]
+    },
+    "PUT /purchases/{id}": {
+      "summary": "Edit pembelian (buat revisi)",
+      "description": "Mengganti nota dengan revisi baru: efek nota lama dibalik (stok, HPP, hutang) lalu nota baru dibuat. Body = isi POST /purchases ditambah reason. Header Idempotency-Key wajib. Harus dalam batas hari edit tenant dan dari outlet nota.",
+      "body": [
+        { "name": "reason", "type": "string", "required": true, "description": "Alasan perubahan, 3–200 karakter." },
+        { "name": "supplier_id", "type": "uuid", "required": true },
+        { "name": "payment_type", "type": "string", "required": true, "description": "cash | credit" },
+        { "name": "lines", "type": "array", "required": true, "description": "Seluruh baris nota baru; format seperti POST /purchases." }
+      ],
+      "request": { "body": { "reason": "Salah harga", "supplier_id": "5be2…", "payment_type": "credit", "lines": [{ "item_id": "0b1f…", "qty_warehouse": "100", "unit_price": "8900" }] } },
+      "responses": [
+        { "status": 201, "description": "Revisi dibuat", "body": { "id": "e2b5…", "doc_no": "PUR-20261016-0001-R2", "revision": 2, "supersedes_id": "e1a4…", "revision_reason": "Salah harga", "status": "completed" } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "VALIDATION", "description": "reason atau isian nota tidak valid (error.fields)." },
+        { "status": 409, "code": "PURCHASE_NOT_EDITABLE", "description": "Nota sudah dibatalkan atau digantikan revisi." },
+        { "status": 403, "code": "EDIT_WINDOW_CLOSED", "description": "Batas hari edit nota sudah lewat." },
+        { "status": 409, "code": "PAYABLE_PAID", "description": "Hutang nota sudah dibayar sebagian/seluruhnya." },
+        { "status": 409, "code": "PURCHASE_HAS_RETURNS", "description": "Nota punya retur; batalkan retur dulu." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok tidak cukup untuk membalik nota lama (sudah terjual sebagian)." },
+        { "status": 409, "code": "OUTLET_MISMATCH", "description": "Nota milik outlet lain." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }
+      ]
+    },
+    "POST /purchases/{id}/void": {
+      "summary": "Batalkan pembelian",
+      "description": "Membatalkan nota: stok yang masuk dikeluarkan lagi, HPP dan hutang dibalik. Ditolak bila stok sudah terjual sebagian, hutang sudah dibayar, atau ada retur.",
+      "body": [{ "name": "reason", "type": "string", "required": true, "description": "Alasan, 3–200 karakter." }],
+      "request": { "body": { "reason": "Salah input pemasok" } },
+      "responses": [{ "status": 200, "description": "Nota setelah dibatalkan", "body": { "id": "e1a4…", "doc_no": "PUR-20261016-0001", "status": "void", "void_reason": "Salah input pemasok", "voided_at": "2026-10-16T05:00:00Z" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "reason kosong, < 3, atau > 200 karakter (error.fields.reason = REQUIRED | TOO_SHORT | TOO_LONG)." },
+        { "status": 409, "code": "PURCHASE_NOT_EDITABLE", "description": "Nota sudah dibatalkan atau digantikan revisi." },
+        { "status": 403, "code": "EDIT_WINDOW_CLOSED", "description": "Batas hari edit nota sudah lewat." },
+        { "status": 409, "code": "PAYABLE_PAID", "description": "Hutang sudah dibayar." },
+        { "status": 409, "code": "PURCHASE_HAS_RETURNS", "description": "Nota punya retur." },
+        { "status": 409, "code": "STOCK_INSUFFICIENT", "description": "Stok tidak cukup untuk membalik (sudah terjual sebagian)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Nota tidak ditemukan." }
+      ]
+    },
+    "GET /receivables": {
+      "summary": "Daftar piutang member",
+      "description": "Piutang dari nota kredit dan saldo awal. Default hanya yang masih terbuka. summary menghitung seluruh hasil filter. Paginasi offset dengan has_more.",
+      "query": [
+        { "name": "member_id", "type": "uuid", "description": "Saring per member." },
+        { "name": "status", "type": "string", "description": "open (default) | overdue | paid | all" },
+        { "name": "q", "type": "string", "description": "Cari nomor nota / kode / nama member." },
+        { "name": "limit", "type": "integer", "description": "Default 50, maks. 200." },
+        { "name": "offset", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "f7c1…", "sale_id": "9c4e…", "kind": "sale", "doc_no": "INV-20261016-0003", "member_id": "2d90…", "member_code": "M-0001", "member_name": "Budi", "amount": "150000.00", "paid": "50000.00", "returned": "0.00", "balance": "100000.00", "due_date": "2026-11-15", "created_at": "2026-10-16T03:12:44Z", "status": "open" }], "summary": { "outstanding": "100000.00", "overdue": "0.00", "open_count": 1, "total_count": 1 }, "has_more": false } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "member_id bukan uuid (error.fields.member_id = INVALID)." }]
+    },
+    "GET /receivables/{id}": {
+      "summary": "Detail piutang",
+      "description": "Satu piutang beserta riwayat pembayarannya. Untuk saldo awal ada pula doc_date, note, created_by, dan data pembatalan.",
+      "responses": [{ "status": 200, "body": { "id": "f7c1…", "sale_id": "9c4e…", "kind": "sale", "doc_no": "INV-20261016-0003", "member_id": "2d90…", "member_code": "M-0001", "member_name": "Budi", "amount": "150000.00", "paid": "50000.00", "returned": "0.00", "balance": "100000.00", "due_date": "2026-11-15", "status": "open", "sale_total": "150000.00", "sale_at": "2026-10-16T03:12:44Z", "payments": [{ "id": "aa12…", "doc_no": "RCP-20261017-0001", "method": "cash", "method_id": "7d3a…", "method_name": "Tunai", "amount": "50000.00", "ref_no": "", "fee_pct": "0", "fee": "0.00", "fee_bearer": "store", "note": "", "received_by": "Rina", "created_at": "2026-10-17T02:00:00Z" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Piutang tidak ada atau id bukan uuid." }]
+    },
+    "POST /receivables/{id}/payments": {
+      "summary": "Bayar piutang (satu nota)",
+      "description": "Mencatat satu pembayaran piutang; uang masuk ke laci outlet aktif. Header Idempotency-Key wajib. Pembayaran dengan metode deposit memotong saldo deposit member.",
+      "body": [
+        { "name": "method_id", "type": "uuid", "required": true, "description": "Metode pembayaran aktif (bukan kredit pemasok)." },
+        { "name": "amount", "type": "decimal", "required": true, "description": "> 0, maks. 2 desimal, tidak melebihi sisa piutang." },
+        { "name": "ref_no", "type": "string", "description": "Nomor referensi, maks. 100 karakter." },
+        { "name": "note", "type": "string" }
+      ],
+      "request": { "body": { "method_id": "7d3a…", "amount": "50000", "ref_no": "", "note": "" } },
+      "responses": [
+        { "status": 201, "description": "Pembayaran tercatat; detail piutang terbaru.", "body": { "id": "f7c1…", "balance": "50000.00", "status": "open", "payments": [{ "doc_no": "RCP-20261017-0001", "amount": "50000.00", "method_name": "Tunai" }] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "error.fields.method_id (REQUIRED | INVALID | METHOD_INACTIVE), amount (REQUIRED | INVALID | SETTLED sudah lunas | OVERPAID melebihi sisa | DEPOSIT_INSUFFICIENT), ref_no, note." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak ditemukan atau tidak aktif." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Piutang tidak ada atau milik outlet yang tidak boleh diakses." }
+      ]
+    },
+    "POST /receivables/settlements/quote": {
+      "summary": "Pratinjau pelunasan kolektif",
+      "description": "Menghitung pembagian uang ke beberapa piutang satu member tanpa menyimpan. Mode auto: melunasi nota TERLAMA dulu sampai uang habis (nota terakhir boleh sebagian). Mode manual: pilih piutang dan jumlah per piutang.",
+      "body": [
+        { "name": "member_id", "type": "uuid", "required": true },
+        { "name": "mode", "type": "string", "required": true, "description": "auto | manual" },
+        { "name": "amount", "type": "decimal", "description": "Total uang (mode auto)." },
+        { "name": "allocations", "type": "array", "description": "Mode manual: { receivable_id, amount } (maks. 200)." },
+        { "name": "method_id", "type": "uuid", "description": "Tidak wajib untuk pratinjau." }
+      ],
+      "request": { "body": { "member_id": "2d90…", "mode": "auto", "amount": "200000" } },
+      "responses": [{ "status": 200, "body": { "mode": "auto", "member_id": "2d90…", "total": "200000.00", "outstanding": "350000.00", "open_count": 3, "allocations": [{ "receivable_id": "f7c1…", "sale_doc_no": "INV-20261016-0003", "sale_date": "2026-10-16", "due_date": "2026-11-15", "balance": "100000.00", "amount": "100000.00", "balance_after": "0.00" }] } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "member_id/mode/amount tidak valid; amount SETTLED (tidak ada tunggakan) atau OVERPAID (melebihi tunggakan); allocations (REQUIRED | TOO_MANY), allocations.N.receivable_id (INVALID | DUPLICATE), allocations.N.amount (SETTLED | OVERPAID)." }]
+    },
+    "POST /receivables/settlements": {
+      "summary": "Pelunasan kolektif piutang",
+      "description": "Menyimpan pelunasan kolektif satu member: satu dokumen membagi uang ke beberapa piutang (tiap alokasi menjadi pembayaran piutang tersendiri). Body sama dengan pratinjau ditambah method_id wajib. Header Idempotency-Key wajib.",
+      "body": [
+        { "name": "member_id", "type": "uuid", "required": true },
+        { "name": "mode", "type": "string", "required": true, "description": "auto | manual" },
+        { "name": "method_id", "type": "uuid", "required": true },
+        { "name": "amount", "type": "decimal", "description": "Total uang (mode auto)." },
+        { "name": "allocations", "type": "array", "description": "Mode manual: { receivable_id, amount }." },
+        { "name": "ref_no", "type": "string" },
+        { "name": "note", "type": "string" }
+      ],
+      "request": { "body": { "member_id": "2d90…", "mode": "auto", "method_id": "7d3a…", "amount": "200000" } },
+      "responses": [
+        { "status": 201, "description": "Pelunasan tersimpan", "body": { "id": "b0c9…", "doc_no": "STL-20261017-0001", "member_id": "2d90…", "member_name": "Budi", "mode": "auto", "method_name": "Tunai", "total": "200000.00", "fee": "0.00", "ref_no": "", "note": "", "received_by": "Rina", "created_at": "2026-10-17T02:00:00Z", "allocations": [{ "receivable_id": "f7c1…", "sale_doc_no": "INV-20261016-0003", "sale_date": "2026-10-16", "amount": "100000.00" }] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "Seperti pratinjau; ditambah method_id (REQUIRED | INVALID | METHOD_INACTIVE) dan amount DEPOSIT_INSUFFICIENT." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Data tidak ditemukan." }
+      ]
+    },
+    "GET /receivables/settlements/{id}": {
+      "summary": "Detail pelunasan kolektif",
+      "responses": [{ "status": 200, "body": { "id": "b0c9…", "doc_no": "STL-20261017-0001", "member_id": "2d90…", "member_name": "Budi", "mode": "auto", "method_name": "Tunai", "total": "200000.00", "fee": "0.00", "received_by": "Rina", "created_at": "2026-10-17T02:00:00Z", "allocations": [{ "receivable_id": "f7c1…", "sale_doc_no": "INV-20261016-0003", "sale_date": "2026-10-16", "amount": "100000.00" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ditemukan." }]
+    },
+    "POST /receivables/opening": {
+      "summary": "Catat saldo awal piutang",
+      "description": "Mencatat piutang lama member yang belum dibayar (migrasi/onboarding) di outlet aktif. Tidak dicek terhadap limit kredit, tetapi ikut dihitung untuk nota kredit berikutnya. Header Idempotency-Key wajib.",
+      "body": [
+        { "name": "member_id", "type": "uuid", "required": true },
+        { "name": "amount", "type": "decimal", "required": true, "description": "Sisa piutang > 0, maks. 2 desimal." },
+        { "name": "doc_date", "type": "date", "required": true, "description": "Tanggal dokumen lama YYYY-MM-DD (tidak di masa depan)." },
+        { "name": "due_date", "type": "date", "description": "Opsional, tidak sebelum doc_date." },
+        { "name": "ref_no", "type": "string", "description": "No. nota/bon lama, maks. 64 karakter, unik per member." },
+        { "name": "note", "type": "string", "description": "Maks. 200 karakter." }
+      ],
+      "request": { "body": { "member_id": "2d90…", "amount": "75000", "doc_date": "2026-09-01", "due_date": "2026-10-01", "ref_no": "BON-17", "note": "Saldo awal" } },
+      "responses": [
+        { "status": 201, "description": "Saldo awal tercatat", "body": { "id": "f7c9…", "kind": "opening", "doc_no": "OPN-AR-0001", "member_id": "2d90…", "amount": "75000.00", "paid": "0.00", "balance": "75000.00", "due_date": "2026-10-01", "doc_date": "2026-09-01", "status": "overdue", "payments": [] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "member_id/amount/doc_date (REQUIRED | INVALID), due_date (INVALID | BEFORE_START), ref_no, note." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." }
+      ]
+    },
+    "POST /receivables/{id}/void": {
+      "summary": "Batalkan saldo awal piutang",
+      "description": "Membatalkan saldo awal yang belum dibayar sama sekali. Piutang dari nota penjualan tidak bisa dibatalkan di sini (batalkan notanya).",
+      "body": [{ "name": "reason", "type": "string", "required": true, "description": "Alasan, 3–200 karakter." }],
+      "request": { "body": { "reason": "Salah input" } },
+      "responses": [{ "status": 200, "body": { "id": "f7c9…", "kind": "opening", "status": "paid", "void_reason": "Salah input", "voided_at": "2026-10-17T03:00:00Z" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "reason kosong atau di luar 3–200 karakter." },
+        { "status": 409, "code": "RECEIVABLE_NOT_OPENING", "description": "Bukan saldo awal piutang." },
+        { "status": 409, "code": "RECEIVABLE_PAID", "description": "Saldo awal sudah dibayar sebagian/seluruhnya." },
+        { "status": 409, "code": "RECEIVABLE_VOIDED", "description": "Saldo awal sudah dibatalkan." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Piutang tidak ditemukan." }
+      ]
+    },
+    "GET /payables": {
+      "summary": "Daftar hutang pemasok",
+      "description": "Hutang dari pembelian kredit. Default hanya yang masih terbuka, urut jatuh tempo. summary (termasuk umur hutang/aging) menghitung seluruh hasil filter. Paginasi keyset lewat cursor.",
+      "query": [
+        { "name": "supplier_id", "type": "uuid" },
+        { "name": "status", "type": "string", "description": "open (default) | overdue | paid | all" },
+        { "name": "q", "type": "string", "description": "Cari nomor pembelian / faktur pemasok / nama pemasok." },
+        { "name": "cursor", "type": "string", "description": "next_cursor dari respons sebelumnya." },
+        { "name": "limit", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "d204…", "purchase_id": "e1a4…", "doc_no": "PUR-20261016-0001", "supplier_invoice_no": "SUP-2210", "supplier_id": "5be2…", "supplier_code": "S-001", "supplier_name": "PT Kopi Jaya", "purchase_date": "2026-10-16", "amount": "999050.00", "paid": "0.00", "returned": "0.00", "balance": "999050.00", "due_date": "2026-11-15", "status": "open" }], "summary": { "outstanding": "999050.00", "overdue": "0.00", "open_count": 1, "total_count": 1, "aging": { "current": "999050.00", "d1_30": "0.00", "d31_60": "0.00", "d60_plus": "0.00" } }, "has_more": false, "next_cursor": "" } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "supplier_id bukan uuid atau cursor tidak valid." }]
+    },
+    "GET /payables/{id}": {
+      "summary": "Detail hutang",
+      "description": "Satu hutang beserta riwayat pembayarannya.",
+      "responses": [{ "status": 200, "body": { "id": "d204…", "purchase_id": "e1a4…", "doc_no": "PUR-20261016-0001", "supplier_name": "PT Kopi Jaya", "amount": "999050.00", "paid": "400000.00", "returned": "0.00", "balance": "599050.00", "due_date": "2026-11-15", "status": "open", "purchase_total": "999050.00", "payments": [{ "id": "bb21…", "doc_no": "PAY-20261020-0001", "method": "transfer", "method_id": "7d3b…", "method_name": "Transfer", "amount": "400000.00", "ref_no": "TRX88", "note": "", "paid_by": "Rina", "created_at": "2026-10-20T02:00:00Z" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Hutang tidak ada atau id bukan uuid." }]
+    },
+    "POST /payables/{id}/payments": {
+      "summary": "Bayar hutang (satu nota)",
+      "description": "Mencatat pembayaran hutang ke pemasok; uang keluar dari laci outlet aktif. Header Idempotency-Key wajib. Metode kredit pemasok memotong saldo kredit pemasok.",
+      "body": [
+        { "name": "method_id", "type": "uuid", "required": true, "description": "Metode pembayaran aktif (bukan deposit member)." },
+        { "name": "amount", "type": "decimal", "required": true, "description": "> 0, maks. 2 desimal, tidak melebihi sisa hutang." },
+        { "name": "ref_no", "type": "string" },
+        { "name": "note", "type": "string" }
+      ],
+      "request": { "body": { "method_id": "7d3b…", "amount": "400000", "ref_no": "TRX88" } },
+      "responses": [
+        { "status": 201, "description": "Pembayaran tercatat; detail hutang terbaru.", "body": { "id": "d204…", "balance": "599050.00", "status": "open", "payments": [{ "doc_no": "PAY-20261020-0001", "amount": "400000.00" }] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama (header Idempotent-Replay: true)." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "method_id (REQUIRED | INVALID | METHOD_INACTIVE), amount (REQUIRED | INVALID | SETTLED | OVERPAID | CREDIT_INSUFFICIENT saldo kredit pemasok kurang)." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Hutang tidak ditemukan." }
+      ]
+    },
+    "POST /payables/settlements/quote": {
+      "summary": "Pratinjau pelunasan kolektif hutang",
+      "description": "Menghitung pembagian uang ke beberapa hutang satu pemasok tanpa menyimpan. Mode auto: melunasi nota TERLAMA dulu; mode manual: pilih hutang dan jumlah.",
+      "body": [
+        { "name": "supplier_id", "type": "uuid", "required": true },
+        { "name": "mode", "type": "string", "required": true, "description": "auto | manual" },
+        { "name": "amount", "type": "decimal", "description": "Total uang (mode auto)." },
+        { "name": "allocations", "type": "array", "description": "Mode manual: { payable_id, amount } (maks. 200)." }
+      ],
+      "request": { "body": { "supplier_id": "5be2…", "mode": "auto", "amount": "500000" } },
+      "responses": [{ "status": 200, "body": { "mode": "auto", "supplier_id": "5be2…", "total": "500000.00", "outstanding": "999050.00", "open_count": 1, "allocations": [{ "payable_id": "d204…", "purchase_doc_no": "PUR-20261016-0001", "supplier_invoice_no": "SUP-2210", "purchase_date": "2026-10-16", "due_date": "2026-11-15", "balance": "999050.00", "amount": "500000.00", "balance_after": "499050.00" }] } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "supplier_id/mode/amount tidak valid; amount SETTLED atau OVERPAID; allocations (REQUIRED | TOO_MANY), allocations.N.payable_id (INVALID | DUPLICATE), allocations.N.amount (SETTLED | OVERPAID)." }]
+    },
+    "POST /payables/settlements": {
+      "summary": "Pelunasan kolektif hutang",
+      "description": "Menyimpan pelunasan kolektif satu pemasok: satu dokumen membagi uang ke beberapa hutang. Body seperti pratinjau ditambah method_id wajib. Header Idempotency-Key wajib.",
+      "body": [
+        { "name": "supplier_id", "type": "uuid", "required": true },
+        { "name": "mode", "type": "string", "required": true, "description": "auto | manual" },
+        { "name": "method_id", "type": "uuid", "required": true },
+        { "name": "amount", "type": "decimal", "description": "Total uang (mode auto)." },
+        { "name": "allocations", "type": "array", "description": "Mode manual: { payable_id, amount }." },
+        { "name": "ref_no", "type": "string" },
+        { "name": "note", "type": "string" }
+      ],
+      "request": { "body": { "supplier_id": "5be2…", "mode": "auto", "method_id": "7d3b…", "amount": "500000" } },
+      "responses": [
+        { "status": 201, "description": "Pelunasan tersimpan", "body": { "id": "c3d1…", "doc_no": "PST-20261020-0001", "supplier_id": "5be2…", "mode": "auto", "total": "500000.00", "allocations": [{ "payable_id": "d204…", "purchase_doc_no": "PUR-20261016-0001", "amount": "500000.00" }] } },
+        { "status": 200, "description": "Replay: Idempotency-Key sama." }
+      ],
+      "errors": [
+        { "status": 400, "code": "IDEMPOTENCY_KEY_REQUIRED", "description": "Header Idempotency-Key wajib." },
+        { "status": 422, "code": "IDEMPOTENCY_MISMATCH", "description": "Kunci dipakai untuk isi berbeda." },
+        { "status": 422, "code": "VALIDATION", "description": "Seperti pratinjau; ditambah method_id (REQUIRED | INVALID | METHOD_INACTIVE) dan amount CREDIT_INSUFFICIENT." },
+        { "status": 409, "code": "OUTLET_NOT_FOUND", "description": "Outlet aktif tidak aktif." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Data tidak ditemukan." }
+      ]
+    },
+    "GET /payables/settlements/{id}": {
+      "summary": "Detail pelunasan kolektif hutang",
+      "responses": [{ "status": 200, "body": { "id": "c3d1…", "doc_no": "PST-20261020-0001", "supplier_id": "5be2…", "mode": "auto", "total": "500000.00", "allocations": [{ "payable_id": "d204…", "purchase_doc_no": "PUR-20261016-0001", "amount": "500000.00" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Dokumen tidak ditemukan." }]
+    },
+    "GET /members": {
+      "summary": "Daftar member",
+      "description": "Member tenant dengan poin dan level. Paginasi offset.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Cari kode, nama, atau nomor telepon." },
+        { "name": "active", "type": "boolean", "description": "true/false; kosong = semua." },
+        { "name": "limit", "type": "integer", "description": "Default 20, maks. 100." },
+        { "name": "offset", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "2d90…", "code": "M-0001", "name": "Budi", "phone": "081234567890", "city": "Bandung", "active": true, "valid_until": null, "points": 120, "lifetime_points": 480, "level": "Silver", "cover_image_id": null }], "total": 1 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid (error.fields.q)." }]
+    },
+    "GET /members/lookup": {
+      "summary": "Cari member untuk kasir",
+      "description": "Pencarian member yang boleh dipilih di kasir (aktif dan belum kedaluwarsa menurut hari di outlet aktif), lengkap dengan aturan poin level: spend_per_point (rupiah per 1 poin) dan point_value (nilai rupiah 1 poin saat ditukar).",
+      "query": [{ "name": "q", "type": "string", "description": "Kode, nama, atau telepon (maks. 200 karakter)." }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "2d90…", "code": "M-0001", "name": "Budi", "phone": "081234567890", "points": 120, "lifetime_points": 480, "level": "Silver", "cover_image_id": null, "spend_per_point": "10000.00", "point_value": "100.00" }] } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid atau terlalu panjang." }]
+    },
+    "GET /members/{id}": {
+      "summary": "Detail member",
+      "description": "Profil member lengkap dengan level, level berikutnya, poin, serta statistik belanja dan saldo deposit.",
+      "responses": [{ "status": 200, "body": { "id": "2d90…", "code": "M-0001", "name": "Budi", "gender": "M", "phone": "081234567890", "email": "budi@mail.id", "address": "Jl. Mawar 1", "district": "", "city": "Bandung", "province": "Jawa Barat", "postal_code": "40111", "credit_limit": "500000.00", "due_days": 30, "valid_until": null, "active": true, "notes": "", "cover_image_id": null, "points": 120, "lifetime_points": 480, "level": { "id": "1a2b…", "name": "Silver", "min_points": 100, "spend_per_point": "10000.00", "point_value": "100.00" }, "next_level": { "name": "Gold", "min_points": 500, "points_needed": 20 }, "stats": { "total_sales": "2400000.00", "total_trx": 18, "points": 120, "deposit": "0.00" }, "created_at": "2026-09-01T02:00:00Z", "updated_at": "2026-10-10T02:00:00Z" } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Member tidak ada atau id bukan uuid." }]
+    },
+    "POST /members": {
+      "summary": "Tambah member",
+      "description": "Membuat member baru. credit_limit = batas piutang member (0 = tanpa batas), due_days = tempo bayar default nota kredit dalam hari.",
+      "body": [
+        { "name": "name", "type": "string", "required": true, "description": "Maks. 200 karakter." },
+        { "name": "code", "type": "string", "description": "Kosong = dibuat otomatis. 1–40 karakter: huruf/angka dan . _ / - (unik per tenant)." },
+        { "name": "gender", "type": "string", "description": "M | F | kosong." },
+        { "name": "phone", "type": "string" },
+        { "name": "email", "type": "string" },
+        { "name": "address", "type": "string" },
+        { "name": "district", "type": "string" },
+        { "name": "city", "type": "string" },
+        { "name": "province", "type": "string" },
+        { "name": "postal_code", "type": "string" },
+        { "name": "credit_limit", "type": "decimal", "description": "≥ 0, maks. 2 desimal." },
+        { "name": "due_days", "type": "integer", "description": "Hari jatuh tempo piutang." },
+        { "name": "valid_until", "type": "date", "description": "YYYY-MM-DD; kosong = selalu aktif." },
+        { "name": "notes", "type": "string" },
+        { "name": "active", "type": "boolean", "description": "Kosong = aktif." }
+      ],
+      "request": { "body": { "name": "Budi", "phone": "081234567890", "city": "Bandung", "credit_limit": "500000", "due_days": 30 } },
+      "responses": [{ "status": 201, "description": "Member dibuat (bentuk sama dengan GET /members/{id}).", "body": { "id": "2d90…", "code": "M-0001", "name": "Budi", "credit_limit": "500000.00", "due_days": 30, "active": true, "points": 0 } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "error.fields: name, code, gender, phone, email, address/district/city/province, postal_code, credit_limit, due_days, valid_until, notes (INVALID | REQUIRED | TOO_LONG)." },
+        { "status": 409, "code": "CODE_TAKEN", "description": "Kode member sudah dipakai." }
+      ]
+    },
+    "PUT /members/{id}": {
+      "summary": "Ubah member",
+      "description": "Mengganti data member; body sama dengan POST /members, tetapi code wajib diisi. active kosong = status tidak berubah (tidak mengaktifkan kembali member terarsip).",
+      "body": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "code", "type": "string", "required": true },
+        { "name": "phone", "type": "string" },
+        { "name": "credit_limit", "type": "decimal" },
+        { "name": "due_days", "type": "integer" },
+        { "name": "valid_until", "type": "date" }
+      ],
+      "request": { "body": { "code": "M-0001", "name": "Budi Santoso", "credit_limit": "1000000", "due_days": 30 } },
+      "responses": [{ "status": 200, "body": { "id": "2d90…", "code": "M-0001", "name": "Budi Santoso", "credit_limit": "1000000.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid (error.fields seperti POST /members)." },
+        { "status": 409, "code": "CODE_TAKEN", "description": "Kode member sudah dipakai." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }
+      ]
+    },
+    "PUT /members/{id}/active": {
+      "summary": "Aktifkan / arsipkan member",
+      "body": [{ "name": "active", "type": "boolean", "required": true, "description": "false = arsipkan (tidak muncul di kasir)." }],
+      "request": { "body": { "active": false } },
+      "responses": [{ "status": 200, "body": { "id": "2d90…", "active": false } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "active tidak dikirim (error.fields.active = REQUIRED)." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }
+      ]
+    },
+    "GET /members/{id}/points": {
+      "summary": "Riwayat poin member",
+      "description": "Ledger poin member, terbaru dulu.",
+      "query": [{ "name": "limit", "type": "integer", "description": "Default 20, maks. 100." }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": 88, "kind": "EARN", "points": 12, "balance_after": 120, "ref_type": "SALE", "ref_id": "9c4e…", "doc_no": "INV-20261016-0001", "note": "", "actor": "Rina", "created_at": "2026-10-16T03:12:44Z" }], "total": 1 } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }]
+    },
+    "POST /members/{id}/points/adjust": {
+      "summary": "Sesuaikan poin manual",
+      "description": "Menambah atau mengurangi poin secara manual (alasan wajib; tercatat di ledger dan audit). Penambahan ikut menaikkan lifetime_points; pengurangan tidak. Butuh izin approve.",
+      "body": [
+        { "name": "points", "type": "integer", "required": true, "description": "Selisih poin ≠ 0; positif = tambah, negatif = kurangi. Maks. ±1.000.000." },
+        { "name": "note", "type": "string", "required": true, "description": "Alasan, maks. 200 karakter." }
+      ],
+      "request": { "body": { "points": 50, "note": "Saldo awal poin" } },
+      "responses": [{ "status": 200, "description": "Member setelah penyesuaian (bentuk sama dengan GET /members/{id}).", "body": { "id": "2d90…", "points": 170, "lifetime_points": 530 } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "points INVALID (nol / di luar batas / bukan bilangan bulat) atau POINTS_INSUFFICIENT (saldo poin tidak cukup untuk pengurangan); note REQUIRED | TOO_LONG." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }
+      ]
+    },
+    "GET /members/{id}/sales": {
+      "summary": "Riwayat belanja member",
+      "description": "Nota milik member, terbaru dulu.",
+      "query": [{ "name": "limit", "type": "integer", "description": "Default 20, maks. 100." }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "9c4e…", "doc_no": "INV-20261016-0001", "status": "completed", "created_at": "2026-10-16T03:12:44Z", "outlet": "Pusat", "cashier": "Rina", "total": "36000.00", "line_count": 1, "items": "Kopi Susu", "points_earned": 3, "points_redeemed": 0 }], "total": 1 } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }]
+    },
+    "GET /member-levels": {
+      "summary": "Daftar level member",
+      "description": "Level keanggotaan dengan aturan poin. spend_per_point = rupiah belanja per 1 poin yang didapat; point_value = nilai rupiah 1 poin saat ditukar.",
+      "query": [{ "name": "active", "type": "boolean", "description": "true/false; kosong = semua." }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "1a2b…", "name": "Silver", "min_points": 100, "spend_per_point": "10000.00", "point_value": "100.00", "active": true, "member_count": 34, "created_at": "2026-09-01T02:00:00Z" }] } }]
+    },
+    "POST /member-levels": {
+      "summary": "Tambah level member",
+      "body": [
+        { "name": "name", "type": "string", "required": true, "description": "Unik per tenant." },
+        { "name": "min_points", "type": "integer", "required": true, "description": "Lifetime poin minimum untuk naik ke level ini (unik per tenant)." },
+        { "name": "spend_per_point", "type": "decimal", "required": true },
+        { "name": "point_value", "type": "decimal", "required": true }
+      ],
+      "request": { "body": { "name": "Gold", "min_points": 500, "spend_per_point": "8000", "point_value": "150" } },
+      "responses": [{ "status": 201, "body": { "id": "1a2c…", "name": "Gold", "min_points": 500, "spend_per_point": "8000.00", "point_value": "150.00", "active": true, "member_count": 0 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "name/min_points/spend_per_point/point_value INVALID; name atau min_points DUPLICATE." }]
+    },
+    "PUT /member-levels/{id}": {
+      "summary": "Ubah level member",
+      "description": "Body sama dengan POST /member-levels. Level dasar (min_points 0) tidak boleh diubah ambangnya.",
+      "request": { "body": { "name": "Gold", "min_points": 600, "spend_per_point": "8000", "point_value": "150" } },
+      "responses": [{ "status": 200, "body": { "id": "1a2c…", "name": "Gold", "min_points": 600 } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Isian tidak valid; DUPLICATE untuk name/min_points; min_points BASE_LEVEL bila menyentuh level dasar." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Level tidak ditemukan." }
+      ]
+    },
+    "PUT /member-levels/{id}/active": {
+      "summary": "Aktifkan / nonaktifkan level",
+      "body": [{ "name": "active", "type": "boolean", "required": true }],
+      "request": { "body": { "active": false } },
+      "responses": [{ "status": 200, "body": { "id": "1a2c…", "active": false } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "active REQUIRED, atau BASE_LEVEL bila menonaktifkan level dasar." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Level tidak ditemukan." }
+      ]
+    },
+    "GET /reports/stock/valuation": {
+      "summary": "Laporan nilai persediaan",
+      "description": "Stok dan nilai persediaan per barang (qty × HPP rata-rata) di satu outlet, dengan total atas SELURUH barang yang lolos filter. Tanpa to: dibaca dari saldo stok saat ini (cepat). Dengan to: saldo = saldo setelah movement terakhir sebelum tanggal itu dihitung dari ledger. Paginasi keyset menurut nama barang.",
+      "query": [
+        { "name": "outlet_id", "type": "uuid", "description": "Kosong = outlet aktif kredensial; outlet lain harus boleh diakses." },
+        { "name": "category_id", "type": "uuid", "description": "Saring per kategori." },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD; posisi stok per tanggal ini. Kosong = saat ini." },
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD; divalidasi tetapi diabaikan (kompatibilitas)." },
+        { "name": "limit", "type": "integer", "description": "Default 100, maks. 500." },
+        { "name": "cursor", "type": "string", "description": "Nilai next_cursor dari respons sebelumnya." }
+      ],
+      "responses": [{ "status": 200, "body": { "from": "", "to": "", "outlet_id": "a7c2…", "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "display_qty": "48.000", "warehouse_qty": "200.000", "returns_qty": "0.000", "total_qty": "248.000", "avg_cost": "8800.00", "stock_value": "2182400.00" }], "totals": { "display_qty": "48.000", "warehouse_qty": "200.000", "returns_qty": "0.000", "total_qty": "248.000", "stock_value": "2182400.00" }, "limit": 100, "next_cursor": "" } }],
+      "errors": [
+        { "status": 400, "code": "VALIDATION_ERROR", "description": "from/to bukan YYYY-MM-DD atau outlet_id bukan uuid; message memuat nama parameter, mis. \"to: INVALID\"." },
+        { "status": 403, "code": "OUTLET_FORBIDDEN", "description": "outlet_id bukan outlet yang boleh diakses kredensial." },
+        { "status": 500, "code": "INTERNAL_ERROR", "description": "Galat server." }
+      ],
+      "notes": ["Di laporan stok, kesalahan masukan memakai kode VALIDATION_ERROR (HTTP 400), berbeda dari endpoint lain yang memakai VALIDATION (422)."]
+    },
+    "GET /reports/master/members": {
+      "summary": "Laporan master member",
+      "description": "Daftar member dengan level (dihitung dari lifetime poin), poin, limit kredit, dan masa berlaku. Paginasi keyset; format=xlsx atau pdf mengunduh seluruh hasil (sampai batas ekspor) sebagai berkas, bukan JSON. Memakai izin laporan persediaan.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Awalan nama/kode/telepon." },
+        { "name": "status", "type": "string", "description": "active | inactive; kosong = semua." },
+        { "name": "limit", "type": "integer", "description": "Default 100, maks. 500." },
+        { "name": "cursor", "type": "string", "description": "id baris terakhir halaman sebelumnya (next_cursor)." },
+        { "name": "format", "type": "string", "description": "xlsx | pdf (kosong = JSON)." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "2d90…", "code": "M-0001", "name": "Budi", "gender": "M", "phone": "081234567890", "email": "budi@mail.id", "address": "Jl. Mawar 1", "city": "Bandung", "level": "Silver", "points": 120, "credit_limit": "500000.00", "due_days": 30, "valid_until": "2027-01-01", "active": true }], "limit": 100, "next_cursor": "" } }],
+      "errors": [
+        { "status": 400, "code": "VALIDATION_ERROR", "description": "status, cursor, atau format tidak valid (message memuat nama parameter)." },
+        { "status": 500, "code": "INTERNAL_ERROR", "description": "Galat server." }
+      ]
+    },
+    "GET /reports/master/suppliers": {
+      "summary": "Laporan master pemasok",
+      "description": "Daftar pemasok. Parameter dan perilaku paginasi/ekspor sama dengan /reports/master/members.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Awalan nama/kode/telepon." },
+        { "name": "status", "type": "string", "description": "active | inactive" },
+        { "name": "limit", "type": "integer", "description": "Default 100, maks. 500." },
+        { "name": "cursor", "type": "string" },
+        { "name": "format", "type": "string", "description": "xlsx | pdf (kosong = JSON)." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "5be2…", "code": "S-001", "name": "PT Kopi Jaya", "contact_name": "Andi", "phone": "0221234567", "email": "sales@kopijaya.id", "address": "Jl. Industri 5", "note": "", "active": true }], "limit": 100, "next_cursor": "" } }],
+      "errors": [
+        { "status": 400, "code": "VALIDATION_ERROR", "description": "status, cursor, atau format tidak valid." },
+        { "status": 500, "code": "INTERNAL_ERROR", "description": "Galat server." }
+      ]
+    },
+    "GET /reports/master/salespeople": {
+      "summary": "Laporan master salesman",
+      "description": "Daftar salesman beserta persentase komisi. Parameter dan perilaku sama dengan /reports/master/members.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Awalan nama/kode/telepon." },
+        { "name": "status", "type": "string", "description": "active | inactive" },
+        { "name": "limit", "type": "integer", "description": "Default 100, maks. 500." },
+        { "name": "cursor", "type": "string" },
+        { "name": "format", "type": "string", "description": "xlsx | pdf (kosong = JSON)." }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "8f12…", "code": "SLS-01", "name": "Dewi", "phone": "081300000000", "commission_pct": "2.50", "note": "", "active": true }], "limit": 100, "next_cursor": "" } }],
+      "errors": [
+        { "status": 400, "code": "VALIDATION_ERROR", "description": "status, cursor, atau format tidak valid." },
+        { "status": 500, "code": "INTERNAL_ERROR", "description": "Galat server." }
+      ]
+    },
+    "GET /stock/conversions/items": {
+      "summary": "Cari barang untuk pecah satuan",
+      "description": "Barang berstok beserta saldo outlet aktif per bucket; bentuk dan parameter sama dengan GET /stock/opening/items.",
+      "query": [{ "name": "q", "type": "string" }, { "name": "limit", "type": "integer" }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "display": "48.000", "warehouse": "200.000", "returns": "0.000" }], "total": 1 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid." }]
+    },
+    "GET /stock/transfers/items": {
+      "summary": "Cari barang untuk mutasi stok",
+      "description": "Barang berstok beserta saldo outlet aktif per bucket; bentuk dan parameter sama dengan GET /stock/opening/items.",
+      "query": [{ "name": "q", "type": "string" }, { "name": "limit", "type": "integer" }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "display": "48.000", "warehouse": "200.000", "returns": "0.000" }], "total": 1 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid." }]
+    },
+    "GET /stock/counts/items": {
+      "summary": "Cari barang untuk stok opname",
+      "description": "Barang berstok beserta saldo outlet aktif per bucket; bentuk dan parameter sama dengan GET /stock/opening/items.",
+      "query": [{ "name": "q", "type": "string" }, { "name": "limit", "type": "integer" }, { "name": "offset", "type": "integer" }],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "name": "Kopi Susu", "unit": "Gelas", "display": "48.000", "warehouse": "200.000", "returns": "0.000" }], "total": 1 } }],
+      "errors": [{ "status": 422, "code": "VALIDATION", "description": "q tidak valid." }]
+    },
+    "GET /members/{id}/cover": {
+      "summary": "Foto cover member",
+      "description": "Mengunduh foto cover member sebagai image/jpeg (bukan JSON). Lihat cover_image_id pada detail member untuk tahu apakah foto ada.",
+      "query": [{ "name": "size", "type": "string", "description": "thumb = miniatur; kosong = ukuran penuh." }],
+      "errors": [
+        { "status": 404, "code": "NOT_FOUND", "description": "Member atau foto cover tidak ditemukan." },
+        { "status": 503, "code": "UNAVAILABLE", "description": "Penyimpanan gambar belum tersedia." }
+      ],
+      "notes": ["Respons dapat di-cache lama; ETag berisi id cover yang berubah setiap ganti foto."]
+    },
+    "POST /members/{id}/cover": {
+      "summary": "Unggah foto cover member",
+      "description": "Mengunggah foto dengan multipart/form-data pada field \"file\" (JPG, PNG, atau WebP). Mengganti foto lama.",
+      "responses": [{ "status": 200, "description": "Member setelah ganti foto (bentuk sama dengan GET /members/{id}).", "body": { "id": "2d90…", "cover_image_id": "c0de…" } }],
+      "errors": [
+        { "status": 415, "code": "UNSUPPORTED_MEDIA_TYPE", "description": "Content-Type bukan multipart/form-data." },
+        { "status": 422, "code": "VALIDATION", "description": "Field file tidak ada (error.fields.file = REQUIRED)." },
+        { "status": 413, "code": "IMAGE_TOO_LARGE", "description": "Ukuran gambar terlalu besar." },
+        { "status": 415, "code": "IMAGE_UNSUPPORTED", "description": "Format gambar tidak didukung." },
+        { "status": 422, "code": "IMAGE_DIMENSIONS", "description": "Dimensi gambar terlalu besar." },
+        { "status": 422, "code": "IMAGE_CORRUPT", "description": "Gambar rusak atau tidak terbaca." },
+        { "status": 503, "code": "UNAVAILABLE", "description": "Penyimpanan gambar belum tersedia." },
+        { "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }
+      ]
+    },
+    "DELETE /members/{id}/cover": {
+      "summary": "Hapus foto cover member",
+      "responses": [{ "status": 200, "description": "Member tanpa foto.", "body": { "id": "2d90…", "cover_image_id": null } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Member tidak ditemukan." }]
     }
   }
 }
