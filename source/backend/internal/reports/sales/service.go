@@ -2,7 +2,6 @@ package sales
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,6 +48,10 @@ type ByDateParams struct {
 	OutletID   string
 	From, To   string
 	CashierID  string
+	CategoryID string
+	// MethodID = metode pembayaran; kosong = semua metode. Hanya memfilter
+	// penjualan (pembayaran), bukan retur.
+	MethodID string
 	// HideEmpty = true: hari tanpa penjualan/void/retur tidak dikembalikan
 	// (hasil lebih ringkas untuk rentang panjang; default false = deret tanggal penuh).
 	HideEmpty bool
@@ -85,9 +88,12 @@ type MethodRow struct {
 
 // ByDateResult hasil laporan per tanggal.
 type ByDateResult struct {
-	From string    `json:"from"`
-	To   string    `json:"to"`
-	Data []DayRow  `json:"data"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Tenant  string `json:"tenant_name"`
+	Outlet  string `json:"outlet_name"`
+	OutletCode string `json:"outlet_code"`
+	Data    []DayRow `json:"data"`
 }
 
 // ByDate laporan penjualan agregat per tanggal (zona waktu outlet), dengan breakdown
@@ -136,9 +142,35 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 		if p.CashierID != "" {
 			id, err := uuid.Parse(p.CashierID)
 			if err != nil || id == uuid.Nil {
-				return errors.New("cashier_id: INVALID")
+				fe["cashier_id"] = "INVALID"
+			} else {
+				cashier = id
 			}
-			cashier = id
+		}
+		// Filter kategori: nota dihitung bila punya minimal satu baris barang di kategori itu
+		// (sama seperti laporan detail; seluruh nota tetap dihitung, bukan hanya barisnya).
+		category := uuid.Nil
+		if p.CategoryID != "" {
+			id, err := uuid.Parse(p.CategoryID)
+			if err != nil || id == uuid.Nil {
+				fe["category_id"] = "INVALID"
+			} else {
+				category = id
+			}
+		}
+		// Filter metode pembayaran: hanya berlaku pada penjualan (ada pembayaran
+		// dengan metode ini); retur tidak terikat metode pembayaran.
+		method := uuid.Nil
+		if p.MethodID != "" {
+			id, err := uuid.Parse(p.MethodID)
+			if err != nil || id == uuid.Nil {
+				fe["payment_method_id"] = "INVALID"
+			} else {
+				method = id
+			}
+		}
+		if len(fe) > 0 {
+			return fe
 		}
 
 		outlets := []uuid.UUID{a.OutletID}
@@ -151,14 +183,47 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 		if p.OutletID != "" {
 			id, err := uuid.Parse(p.OutletID)
 			if err != nil || id == uuid.Nil {
-				return errors.New("outlet_id: INVALID")
+				return FieldErrors{"outlet_id": "INVALID"}
+			}
+			// Cabang di luar akses pemanggil tak pernah dibaca (sama seperti laporan detail).
+			if id != a.OutletID && !a.Outlets[id] {
+				return ErrOutletForbidden
 			}
 			outlets = []uuid.UUID{id}
 		}
 
 		result.From, result.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
 
-		// Laporan 1 tahun menyentuh ratusan ribu baris untuk agregasi + sort;
+	// Ambil nama tenant untuk ringkasan PDF.
+	// Gunakan query ringan karena sudah ada tenant_id dari actor.
+	var tenantName string
+	err = tx.QueryRow(ctx, `SELECT name FROM tenants WHERE id = $1`, a.TenantID).Scan(&tenantName)
+	if err == nil && tenantName != "" {
+		result.Tenant = tenantName
+	}
+
+	// Ambil nama outlet (atau "Semua Outlet" jika semua outlet).
+	if p.AllOutlets && len(a.Outlets) > 0 {
+		result.Outlet = "Semua Outlet"
+	} else {
+		var outletName string
+		err := tx.QueryRow(ctx, `SELECT name FROM outlets WHERE tenant_id = $1 AND id = $2`, a.TenantID, a.OutletID).Scan(&outletName)
+		if err == nil && outletName != "" {
+			result.Outlet = outletName
+		}
+		if result.Outlet == "" {
+			result.Outlet = "Semua Outlet"
+		}
+	}
+
+	// Ambil kode outlet untuk footer PDF.
+	if p.AllOutlets && len(a.Outlets) > 0 {
+		result.OutletCode = ""
+	} else {
+		result.OutletCode = a.OutletID.String()
+	}
+
+	// Laporan 1 tahun menyentuh ratusan ribu baris untuk agregasi + sort;
 		// beri ruang sort/hash transaksi ini agar tidak tumpah ke disk.
 		// SET LOCAL hanya berlaku di transaksi ini (aman untuk pooler).
 		if _, err := tx.Exec(ctx, "SET LOCAL work_mem = '64MB'"); err != nil {
@@ -177,7 +242,7 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 
 		// ── 1. Sales + payment breakdown per date ────────────────────────────
 		rows, err := tx.Query(ctx, byDateSalesSQL,
-			a.TenantID, outlets, fd, td, cashier, padFrom, padTo)
+			a.TenantID, outlets, fd, td, cashier, padFrom, padTo, category, method)
 		if err != nil {
 			return err
 		}
@@ -240,7 +305,7 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 
 		// ── 2. Returns per return_date ─────────────────────────────────────
 		rrows, err := tx.Query(ctx, byDateReturnsSQL,
-			a.TenantID, outlets, fd, td, cashier, padFrom, padTo)
+			a.TenantID, outlets, fd, td, cashier, padFrom, padTo, category)
 		if err != nil {
 			return err
 		}
@@ -324,6 +389,13 @@ sales_hdr AS (
       AND s.status IN ('completed', 'void')
       AND s.created_at >= $6 AND s.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
+      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_lines fl
+            JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
+      AND ($9::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_payments fp
+            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $9))
       AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
     GROUP BY (s.created_at AT TIME ZONE o.timezone)::date
 ),
@@ -352,6 +424,13 @@ pay_sub AS (
       AND s.status = 'completed'
       AND s.created_at >= $6 AND s.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
+      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_lines fl
+            JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
+      AND ($9::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_payments fp
+            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $9))
       AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
     GROUP BY (s.created_at AT TIME ZONE o.timezone)::date, s.id, s.change, p.method_id, pm.name, pm.kind
 ),
@@ -413,6 +492,10 @@ ret_hdr AS (
       AND r.status = 'completed'
       AND r.created_at >= $6 AND r.created_at < $7
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
+      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_lines fl
+            JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
       AND (r.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
     GROUP BY (r.created_at AT TIME ZONE o.timezone)::date
 )
