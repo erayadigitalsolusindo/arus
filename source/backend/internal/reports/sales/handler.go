@@ -135,23 +135,34 @@ func (h *Handler) Invoices(w http.ResponseWriter, r *http.Request) {
 		Search:     qs.Get("q"),
 		Cursor:     qs.Get("cursor"),
 		Limit:      limit,
-		ForExport:  qs.Get("format") == "xlsx",
+		ForExport:  qs.Get("format") == "xlsx" || qs.Get("format") == "pdf",
+	}
+	if qs.Get("format") == "pdf" {
+		p.ExportMax = maxInvoicePDFRows
 	}
 	result, err := h.svc.Invoices(r.Context(), actor(r), p)
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
-	if qs.Get("format") == "xlsx" {
+	switch qs.Get("format") {
+	case "xlsx":
 		b, err := InvoiceToXLSX(result)
 		if err != nil {
 			h.fail(w, r, err)
 			return
 		}
 		h.writeFile(w, r, InvoiceFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
-		return
+	case "pdf":
+		b, err := InvoiceToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, InvoiceFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
 	}
-	httpx.JSON(w, http.StatusOK, result)
 }
 
 const (

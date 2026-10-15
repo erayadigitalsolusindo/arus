@@ -30,7 +30,7 @@
 
   let loading = $state(true);
   let loadingMore = $state(false);
-  let exporting = $state(false);
+  let exporting = $state<'xlsx' | 'pdf' | null>(null);
   let error = $state('');
   let result = $state<SalesInvoicesResult | null>(null);
   let rows = $state<InvoiceRow[]>([]);
@@ -111,16 +111,16 @@
     }
   }
 
-  async function download() {
+  async function download(format: 'xlsx' | 'pdf') {
     if (!from || !to || exporting) return;
-    exporting = true;
+    exporting = format;
     error = '';
     try {
-      const blob = await apiBlob(salesInvoicesFileUrl(params()));
+      const blob = await apiBlob(salesInvoicesFileUrl(params(), format));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `penjualan-perfaktur_${from}_${to}.xlsx`;
+      a.download = `penjualan-perfaktur_${from}_${to}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -128,7 +128,7 @@
     } catch (err) {
       error = errorMessage(err);
     } finally {
-      exporting = false;
+      exporting = null;
     }
   }
 
@@ -234,7 +234,10 @@
           onclick={() => applyPreset(p)}
         >{t(`payables.history.preset.${p.id}`)}</button>
       {/each}
-      <button type="button" class="{chip} ms-auto" disabled={exporting} onclick={download}>{exporting ? '…' : 'Excel'}</button>
+      <span class="inline-flex items-center gap-1.5 ms-auto">
+        <button type="button" class={chip} disabled={exporting !== null} onclick={() => download('xlsx')}>{exporting === 'xlsx' ? '…' : 'Excel'}</button>
+        <button type="button" class={chip} disabled={exporting !== null} onclick={() => download('pdf')}>{exporting === 'pdf' ? '…' : 'PDF'}</button>
+      </span>
     </div>
   </section>
 
@@ -304,7 +307,13 @@
               <td class="px-3 py-2 text-end tabular-nums">{money(Number(r.tax_store) + Number(r.tax_gov))}</td>
               <td class="px-3 py-2 text-end tabular-nums font-semibold">{money(r.total)}</td>
               <td class="px-3 py-2 text-end tabular-nums">{money(r.receivable)}</td>
-              <td class="px-3 py-2 text-[11.5px] text-[var(--text-secondary)]">{r.methods}</td>
+              <td class="px-3 py-2 text-[11.5px] text-[var(--text-secondary)]">
+                {#each r.methods as m, i (i)}
+                  <div class="flex items-baseline justify-between gap-4 tabular-nums">
+                    <span class="uppercase">{m.name}</span><span>{money(m.amount)}</span>
+                  </div>
+                {/each}
+              </td>
             </tr>
           {:else}
             <tr>
