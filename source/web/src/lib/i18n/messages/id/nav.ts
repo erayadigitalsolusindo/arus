@@ -43,6 +43,7 @@ export default {
   salesList: 'Daftar Penjualan',
   salesReports: 'Laporan Penjualan',
   salesInvoice: 'Per Faktur',
+  salesItem: 'Per Barang',
   salesByDate: 'Per Tanggal',
   salesDetail: 'Per Tanggal Detail',
   masterReports: 'Laporan Master',
