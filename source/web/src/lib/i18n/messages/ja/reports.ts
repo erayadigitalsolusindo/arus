@@ -217,7 +217,65 @@ const reports: Messages['reports'] = {
     loadMore: 'さらに読み込む',
     noData: 'この範囲にデータがありません。'
   },
-  // 在庫評価レポート
+  returnReport: {
+    sale: {
+      invoice: { docTitle: '請求書別売上返品レポート', title: '請求書別売上返品', subtitle: '売上返品伝票ごとに1行' },
+      detail: { docTitle: '請求書別売上返品（明細）レポート', title: '請求書別売上返品（明細）', subtitle: '返品伝票と返品商品の明細' }
+    },
+    purchase: {
+      invoice: { docTitle: '請求書別仕入返品レポート', title: '請求書別仕入返品', subtitle: '仕入返品伝票ごとに1行' },
+      detail: { docTitle: '請求書別仕入返品（明細）レポート', title: '請求書別仕入返品（明細）', subtitle: '返品伝票と仕入先へ返した商品の明細' }
+    },
+    c: {
+      outlet: '店舗',
+      allOutlets: '全店舗',
+      member: '顧客',
+      allMembers: '全顧客',
+      supplier: '仕入先',
+      allSuppliers: '全仕入先',
+      status: 'ステータス',
+      allStatuses: '全ステータス',
+      completed: '完了',
+      void: 'キャンセル',
+      settle: '精算',
+      allSettles: 'すべて',
+      settleOffsetSale: '売掛と相殺',
+      settleOffsetPurchase: '買掛と相殺',
+      settleRefund: '返金',
+      searchSale: '返品番号・元伝票を検索',
+      searchPurchase: '返品番号・元請求書を検索',
+      date: '日付',
+      returnNo: '返品番号',
+      refSale: '元の売上',
+      refPurchase: '元の請求書',
+      cashier: 'レジ担当',
+      createdBy: '作成者',
+      subtotal: '小計',
+      discount: '割引',
+      tax: '消費税',
+      surcharge: 'その他費用',
+      total: '合計',
+      refund: '返金額',
+      method: '方法',
+      returnCount: '返品数',
+      voidCount: 'キャンセル返品',
+      ratio: '返品率',
+      ratioSale: '売上 {amount} に対して',
+      ratioPurchase: '仕入 {amount} に対して',
+      sku: 'SKU',
+      item: '商品',
+      unit: '単位',
+      qty: '数量',
+      price: '単価',
+      value: '金額',
+      lineTotal: '合計',
+      loadMore: 'さらに読み込む',
+      noData: 'このフィルターの返品はありません。',
+      grandTotal: '総合計',
+      voidReason: 'キャンセル理由',
+      items: '{n} 点'
+    }
+  },
   purchase: {
     invoice: { docTitle: '請求書別仕入レポート', title: '請求書別仕入', subtitle: '仕入請求書ごとに1行' },
     detail: { docTitle: '請求書別仕入（明細）レポート', title: '請求書別仕入（明細）', subtitle: '仕入請求書の全商品明細' },
@@ -274,6 +332,7 @@ const reports: Messages['reports'] = {
       grandTotal: '総合計'
     }
   },
+  // 在庫評価レポート
   stockValuation: {
     docTitle: '在庫評価レポート',
     title: '在庫評価',

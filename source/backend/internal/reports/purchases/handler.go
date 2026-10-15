@@ -159,10 +159,10 @@ func (h *Handler) writeTable(w http.ResponseWriter, t table, format, name string
 		ct  = xlsxContentType
 	)
 	if format == "pdf" {
-		b, err = t.toPDF()
+		b, err = t.ToPDF()
 		ct = pdfContentType
 	} else {
-		b, err = t.toXLSX()
+		b, err = t.ToXLSX()
 	}
 	if err != nil {
 		h.fail(w, err)

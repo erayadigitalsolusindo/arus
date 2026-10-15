@@ -217,7 +217,65 @@ export default {
     loadMore: 'Muat Lagi',
     noData: 'Tidak ada data untuk rentang ini.'
   },
-  // Laporan persediaan barang (nilai stok)
+  returnReport: {
+    sale: {
+      invoice: { docTitle: 'Laporan Retur Penjualan Per Faktur', title: 'Retur Penjualan Per Faktur', subtitle: 'Satu baris untuk setiap dokumen retur penjualan' },
+      detail: { docTitle: 'Laporan Retur Penjualan Per Faktur Detail', title: 'Retur Penjualan Per Faktur Detail', subtitle: 'Setiap dokumen retur dengan barang yang dikembalikan' }
+    },
+    purchase: {
+      invoice: { docTitle: 'Laporan Retur Pembelian Per Faktur', title: 'Retur Pembelian Per Faktur', subtitle: 'Satu baris untuk setiap dokumen retur pembelian' },
+      detail: { docTitle: 'Laporan Retur Pembelian Per Faktur Detail', title: 'Retur Pembelian Per Faktur Detail', subtitle: 'Setiap dokumen retur dengan barang yang dikembalikan ke pemasok' }
+    },
+    c: {
+      outlet: 'Outlet',
+      allOutlets: 'Semua Outlet',
+      member: 'Pelanggan',
+      allMembers: 'Semua Pelanggan',
+      supplier: 'Pemasok',
+      allSuppliers: 'Semua Pemasok',
+      status: 'Status',
+      allStatuses: 'Semua Status',
+      completed: 'Selesai',
+      void: 'Batal',
+      settle: 'Penyelesaian',
+      allSettles: 'Semua',
+      settleOffsetSale: 'Potong Piutang',
+      settleOffsetPurchase: 'Potong Hutang',
+      settleRefund: 'Uang Dikembalikan',
+      searchSale: 'Cari nomor retur / nota asal',
+      searchPurchase: 'Cari nomor retur / faktur asal',
+      date: 'Tanggal',
+      returnNo: 'No Retur',
+      refSale: 'Nota Asal',
+      refPurchase: 'Faktur Asal',
+      cashier: 'Kasir',
+      createdBy: 'Dibuat Oleh',
+      subtotal: 'Subtotal',
+      discount: 'Diskon',
+      tax: 'PPN',
+      surcharge: 'Biaya Lain',
+      total: 'Total',
+      refund: 'Dikembalikan',
+      method: 'Metode',
+      returnCount: 'Jumlah Retur',
+      voidCount: 'Retur Batal',
+      ratio: 'Rasio Retur',
+      ratioSale: 'dari penjualan {amount}',
+      ratioPurchase: 'dari pembelian {amount}',
+      sku: 'SKU',
+      item: 'Barang',
+      unit: 'Satuan',
+      qty: 'Qty',
+      price: 'Harga',
+      value: 'Nilai',
+      lineTotal: 'Jumlah',
+      loadMore: 'Muat Lagi',
+      noData: 'Tidak ada retur untuk filter ini.',
+      grandTotal: 'Total Keseluruhan',
+      voidReason: 'Alasan batal',
+      items: '{n} barang'
+    }
+  },
   purchase: {
     invoice: { docTitle: 'Laporan Pembelian Per Faktur', title: 'Pembelian Per Faktur', subtitle: 'Satu baris untuk setiap faktur pembelian' },
     detail: { docTitle: 'Laporan Pembelian Per Faktur Detail', title: 'Pembelian Per Faktur Detail', subtitle: 'Setiap baris barang pada faktur pembelian' },
@@ -274,6 +332,7 @@ export default {
       grandTotal: 'Total Keseluruhan'
     }
   },
+  // Laporan persediaan barang (nilai stok)
   stockValuation: {
     docTitle: 'Laporan Persediaan Barang',
     title: 'Persediaan Barang',

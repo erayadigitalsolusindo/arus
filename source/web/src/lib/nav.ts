@@ -148,6 +148,16 @@ export const nav: NavGroup[] = [
         ]
       },
       {
+        id: 'salesReturnReports',
+        labelKey: 'nav.salesReturnReports',
+        icon: 'file-bar-chart',
+        module: 'sales_reports',
+        children: [
+          { labelKey: 'nav.salesReturnReportInvoice', module: 'sales_reports', href: '/reports/sales-returns/invoices' },
+          { labelKey: 'nav.salesReturnReportInvoiceDetail', module: 'sales_reports', href: '/reports/sales-returns/invoice-detail' }
+        ]
+      },
+      {
         id: 'purchaseReports',
         labelKey: 'nav.purchaseReports',
         icon: 'file-bar-chart',
@@ -157,6 +167,16 @@ export const nav: NavGroup[] = [
           { labelKey: 'nav.purchaseReportInvoiceDetail', module: 'purchase_reports', href: '/reports/purchases/invoice-detail' },
           { labelKey: 'nav.purchaseReportItem', module: 'purchase_reports', href: '/reports/purchases/items' },
           { labelKey: 'nav.purchaseReportByDate', module: 'purchase_reports', href: '/reports/purchases/by-date' }
+        ]
+      },
+      {
+        id: 'purchaseReturnReports',
+        labelKey: 'nav.purchaseReturnReports',
+        icon: 'file-bar-chart',
+        module: 'purchase_reports',
+        children: [
+          { labelKey: 'nav.purchaseReturnReportInvoice', module: 'purchase_reports', href: '/reports/purchase-returns/invoices' },
+          { labelKey: 'nav.purchaseReturnReportInvoiceDetail', module: 'purchase_reports', href: '/reports/purchase-returns/invoice-detail' }
         ]
       },
       {
