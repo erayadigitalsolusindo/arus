@@ -17,6 +17,7 @@ import (
 
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
+	"aciraba/internal/extapi"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/platform/sanitize"
@@ -39,6 +40,8 @@ type HandlerDeps struct {
 	Origins      []string      // untuk CSRFGuard (endpoint ber-cookie)
 	SecureCookie bool
 	APK          *storage.Local // penyimpanan APK Kasir; nil = fitur unggah APK nonaktif
+	Ext          *extapi.Store  // kredensial API eksternal + white label; nil = fitur nonaktif
+	ExtCatalog   *extapi.CatalogBuilder
 }
 
 type Handler struct {
@@ -93,6 +96,17 @@ func (h *Handler) Routes(r chi.Router) {
 
 			r.Put("/platform/mobile/apk", h.APKUpload)
 			r.Delete("/platform/mobile/apk", h.APKDelete)
+
+			r.Get("/platform/ext/credentials", h.ExtListCredentials)
+			r.Post("/platform/ext/credentials", h.ExtCreateCredential)
+			r.Patch("/platform/ext/credentials/{id}", h.ExtUpdateCredential)
+			r.Post("/platform/ext/credentials/{id}/rotate", h.ExtRotateCredential)
+			r.Delete("/platform/ext/credentials/{id}", h.ExtDeleteCredential)
+			r.Get("/platform/ext/tenants/{id}/actors", h.ExtTenantActors)
+			r.Get("/platform/ext/brands", h.ExtListBrands)
+			r.Post("/platform/ext/brands", h.ExtCreateBrand)
+			r.Put("/platform/ext/brands/{id}", h.ExtUpdateBrand)
+			r.Delete("/platform/ext/brands/{id}", h.ExtDeleteBrand)
 
 			r.Get("/platform/languages", h.ListLanguages)
 			r.Post("/platform/languages", h.CreateLanguage)

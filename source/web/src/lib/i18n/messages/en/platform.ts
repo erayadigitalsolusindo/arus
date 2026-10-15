@@ -17,7 +17,7 @@ const platform: Messages['platform'] = {
   },
   nav: {
     groupMain: 'Platform',
-    groupSystem: 'System', mobile: 'Mobile App', languages: 'Languages', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
+    groupSystem: 'System', mobile: 'Mobile App', apiAccess: 'External API', languages: 'Languages', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',

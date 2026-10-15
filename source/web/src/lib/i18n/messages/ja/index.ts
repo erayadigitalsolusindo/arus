@@ -29,7 +29,8 @@ import shift from './shift.ts';
 import accounting from './accounting.ts';
 import ai from './ai.ts';
 import reports from './reports.ts';
+import extapi from './extapi.ts';
 
-const ja: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports };
+const ja: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi };
 
 export default ja;

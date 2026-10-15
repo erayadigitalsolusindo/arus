@@ -66,6 +66,47 @@ export type LanguageRow = {
 
 const json = (v: unknown) => JSON.stringify(v);
 
+export type ExtCredential = {
+  id: string;
+  tenant_id: string;
+  tenant_name: string;
+  user_id: string;
+  user_name: string;
+  outlet_id: string;
+  outlet_name: string;
+  label: string;
+  key_id: string;
+  ip_allowlist: string[];
+  rate_limit_min: number;
+  active: boolean;
+  expires_at: string | null;
+  last_used_at: string | null;
+  last_used_ip: string | null;
+  rotating: boolean;
+  created_at: string;
+};
+export type ExtCreated = { id: string; key_id: string; secret: string };
+export type ExtActors = { users: { id: string; name: string; email: string; role: string }[]; outlets: { id: string; name: string }[] };
+export type ExtBrand = {
+  id: string;
+  slug: string;
+  domain: string | null;
+  is_default: boolean;
+  active: boolean;
+  name: string;
+  tagline: string;
+  logo_url: string;
+  accent: string;
+  support_email: string;
+  support_url: string;
+  footer: string;
+  base_url: string;
+  hidden_modules: string[];
+  sandbox_note: string;
+};
+export type ExtBrandInput = Omit<ExtBrand, 'id'>;
+export type ExtGroup = { id: string; title: string; count: number };
+
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
 
 export const platformApi = {
@@ -98,6 +139,19 @@ export const platformApi = {
     for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '') q.set(k, String(v));
     return papi<{ items: PlatformAuditItem[]; next_before?: number }>(`/platform/audit?${q}`);
   },
+
+  extCredentials: (tenantId = '') => papi<{ items: ExtCredential[] }>(`/platform/ext/credentials${tenantId ? `?tenant_id=${tenantId}` : ''}`),
+  extActors: (tenantId: string) => papi<ExtActors>(`/platform/ext/tenants/${tenantId}/actors`),
+  extCreateCredential: (body: { tenant_id: string; user_id: string; outlet_id: string; label: string; ip_allowlist: string[]; rate_limit_min: number; expires_at: string | null }) =>
+    papi<ExtCreated>('/platform/ext/credentials', { method: 'POST', body: json(body) }),
+  extUpdateCredential: (id: string, body: { label: string; ip_allowlist: string[]; rate_limit_min: number; active: boolean; expires_at: string | null }) =>
+    papi<void>(`/platform/ext/credentials/${id}`, { method: 'PATCH', body: json(body) }),
+  extRotateCredential: (id: string, graceMinutes: number) => papi<ExtCreated>(`/platform/ext/credentials/${id}/rotate`, { method: 'POST', body: json({ grace_minutes: graceMinutes }) }),
+  extDeleteCredential: (id: string) => papi<void>(`/platform/ext/credentials/${id}`, { method: 'DELETE' }),
+  extBrands: () => papi<{ items: ExtBrand[]; groups: ExtGroup[] }>('/platform/ext/brands'),
+  extCreateBrand: (body: ExtBrandInput) => papi<{ id: string }>('/platform/ext/brands', { method: 'POST', body: json(body) }),
+  extUpdateBrand: (id: string, body: ExtBrandInput) => papi<{ id: string }>(`/platform/ext/brands/${id}`, { method: 'PUT', body: json(body) }),
+  extDeleteBrand: (id: string) => papi<void>(`/platform/ext/brands/${id}`, { method: 'DELETE' }),
 
   languages: () => papi<{ items: LanguageRow[] }>('/platform/languages'),
   createLanguage: (body: { code: string; name: string; short: string; intl: string; sort_order: number }) =>

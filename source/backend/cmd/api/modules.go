@@ -17,6 +17,7 @@ import (
 	"aciraba/internal/catalog"
 	"aciraba/internal/dashboard"
 	"aciraba/internal/erapay"
+	"aciraba/internal/extapi"
 	"aciraba/internal/iam"
 	"aciraba/internal/item"
 	"aciraba/internal/live"
@@ -88,6 +89,11 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err != nil {
 		return err
 	}
+	extStore, err := extapi.NewStore(d.Pool, d.Cfg.JWTSecret)
+	if err != nil {
+		return err
+	}
+	extCatalog := extapi.NewCatalogBuilder(r) // dibaca malas (saat dokumentasi dibuka), setelah semua rute terpasang
 	platformSvc := platformadmin.NewService(platformadmin.Deps{
 		Pool: d.Pool, Tokens: tokens, PTokens: pauth.NewPlatformTokenIssuer(d.Cfg.JWTSecret), Sessions: sessions,
 		OneTime: pauth.NewOneTime(d.Redis), TOTP: totpBox, Perms: perms, SetupToken: d.Cfg.PlatformSetupToken,
@@ -97,8 +103,11 @@ func mountModules(r chi.Router, d appDeps) error {
 		Service: platformSvc, Log: d.Log, Redis: d.Redis,
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
-		APK: uploads,
+		APK: uploads, Ext: extStore, ExtCatalog: extCatalog,
 	}).Routes(r)
+	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
+	extapi.NewGateway(extStore, d.Redis, tokens, r, d.Log).Mount(r)
+	extapi.NewDocsHandler(extStore, extCatalog, d.Redis, d.Log).Routes(r)
 
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
