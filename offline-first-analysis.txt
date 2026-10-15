@@ -1,0 +1,98 @@
+Offline-First Architecture + Automatic Background Synchronization
+Analisis untuk ARUS (aciraba_newgen)
+
+1. Kesimpulan singkat
+- Jangan implementasikan offline-first penuh untuk seluruh aplikasi.
+- Gunakan dua lapisan:
+  a. Resilient networking hampir di semua halaman.
+  b. Offline write terbatas, prioritas penjualan kasir (tunai saja).
+- Fondasi proyek sudah kuat untuk langkah bertahap: Idempotency-Key, harga dihitung server, guard stok, allow_negative_stock, request hash, transaksi atomik.
+
+2. Kenapa full offline-first sulit di ARUS
+- Harga sumber kebenaran di server.
+- Stok adalah ledger yang berubah dari banyak jalur (penjualan, pembelian, transfer, opname, retur).
+- Token berumur pendek (<=15 menit) dan refresh perlu Redis/server.
+- Risiko nota ganda dan stok minus tak terkontrol.
+- Q2/Q13 di PRD masih terbuka.
+
+3. Scope yang disarankan (M3 terbatas)
+- Offline hanya penjualan tunai.
+- Jangan offline: kredit, kupon, ubah harga, pembelian, stok opname, akuntansi/SIAK.
+- Cache katalog/harga/customer/pintasan dengan TTL/version (mis. 24 jam).
+- Stok hanya snapshot terakhir, bukan janji akurat.
+- Batas jumlah/nilai nota offline per device.
+
+4. Penyimpanan lokal
+Web: IndexedDB. Mobile: Drift/SQLite.
+Tabel sync_queue:
+- id uuid
+- tenant_id, user_id, outlet_id
+- entity, operation, payload
+- idempotency_key
+- created_at
+- status (pending/syncing/failed/conflict/synced)
+- attempts
+- last_error
+- server_ref
+
+Setiap queue row dibuat dalam transaksi lokal bersama perubahan UI.
+
+5. Alur sync
+1. Offline sale disimpan lokal status pending.
+2. Worker jalan saat app dibuka, jaringan pulih, background task, manual retry.
+3. Kirim POST /sales/ dengan idempotency key sama.
+4. Replay aman (server kembalikan nota sama).
+5. Setelah sukses update lokal synced + simpan no. resmi.
+6. Jangan tampilkan "berhasil" sebelum server konfirmasi.
+
+6. Konflik
+- Harga berubah: pakai harga server, tampilkan selisih total.
+- Stok kurang: tolak sync atau terima stok minus + flag needs_review (pilih sebelum implement).
+- Master data: version/updated_at, bukan last-write-wins global.
+- SIAK/jurnal: hindari offline write.
+
+7. Smart network handling
+- Timeout konfigurabel.
+- Bedakan timeout, network error, 4xx, 429, 5xx.
+- Retry hanya yang reversible.
+- Tidak retry 400/401/403 tanpa handling khusus.
+- Dedup double click.
+- Request cancellation.
+- Incremental sync dengan cursor/version.
+
+8. Backend minimal
+- Error code stabil: PRICE_CHANGED, STOCK_INSUFFICIENT, COUPON_EXHAUSTED, TOKEN_EXPIRED_DURING_SYNC.
+- Master data incremental endpoint changed_since.
+- Audit sale.offline_sync.
+- Idempotency existing cukup; batch client-side lebih aman.
+
+9. Security
+- Token tidak boleh di storage tak aman.
+- Queue terkunci per tenant_id + user_id + outlet_id.
+- Ganti akun = queue lama tidak boleh terkirim.
+- Logout dengan pending: block atau warning eksplisit.
+- Jangan hapus queue sebelum hasil server dikonfirmasi.
+
+10. Testing prioritas
+1. Create sale offline lalu online = satu nota.
+2. Retry idempotency key = nota sama.
+3. Timeout tapi server sudah proses = replay tidak duplicate.
+4. Koneksi putus + app ditutup/reopen = queue tetap ada.
+5. Price change saat sync = konflik tampil.
+6. Switch account dengan pending = data tidak bocor.
+Lalu uji 429/500/restart/device/account switch.
+
+11. Implementasi bertahap
+M0: resilient networking + pending counter + incremental sync
+M1: offline queue sale tunai + worker + konflik UI minimal
+M2: policy konflik + device auth + chaos testing
+M3: offline write modul lain hanya bila benar-benar diperlukan
+
+12. Keputusan yang harus dijawab
+1. Offline wajib web, mobile, atau keduanya?
+2. Tunai saja atau juga split bayar?
+3. Stok kurang saat sync: tolak atau terima minus + flag review?
+4. Batas cache harga berapa jam? (saran 24 jam)
+5. Mulai dari M0 sekarang, atau langsung M1 offline sale?
+
+Kesimpulan: feasible, tapi "offline-capable limited" yang benar. Jangan rewrite total.
