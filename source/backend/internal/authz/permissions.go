@@ -62,6 +62,7 @@ var Modules = []Module{
 	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
 	{"sales_reports", viewing},       // melihat laporan penjualan
 	{"sales_reports_cost", viewing},  // melihat HPP & laba di laporan penjualan
+	{"stock_reports", viewing},       // melihat laporan persedian
 	{"sell_price_history", viewing},
 	{"member_receivables", []string{ActView, ActCreate}},
 	{"receivable_opening", []string{ActView, ActCreate, ActDelete}}, // saldo awal piutang member: create = catat, delete = batalkan (belum dibayar)
