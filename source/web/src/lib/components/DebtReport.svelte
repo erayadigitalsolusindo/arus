@@ -27,6 +27,7 @@
   import { t, formatCurrency, formatDate, formatNumber, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import DateRange from '#lib/components/DateRange.svelte';
+  import DatePicker from '#lib/components/DatePicker.svelte';
   import Combobox, { type Option } from '#lib/components/Combobox.svelte';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
 
@@ -245,7 +246,7 @@
       {#if useAsOf}
         <div>
           <span class={lbl}>{t(`${C}.asOf`)}</span>
-          <input type="date" class="w-full field-control" bind:value={asOf} aria-label={t(`${C}.asOf`)} />
+          <DatePicker bind:value={asOf} clearable={false} />
         </div>
       {/if}
       {#if useRange}

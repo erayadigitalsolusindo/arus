@@ -9,6 +9,7 @@ const common: Messages['common'] = {
   live: 'Live',
   close: 'Close',
   dateRange: 'Select date range',
+  monthPicker: { choose: 'Choose month', prev: 'Previous year', next: 'Next year', thisMonth: 'This month' },
   datePicker: { choose: 'Choose date', clear: 'Clear', today: 'Today', prev: 'Previous month', next: 'Next month' },
   markdown: {
     write: 'Write',
