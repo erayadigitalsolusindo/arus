@@ -563,6 +563,129 @@ void main() {
     },
   );
 
+  testWidgets(
+    'QRIS EraPay force-save: charge terus menunggu → simpan paksa dengan persetujuan qris_force',
+    (tester) async {
+      final sales = <RequestOptions>[];
+      final base = posServer(sales: sales);
+      final server = FakeAdapter((o) {
+        switch ('${o.method} ${o.path}') {
+          case 'GET /payments/erapay/config':
+            return json(200, {
+              'enabled': true,
+              'method_id': 'm4',
+              'server_ready': true,
+              'configured': true,
+            });
+          case 'GET /payment-methods/lookup':
+            return json(200, {
+              'data': [
+                {'id': 'm1', 'name': 'Tunai', 'kind': 'cash'},
+                {'id': 'm4', 'name': 'EraPay QRIS', 'kind': 'debit'},
+              ],
+            });
+          case 'POST /payments/erapay/charges':
+            return json(200, {
+              'id': 'c0000000-0000-4000-8000-000000000001',
+              'status': 'pending',
+              'amount': '12000.00',
+              'qr_value': '00020101021226550012COM.DOKU.WWW',
+            });
+          case 'GET /payments/erapay/charges/c0000000-0000-4000-8000-000000000001':
+            return json(200, {
+              'id': 'c0000000-0000-4000-8000-000000000001',
+              'status': 'pending',
+              'amount': '12000.00',
+              'qr_value': '00020101021226550012COM.DOKU.WWW',
+            });
+          case 'POST /sales/':
+            sales.add(o);
+            return json(201, {
+              'id': 'sale1',
+              'doc_no': 'MAIN-261010-0001',
+              'total': '12000.00',
+              'change': '0.00',
+              'erapay_pending': true,
+            });
+        }
+        return base.handler(o);
+      });
+      await boot(tester, server);
+      await tester.tap(find.text('Kasir'));
+      await settle(tester);
+      await tester.tap(find.text('Kopi Bubuk'));
+      await settle(tester);
+      await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
+      await settle(tester, 400);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await settle(tester, 400);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EraPay QRIS').last);
+      await tester.pumpAndSettle();
+
+      // Buat QR; status tetap menunggu → muncul jalur simpan paksa.
+      await tester.tap(find.text('Buat QR QRIS'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        find.text('EraPay tidak dapat dihubungi? Simpan paksa'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      // Buka panel persetujuan: penyetuju tunggal terpilih otomatis → isi PIN.
+      // (polling 3 dtk terus rebuild → hindari pumpAndSettle, pakai pump bertahap.)
+      final forceBtn = find.widgetWithText(
+        TextButton,
+        'EraPay tidak dapat dihubungi? Simpan paksa',
+      );
+      await tester.ensureVisible(forceBtn);
+      await tester.tap(forceBtn);
+      await settle(tester, 600);
+      expect(find.text('Sari Owner'), findsWidgets);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'PIN penyetuju (6 digit)'),
+        '123456',
+      );
+      await settle(tester, 200);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
+      );
+      await settle(tester, 800);
+
+      // Nota dikirim paksa dengan persetujuan qris_force; ref tetap id charge.
+      final body = sales.single.data as Map;
+      expect(body['force_erapay'], true);
+      expect((body['approval'] as Map)['user_id'], 'u9');
+      expect((body['approval'] as Map)['pin'], '123456');
+      final pay = (body['payments'] as List).single as Map;
+      expect(pay['method_id'], 'm4');
+      expect(pay['ref_no'], 'c0000000-0000-4000-8000-000000000001');
+      // Dialog sukses memperingatkan pembayaran QRIS belum terverifikasi.
+      expect(find.text('Pembayaran QRIS belum terverifikasi'), findsOneWidget);
+    },
+  );
+
   test('nominal tunai cepat: pecahan pembulatan di atas total, maks 4', () {
     String f(int need) =>
         quickCashAmounts(Decimal.fromInt(need))

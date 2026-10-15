@@ -634,6 +634,30 @@ abstract class AppLocalizations {
   /// **'Buat QR dan tunggu pembayaran diterima.'**
   String get payEraNeedPaid;
 
+  /// No description provided for @payEraForceShow.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay tidak dapat dihubungi? Simpan paksa'**
+  String get payEraForceShow;
+
+  /// No description provided for @payEraForceHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan paksa: nota disimpan & ditandai \"perlu dicek di EraPay\", lalu dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan & stok kembali. Butuh persetujuan Owner/Supervisor.'**
+  String get payEraForceHint;
+
+  /// No description provided for @payEraPendingTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembayaran QRIS belum terverifikasi'**
+  String get payEraPendingTitle;
+
+  /// No description provided for @payEraPendingNotice.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota ditandai \"perlu dicek di EraPay\" & dicek otomatis. Bila ternyata tidak lunas, nota dibatalkan otomatis & stok dikembalikan.'**
+  String get payEraPendingNotice;
+
   /// No description provided for @errorEraDisabled.
   ///
   /// In id, this message translates to:
@@ -2343,6 +2367,12 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'*** DIGANTI REVISI ***'**
   String get receiptSuperseded;
+
+  /// No description provided for @receiptEraPending.
+  ///
+  /// In id, this message translates to:
+  /// **'*** PERLU DI CEK DI ERAPAY ***'**
+  String get receiptEraPending;
 
   /// No description provided for @receiptLineDiscount.
   ///
