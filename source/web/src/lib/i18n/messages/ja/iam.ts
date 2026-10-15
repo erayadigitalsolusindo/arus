@@ -43,6 +43,7 @@ const iam: Messages['iam'] = {
     purchase_invoices: '仕入請求書',
     purchase_returns: '仕入返品',
     purchase_list: '仕入リスト',
+    purchase_reports: '仕入レポート（請求書・商品・日付別）',
     buy_price_history: '仕入価格履歴',
     supplier_payables: '仕入先買掛金',
     supplier_credits: '仕入先クレジット（現金化）',

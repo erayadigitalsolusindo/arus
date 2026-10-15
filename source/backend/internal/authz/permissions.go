@@ -71,6 +71,7 @@ var Modules = []Module{
 	{"purchase_invoices", []string{ActView, ActCreate, ActUpdate, ActDelete, ActApprove}},
 	{"purchase_returns", []string{ActView, ActCreate, ActApprove}},
 	{"purchase_list", viewing},
+	{"purchase_reports", viewing}, // melihat laporan pembelian
 	{"buy_price_history", viewing},
 	{"supplier_payables", []string{ActView, ActCreate}},
 	{"supplier_credits", []string{ActView, ActCreate}}, // kredit pemasok: lihat; create = pencairan kredit oleh pemasok
