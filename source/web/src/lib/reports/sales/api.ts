@@ -184,3 +184,74 @@ function detailQuery(params: SalesDetailParams): URLSearchParams {
 	if (params.limit) qs.set('limit', String(params.limit));
 	return qs;
 }
+
+// ── Penjualan per faktur ────────────────────────────────────────────────────────
+
+export type InvoiceRow = {
+	id: string;
+	doc_no: string;
+	date: string;
+	time: string;
+	status: string;
+	outlet_code: string;
+	outlet_name: string;
+	cashier_name: string;
+	member_name: string;
+	salesperson_name: string;
+	subtotal: string;
+	discount: string;
+	tax_store: string;
+	tax_gov: string;
+	other_cost: string;
+	total: string;
+	paid: string;
+	change: string;
+	receivable: string;
+	methods: string;
+};
+
+export type SalesInvoicesResult = {
+	from: string;
+	to: string;
+	data: InvoiceRow[];
+	summary: DetailSummary;
+	has_summary: boolean;
+	next_cursor?: string;
+};
+
+export type SalesInvoicesParams = {
+	from: string;
+	to: string;
+	outlet_id?: string;
+	cashier_id?: string;
+	status?: string;
+	q?: string;
+	all_outlets?: boolean;
+	cursor?: string;
+	limit?: number;
+};
+
+function invoicesQuery(params: SalesInvoicesParams): URLSearchParams {
+	const qs = new URLSearchParams();
+	qs.set('from', params.from);
+	qs.set('to', params.to);
+	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
+	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
+	if (params.status) qs.set('status', params.status);
+	if (params.q) qs.set('q', params.q);
+	if (params.all_outlets) qs.set('all_outlets', 'true');
+	if (params.cursor) qs.set('cursor', params.cursor);
+	if (params.limit) qs.set('limit', String(params.limit));
+	return qs;
+}
+
+// GET /reports/sales/invoices (JSON, paginasi keyset; ringkasan hanya halaman pertama).
+export async function salesInvoices(params: SalesInvoicesParams): Promise<SalesInvoicesResult> {
+	return api(`/reports/sales/invoices?${invoicesQuery(params)}`);
+}
+
+export function salesInvoicesFileUrl(params: SalesInvoicesParams): string {
+	const qs = invoicesQuery({ ...params, cursor: undefined });
+	qs.set('format', 'xlsx');
+	return `/reports/sales/invoices?${qs}`;
+}

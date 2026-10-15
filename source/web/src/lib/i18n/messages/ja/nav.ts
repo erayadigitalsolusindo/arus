@@ -44,6 +44,7 @@ const nav: Messages['nav'] = {
   salesData: '売上データ',
   salesList: '売上一覧',
   salesReports: '売上レポート',
+  salesInvoice: '請求書別',
   salesByDate: '日付別',
   salesDetail: '日付別詳細',
   masterReports: 'マスターレポート',

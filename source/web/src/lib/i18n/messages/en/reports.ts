@@ -41,6 +41,25 @@ const reports: Messages['reports'] = {
   grandTotal: 'Grand Total',
   noData: 'No data for this range.',
   // Detail sales report per invoice
+  salesInvoice: {
+    docTitle: 'Sales Report by Invoice',
+    title: 'Sales by Invoice',
+    subtitle: 'One row per sales invoice',
+    search: 'Search invoice number',
+    invoice: 'Invoice',
+    date: 'Date',
+    time: 'Time',
+    member: 'Member',
+    subtotal: 'Subtotal',
+    discount: 'Discount',
+    tax: 'Tax',
+    total: 'Total',
+    received: 'Received',
+    receivable: 'Receivable',
+    payment: 'Payment',
+    loadMore: 'Load more',
+    noData: 'No data for these filters.'
+  },
   salesDetail: {
     docTitle: 'Sales Report Detail by Date',
     title: 'Sales by Date Detail',

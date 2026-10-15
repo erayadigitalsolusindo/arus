@@ -38,6 +38,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/by-date", h.ByDate)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/detail", h.Detail)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/invoices", h.Invoices)
 	})
 }
 
@@ -79,11 +80,12 @@ func (h *Handler) ByDate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Detail: GET /reports/sales/detail?from=&to=&outlet_id=&cashier_id=&category_id=&status=&cursor=&limit=&format=
+// Detail: GET /reports/sales/detail?from=&to=&outlet_id=&cashier_id=&category_id=&status=&all_outlets=&cursor=&limit=&format=
 func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	limit, _ := strconv.Atoi(qs.Get("limit"))
 	p := DetailParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
 		OutletID:   qs.Get("outlet_id"),
 		From:       qs.Get("from"),
 		To:         qs.Get("to"),
@@ -117,6 +119,39 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	default:
 		httpx.JSON(w, http.StatusOK, result)
 	}
+}
+
+// Invoices: GET /reports/sales/invoices?from=&to=&outlet_id=&cashier_id=&status=&q=&all_outlets=&cursor=&limit=&format=xlsx
+func (h *Handler) Invoices(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	p := InvoiceParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		Status:     qs.Get("status"),
+		Search:     qs.Get("q"),
+		Cursor:     qs.Get("cursor"),
+		Limit:      limit,
+		ForExport:  qs.Get("format") == "xlsx",
+	}
+	result, err := h.svc.Invoices(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	if qs.Get("format") == "xlsx" {
+		b, err := InvoiceToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, InvoiceFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, result)
 }
 
 const (
