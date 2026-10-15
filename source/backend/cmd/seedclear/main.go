@@ -91,7 +91,7 @@ var steps = []step{
 	{"purchases", `DELETE FROM purchases WHERE tenant_id = $1`},
 	{"purchases add root_fk", `ALTER TABLE purchases ADD CONSTRAINT purchases_root_fk FOREIGN KEY (tenant_id, root_id) REFERENCES purchases (tenant_id, id)`},
 	{"purchases add supersedes_fk", `ALTER TABLE purchases ADD CONSTRAINT purchases_supersedes_fk FOREIGN KEY (tenant_id, supersedes_id) REFERENCES purchases (tenant_id, id)`},
-	{"purchases add superseded_by_fk", `ALTER TABLE purchases ADD CONSTRAINT purchases_superseded_by_fk FOREIGN KEY (tenant_id, superseded_by) REFERENCES purchases (tenant_id, id)`},
+	{"purchases add superseded_by_fk", `ALTER TABLE purchases ADD CONSTRAINT purchases_superseded_by_fk FOREIGN KEY (tenant_id, superseded_by) REFERENCES purchases (tenant_id, id) DEFERRABLE INITIALLY DEFERRED`}, // wajib deferred (migration 00040)
 	// ── Stok: ledger + saldo ────────────────────────────────────────────
 	{"stock_count_lines", `DELETE FROM stock_count_lines WHERE tenant_id = $1`},
 	{"stock_movements", `DELETE FROM stock_movements WHERE tenant_id = $1`},
