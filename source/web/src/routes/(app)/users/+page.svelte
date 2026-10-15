@@ -223,7 +223,7 @@
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="p-3">
                 <p class="font-semibold">{u.name}{#if isSelf(u)} <span class="badge-soft badge-info ms-1">{t('iam.users.you')}</span>{/if}</p>
-                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email} <span class="badge-soft {u.email_verified ? 'badge-success' : 'badge-warning'} ms-1">{u.email_verified ? t('iam.users.verified') : t('iam.users.unverified')}</span>{#if !u.email_verified && !isSelf(u) && can('users', 'update')}<button type="button" class="ms-1 underline text-[var(--color-primary-600)]" onclick={() => verifyManually(u)}>{t('iam.users.verifyManual')}</button>{/if}</p>
+                <p class="text-[11.5px] text-[var(--text-tertiary)]">{u.email} <span class="badge-soft {u.email_verified ? 'badge-success' : 'badge-warning'} ms-1">{u.email_verified ? t('iam.users.verified') : t('iam.users.unverified')}</span>{#if !u.email_verified && (!isSelf(u) || session.impersonating) && can('users', 'update')}<button type="button" class="ms-1 underline text-[var(--color-primary-600)]" onclick={() => verifyManually(u)}>{t('iam.users.verifyManual')}</button>{/if}</p>
               </td>
               <td class="p-3"><span class="badge-soft badge-primary">{u.role_name}</span></td>
               <td class="p-3 text-[12px]">
