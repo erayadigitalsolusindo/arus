@@ -395,7 +395,9 @@ func sameSet(a, b []uuid.UUID) bool {
 // mencakup role target (anti-eskalasi, seperti ResetPassword) dan tidak boleh memverifikasi akunnya sendiri.
 // Tercatat di audit sebagai tindakan manual; memanggil ulang pada akun yang sudah terverifikasi tidak berefek.
 func (s *Service) VerifyEmail(ctx context.Context, actor authz.Actor, id uuid.UUID) error {
-	if id == actor.UserID {
+	// Sesi "masuk sebagai" Platform Admin memakai UserID Owner hanya agar FK pelaku valid; yang bertindak bukan
+	// Owner itu, jadi larangan akun sendiri tidak berlaku.
+	if id == actor.UserID && actor.Impersonator == uuid.Nil {
 		return ErrSelfVerify
 	}
 	err := db.WithTenant(ctx, s.pool, actor.TenantID, func(tx pgx.Tx) error {
