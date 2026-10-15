@@ -202,8 +202,8 @@
   </div>
 
   <section class="surface-card !p-4 space-y-3">
-    <div class="grid gap-3 md:grid-cols-5">
-      <div class="md:col-span-1">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[17rem_repeat(4,minmax(0,1fr))]">
+      <div class="min-w-0">
         <span class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]">{t('reports.range')}</span>
         <DateRange bind:from bind:to onchange={() => load()} ariaLabel={t('reports.range')} />
       </div>
