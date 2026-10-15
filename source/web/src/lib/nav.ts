@@ -137,7 +137,16 @@ export const nav: NavGroup[] = [
         icon: 'file-bar-chart',
         module: 'sales_reports',
         children: [
-          { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' }
+          { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' },
+          { labelKey: 'nav.salesDetail', module: 'sales_reports', href: '/reports/sales/detail' }
+        ]
+      },
+      {
+        id: 'masterReports',
+        labelKey: 'nav.masterReports',
+        icon: 'database',
+        children: [
+          { labelKey: 'nav.stockReport', module: 'stock_reports', href: '/reports/stock/valuation' }
         ]
       }
     ]

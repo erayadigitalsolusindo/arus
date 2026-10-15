@@ -1,10 +1,20 @@
-// Kamus halaman laporan penjualan per tanggal.
+// Kamus halaman laporan (penjualan per tanggal, detail, persedian).
 export default {
   docTitle: 'Laporan Penjualan Per Tanggal',
   title: 'Penjualan Per Tanggal',
   subtitle: 'Grand total dan breakdown metode pembayaran per hari',
   range: 'Rentang Tanggal',
   hideEmpty: 'Sembunyikan hari tanpa penjualan',
+  // Filter
+  filterOutlet: 'Outlet',
+  filterAllOutlets: 'Semua Outlet',
+  filterCashier: 'Kasir',
+  filterAllCashiers: 'Semua Kasir',
+  filterCategory: 'Kategori',
+  filterAllCategories: 'Semua Kategori',
+  filterPaymentMethod: 'Metode Bayar',
+  filterAllPaymentMethods: 'Semua Metode',
+  resetFilters: 'Hapus filter',
   // Tabel
   date: 'Tanggal',
   saleCount: 'Jumlah Nota',
@@ -27,6 +37,60 @@ export default {
   returnCount: 'Jml Retur',
   returnTotal: 'Total Retur',
   netTotal: 'Bersih',
+  grandTotal: 'Total Keseluruhan',
   // Placeholder
   noData: 'Tidak ada data untuk rentang ini.',
+  // Laporan penjualan detail per nota
+  salesDetail: {
+    docTitle: 'Laporan Penjualan Per Tanggal Detail',
+    title: 'Penjualan Per Tanggal Detail',
+    subtitle: 'Rincian setiap nota beserta isi dan pembayarannya',
+    outlet: 'Outlet',
+    cashier: 'Kasir',
+    category: 'Kategori',
+    status: 'Status',
+    allStatuses: 'Semua Status',
+    statusCompleted: 'Selesai',
+    statusVoid: 'Batal',
+    allOutlets: 'Semua Outlet',
+    allCashiers: 'Semua Kasir',
+    allCategories: 'Semua Kategori',
+    truncated: 'Hasil terpotong karena terlalu banyak; persempit rentang tanggal.',
+    saleCount: 'Jumlah Nota',
+    voidCount: 'Nota Batal',
+    lineNo: 'No',
+    time: 'Jam',
+    note: 'Nota',
+    sku: 'SKU',
+    itemName: 'Nama Barang',
+    qty: 'Qty',
+    unit: 'Satuan',
+    price: 'Harga',
+    lineDiscount: 'Diskon Baris',
+    lineTotal: 'Total Baris',
+    payment: 'Pembayaran',
+    daySummary: 'Ringkasan Harian',
+    breakdown: 'Rincian',
+    loadMore: 'Muat Lagi',
+    noData: 'Tidak ada data untuk rentang ini.'
+  },
+  // Laporan persediaan barang (nilai stok)
+  stockValuation: {
+    docTitle: 'Laporan Persediaan Barang',
+    title: 'Persediaan Barang',
+    subtitle: 'Kuantitas dan nilai stok per item',
+    outlet: 'Outlet',
+    category: 'Kategori',
+    allOutlets: 'Semua Outlet',
+    allCategories: 'Semua Kategori',
+    displayQty: 'Qty Etalase',
+    warehouseQty: 'Qty Gudang',
+    returnsQty: 'Qty Retur',
+    totalQty: 'Total Qty',
+    avgCost: 'HPP Rata-rata',
+    stockValue: 'Nilai Stok',
+    totalValue: 'Total Keseluruhan',
+    loadMore: 'Muat Lagi',
+    noData: 'Tidak ada data untuk filter ini.'
+  }
 };
