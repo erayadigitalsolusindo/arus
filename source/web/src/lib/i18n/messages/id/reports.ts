@@ -235,5 +235,22 @@ export default {
     totalValue: 'Total Keseluruhan',
     loadMore: 'Muat Lagi',
     noData: 'Tidak ada data untuk filter ini.'
+  },
+  // Laporan master (member, supplier, sales)
+  masterReport: {
+    search: 'Cari nama, kode, atau telepon',
+    status: 'Status',
+    all: 'Semua',
+    active: 'Aktif',
+    inactive: 'Nonaktif',
+    loadMore: 'Muat Lagi',
+    noData: 'Tidak ada data untuk filter ini.',
+    code: 'Kode', name: 'Nama', phone: 'Telepon', email: 'Email', address: 'Alamat', city: 'Kota', note: 'Catatan',
+    gender: 'JK', level: 'Level', points: 'Poin', creditLimit: 'Batas Piutang', dueDays: 'Jatuh Tempo (hari)', validUntil: 'Berlaku s/d',
+    contact: 'Kontak', commission: 'Komisi (%)', statusCol: 'Status',
+    male: 'L', female: 'P',
+    member: { docTitle: 'Laporan Master Member', title: 'Master Member', subtitle: 'Daftar member beserta level, poin, dan batas piutang' },
+    supplier: { docTitle: 'Laporan Master Supplier', title: 'Master Supplier', subtitle: 'Daftar supplier beserta kontak dan alamat' },
+    salesperson: { docTitle: 'Laporan Master Sales', title: 'Master Sales', subtitle: 'Daftar salesman beserta komisi' }
   }
 };
