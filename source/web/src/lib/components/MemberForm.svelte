@@ -96,6 +96,7 @@
   if (canWrite) {
     const d = drafts.load<Draft>(draftPath);
     if (d) {
+      /* svelte-ignore state_referenced_locally */
       ({ active, code, name, gender, phone, email, address, district, city, province, postalCode, notes, creditLimit, dueDays, validity, validUntil } = d);
       restored = true;
     }

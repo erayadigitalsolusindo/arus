@@ -10,7 +10,7 @@
   import { t, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
-  const money = (v: string) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string) => formatCurrency(Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const inputClass = 'h-9 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-3 text-[13px] outline-none focus:border-[var(--color-primary-500)]';
 
   let rows = $state<CreditRow[]>([]);

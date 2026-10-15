@@ -1,9 +1,9 @@
 // Daftar bahasa yang didukung. Menambah bahasa: tambahkan entri di sini + folder `messages/<kode>/`
 // (bertipe `Messages`, jadi kunci yang kurang langsung gagal di `npm run check`).
 export const LOCALES = {
-  id: { name: 'Bahasa Indonesia', short: 'ID', intl: 'id-ID' },
-  en: { name: 'English', short: 'EN', intl: 'en-US' },
-  ja: { name: '日本語', short: 'JA', intl: 'ja-JP' }
+  id: { name: 'Bahasa Indonesia', short: 'ID', intl: 'id-ID', currency: 'IDR' },
+  en: { name: 'English', short: 'EN', intl: 'en-US', currency: 'USD' },
+  ja: { name: '日本語', short: 'JA', intl: 'ja-JP', currency: 'JPY' }
 } as const;
 
 export type Locale = keyof typeof LOCALES;

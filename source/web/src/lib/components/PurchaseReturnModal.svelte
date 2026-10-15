@@ -8,7 +8,7 @@
 
   let { id, onclose, onchanged }: { id: string; onclose: () => void; onchanged?: () => void } = $props();
 
-  const money = (v: string) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v: string) => formatCurrency(Number(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const q3 = (s: string) => formatNumber(Number(s), { maximumFractionDigits: 3 });
   const label = 'text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
 

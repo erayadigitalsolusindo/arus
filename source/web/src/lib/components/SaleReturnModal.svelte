@@ -7,7 +7,7 @@
   import { errorMessage } from '#lib/i18n/errors.ts';
 
   let { id, onclose, onchanged }: { id: string; onclose: () => void; onchanged?: () => void } = $props();
-  const money = (value: string) => formatCurrency(Number(value), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (value: string) => formatCurrency(Number(value), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const qty = (value: string) => formatNumber(Number(value), { maximumFractionDigits: 3 });
   const label = 'text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
 

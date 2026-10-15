@@ -192,6 +192,7 @@ const pos: Messages['pos'] = {
     change: 'Change',
     saved: 'You saved',
     pointsEarned: 'Points earned',
+    erapayPending: '*** CHECK WITH ERAPAY ***',
     print: 'Print receipt',
     reprint: 'Reprint',
     printing: 'Printing…',
@@ -260,7 +261,12 @@ const pos: Messages['pos'] = {
     qrAlt: 'QRIS code',
     failed: 'QRIS payment failed. Create a new QR.',
     expired: 'QR expired. Create a new QR.',
-    cancelled: 'Payment cancelled. Create a new QR.'
+    cancelled: 'Payment cancelled. Create a new QR.',
+    forceShow: "EraPay unreachable? Force save",
+    forceHint: 'Force save: the sale is saved and flagged "check with EraPay", then reconciled automatically. If it turns out unpaid, the sale is voided and stock restored. Owner/Supervisor approval required.',
+    forceNoApprovers: 'No Owner/Supervisor with a PIN is allowed to approve the EraPay check yet. Grant the permission and ask them to set a PIN.',
+    pendingTitle: 'QRIS payment not verified yet',
+    pendingNotice: 'The sale is flagged "check with EraPay" and reconciled automatically. If it turns out unpaid, the sale is voided automatically and stock restored.'
   },
   payPaid: 'Received',
   payTotalPaid: 'Total Paid:',

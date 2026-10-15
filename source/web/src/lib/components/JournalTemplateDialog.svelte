@@ -65,8 +65,11 @@
     while (rs.length < 2) rs.push(blank(rs.length === 0 ? 'debit' : 'credit'));
     return rs;
   })();
+  /* svelte-ignore state_referenced_locally */
   let name = $state(seed.narration.trim().slice(0, 80));
+  /* svelte-ignore state_referenced_locally */
   let type = $state(seed.type);
+  /* svelte-ignore state_referenced_locally */
   let narration = $state(seed.narration);
   let rows = $state<Row[]>(start);
   let busy = $state(false);

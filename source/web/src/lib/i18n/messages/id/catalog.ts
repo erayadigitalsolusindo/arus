@@ -89,7 +89,7 @@ export default {
     nameHint: 'Contoh: QRIS BCA, GoPay, Transfer Mandiri.',
     fee: 'Biaya (MDR)',
     feePct: 'Biaya (%)',
-    feeFlat: 'Biaya tetap (Rp)',
+    feeFlat: 'Biaya tetap',
     feeHint: 'Isi persen, rupiah, atau keduanya. Kosongkan bila tanpa biaya.',
     feeCash: 'Tunai tidak dikenai biaya.',
     presets: 'Pintasan (bank / dompet digital)',

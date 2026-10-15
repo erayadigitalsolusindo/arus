@@ -239,7 +239,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shiftOpenHint => '販売を始める前に、レジ引き出しの開始現金を入力してください。';
 
   @override
-  String get shiftOpeningCash => '開始現金 (Rp)';
+  String get shiftOpeningCash => '開始現金 (円)';
 
   @override
   String get shiftOpenSubmit => 'シフトを開く';
@@ -251,7 +251,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get payMethod => '方法';
 
   @override
-  String get payAmount => '金額 (Rp)';
+  String get payAmount => '金額 (円)';
 
   @override
   String get payExact => 'ちょうどの金額';
@@ -293,6 +293,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get payEraNeedPaid => 'QRを作成し、支払い完了を待ってください。';
+
+  @override
+  String get payEraForceShow => 'EraPayに接続できない場合は強制保存';
+
+  @override
+  String get payEraForceHint =>
+      '強制保存: 伝票は保存され「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は取消しされ、在庫が戻ります。オーナー/スーパーバイザーの承認が必要です。';
+
+  @override
+  String get payEraPendingTitle => 'QRIS支払いがまだ未確認です';
+
+  @override
+  String get payEraPendingNotice =>
+      '伝票は「EraPayでの確認が必要」とマークされ、自動的に照合されます。未払いの場合は自動的に取消しされ、在庫が戻ります。';
 
   @override
   String get errorEraDisabled => 'EraPay統合がサーバーで有効になっていません。';
@@ -474,7 +488,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shiftColExpected => '期待値';
 
   @override
-  String get shiftColCounted => '現金（Rp）';
+  String get shiftColCounted => '現金（円）';
 
   @override
   String get shiftColDiff => '差額';
@@ -732,10 +746,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get adjustTabDiscount => '値引き';
 
   @override
-  String get adjustNewPrice => '新しい単価 (Rp)';
+  String get adjustNewPrice => '新しい単価 (円)';
 
   @override
-  String get adjustDiscountRp => '値引き (Rp)';
+  String get adjustDiscountRp => '値引き (円)';
 
   @override
   String get adjustDiscountPct => '値引き (%)';
@@ -807,7 +821,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get costsName => '費用名';
 
   @override
-  String get costsAmount => '金額 (Rp)';
+  String get costsAmount => '金額 (円)';
 
   @override
   String get costsRemove => '削除';
@@ -1269,6 +1283,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get receiptSuperseded => '*** 改訂で差し替え ***';
+
+  @override
+  String get receiptEraPending => '*** EraPayの確認が必要 ***';
 
   @override
   String get receiptLineDiscount => '値引き';

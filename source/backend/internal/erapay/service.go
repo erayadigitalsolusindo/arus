@@ -370,47 +370,92 @@ func (s *Service) GetCharge(ctx context.Context, a authz.Actor, id uuid.UUID) (C
 
 // VerifyPayment memastikan pembayaran berjenis EraPay QRIS di nota benar-benar lunas. isEra=false bila methodID bukan metode EraPay
 // milik tenant (tak ada yang diperiksa). Bila isEra, ref harus id charge yang LUNAS, nominal sama, dan belum dipakai nota lain
-// (reuseSale = nota yang sedang direvisi; boleh memakai ulang charge miliknya). Baris charge dikunci sampai transaksi selesai.
-func (s *Service) VerifyPayment(ctx context.Context, tx pgx.Tx, tenant, methodID uuid.UUID, ref string, amount decimal.Decimal, reuseSale *uuid.UUID) (chargeID uuid.UUID, isEra bool, err error) {
+// (reuseSale = nota yang sedang direvisi; boleh memakai ulang charge miliknya). Bila force=true, charge yang masih `pending`/
+// `unknown` (belum ada keputusan akhir karena penyedia tidak dapat dihubungi) juga boleh dipakai nota → mengembalikan
+// pending=true supaya nota ditandai `erapay_pending` dan dicek penjadwal nanti. Dalam mode force, penyedia TIDAK dihubungi:
+// justru membiarkan nota tersimpan walau EraPay/DOKU down. Baris charge dikunci sampai transaksi selesai.
+func (s *Service) VerifyPayment(ctx context.Context, tx pgx.Tx, tenant, methodID uuid.UUID, ref string, amount decimal.Decimal, reuseSale *uuid.UUID, force bool) (chargeID uuid.UUID, isEra bool, pending bool, err error) {
 	var mid uuid.UUID
 	if err := tx.QueryRow(ctx, `SELECT method_id FROM erapay_methods WHERE tenant_id = $1`, tenant).Scan(&mid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return uuid.Nil, false, nil
+			return uuid.Nil, false, false, nil
 		}
-		return uuid.Nil, false, err
+		return uuid.Nil, false, false, err
 	}
 	if mid != methodID {
-		return uuid.Nil, false, nil
+		return uuid.Nil, false, false, nil
 	}
 	id, perr := uuid.Parse(ref)
 	if perr != nil {
-		return uuid.Nil, true, ErrChargeNotOK
+		return uuid.Nil, true, false, ErrChargeNotOK
 	}
 	c, err := scanCharge(tx.QueryRow(ctx, `SELECT `+chargeCols+` FROM erapay_charges WHERE id = $1 AND tenant_id = $2 FOR UPDATE`, id, tenant))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, true, ErrChargeNotOK
+		return uuid.Nil, true, false, ErrChargeNotOK
 	}
 	if err != nil {
-		return uuid.Nil, true, err
+		return uuid.Nil, true, false, err
 	}
-	if c.Status != StatusSucceeded && c.paymentID != "" { // mungkin sudah lunas tapi belum sempat di-poll
+	if !force && c.Status != StatusSucceeded && c.paymentID != "" { // mungkin sudah lunas tapi belum sempat di-poll
 		cl, cerr := s.clientTx(ctx, tx, tenant)
 		if cerr != nil {
-			return uuid.Nil, true, cerr
+			return uuid.Nil, true, false, cerr
 		}
 		if cl != nil {
 			if p, gerr := cl.Get(ctx, c.paymentID); gerr == nil {
 				if c, err = storeTx(ctx, tx, tenant, c.ID, p); err != nil {
-					return uuid.Nil, true, err
+					return uuid.Nil, true, false, err
 				}
 			}
 		}
 	}
-	if c.Status != StatusSucceeded || !c.amountDec.Equal(amount) || c.methodID != methodID ||
-		(c.saleID != nil && (reuseSale == nil || *c.saleID != *reuseSale)) {
-		return uuid.Nil, true, ErrChargeNotOK
+	if c.paymentID == "" && c.Status != StatusSucceeded {
+		// Belum pernah terkirim ke EraPay/penyedia (gagal sebelum ada QR): tidak ada pembayaran yang bisa dicek rekonsiliasi.
+		return uuid.Nil, true, false, ErrChargeNotOK
 	}
-	return c.ID, true, nil
+	if !c.amountDec.Equal(amount) || c.methodID != methodID ||
+		(c.saleID != nil && (reuseSale == nil || *c.saleID != *reuseSale)) {
+		return uuid.Nil, true, false, ErrChargeNotOK
+	}
+	switch c.Status {
+	case StatusSucceeded:
+		return c.ID, true, false, nil
+	case StatusPending, "unknown":
+		if force {
+			return c.ID, true, true, nil
+		}
+		fallthrough
+	default:
+		return uuid.Nil, true, false, ErrChargeNotOK
+	}
+}
+
+// PollChargeTx memutakhirkan status satu charge EraPay dari penyedia dan mengembalikan status termutakhir. Dipakai penjadwal
+// rekonsiliasi (sales): ia membaca daftar target lintas tenant lewat erapay_reconcile_targets(), lalu memproses tiap tenant
+// di dalam transaksi RLS-nya sendiri. Bila penyedia tidak terjangkau atau key sudah dicabut, mengembalikan status tersimpan
+// tanpa galat agar dicoba lagi pada putaran berikutnya. Baris charge dikunci sampai transaksi selesai.
+func (s *Service) PollChargeTx(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, paymentID string) (string, error) {
+	c, err := scanCharge(tx.QueryRow(ctx, `SELECT `+chargeCols+` FROM erapay_charges WHERE tenant_id = $1 AND erapay_payment_id = $2 FOR UPDATE`, tenant, paymentID))
+	if err != nil {
+		return "", err
+	}
+	switch c.Status {
+	case StatusSucceeded, "failed", "expired", "cancelled":
+		return c.Status, nil // sudah ada keputusan akhir: tidak perlu menghubungi penyedia lagi
+	}
+	cl, cerr := s.clientTx(ctx, tx, tenant)
+	if cerr != nil {
+		return "", cerr
+	}
+	if cl == nil {
+		return c.Status, nil
+	}
+	if p, gerr := cl.Get(ctx, c.paymentID); gerr == nil {
+		if c, err = storeTx(ctx, tx, tenant, c.ID, p); err != nil {
+			return "", err
+		}
+	} // gagal menghubungi EraPay: biarkan status tersimpan, dicek lagi putaran berikutnya
+	return c.Status, nil
 }
 
 // LinkPayment menandai charge terpakai oleh nota saleID (dipanggil setelah nota disimpan, di transaksi yang sama).

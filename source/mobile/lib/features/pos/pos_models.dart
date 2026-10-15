@@ -429,6 +429,7 @@ class SaleResult {
     required this.surcharge,
     required this.receivable,
     this.dueDate,
+    this.erapayPending = false,
   });
 
   final String id;
@@ -443,6 +444,9 @@ class SaleResult {
   final Decimal receivable;
   final String? dueDate;
 
+  /// Disimpan paksa saat EraPay tidak dapat dihubungi: pembayaran QRIS belum terverifikasi lunas.
+  final bool erapayPending;
+
   factory SaleResult.fromJson(Map<String, dynamic> j) => SaleResult(
     id: '${j['id']}',
     docNo: '${j['doc_no']}',
@@ -451,6 +455,7 @@ class SaleResult {
     surcharge: dec(j['surcharge']),
     receivable: dec(j['receivable']),
     dueDate: (j['credit'] as Map?)?['due_date'] as String?,
+    erapayPending: j['erapay_pending'] == true,
   );
 }
 
@@ -487,6 +492,7 @@ class SaleDraft {
     this.credit = false,
     this.salesperson,
     this.note = '',
+    this.forceEraPay = false,
   });
 
   final List<CartLine> lines;
@@ -507,6 +513,10 @@ class SaleDraft {
   /// Keterangan nota (maks 200 huruf); hanya dikirim saat bayar, bukan saat quote.
   final String note;
 
+  /// Simpan paksa walau pembayaran QRIS EraPay belum terverifikasi lunas (penyedia down):
+  /// butuh persetujuan PIN penyetuju berizin `qris_force`; server menandai nota `erapay_pending`.
+  final bool forceEraPay;
+
   SaleDraft asCredit(ApprovalGrant? approval) => SaleDraft(
     lines: lines,
     applyTax: applyTax,
@@ -517,7 +527,22 @@ class SaleDraft {
     credit: true,
     salesperson: salesperson,
     note: note,
+    forceEraPay: forceEraPay,
   );
+
+  /// Simpan paksa: charge QRIS masih menunggu, [approval] = penyetuju berizin qris_force.
+  SaleDraft asForceEraPay(ApprovalGrant approval) => SaleDraft(
+        lines: lines,
+        applyTax: applyTax,
+        member: member,
+        redeemPoints: redeemPoints,
+        costs: costs,
+        approval: approval,
+        credit: credit,
+        salesperson: salesperson,
+        note: note,
+        forceEraPay: true,
+      );
 }
 
 /// Status integrasi QRIS EraPay untuk toko ini (`GET /payments/erapay/config`).

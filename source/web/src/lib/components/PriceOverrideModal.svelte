@@ -83,7 +83,7 @@
     <p class="text-[12.5px] text-[var(--text-secondary)]">{t('pos.override.body')}</p>
     <dl class="text-[13px] rounded-md bg-[var(--surface-sunken)] p-3 space-y-1">
       <div class="flex justify-between gap-3"><dt>{t('pos.override.item')}</dt><dd class="font-semibold text-end">{name}</dd></div>
-      <div class="flex justify-between gap-3"><dt>{t('pos.override.listPrice')}</dt><dd class="tabular-nums">{formatCurrency(centsToNumber(toCents(listPrice)), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
+      <div class="flex justify-between gap-3"><dt>{t('pos.override.listPrice')}</dt><dd class="tabular-nums">{formatCurrency(centsToNumber(toCents(listPrice)), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
     </dl>
 
     <div class="grid grid-cols-2 gap-1 p-1 rounded-md bg-[var(--surface-sunken)] text-[12.5px] font-semibold" role="tablist">
@@ -105,7 +105,7 @@
         <Select class="!w-auto min-w-24 !min-h-10" ariaLabel={t('pos.override.discountUnit')} bind:value={unit} options={[{ value: 'rp', label: t('pos.override.unitRp') }, { value: 'total', label: t('pos.override.unitTotal') }, { value: 'pct', label: '%' }]} />
       </div>
       {#if discOk}
-        <span class="block mt-1 text-[12px] text-[var(--text-secondary)]">{t(unit === 'total' ? 'pos.override.discountPreviewTotal' : 'pos.override.discountPreview', { amount: formatCurrency(centsToNumber(discCents), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}</span>
+        <span class="block mt-1 text-[12px] text-[var(--text-secondary)]">{t(unit === 'total' ? 'pos.override.discountPreviewTotal' : 'pos.override.discountPreview', { amount: formatCurrency(centsToNumber(discCents), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}</span>
       {/if}
     </div>
     {/if}

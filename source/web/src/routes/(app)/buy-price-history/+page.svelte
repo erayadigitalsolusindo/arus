@@ -22,7 +22,7 @@
   let error = $state('');
   let seq = 0; // abaikan respons basi bila filter berubah saat memuat
 
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+  const money = (v: string | number) => formatCurrency(Number(v), { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
   async function load(more = false) {
     const my = ++seq;

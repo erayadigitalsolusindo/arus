@@ -126,6 +126,7 @@ List<ReceiptLine> receiptLines(
   } else if (rc.status == 'superseded') {
     centered(l.receiptSuperseded, bold: true);
   }
+  if (rc.erapayPending) centered(l.receiptEraPending, bold: true);
   rule();
 
   var lineDisc = Decimal.zero;

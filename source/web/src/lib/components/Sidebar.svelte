@@ -151,6 +151,7 @@
 
   {#if collapsed && bubbleItem}
     <div
+      role="tooltip"
       class="sidebar-nav-bubble"
       style:top="{bubbleTop}px"
       onmouseenter={keepBubble}

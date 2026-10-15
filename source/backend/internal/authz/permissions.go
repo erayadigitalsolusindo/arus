@@ -52,6 +52,7 @@ var Modules = []Module{
 	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
 	{"outlet_switch", []string{ActView, ActApprove}},  // Owner/Supervisor yang boleh menyetujui pindah outlet di kasir lewat PIN
 	{"sale_edit", []string{ActView, ActApprove}},      // Owner/Supervisor yang boleh menyetujui edit/batal nota lewat PIN
+	{"qris_force", []string{ActView, ActApprove}},     // Owner/Supervisor yang boleh menyetujui force-save nota QRIS EraPay yang belum terverifikasi lunas lewat PIN
 	{"credit_limit", []string{ActView, ActApprove}},   // Owner/Supervisor yang boleh menyetujui penjualan kredit melewati limit piutang member lewat PIN
 	{"shift_close", []string{ActView, ActApprove}},    // Owner/Supervisor yang boleh menyetujui tutup shift kasir yang memiliki selisih lewat PIN
 	{"cash_shifts", []string{ActView, ActUpdate}},     // daftar/rincian shift semua kasir; update = menutup shift kasir lain
@@ -59,6 +60,9 @@ var Modules = []Module{
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
 	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
+	{"sales_reports", viewing},       // melihat laporan penjualan
+	{"sales_reports_cost", viewing},  // melihat HPP & laba di laporan penjualan
+	{"stock_reports", viewing},       // melihat laporan persedian
 	{"sell_price_history", viewing},
 	{"member_receivables", []string{ActView, ActCreate}},
 	{"receivable_opening", []string{ActView, ActCreate, ActDelete}}, // saldo awal piutang member: create = catat, delete = batalkan (belum dibayar)

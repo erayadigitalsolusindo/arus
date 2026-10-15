@@ -16,7 +16,7 @@
 
   type Row = DraftRow;
 
-  const money = (v: string | number) => formatCurrency(Number(v), 'IDR', { maximumFractionDigits: 2 });
+  const money = (v: string | number) => formatCurrency(Number(v), { maximumFractionDigits: 2 });
   const num = (s: string) => (s === '' ? 0 : Number(s));
   const initialsOf = (name: string) => name.split(/s+/).filter((w) => /[p{L}p{N}]/u.test(w)).slice(0, 2).map((w) => w.replace(/^[^p{L}p{N}]+/u, '')[0]?.toUpperCase() ?? '').join('') || '?';
   const trim = (n: string) => (n.includes('.') ? n.replace(/.?0+$/, '') : n);
