@@ -1,5 +1,6 @@
 <script lang="ts">
   import DateRange from '#lib/components/DateRange.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Select from '#lib/components/Select.svelte';
   import SaleDetailDrawer from '#lib/components/SaleDetailDrawer.svelte';
   import { sales as api, PAY_METHODS, type SaleAllRow, type SaleAllSummary } from '#lib/sales/api.ts';
@@ -71,8 +72,7 @@
     void method;
     void allMode;
     void session.outlet?.id;
-    const h = setTimeout(() => void load(), 250);
-    return () => clearTimeout(h);
+    return later(() => void load());
   });
 
   const METHOD_ICON: Record<string, string> = { cash: 'icon-banknote', debit: 'icon-credit-card', credit_card: 'icon-credit-card', ewallet: 'icon-wallet', transfer: 'icon-arrow-right' };

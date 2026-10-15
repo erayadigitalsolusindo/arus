@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { suppliers as api, type Supplier } from '#lib/catalog/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -58,11 +59,10 @@
   $effect(() => {
     void q;
     void filter;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   function go(next: number) {

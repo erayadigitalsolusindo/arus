@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Select from '#lib/components/Select.svelte';
   import SettleModal from '#lib/components/SettleModal.svelte';
   import PayableModal from '#lib/components/PayableModal.svelte';
@@ -49,8 +50,7 @@
   $effect(() => {
     void status;
     void q;
-    const h = setTimeout(() => void load(), 250);
-    return () => clearTimeout(h);
+    return later(() => void load());
   });
 
   onMount(() => {

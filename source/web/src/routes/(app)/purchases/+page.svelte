@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Select from '#lib/components/Select.svelte';
   import DateRange from '#lib/components/DateRange.svelte';
   import PurchaseModal from '#lib/components/PurchaseModal.svelte';
@@ -60,8 +61,7 @@
     void to;
     void type;
     void q;
-    const h = setTimeout(() => void load(), 250);
-    return () => clearTimeout(h);
+    return later(() => void load());
   });
 
   onMount(() => {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import DatePicker from '#lib/components/DatePicker.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import { onMount } from 'svelte';
   import { opening, BUCKETS, type Bucket, type OpeningRow, type OpeningStatus } from '#lib/stock/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -71,11 +72,10 @@
 
   $effect(() => {
     void q;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   onMount(() => {

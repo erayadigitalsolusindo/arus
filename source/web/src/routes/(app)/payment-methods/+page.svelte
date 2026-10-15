@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { paymentMethods as api, type FeeBearer, type PaymentKind, type PaymentMethod, isWalletKind } from '#lib/catalog/api.ts';
@@ -113,11 +114,10 @@
   $effect(() => {
     void q;
     void filter;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   function go(next: number) {

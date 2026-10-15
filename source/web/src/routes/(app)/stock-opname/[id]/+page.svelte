@@ -4,6 +4,7 @@
   import { counts, type CountDetail, type CountLine, type OpeningRow } from '#lib/stock/api.ts';
   import { lookup } from '#lib/catalog/api.ts';
   import { can, session } from '#lib/auth/session.svelte.ts';
+  import { debounced } from '#lib/debounce.svelte.ts';
   import { t, formatDateTime, formatNumber, formatCurrency } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import { ApiError } from '#lib/api/client.ts';
@@ -63,8 +64,9 @@
     return { lines, counted, diffs, plus, minus, value: plus + minus, pct: lines > 0 ? Math.round((counted / lines) * 100) : 0 };
   });
 
+  const qDebounced = debounced(() => q);
   const visible = $derived.by(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = qDebounced.value.trim().toLowerCase();
     return (doc?.items ?? []).filter((r) => {
       if (needle && !r.name.toLowerCase().includes(needle) && !r.sku.toLowerCase().includes(needle)) return false;
       const d = diffOf(r);

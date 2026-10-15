@@ -1,5 +1,6 @@
 <script lang="ts">
   import { items, type PriceReportEvent } from '#lib/items/api.ts';
+  import { later } from '#lib/debounce.svelte.ts';
   import { changeValue, diffClass, orderChanges, scopeName } from '#lib/items/pricefmt.ts';
   import { accessibleOutlets, refreshOutlets } from '#lib/outlets/store.svelte.ts';
   import { persistPage } from '#lib/tabs/persist.ts';
@@ -68,8 +69,7 @@
     void query;
     const delay = first ? 0 : 350;
     first = false;
-    const h = setTimeout(() => void load(), delay);
-    return () => clearTimeout(h);
+    return later(() => void load(), delay);
   });
 
   // ---- Preset periode (hari kalender lokal; server menafsirkan menurut zona waktu outlet) ----

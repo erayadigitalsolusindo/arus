@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
   import DateRange from '#lib/components/DateRange.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
@@ -67,11 +68,10 @@
   $effect(() => {
     void q;
     void filter;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   function go(next: number) {
