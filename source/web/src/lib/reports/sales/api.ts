@@ -315,3 +315,100 @@ export function salesItemsFileUrl(params: SalesItemsParams, format: 'xlsx' | 'pd
 	qs.set('format', format);
 	return `/reports/sales/items?${qs}`;
 }
+
+// ── Penjualan per kasir (rekonsiliasi laci) ─────────────────────────────────────
+
+export type CashierMethod = { name: string; kind: string; sales: string; flows: string; expected: string; counted: string; diff: string };
+
+export type CashierTotal = {
+	user_id?: string;
+	name: string;
+	shifts: number;
+	open_shifts: number;
+	diff_shifts: number;
+	sale_count: number;
+	void_count: number;
+	sales_total: string;
+	expected: string;
+	counted: string;
+	diff: string;
+	diff_abs: string;
+	methods: CashierMethod[];
+	cash_opening: string;
+	cash_expected: string;
+	cash_counted: string;
+	cash_diff: string;
+};
+
+export type CashierShift = {
+	id: string;
+	doc_no: string;
+	status: 'open' | 'closed';
+	outlet_code: string;
+	outlet_name: string;
+	user_id: string;
+	cashier_name: string;
+	opened_date: string;
+	opened_time: string;
+	closed_time: string;
+	opening_cash: string;
+	sale_count: number;
+	void_count: number;
+	sales_total: string;
+	cash_sales: string;
+	cash_flows: string;
+	cash_expected: string;
+	cash_counted: string;
+	cash_diff: string;
+	diff: string;
+	note: string;
+	approved_by_name: string;
+};
+
+export type SalesCashiersResult = {
+	from: string;
+	to: string;
+	data: CashierShift[];
+	next_cursor?: string;
+	truncated?: boolean;
+	has_summary: boolean;
+	summary: CashierTotal;
+	cashiers: CashierTotal[];
+};
+
+export type SalesCashiersParams = {
+	from: string;
+	to: string;
+	outlet_id?: string;
+	cashier_id?: string;
+	status?: string;
+	diff_only?: boolean;
+	all_outlets?: boolean;
+	cursor?: string;
+	limit?: number;
+};
+
+function cashiersQuery(params: SalesCashiersParams): URLSearchParams {
+	const qs = new URLSearchParams();
+	qs.set('from', params.from);
+	qs.set('to', params.to);
+	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
+	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
+	if (params.status) qs.set('status', params.status);
+	if (params.diff_only) qs.set('diff_only', 'true');
+	if (params.all_outlets) qs.set('all_outlets', 'true');
+	if (params.cursor) qs.set('cursor', params.cursor);
+	if (params.limit) qs.set('limit', String(params.limit));
+	return qs;
+}
+
+// GET /reports/sales/cashiers (JSON, keyset; ringkasan per kasir hanya halaman pertama).
+export async function salesCashiers(params: SalesCashiersParams): Promise<SalesCashiersResult> {
+	return api(`/reports/sales/cashiers?${cashiersQuery(params)}`);
+}
+
+export function salesCashiersFileUrl(params: SalesCashiersParams, format: 'xlsx' | 'pdf'): string {
+	const qs = cashiersQuery({ ...params, cursor: undefined });
+	qs.set('format', format);
+	return `/reports/sales/cashiers?${qs}`;
+}
