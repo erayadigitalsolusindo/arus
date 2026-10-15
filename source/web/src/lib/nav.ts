@@ -138,8 +138,11 @@ export const nav: NavGroup[] = [
         module: 'sales_reports',
         children: [
           { labelKey: 'nav.salesInvoice', module: 'sales_reports', href: '/reports/sales/invoices' },
+          { labelKey: 'nav.salesInvoiceDetail', module: 'sales_reports', href: '/reports/sales/invoice-detail' },
           { labelKey: 'nav.salesItem', module: 'sales_reports', href: '/reports/sales/items' },
           { labelKey: 'nav.salesCashier', module: 'sales_reports', href: '/reports/sales/cashiers' },
+          { labelKey: 'nav.salesCustomer', module: 'sales_reports', href: '/reports/sales/customers' },
+          { labelKey: 'nav.salesCustomerInvoice', module: 'sales_reports', href: '/reports/sales/customer-invoices' },
           { labelKey: 'nav.salesByDate', module: 'sales_reports', href: '/reports/sales/by-date' },
           { labelKey: 'nav.salesDetail', module: 'sales_reports', href: '/reports/sales/detail' }
         ]

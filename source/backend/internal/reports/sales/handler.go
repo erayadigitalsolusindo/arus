@@ -41,6 +41,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/invoices", h.Invoices)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/items", h.Items)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/cashiers", h.Cashiers)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/invoice-detail", h.InvoiceDetail)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/customers", h.Customers)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/customer-invoices", h.CustomerInvoices)
 	})
 }
 
@@ -248,6 +251,139 @@ func (h *Handler) Items(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.writeFile(w, r, ItemFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
+	}
+}
+
+// InvoiceDetail: GET /reports/sales/invoice-detail?(sama dengan /detail)
+// Data sama dengan laporan detail; tampilan & berkas ekspor datar per faktur.
+func (h *Handler) InvoiceDetail(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	format := qs.Get("format")
+	p := DetailParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		CategoryID: qs.Get("category_id"),
+		Status:     qs.Get("status"),
+		Cursor:     qs.Get("cursor"),
+		Limit:      limit,
+		ForExport:  format == "xlsx" || format == "pdf",
+	}
+	result, err := h.svc.Detail(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	switch format {
+	case "xlsx":
+		b, err := DetailToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, InvoiceDetailFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
+	case "pdf":
+		b, err := InvoiceDetailToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, InvoiceDetailFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
+	}
+}
+
+// Customers: GET /reports/sales/customers?from=&to=&outlet_id=&cashier_id=&q=&sort=&all_outlets=&limit=&format=xlsx|pdf
+func (h *Handler) Customers(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	format := qs.Get("format")
+	p := CustomerParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		Search:     qs.Get("q"),
+		Sort:       qs.Get("sort"),
+		Limit:      limit,
+		ForExport:  format == "xlsx" || format == "pdf",
+	}
+	if format == "pdf" {
+		p.ExportMax = maxCustomerPDFRows
+	}
+	result, err := h.svc.Customers(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	switch format {
+	case "xlsx":
+		b, err := CustomerToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CustomerFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
+	case "pdf":
+		b, err := CustomerToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CustomerFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
+	}
+}
+
+// CustomerInvoices: GET /reports/sales/customer-invoices?from=&to=&member_id=&with_items=&cursor=&limit=&format=xlsx|pdf
+// Layar: member_id wajib (satu pelanggan, keyset). Ekspor: member_id kosong = semua
+// pelanggan (hasil q/sort), faktur dikelompokkan per pelanggan.
+func (h *Handler) CustomerInvoices(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	format := qs.Get("format")
+	p := CustInvParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		MemberID:   qs.Get("member_id"),
+		Search:     qs.Get("q"),
+		Sort:       qs.Get("sort"),
+		Cursor:     qs.Get("cursor"),
+		Limit:      limit,
+		WithItems:  qs.Get("with_items") == "true",
+		ForExport:  format == "xlsx" || format == "pdf",
+	}
+	result, err := h.svc.CustomerInvoices(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	switch format {
+	case "xlsx":
+		b, err := CustInvToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CustInvFileName(result.From, result.To, p.WithItems, "xlsx"), xlsxContentType, b)
+	case "pdf":
+		b, err := CustInvToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CustInvFileName(result.From, result.To, p.WithItems, "pdf"), pdfContentType, b)
 	default:
 		httpx.JSON(w, http.StatusOK, result)
 	}
