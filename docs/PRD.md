@@ -387,7 +387,7 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
-| FR-RPT-01 | Penjualan per periode/outlet/kasir/metode bayar/barang/kategori/salesman. | M (R1 dasar) | ◐ (daftar penjualan + ringkasan per metode, rekap harian & shift; per barang/kategori/salesman belum) |
+| FR-RPT-01 | Penjualan per periode/outlet/kasir/metode bayar/barang/kategori/salesman. | M (R1 dasar) | ◐ (daftar penjualan + ringkasan per metode, rekap harian & shift; per faktur & per barang selesai 2026-10-15; per kategori/salesman belum) |
 | FR-RPT-02 | Laba kotor (penjualan − potongan − HPP snapshot saat transaksi), hanya untuk pemegang izin `sales_cost`. Laba bersih setelah biaya metode bayar. | M | ◐ |
 | FR-RPT-03 | Stok saat ini, kartu stok, nilai persediaan (stok × HPP cabang). | M | ◐ (kartu stok) |
 | FR-RPT-04 | Pembelian, retur, piutang, hutang (+ aging). | M (R2) | ◐ |
