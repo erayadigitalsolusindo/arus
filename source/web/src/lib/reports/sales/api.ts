@@ -207,7 +207,7 @@ export type InvoiceRow = {
 	paid: string;
 	change: string;
 	receivable: string;
-	methods: string;
+	methods: DetailMethod[];
 };
 
 export type SalesInvoicesResult = {
@@ -250,8 +250,8 @@ export async function salesInvoices(params: SalesInvoicesParams): Promise<SalesI
 	return api(`/reports/sales/invoices?${invoicesQuery(params)}`);
 }
 
-export function salesInvoicesFileUrl(params: SalesInvoicesParams): string {
+export function salesInvoicesFileUrl(params: SalesInvoicesParams, format: 'xlsx' | 'pdf'): string {
 	const qs = invoicesQuery({ ...params, cursor: undefined });
-	qs.set('format', 'xlsx');
+	qs.set('format', format);
 	return `/reports/sales/invoices?${qs}`;
 }

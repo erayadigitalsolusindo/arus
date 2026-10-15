@@ -16,7 +16,6 @@ package sales
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -24,7 +23,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
-	"github.com/xuri/excelize/v2"
 
 	"aciraba/internal/authz"
 	"aciraba/internal/platform/db"
@@ -49,40 +47,46 @@ type InvoiceParams struct {
 	Cursor     string
 	Limit      int
 	ForExport  bool
+	// ExportMax = batas faktur ekspor (0 = maxInvoiceExportRows); PDF memakai batas lebih kecil.
+	ExportMax int
 }
 
 // InvoiceRow satu faktur.
 type InvoiceRow struct {
-	ID          string `json:"id"`
-	DocNo       string `json:"doc_no"`
-	Date        string `json:"date"`
-	Time        string `json:"time"`
-	Status      string `json:"status"`
-	OutletCode  string `json:"outlet_code"`
-	OutletName  string `json:"outlet_name"`
-	CashierName string `json:"cashier_name"`
-	MemberName  string `json:"member_name"`
-	Salesperson string `json:"salesperson_name"`
-	Subtotal    string `json:"subtotal"`
-	Discount    string `json:"discount"`
-	TaxStore    string `json:"tax_store"`
-	TaxGov      string `json:"tax_gov"`
-	OtherCost   string `json:"other_cost"`
-	Total       string `json:"total"`
-	Paid        string `json:"paid"`
-	Change      string `json:"change"`
-	Receivable  string `json:"receivable"`
-	Methods     string `json:"methods"` // "Tunai 50.000,00; QRIS 20.000,00" → nama + nominal mentah
+	ID          string         `json:"id"`
+	DocNo       string         `json:"doc_no"`
+	Date        string         `json:"date"`
+	Time        string         `json:"time"`
+	Status      string         `json:"status"`
+	OutletCode  string         `json:"outlet_code"`
+	OutletName  string         `json:"outlet_name"`
+	CashierName string         `json:"cashier_name"`
+	MemberName  string         `json:"member_name"`
+	Salesperson string         `json:"salesperson_name"`
+	Subtotal    string         `json:"subtotal"`
+	Discount    string         `json:"discount"`
+	TaxStore    string         `json:"tax_store"`
+	TaxGov      string         `json:"tax_gov"`
+	OtherCost   string         `json:"other_cost"`
+	Total       string         `json:"total"`
+	Paid        string         `json:"paid"`
+	Change      string         `json:"change"`
+	Receivable  string         `json:"receivable"`
+	Methods     []DetailMethod `json:"methods"` // satu entri per pembayaran (tampil satu baris per metode)
 }
 
 // InvoiceResult hasil laporan per faktur.
 type InvoiceResult struct {
-	From       string        `json:"from"`
-	To         string        `json:"to"`
-	TenantName string        `json:"tenant_name"`
-	OutletName string        `json:"outlet_name"`
-	Data       []InvoiceRow  `json:"data"`
-	Summary    DetailSummary `json:"summary"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	TenantName string `json:"tenant_name"`
+	OutletName string `json:"outlet_name"`
+	OutletCode string `json:"outlet_code"`
+	// Kop ekspor: nama kasir / label status bila difilter.
+	CashierName string        `json:"cashier_name"`
+	StatusLabel string        `json:"status_label"`
+	Data        []InvoiceRow  `json:"data"`
+	Summary     DetailSummary `json:"summary"`
 	// HasSummary = false pada halaman lanjutan (ringkasan hanya di halaman pertama).
 	HasSummary bool   `json:"has_summary"`
 	NextCursor string `json:"next_cursor,omitempty"`
@@ -270,8 +274,12 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 			limit = maxInvoiceLimit
 		}
 		rowLimit := limit + 1
+		exportMax := maxInvoiceExportRows
+		if p.ExportMax > 0 && p.ExportMax < exportMax {
+			exportMax = p.ExportMax
+		}
 		if p.ForExport {
-			rowLimit = maxInvoiceExportRows + 1
+			rowLimit = exportMax + 1
 		}
 
 		outlets := []uuid.UUID{a.OutletID}
@@ -293,12 +301,24 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 		}
 
 		result.From, result.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
+		if cashier != uuid.Nil {
+			if err := tx.QueryRow(ctx, `SELECT name FROM users WHERE tenant_id = $1 AND id = $2`,
+				a.TenantID, cashier).Scan(&result.CashierName); err != nil {
+				return err
+			}
+		}
+		switch status {
+		case "completed":
+			result.StatusLabel = "Completed"
+		case "void":
+			result.StatusLabel = "Void"
+		}
 		if err := tx.QueryRow(ctx, `SELECT name FROM tenants WHERE id = $1`, a.TenantID).Scan(&result.TenantName); err != nil {
 			return err
 		}
 		if len(outlets) == 1 {
-			if err := tx.QueryRow(ctx, `SELECT name FROM outlets WHERE tenant_id = $1 AND id = $2`,
-				a.TenantID, outlets[0]).Scan(&result.OutletName); err != nil {
+			if err := tx.QueryRow(ctx, `SELECT name, code FROM outlets WHERE tenant_id = $1 AND id = $2`,
+				a.TenantID, outlets[0]).Scan(&result.OutletName, &result.OutletCode); err != nil {
 				return err
 			}
 		} else {
@@ -348,6 +368,7 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 				return err
 			}
 			r.ID = id.String()
+			r.Methods = []DetailMethod{}
 			r.Subtotal, r.Discount = sub.StringFixed(2), disc.StringFixed(2)
 			r.TaxStore, r.TaxGov, r.OtherCost = taxS.StringFixed(2), taxG.StringFixed(2), oc.StringFixed(2)
 			r.Total, r.Paid, r.Change, r.Receivable = tot.StringFixed(2), paid.StringFixed(2), chg.StringFixed(2), recv.StringFixed(2)
@@ -360,8 +381,8 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 		}
 
 		if p.ForExport {
-			if len(list) > maxInvoiceExportRows {
-				list = list[:maxInvoiceExportRows]
+			if len(list) > exportMax {
+				list = list[:exportMax]
 				result.Truncated = true
 			}
 		} else if len(list) > limit {
@@ -384,17 +405,15 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 			}
 			for mrows.Next() {
 				var saleID uuid.UUID
-				var name, kind string
+				var m DetailMethod
 				var amt decimal.Decimal
-				if err := mrows.Scan(&saleID, &name, &kind, &amt); err != nil {
+				if err := mrows.Scan(&saleID, &m.Name, &m.Kind, &amt); err != nil {
 					mrows.Close()
 					return err
 				}
 				if i, ok := idx[saleID.String()]; ok {
-					if list[i].Methods != "" {
-						list[i].Methods += "; "
-					}
-					list[i].Methods += name + " " + amt.StringFixed(2)
+					m.Amount = amt.StringFixed(2)
+					list[i].Methods = append(list[i].Methods, m)
 				}
 			}
 			mrows.Close()
@@ -407,67 +426,4 @@ func (s *Service) Invoices(ctx context.Context, a authz.Actor, p InvoiceParams) 
 		return nil
 	})
 	return result, err
-}
-
-// InvoiceFileName nama berkas ekspor per faktur.
-func InvoiceFileName(from, to, ext string) string {
-	return fmt.Sprintf("penjualan-perfaktur_%s_%s.%s", from, to, ext)
-}
-
-// InvoiceToXLSX: satu sheet, dialirkan per baris (memori tetap kecil).
-func InvoiceToXLSX(res InvoiceResult) ([]byte, error) {
-	f := excelize.NewFile()
-	const sheet = "Per Faktur"
-	if _, err := f.NewSheet(sheet); err != nil {
-		return nil, err
-	}
-	f.DeleteSheet("Sheet1")
-	sw, err := f.NewStreamWriter(sheet)
-	if err != nil {
-		return nil, err
-	}
-	head, err := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
-	if err != nil {
-		return nil, err
-	}
-	num, err := f.NewStyle(&excelize.Style{NumFmt: 4})
-	if err != nil {
-		return nil, err
-	}
-
-	headers := []any{"Tanggal", "Jam", "Faktur", "Status", "Outlet", "Kasir", "Member", "Salesperson",
-		"Subtotal", "Diskon", "Pajak Toko", "Pajak Negara", "Biaya Lain", "Total", "Diterima",
-		"Kembalian", "Piutang", "Metode Bayar"}
-	hrow := make([]any, len(headers))
-	for i, h := range headers {
-		hrow[i] = excelize.Cell{StyleID: head, Value: h}
-	}
-	if err := sw.SetRow("A1", hrow); err != nil {
-		return nil, err
-	}
-	money := func(s string) any { return excelize.Cell{StyleID: num, Value: moneyFloat(s)} }
-	r := 2
-	for _, x := range res.Data {
-		status := x.Status
-		if status == "completed" {
-			status = ""
-		}
-		cell, _ := excelize.CoordinatesToCellName(1, r)
-		if err := sw.SetRow(cell, []any{
-			x.Date, x.Time, x.DocNo, status, x.OutletCode, x.CashierName, x.MemberName, x.Salesperson,
-			money(x.Subtotal), money(x.Discount), money(x.TaxStore), money(x.TaxGov), money(x.OtherCost),
-			money(x.Total), money(x.Paid), money(x.Change), money(x.Receivable), x.Methods,
-		}); err != nil {
-			return nil, err
-		}
-		r++
-	}
-	if err := sw.Flush(); err != nil {
-		return nil, err
-	}
-	buf, err := f.WriteToBuffer()
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
