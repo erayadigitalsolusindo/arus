@@ -43,6 +43,7 @@ const iam: Messages['iam'] = {
     purchase_invoices: 'Purchase Invoices',
     purchase_returns: 'Purchase Returns',
     purchase_list: 'Purchase List',
+    purchase_reports: 'Purchase Reports (by invoice, item & date)',
     buy_price_history: 'Buying Price History',
     supplier_payables: 'Supplier Payables',
     supplier_credits: 'Supplier Credits (cash-out)',

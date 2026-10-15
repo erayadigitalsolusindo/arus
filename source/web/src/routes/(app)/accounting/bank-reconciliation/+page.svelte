@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import Combobox from '#lib/components/Combobox.svelte';
+  import MonthPicker from '#lib/components/MonthPicker.svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { accounting, todayISO, type Account, type BankReconciliation } from '#lib/accounting/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
@@ -179,10 +180,10 @@
         <span class={labelClass}>{t('accounting.bankReconciliation.account')}</span>
         <Combobox bind:value={accountId} bind:label={accountLabel} search={searchAccounts} placeholder={t('accounting.bankReconciliation.account')} clearable={false} />
       </label>
-      <label class="block min-w-0 space-y-1.5">
+      <div class="block min-w-0 space-y-1.5">
         <span class={labelClass}>{t('accounting.bankReconciliation.month')}</span>
-        <input class={inputClass} type="month" bind:value={month} />
-      </label>
+        <MonthPicker bind:value={month} />
+      </div>
       <button class="btn btn-primary h-10 w-full lg:w-auto" type="button" disabled={busy || loading || !accountId || !month} onclick={loadExisting}>
         <i class="icon-search"></i> {t('accounting.bankReconciliation.reload')}
       </button>
