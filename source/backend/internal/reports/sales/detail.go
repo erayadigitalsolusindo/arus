@@ -2,9 +2,9 @@ package sales
 
 // Laporan penjualan DETAIL per tanggal (rinci per nota, lalu isi nota).
 //
-// Berbeda dari laporan per tanggal (yang membaca tabel ringkasan sales_daily_summary,
-// ≤366 baris), laporan ini harus membaca tabel sales + sale_lines yang bisa
-// ratusan juta baris. Karena itu (AGENTS.md backend: wajib siap big data):
+// Laporan per tanggal membaca agregat tabel sales untuk seluruh rentang;
+// laporan ini memaginasi rinci per nota. Karena itu (AGENTS.md backend:
+// wajib siap big data):
 //   - paginasi KEYSET (created_at, id) menurun — bukan OFFSET, tanpa count(*) OVER();
 //   - rentang tanggal dibatasi dan baris per halaman dibatasi (default 100, maks 300);
 //   - isi nota (baris + pembayaran) diambil per halaman lewat `sale_id = ANY(...)`,
@@ -174,57 +174,91 @@ func detailDecodeCursor(c string) (time.Time, uuid.UUID, bool) {
 	return time.UnixMicro(n).UTC(), id, true
 }
 
+// detailOutletsCTE = outlet yang dibaca + batas waktu absolut rentang tanggal
+// lokal masing-masing ([from 00:00, to+1 00:00) di zona waktu outlet). Dihitung
+// per outlet (bukan fungsi pada kolom created_at) agar sales_outlet_time_idx
+// (tenant_id, outlet_id, created_at DESC) terpakai.
+const detailOutletsCTE = `
+WITH ol AS (
+  SELECT o.id, o.code, o.name, o.timezone,
+         ($3::date)::timestamp AT TIME ZONE o.timezone AS lo,
+         (($4::date) + 1)::timestamp AT TIME ZONE o.timezone AS hi
+  FROM outlets o
+  WHERE o.tenant_id = $1 AND o.id = ANY($2::uuid[])
+)
+`
+
+// detailFilterSQL = filter nota (kasir, status, kategori). Filter kategori memakai
+// EXISTS (semi-join, bukan JOIN yang menggandakan baris): nota yang tampil hanya
+// nota yang punya minimal satu baris barang di kategori itu.
+const detailFilterSQL = `
+      AND s.status <> 'superseded'
+      AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5::uuid)
+      AND ($6::text = '' OR s.status = $6::text)
+      AND ($7::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            SELECT 1 FROM sale_lines fl
+            JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $7::uuid))
+`
+
 // detailSalesSQL memilih nota pada rentang tanggal dengan paginasi keyset.
-// Tanggal lokal outlet dihitung di SQL (AT TIME ZONE) supaya pengelompokan per
-// hari sama persis dengan laporan per tanggal. Urutan (created_at DESC, id DESC)
-// sesuai indeks sales_outlet_time_idx (tenant_id, outlet_id, created_at DESC).
-//
-// Filter kategori memakai EXISTS (semi-join, bukan JOIN yang menggandakan baris):
-// nota yang tampil hanya nota yang punya minimal satu baris barang di kategori itu.
-const detailSalesSQL = `
+// Top-N per outlet lewat LATERAL (membaca indeks terurut dan berhenti di N baris),
+// lalu digabung & dipotong lagi ke N: biaya O(outlet × N), tidak bergantung pada
+// jumlah nota di rentang. Relasi (kasir, member, sales) di-join SETELAH dipotong.
+// Tanggal lokal dihitung di SQL (AT TIME ZONE) → pengelompokan sama dengan
+// laporan per tanggal.
+const detailSalesSQL = detailOutletsCTE + `
 SELECT s.id, s.doc_no, s.status, s.created_at,
-       to_char(s.created_at AT TIME ZONE o.timezone, 'YYYY-MM-DD') AS day,
-       to_char(s.created_at AT TIME ZONE o.timezone, 'HH24:MI')    AS clock,
-       o.code, o.name,
+       to_char(s.created_at AT TIME ZONE ol.timezone, 'YYYY-MM-DD') AS day,
+       to_char(s.created_at AT TIME ZONE ol.timezone, 'HH24:MI')    AS clock,
+       ol.code, ol.name,
        coalesce(u.name, ''), coalesce(mb.name, ''), coalesce(sp.name, ''),
        s.subtotal, s.discount, s.tax_store, s.tax_gov, s.other_cost,
        s.total, s.paid, s.change, s.receivable
-FROM sales s
-JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
-LEFT JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.cashier_id
-LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
-LEFT JOIN salespeople sp ON sp.tenant_id = s.tenant_id AND sp.id = s.salesperson_id
-WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'superseded'
-  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
-  AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5::uuid)
-  AND ($6::text = '' OR s.status = $6::text)
-  AND ($7::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
-        SELECT 1 FROM sale_lines fl
-        JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
-        WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $7::uuid))
-  AND ($8::bool = false OR (s.created_at, s.id) < ($9::timestamptz, $10::uuid))
+FROM (
+  SELECT l.*
+  FROM ol
+  CROSS JOIN LATERAL (
+    SELECT s.id, s.outlet_id, s.doc_no, s.status, s.created_at,
+           s.cashier_id, s.member_id, s.salesperson_id,
+           s.subtotal, s.discount, s.tax_store, s.tax_gov, s.other_cost,
+           s.total, s.paid, s.change, s.receivable
+    FROM sales s
+    WHERE s.tenant_id = $1 AND s.outlet_id = ol.id
+      AND s.created_at >= ol.lo AND s.created_at < ol.hi
+` + detailFilterSQL + `
+      AND ($8::bool = false OR (s.created_at, s.id) < ($9::timestamptz, $10::uuid))
+    ORDER BY s.created_at DESC, s.id DESC
+    LIMIT $11
+  ) l
+  ORDER BY l.created_at DESC, l.id DESC
+  LIMIT $11
+) s
+JOIN ol ON ol.id = s.outlet_id
+LEFT JOIN users u ON u.tenant_id = $1 AND u.id = s.cashier_id
+LEFT JOIN members mb ON mb.tenant_id = $1 AND mb.id = s.member_id
+LEFT JOIN salespeople sp ON sp.tenant_id = $1 AND sp.id = s.salesperson_id
 ORDER BY s.created_at DESC, s.id DESC
-LIMIT $11
 `
 
 // detailSummarySQL = Σ seluruh nota yang cocok filter (di luar paginasi).
-const detailSummarySQL = `
-SELECT count(*)::int,
+// Uang hanya menjumlahkan status uang (completed secara bawaan; bila filter
+// status=void dipilih, void yang dihitung); paid = uang masuk netto (paid − change),
+// sama dengan laporan per tanggal. void_count selalu jumlah nota batal.
+const detailSummarySQL = detailOutletsCTE + `
+SELECT count(*) FILTER (WHERE s.status = 'completed')::int,
        count(*) FILTER (WHERE s.status = 'void')::int,
-       coalesce(sum(s.subtotal), 0), coalesce(sum(s.discount), 0),
-       coalesce(sum(s.tax_store), 0), coalesce(sum(s.tax_gov), 0),
-       coalesce(sum(s.total), 0), coalesce(sum(s.paid), 0),
-       coalesce(sum(s.receivable), 0)
-FROM sales s
-JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
-WHERE s.tenant_id = $1 AND s.outlet_id = ANY($2::uuid[]) AND s.status <> 'superseded'
-  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
-  AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5::uuid)
-  AND ($6::text = '' OR s.status = $6::text)
-  AND ($7::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
-        SELECT 1 FROM sale_lines fl
-        JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
-        WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $7::uuid))
+       coalesce(sum(s.subtotal) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.discount) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.tax_store) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.tax_gov) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.total) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.paid - s.change) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0),
+       coalesce(sum(s.receivable) FILTER (WHERE s.status = coalesce(nullif($6::text, ''), 'completed')::text), 0)
+FROM ol
+JOIN sales s ON s.tenant_id = $1 AND s.outlet_id = ol.id
+            AND s.created_at >= ol.lo AND s.created_at < ol.hi
+` + detailFilterSQL + `
 `
 
 // detailLinesSQL = isi nota pada satu halaman. Baris diambil sekali per nota
@@ -264,10 +298,13 @@ type loadedSale struct {
 	TaxG      decimal.Decimal
 	Tot       decimal.Decimal
 	PaidV     decimal.Decimal
+	Chgv      decimal.Decimal
 	Recv      decimal.Decimal
 }
 
-// dayAcc = akumulator total satu tanggal (hanya nota completed).
+// dayAcc = akumulator total satu tanggal. Hanya mencatat nota ber-status uang
+// (completed, atau void bila filter status=void); paid = netto (paid − change)
+// agar identik dengan laporan penjualan per tanggal.
 type dayAcc struct {
 	sub, disc, taxS, taxG, tot, paid, recv decimal.Decimal
 }
@@ -413,8 +450,10 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, p DetailParams) (De
 			Scan(&sc, &vc, &sumSub, &sumDisc, &sumTaxStore, &sumTaxGov, &sumTotal, &sumPaid, &sumRecv); err != nil {
 			return err
 		}
+		// sc = jumlah nota completed (SQL); vc = jumlah void. Bila filter
+		// status=void dipilih, sc = 0 dan ringkasan uang menjumlahkan void.
 		result.Summary = DetailSummary{
-			SaleCount: sc - vc, VoidCount: vc,
+			SaleCount: sc, VoidCount: vc,
 			Subtotal: sumSub.StringFixed(2), Discount: sumDisc.StringFixed(2),
 			TaxStore: sumTaxStore.StringFixed(2), TaxGov: sumTaxGov.StringFixed(2),
 			Total: sumTotal.StringFixed(2), Paid: sumPaid.StringFixed(2),
@@ -443,7 +482,7 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, p DetailParams) (De
 			}
 			ls.ID = saleID.String()
 			ls.Day, ls.Time = day, clock
-			ls.Sub, ls.Disc, ls.TaxS, ls.TaxG, ls.Tot, ls.PaidV, ls.Recv = sub, disc, taxS, taxG, tot, paid, recv
+			ls.Sub, ls.Disc, ls.TaxS, ls.TaxG, ls.Tot, ls.PaidV, ls.Chgv, ls.Recv = sub, disc, taxS, taxG, tot, paid, chg, recv
 			ls.Subtotal, ls.Discount = sub.StringFixed(2), disc.StringFixed(2)
 			ls.TaxStore, ls.TaxGov = taxS.StringFixed(2), taxG.StringFixed(2)
 			ls.OtherCost = oc.StringFixed(2)
@@ -544,6 +583,14 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, p DetailParams) (De
 		}
 
 		// ── Group per tanggal (naik: tanggal terlama → terbaru) ──────────────
+		// Status uang: completed (bawaan); bila pengguna memilih filter
+		// status=void, void yang diringkas agar ringkasan tetap menjelaskan
+		// baris yang sedang dilihat. paid = netto (paid − change) — sama dengan
+		// laporan per tanggal.
+		moneyStatus := "completed"
+		if status == "void" {
+			moneyStatus = "void"
+		}
 		dayIdx := map[string]int{}
 		days := []DetailDay{}
 		acc := map[string]*dayAcc{}
@@ -557,10 +604,11 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, p DetailParams) (De
 				acc[ls.Day] = &dayAcc{}
 			}
 			days[di].Sales = append(days[di].Sales, ls.DetailSale)
-			// Void dipisahkan; hanya completed yang menambah total per tanggal
-			// (selaras laporan per tanggal).
 			if ls.Status == "void" {
 				days[di].VoidCount++
+			}
+			// Hanya status uang yang menambah total per tanggal.
+			if ls.Status != moneyStatus {
 				continue
 			}
 			days[di].SaleCount++
@@ -570,7 +618,7 @@ func (s *Service) Detail(ctx context.Context, a authz.Actor, p DetailParams) (De
 			a.taxS = a.taxS.Add(ls.TaxS)
 			a.taxG = a.taxG.Add(ls.TaxG)
 			a.tot = a.tot.Add(ls.Tot)
-			a.paid = a.paid.Add(ls.PaidV)
+			a.paid = a.paid.Add(ls.PaidV).Sub(ls.Chgv)
 			a.recv = a.recv.Add(ls.Recv)
 		}
 		for i := range days {

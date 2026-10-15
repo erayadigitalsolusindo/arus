@@ -73,7 +73,7 @@ type DayRow struct {
 	Methods     []MethodRow  `json:"methods,omitempty"`
 	ReturnCount int          `json:"return_count"`
 	ReturnTotal string       `json:"return_total"`
-	NetTotal    string       `json:"net_total"` // paid − void − return
+	NetTotal    string       `json:"net_total"` // total − return (void tidak ikut total)
 }
 
 // MethodRow breakdown satu metode.
@@ -230,19 +230,9 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 			return err
 		}
 
-		// Prefilter UTC untuk indeks: tanggal lokal [fd, td] di zona waktu APAPUN
-		// (offset ekstrem UTC+14 s/d UTC−12) selalu berada dalam [fd−1 hari, td+2 hari)
-		// UTC. Memangkas pemindaian ke rentang indeks sales_outlet_time_idx
-		// (tenant, outlet, created_at); filter tanggal lokal yang tepat tetap
-		// dipegang predikat (created_at AT TIME ZONE ...) di tiap CTE.
-		dayStart := func(d time.Time, addDays int) time.Time {
-			return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, addDays)
-		}
-		padFrom, padTo := dayStart(fd, -1), dayStart(td, 2)
-
 		// ── 1. Sales + payment breakdown per date ────────────────────────────
 		rows, err := tx.Query(ctx, byDateSalesSQL,
-			a.TenantID, outlets, fd, td, cashier, padFrom, padTo, category, method)
+			a.TenantID, outlets, fd, td, cashier, category, method)
 		if err != nil {
 			return err
 		}
@@ -305,7 +295,7 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 
 		// ── 2. Returns per return_date ─────────────────────────────────────
 		rrows, err := tx.Query(ctx, byDateReturnsSQL,
-			a.TenantID, outlets, fd, td, cashier, padFrom, padTo, category)
+			a.TenantID, outlets, fd, td, cashier, category)
 		if err != nil {
 			return err
 		}
@@ -333,10 +323,9 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 			if p.HideEmpty && row.SaleCount == 0 && row.VoidCount == 0 && row.ReturnCount == 0 {
 				continue // hari tanpa aktivitas penjualan/void/retur disembunyikan
 			}
-			paid, _ := decimal.NewFromString(row.Paid)
-			void, _ := decimal.NewFromString(row.VoidTotal)
+			total, _ := decimal.NewFromString(row.Total)
 			ret, _ := decimal.NewFromString(row.ReturnTotal)
-			net := paid.Sub(void).Sub(ret)
+			net := total.Sub(ret) // void sudah di luar total (hanya completed); sama dengan Daftar penjualan
 			row.NetTotal = net.StringFixed(2)
 			sorted = append(sorted, *row)
 		}
@@ -361,8 +350,13 @@ func (s *Service) ByDate(ctx context.Context, a authz.Actor, p ByDateParams) (By
 // paid = Σ(paid − change) untuk nota completed; void_total = Σ total nota void (positif).
 const byDateSalesSQL = `
 WITH
+-- Batas waktu absolut rentang tanggal lokal PER OUTLET → sargable untuk
+-- sales_outlet_time_idx (tanpa padding UTC, tanpa fungsi pada created_at).
 outlet_tz AS (
-    SELECT id, timezone FROM outlets WHERE tenant_id = $1 AND id = ANY($2::uuid[])
+    SELECT id, timezone,
+           ($3::date)::timestamp AT TIME ZONE timezone AS lo,
+           (($4::date) + 1)::timestamp AT TIME ZONE timezone AS hi
+    FROM outlets WHERE tenant_id = $1 AND id = ANY($2::uuid[])
 ),
 day_range AS (
     SELECT generate_series($3::date, $4::date, '1 day'::interval)::date AS day
@@ -387,16 +381,15 @@ sales_hdr AS (
     WHERE s.tenant_id = $1
       AND s.outlet_id = ANY($2::uuid[])
       AND s.status IN ('completed', 'void')
-      AND s.created_at >= $6 AND s.created_at < $7
+      AND s.created_at >= o.lo AND s.created_at < o.hi
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
-      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+      AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
             SELECT 1 FROM sale_lines fl
             JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
-            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
-      AND ($9::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $6))
+      AND ($7::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
             SELECT 1 FROM sale_payments fp
-            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $9))
-      AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $7))
     GROUP BY (s.created_at AT TIME ZONE o.timezone)::date
 ),
 -- Payment breakdown per date per method. paid netto per method: tunai dikurangi kembalian per nota.
@@ -422,16 +415,15 @@ pay_sub AS (
     WHERE s.tenant_id = $1
       AND s.outlet_id = ANY($2::uuid[])
       AND s.status = 'completed'
-      AND s.created_at >= $6 AND s.created_at < $7
+      AND s.created_at >= o.lo AND s.created_at < o.hi
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
-      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+      AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
             SELECT 1 FROM sale_lines fl
             JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
-            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
-      AND ($9::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $6))
+      AND ($7::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
             SELECT 1 FROM sale_payments fp
-            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $9))
-      AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+            WHERE fp.tenant_id = s.tenant_id AND fp.sale_id = s.id AND fp.method_id = $7))
     GROUP BY (s.created_at AT TIME ZONE o.timezone)::date, s.id, s.change, p.method_id, pm.name, pm.kind
 ),
 pay_hdr AS (
@@ -473,8 +465,13 @@ ORDER BY d.day, (p.method_kind = 'cash') DESC, lower(p.method_name)
 // byDateReturnsSQL: retur aktif diringkas per tanggal retur (zona waktu outlet).
 const byDateReturnsSQL = `
 WITH
+-- Batas waktu absolut rentang tanggal lokal PER OUTLET → sargable untuk
+-- sales_outlet_time_idx (tanpa padding UTC, tanpa fungsi pada created_at).
 outlet_tz AS (
-    SELECT id, timezone FROM outlets WHERE tenant_id = $1 AND id = ANY($2::uuid[])
+    SELECT id, timezone,
+           ($3::date)::timestamp AT TIME ZONE timezone AS lo,
+           (($4::date) + 1)::timestamp AT TIME ZONE timezone AS hi
+    FROM outlets WHERE tenant_id = $1 AND id = ANY($2::uuid[])
 ),
 day_range AS (
     SELECT generate_series($3::date, $4::date, '1 day'::interval)::date AS day
@@ -490,13 +487,12 @@ ret_hdr AS (
     WHERE r.tenant_id = $1
       AND r.outlet_id = ANY($2::uuid[])
       AND r.status = 'completed'
-      AND r.created_at >= $6 AND r.created_at < $7
+      AND r.created_at >= o.lo AND r.created_at < o.hi
       AND ($5::uuid = '00000000-0000-0000-0000-000000000000' OR s.cashier_id = $5)
-      AND ($8::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
+      AND ($6::uuid = '00000000-0000-0000-0000-000000000000' OR EXISTS (
             SELECT 1 FROM sale_lines fl
             JOIN items fi ON fi.tenant_id = fl.tenant_id AND fi.id = fl.item_id
-            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $8))
-      AND (r.created_at AT TIME ZONE o.timezone)::date BETWEEN $3::date AND $4::date
+            WHERE fl.tenant_id = s.tenant_id AND fl.sale_id = s.id AND fi.category_id = $6))
     GROUP BY (r.created_at AT TIME ZONE o.timezone)::date
 )
 SELECT

@@ -41,6 +41,25 @@ const reports: Messages['reports'] = {
   grandTotal: '総合計',
   noData: 'この範囲にデータがありません。',
   // 伝票別売上詳細レポート
+  salesInvoice: {
+    docTitle: '請求書別売上レポート',
+    title: '請求書別売上',
+    subtitle: '請求書ごとに1行',
+    search: '伝票番号を検索',
+    invoice: '伝票',
+    date: '日付',
+    time: '時刻',
+    member: '会員',
+    subtotal: '小計',
+    discount: '値引',
+    tax: '税',
+    total: '合計',
+    received: '受取',
+    receivable: '売掛',
+    payment: '支払',
+    loadMore: 'さらに読み込む',
+    noData: 'データがありません。'
+  },
   salesDetail: {
     docTitle: '日付別売上詳細レポート',
     title: '日付別売上詳細',

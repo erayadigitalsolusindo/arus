@@ -41,6 +41,25 @@ export default {
   // Placeholder
   noData: 'Tidak ada data untuk rentang ini.',
   // Laporan penjualan detail per nota
+  salesInvoice: {
+    docTitle: 'Laporan Penjualan Per Faktur',
+    title: 'Penjualan Per Faktur',
+    subtitle: 'Satu baris untuk setiap faktur penjualan',
+    search: 'Cari nomor faktur',
+    invoice: 'Faktur',
+    date: 'Tanggal',
+    time: 'Jam',
+    member: 'Member',
+    subtotal: 'Subtotal',
+    discount: 'Diskon',
+    tax: 'Pajak',
+    total: 'Total',
+    received: 'Diterima',
+    receivable: 'Piutang',
+    payment: 'Pembayaran',
+    loadMore: 'Muat Lagi',
+    noData: 'Tidak ada data untuk filter ini.'
+  },
   salesDetail: {
     docTitle: 'Laporan Penjualan Per Tanggal Detail',
     title: 'Penjualan Per Tanggal Detail',
