@@ -15,7 +15,7 @@ const platform: Messages['platform'] = {
     evening: 'こんばんは',
     subtitle: 'ARUSコントロールセンター: すべてのテナントを監視し、アクセスを管理し、監査ログであらゆる操作を追跡します。'
   },
-  nav: { groupMain: 'プラットフォーム', groupSystem: 'システム', mobile: 'モバイルアプリ', languages: '言語', security: 'セキュリティ', tenants: 'テナント', admins: 'プラットフォーム管理者', audit: 'プラットフォーム監査', signOut: 'ログアウト' },
+  nav: { groupMain: 'プラットフォーム', groupSystem: 'システム', mobile: 'モバイルアプリ', apiAccess: '外部API', languages: '言語', security: 'セキュリティ', tenants: 'テナント', admins: 'プラットフォーム管理者', audit: 'プラットフォーム監査', signOut: 'ログアウト' },
   login: {
     title: 'プラットフォーム管理者ログイン',
     subtitle: 'ACIRABAオペレーター専用です。店舗利用者向けではありません。',

@@ -13,7 +13,7 @@ export default {
     evening: 'Selamat malam',
     subtitle: 'Pusat kendali ARUS: pantau semua tenant, kelola akses, dan telusuri setiap tindakan lewat audit.'
   },
-  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', languages: 'Bahasa', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
+  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', apiAccess: 'API Eksternal', languages: 'Bahasa', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',

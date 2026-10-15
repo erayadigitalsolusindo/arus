@@ -1,0 +1,163 @@
+{
+  "groups": {
+    "auth": { "title": "Autentikasi (Mode JWT)", "order": 1, "description": "Alternatif untuk aplikasi yang bertindak atas nama pengguna manusia (sesi login). Integrasi server-ke-server sebaiknya memakai tanda tangan HMAC lewat /ext/v1." },
+    "items": { "title": "Barang", "order": 10, "description": "Master barang: harga, satuan, kategori, dan harga per outlet." },
+    "stock": { "title": "Stok", "order": 11, "description": "Saldo awal, mutasi, opname, transfer antar outlet, dan kartu stok. Stok adalah ledger append-only." },
+    "sales": { "title": "Penjualan", "order": 12, "description": "Nota penjualan, pembayaran, dan pembatalan. Harga dihitung server; klien hanya mengirim barang dan qty." },
+    "sales-returns": { "title": "Retur Penjualan", "order": 13 },
+    "purchases": { "title": "Pembelian", "order": 14 },
+    "purchase-returns": { "title": "Retur Pembelian", "order": 15 },
+    "members": { "title": "Member", "order": 16 },
+    "receivables": { "title": "Piutang", "order": 17 },
+    "payables": { "title": "Hutang", "order": 18 },
+    "accounting": { "title": "Akuntansi (SIAK)", "order": 20, "description": "Bagan akun, jurnal, buku besar, periode, dan laporan keuangan." },
+    "reports-sales": { "title": "Laporan Penjualan", "order": 30 },
+    "reports-purchases": { "title": "Laporan Pembelian", "order": 31 },
+    "reports-stock": { "title": "Laporan Persediaan", "order": 32 },
+    "reports-master": { "title": "Laporan Master", "order": 33 },
+    "reports-sales-returns": { "title": "Laporan Retur Penjualan", "order": 34 },
+    "reports-purchase-returns": { "title": "Laporan Retur Pembelian", "order": 35 },
+    "reports-payables": { "title": "Laporan Hutang", "order": 36 },
+    "reports-receivables": { "title": "Laporan Piutang", "order": 37 },
+    "reports-supplier-credits": { "title": "Laporan Kredit Pemasok", "order": 38 },
+    "shifts": { "title": "Shift Kasir", "order": 40 },
+    "outlets": { "title": "Outlet", "order": 41 },
+    "iam": { "title": "Pengguna & Role", "order": 42 },
+    "audit-log": { "title": "Log Audit", "order": 43 },
+    "catalog": { "title": "Master Pendukung", "order": 44, "description": "Satuan, kategori, merek, prinsipal, pemasok, salesman, dan kategori member." },
+    "payment-methods": { "title": "Metode Pembayaran", "order": 45 },
+    "dashboard": { "title": "Dasbor", "order": 46 },
+    "ai": { "title": "HalloArus (AI)", "order": 90 }
+  },
+  "endpoints": {
+    "POST /auth/login": {
+      "summary": "Masuk dan dapatkan token akses",
+      "description": "Menukar email dan password dengan token akses JWT (berlaku 15 menit) dan menetapkan cookie refresh httpOnly. Percobaan gagal berulang mengunci akun sementara.",
+      "body": [
+        { "name": "email", "type": "string", "required": true, "description": "Email pengguna." },
+        { "name": "password", "type": "string", "required": true },
+        { "name": "remember", "type": "boolean", "description": "true = sesi refresh berumur panjang." }
+      ],
+      "request": { "body": { "email": "kasir@toko.id", "password": "********", "remember": false } },
+      "responses": [
+        { "status": 200, "description": "Berhasil", "body": { "access_token": "eyJhbGciOi…", "expires_in": 900, "user": { "id": "0b1f…", "name": "Rina" }, "tenant": { "id": "6134…", "code": "toko", "name": "Toko Kopi" }, "outlet": { "id": "a7c2…", "name": "Pusat" }, "permissions": { "items": ["view"] }, "email_verified": true } }
+      ],
+      "errors": [
+        { "status": 401, "code": "INVALID_CREDENTIALS", "description": "Email atau password salah; attempts_left memberi tahu sisa percobaan." },
+        { "status": 429, "code": "ACCOUNT_LOCKED", "description": "Terlalu banyak percobaan gagal; lihat retry_after." },
+        { "status": 403, "code": "ACCOUNT_DISABLED", "description": "Akun dinonaktifkan." }
+      ],
+      "notes": ["Kirim token pada header Authorization: Bearer <access_token>.", "Untuk integrasi server-ke-server gunakan tanda tangan HMAC, bukan login."]
+    },
+    "POST /auth/refresh": {
+      "summary": "Perbarui token akses",
+      "description": "Memakai cookie refresh httpOnly untuk menerbitkan token akses baru. Hanya untuk klien browser; wajib header Origin yang diizinkan dan X-Requested-With.",
+      "responses": [{ "status": 200, "description": "Berhasil", "body": { "access_token": "eyJhbGciOi…", "expires_in": 900 } }],
+      "errors": [{ "status": 401, "code": "UNAUTHORIZED", "description": "Sesi refresh tidak valid atau kedaluwarsa." }]
+    },
+    "GET /auth/me": {
+      "summary": "Profil sesi saat ini",
+      "description": "Mengembalikan pengguna, tenant, outlet aktif, dan izin efektif untuk token yang dipakai.",
+      "responses": [{ "status": 200, "body": { "user": { "id": "0b1f…", "name": "Rina" }, "tenant": { "id": "6134…", "name": "Toko Kopi" }, "outlet": { "id": "a7c2…", "name": "Pusat" }, "permissions": { "*": true } } }]
+    },
+    "GET /items": {
+      "summary": "Daftar barang",
+      "description": "Daftar master barang dengan harga efektif untuk outlet aktif.",
+      "query": [
+        { "name": "q", "type": "string", "description": "Cari nama, SKU, atau barcode." },
+        { "name": "category_id", "type": "uuid", "description": "Saring per kategori." },
+        { "name": "active", "type": "boolean", "description": "true/false; kosong = semua." },
+        { "name": "outlet", "type": "string", "description": "\"all\" untuk harga semua outlet." },
+        { "name": "limit", "type": "integer", "description": "Jumlah baris per halaman." },
+        { "name": "offset", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "sku": "KOP-001", "barcode": "8999999000012", "name": "Kopi Susu", "price": "18000.00", "active": true }], "total": 1 } }],
+      "notes": ["Untuk katalog besar (puluhan ribu barang) gunakan GET /items/search yang berpaginasi keyset."]
+    },
+    "GET /items/search": {
+      "summary": "Cari barang (keyset)",
+      "description": "Pencarian cepat barang aktif untuk kasir/sinkronisasi. Tanpa total; lanjutkan dengan next_cursor.",
+      "query": [
+        { "name": "q", "type": "string", "required": true, "description": "Kata kunci (nama, SKU, barcode)." },
+        { "name": "cursor", "type": "string", "description": "Nilai next_cursor dari respons sebelumnya." },
+        { "name": "limit", "type": "integer" },
+        { "name": "category_id", "type": "uuid" }
+      ],
+      "responses": [{ "status": 200, "body": { "data": [{ "id": "0b1f…", "name": "Kopi Susu", "price": "18000.00" }], "exact": null, "next_cursor": "" } }]
+    },
+    "GET /accounting/journals": {
+      "summary": "Daftar jurnal",
+      "description": "Jurnal terbaru lebih dulu. Rentang tanggal dibatasi; paginasi keyset.",
+      "query": [
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "outlet_id", "type": "uuid", "description": "Kosong = outlet aktif kredensial." },
+        { "name": "status", "type": "string", "description": "draft | posted" },
+        { "name": "type", "type": "string", "description": "JU | KM | KK | TK | SALES …" },
+        { "name": "cursor", "type": "string" },
+        { "name": "limit", "type": "integer" }
+      ],
+      "responses": [{ "status": 200, "body": { "items": [{ "id": "5a2e…", "date": "2026-10-15", "type": "KM", "status": "posted", "doc_no": "KM-0001", "narration": "Setoran modal", "total_debit": "1000000.00", "total_credit": "1000000.00" }], "next_cursor": "" } }]
+    },
+    "GET /accounting/journals/{id}": {
+      "summary": "Detail jurnal",
+      "responses": [{ "status": 200, "body": { "id": "5a2e…", "date": "2026-10-15", "type": "KM", "status": "posted", "narration": "Setoran modal", "total_debit": "1000000.00", "total_credit": "1000000.00", "lines": [{ "line_no": 1, "account_code": "1110", "account_name": "Kas", "debit": "1000000.00", "credit": "0.00", "memo": "" }, { "line_no": 2, "account_code": "3100", "account_name": "Modal", "debit": "0.00", "credit": "1000000.00", "memo": "" }] } }],
+      "errors": [{ "status": 404, "code": "NOT_FOUND", "description": "Jurnal tidak ada atau milik tenant lain." }]
+    },
+    "POST /accounting/journals": {
+      "summary": "Buat jurnal (draf)",
+      "description": "Membuat jurnal manual berstatus draf. Draf boleh belum seimbang; posting mensyaratkan Σ debit = Σ kredit dan periode terbuka.",
+      "body": [
+        { "name": "date", "type": "date", "required": true, "description": "YYYY-MM-DD" },
+        { "name": "type", "type": "string", "required": true, "description": "JU (umum) | KM (kas masuk) | KK (kas keluar) | TK (transfer kas)." },
+        { "name": "narration", "type": "string", "description": "Keterangan." },
+        { "name": "outlet_id", "type": "uuid", "description": "Kosong = outlet aktif kredensial." },
+        { "name": "lines", "type": "array", "required": true, "description": "Baris: { account_id, debit, credit, memo }. Uang sebagai string desimal." }
+      ],
+      "request": { "body": { "date": "2026-10-15", "type": "JU", "narration": "Penyesuaian kas", "lines": [{ "account_id": "c1d2…", "debit": "250000.00", "credit": "0", "memo": "" }, { "account_id": "e3f4…", "debit": "0", "credit": "250000.00", "memo": "" }] } },
+      "responses": [{ "status": 201, "description": "Draf dibuat", "body": { "id": "5a2e…", "status": "draft", "total_debit": "250000.00", "total_credit": "250000.00" } }],
+      "errors": [
+        { "status": 422, "code": "VALIDATION", "description": "Tanggal/jenis/baris tidak valid; rincian di error.fields." },
+        { "status": 422, "code": "JOURNAL_SHAPE_INVALID", "description": "Susunan baris tidak sesuai jenis jurnal (minimal 2 baris; KM/KK/TK mengikuti aturan kas/bank)." },
+        { "status": 422, "code": "ACCOUNT_INVALID", "description": "Akun jurnal harus akun buku yang aktif." },
+        { "status": 409, "code": "PERIOD_CLOSED", "description": "Periode untuk tanggal itu sudah ditutup." }
+      ],
+      "notes": ["Kirim header Idempotency-Key agar pengulangan request tidak membuat draf ganda."]
+    },
+    "POST /accounting/journals/{id}/post": {
+      "summary": "Posting jurnal",
+      "description": "Mengubah draf menjadi jurnal terposting (immutable). Perubahan sesudahnya hanya lewat jurnal balik.",
+      "errors": [
+        { "status": 422, "code": "JOURNAL_UNBALANCED", "description": "Σ debit tidak sama dengan Σ kredit." },
+        { "status": 409, "code": "PERIOD_CLOSED", "description": "Periode sudah ditutup." }
+      ]
+    },
+    "GET /reports/sales/by-date": {
+      "summary": "Laporan penjualan per tanggal",
+      "description": "Agregat per hari (zona waktu outlet) dengan rincian per metode bayar, void, dan retur. Rentang maksimum 366 hari. Tambahkan format=xlsx atau format=pdf untuk berkas.",
+      "query": [
+        { "name": "from", "type": "date", "description": "YYYY-MM-DD; kosong = hari ini." },
+        { "name": "to", "type": "date", "description": "YYYY-MM-DD" },
+        { "name": "all_outlets", "type": "boolean", "description": "true = semua outlet yang boleh diakses." },
+        { "name": "outlet_id", "type": "uuid" },
+        { "name": "cashier_id", "type": "uuid" },
+        { "name": "category_id", "type": "uuid" },
+        { "name": "payment_method_id", "type": "uuid" },
+        { "name": "hide_empty", "type": "boolean", "description": "true = sembunyikan hari tanpa penjualan." },
+        { "name": "format", "type": "string", "description": "xlsx | pdf (kosong = JSON)." }
+      ],
+      "responses": [{ "status": 200, "body": { "from": "2026-10-01", "to": "2026-10-31", "outlet_name": "Pusat", "data": [{ "date": "2026-10-01", "sale_count": 28, "subtotal": "15542669.50", "total": "15542669.50", "paid": "15542669.50", "receivable": "0.00", "void_total": "0.00", "return_total": "0.00", "net_total": "15542669.50" }] } }],
+      "errors": [{ "status": 400, "code": "VALIDATION", "description": "Tanggal tidak valid atau rentang melebihi 366 hari." }]
+    },
+    "GET /accounting/reports/trial-balance": {
+      "summary": "Neraca saldo",
+      "description": "Saldo awal, mutasi, dan saldo akhir per akun pada rentang tanggal.",
+      "query": [
+        { "name": "from", "type": "date" },
+        { "name": "to", "type": "date" },
+        { "name": "outlet_id", "type": "uuid" }
+      ],
+      "responses": [{ "status": 200, "body": { "from": "2026-10-01", "to": "2026-10-31", "rows": [{ "account_code": "1110", "account_name": "Kas", "debit": "1000000.00", "credit": "0.00" }], "balanced": true } }]
+    }
+  }
+}
