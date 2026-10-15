@@ -52,3 +52,26 @@ export async function stockValuation(params: {
   if (params.cursor) qs.set('cursor', params.cursor);
   return api(`/reports/stock/valuation?${qs}`);
 }
+
+// Laporan master: GET /reports/master/{members|suppliers|salespeople}
+export type MasterKind = 'members' | 'suppliers' | 'salespeople';
+
+export type MasterResult<T> = { data: T[]; limit: number; next_cursor?: string };
+
+export function masterReport<T>(kind: MasterKind, params: { q?: string; status?: string; cursor?: string; limit?: number }): Promise<MasterResult<T>> {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.status) qs.set('status', params.status);
+  if (params.cursor) qs.set('cursor', params.cursor);
+  if (params.limit) qs.set('limit', String(params.limit));
+  return api(`/reports/master/${kind}?${qs}`);
+}
+
+// URL unduh ekspor (format=xlsx|pdf) — dipakai apiBlob. Seluruh hasil filter (tanpa cursor), dibatasi di server.
+export function masterReportFileUrl(kind: MasterKind, params: { q?: string; status?: string }, format: 'xlsx' | 'pdf'): string {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.status) qs.set('status', params.status);
+  qs.set('format', format);
+  return `/reports/master/${kind}?${qs}`;
+}

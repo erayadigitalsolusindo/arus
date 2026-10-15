@@ -235,6 +235,23 @@ const reports: Messages['reports'] = {
     totalValue: 'Grand Total',
     loadMore: 'Load More',
     noData: 'No data for this filter.'
+  },
+  // Master reports (member, supplier, sales)
+  masterReport: {
+    search: 'Search name, code, or phone',
+    status: 'Status',
+    all: 'All',
+    active: 'Active',
+    inactive: 'Inactive',
+    loadMore: 'Load More',
+    noData: 'No data for this filter.',
+    code: 'Code', name: 'Name', phone: 'Phone', email: 'Email', address: 'Address', city: 'City', note: 'Note',
+    gender: 'Gender', level: 'Level', points: 'Points', creditLimit: 'Credit Limit', dueDays: 'Due (days)', validUntil: 'Valid Until',
+    contact: 'Contact', commission: 'Commission (%)', statusCol: 'Status',
+    male: 'M', female: 'F',
+    member: { docTitle: 'Member Master Report', title: 'Member Master', subtitle: 'Members with level, points, and credit limit' },
+    supplier: { docTitle: 'Supplier Master Report', title: 'Supplier Master', subtitle: 'Suppliers with contact and address' },
+    salesperson: { docTitle: 'Sales Master Report', title: 'Sales Master', subtitle: 'Salespeople with commission' }
   }
 };
 

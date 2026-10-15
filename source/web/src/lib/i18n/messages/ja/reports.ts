@@ -235,6 +235,23 @@ const reports: Messages['reports'] = {
     totalValue: '総合計',
     loadMore: 'さらに読み込む',
     noData: 'このフィルターにデータがありません。'
+  },
+  // マスターレポート（会員・仕入先・営業担当）
+  masterReport: {
+    search: '名前・コード・電話で検索',
+    status: 'ステータス',
+    all: 'すべて',
+    active: '有効',
+    inactive: '無効',
+    loadMore: 'さらに読み込む',
+    noData: 'このフィルターにデータがありません。',
+    code: 'コード', name: '名前', phone: '電話', email: 'メール', address: '住所', city: '市区町村', note: 'メモ',
+    gender: '性別', level: 'レベル', points: 'ポイント', creditLimit: '与信限度', dueDays: '支払期限（日）', validUntil: '有効期限',
+    contact: '連絡先', commission: '手数料（%）', statusCol: 'ステータス',
+    male: '男', female: '女',
+    member: { docTitle: '会員マスターレポート', title: '会員マスター', subtitle: 'レベル・ポイント・与信限度付きの会員一覧' },
+    supplier: { docTitle: '仕入先マスターレポート', title: '仕入先マスター', subtitle: '連絡先・住所付きの仕入先一覧' },
+    salesperson: { docTitle: '営業担当マスターレポート', title: '営業担当マスター', subtitle: '手数料付きの営業担当一覧' }
   }
 };
 

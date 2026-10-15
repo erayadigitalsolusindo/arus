@@ -152,7 +152,10 @@ export const nav: NavGroup[] = [
         labelKey: 'nav.masterReports',
         icon: 'database',
         children: [
-          { labelKey: 'nav.stockReport', module: 'stock_reports', href: '/reports/stock/valuation' }
+          { labelKey: 'nav.stockReport', module: 'stock_reports', href: '/reports/stock/valuation' },
+          { labelKey: 'nav.masterMember', module: 'stock_reports', href: '/reports/master/members' },
+          { labelKey: 'nav.masterSupplier', module: 'stock_reports', href: '/reports/master/suppliers' },
+          { labelKey: 'nav.masterSalesperson', module: 'stock_reports', href: '/reports/master/salespeople' }
         ]
       }
     ]
