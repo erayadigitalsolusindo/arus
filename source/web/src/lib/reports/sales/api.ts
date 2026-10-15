@@ -255,3 +255,63 @@ export function salesInvoicesFileUrl(params: SalesInvoicesParams, format: 'xlsx'
 	qs.set('format', format);
 	return `/reports/sales/invoices?${qs}`;
 }
+
+// ── Penjualan per barang ────────────────────────────────────────────────────────
+
+export type ItemSaleRow = {
+	item_id: string;
+	sku: string;
+	name: string;
+	category_name: string;
+	unit_name: string;
+	qty: string;
+	line_count: number;
+	gross: string;
+	discount: string;
+	net: string;
+};
+
+export type SalesItemsResult = {
+	from: string;
+	to: string;
+	data: ItemSaleRow[];
+	summary: { item_count: number; gross: string; discount: string; net: string };
+	truncated?: boolean;
+};
+
+export type SalesItemsParams = {
+	from: string;
+	to: string;
+	outlet_id?: string;
+	cashier_id?: string;
+	category_id?: string;
+	q?: string;
+	sort?: string;
+	all_outlets?: boolean;
+	limit?: number;
+};
+
+function itemsQuery(params: SalesItemsParams): URLSearchParams {
+	const qs = new URLSearchParams();
+	qs.set('from', params.from);
+	qs.set('to', params.to);
+	if (params.outlet_id) qs.set('outlet_id', params.outlet_id);
+	if (params.cashier_id) qs.set('cashier_id', params.cashier_id);
+	if (params.category_id) qs.set('category_id', params.category_id);
+	if (params.q) qs.set('q', params.q);
+	if (params.sort) qs.set('sort', params.sort);
+	if (params.all_outlets) qs.set('all_outlets', 'true');
+	if (params.limit) qs.set('limit', String(params.limit));
+	return qs;
+}
+
+// GET /reports/sales/items (JSON; top-N barang, total seluruh barang di summary).
+export async function salesItems(params: SalesItemsParams): Promise<SalesItemsResult> {
+	return api(`/reports/sales/items?${itemsQuery(params)}`);
+}
+
+export function salesItemsFileUrl(params: SalesItemsParams, format: 'xlsx' | 'pdf'): string {
+	const qs = itemsQuery({ ...params, limit: undefined });
+	qs.set('format', format);
+	return `/reports/sales/items?${qs}`;
+}

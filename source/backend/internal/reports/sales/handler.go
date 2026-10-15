@@ -39,6 +39,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/by-date", h.ByDate)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/detail", h.Detail)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/invoices", h.Invoices)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/items", h.Items)
 	})
 }
 
@@ -165,8 +166,52 @@ func (h *Handler) Invoices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Items: GET /reports/sales/items?from=&to=&outlet_id=&cashier_id=&category_id=&q=&sort=&all_outlets=&limit=&format=xlsx|pdf
+func (h *Handler) Items(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	p := ItemParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		CategoryID: qs.Get("category_id"),
+		Search:     qs.Get("q"),
+		Sort:       qs.Get("sort"),
+		Limit:      limit,
+		ForExport:  qs.Get("format") == "xlsx" || qs.Get("format") == "pdf",
+	}
+	if qs.Get("format") == "pdf" {
+		p.ExportMax = maxItemPDFRows
+	}
+	result, err := h.svc.Items(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	switch qs.Get("format") {
+	case "xlsx":
+		b, err := ItemToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, ItemFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
+	case "pdf":
+		b, err := ItemToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, ItemFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
+	}
+}
+
 const (
-	xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	xlsxContentType ="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 	pdfContentType  = "application/pdf"
 )
 
