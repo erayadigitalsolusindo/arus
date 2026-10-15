@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import DateRange from '#lib/components/DateRange.svelte';
   import Select from '#lib/components/Select.svelte';
   import SaleReturnModal from '#lib/components/SaleReturnModal.svelte';
@@ -60,8 +61,7 @@
     void query;
     void status;
     void session.outlet?.id;
-    const timer = setTimeout(() => void load(), 250);
-    return () => clearTimeout(timer);
+    return later(() => void load());
   });
 
   onMount(() => {

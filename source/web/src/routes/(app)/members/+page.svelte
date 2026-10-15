@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -45,11 +46,10 @@
   $effect(() => {
     void q;
     void filter;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   onMount(() => {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import {
     salesDetail,
     salesDetailFileUrl,
@@ -170,8 +171,7 @@
     void cashierId;
     void categoryId;
     void status;
-    const h = setTimeout(() => void load(), 300);
-    return () => clearTimeout(h);
+    return later(() => void load(), 300);
   });
 
   const searchOutlets = async (q: string): Promise<Option[]> => {

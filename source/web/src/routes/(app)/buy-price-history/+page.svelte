@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import { buyPriceHistory, type BuyPriceRow } from '#lib/purchases/api.ts';
   import { persistPage } from '#lib/tabs/persist.ts';
   import { t, formatDate, formatCurrency } from '#lib/i18n/index.ts';
@@ -52,8 +53,7 @@
     void query;
     const delay = first ? 0 : 350;
     first = false;
-    const h = setTimeout(() => void load(), delay);
-    return () => clearTimeout(h);
+    return later(() => void load(), delay);
   });
 
   onMount(() => {

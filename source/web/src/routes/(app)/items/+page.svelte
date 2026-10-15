@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -106,11 +107,10 @@
     void categoryId;
     void allMode;
     void session.outlet?.id; // pindah outlet aktif → muat ulang stok/harga
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   onMount(() => {

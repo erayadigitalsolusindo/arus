@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import { debounced } from '#lib/debounce.svelte.ts';
   import DateRange from '#lib/components/DateRange.svelte';
   import Select from '#lib/components/Select.svelte';
   import JournalModal from '#lib/components/JournalModal.svelte';
@@ -147,7 +148,8 @@
   const sumPosted = $derived(rows.length - sumDraft);
   const more = $derived(cursor ? '+' : '');
   // Pencarian teks hanya menyaring baris yang sudah dimuat; jenis, status, dan tanggal disaring server.
-  const needle = $derived(q.trim().toLowerCase());
+  const qDebounced = debounced(() => q);
+  const needle = $derived(qDebounced.value.trim().toLowerCase());
   const shown = $derived(needle ? rows.filter((r) => `${r.doc_no} ${r.narration} ${r.debit_account} ${r.credit_account}`.toLowerCase().includes(needle)) : rows);
   const draftShown = $derived(shown.filter((r) => r.status === 'draft'));
   const allPicked = $derived(draftShown.length > 0 && draftShown.every((r) => picked[r.id]));

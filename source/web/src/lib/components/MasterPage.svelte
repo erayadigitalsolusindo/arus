@@ -1,5 +1,6 @@
 <script lang="ts">
   import Select from '#lib/components/Select.svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   // Halaman master sederhana (nama + status): satuan, kategori, brand, principal. Teks judul dikirim dari route
   // (pemanggil memakai kunci i18n literal agar tetap dicek tipe); sisanya memakai kamus `catalog.*`.
   import { ApiError } from '#lib/api/client.ts';
@@ -59,11 +60,10 @@
   $effect(() => {
     void q;
     void filter;
-    const h = setTimeout(() => {
+    return later(() => {
       offset = 0;
       void load();
-    }, 250);
-    return () => clearTimeout(h);
+    });
   });
 
   function go(next: number) {

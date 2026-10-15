@@ -2,6 +2,7 @@
   // Kredit pemasok: saldo dari dana kembali retur pembelian yang dijadikan kredit. Dipakai bayar hutang (metode "Kredit
   // Pemasok" di Daftar Hutang) atau dicairkan oleh pemasok di sini. Saldo dihitung server dari ledger.
   import { onMount } from 'svelte';
+  import { later } from '#lib/debounce.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
   import WalletHistory from '#lib/components/WalletHistory.svelte';
   import WalletCashModal from '#lib/components/WalletCashModal.svelte';
@@ -50,8 +51,7 @@
     void q;
     void positive;
     void session.outlet?.id;
-    const h = setTimeout(() => void load(), 250);
-    return () => clearTimeout(h);
+    return later(() => void load());
   });
 
   async function show(id: string, before = 0) {

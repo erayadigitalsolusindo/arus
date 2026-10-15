@@ -8,6 +8,7 @@
   // `value` = id terpilih ('' = kosong); `label` = nama terpilih untuk ditampilkan (diisi saat memilih; saat
   // mengubah data yang sudah ada, pemanggil menyetelnya dari data item).
   import { Combobox } from 'bits-ui';
+  import { later, SEARCH_DEBOUNCE_MS } from '#lib/debounce.svelte.ts';
   import { t } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
@@ -60,8 +61,7 @@
   $effect(() => {
     if (!open) return;
     const q = query.trim();
-    const h = setTimeout(() => void run(q), q ? 250 : 0);
-    return () => clearTimeout(h);
+    return later(() => void run(q), q ? SEARCH_DEBOUNCE_MS : 0);
   });
 
   // Saat tertutup, kotak selalu menampilkan nama terpilih (ketikan yang tidak dipilih dibuang; label yang diubah
