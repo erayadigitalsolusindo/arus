@@ -1,6 +1,8 @@
 <script lang="ts">
   import '#lib/developers/portal.css';
   import { onMount, tick } from 'svelte';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import { t } from '#lib/i18n/index.ts';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { loadPortal, baseUrlOf, type Brand, type SpecInfo, type Catalog, type Endpoint } from '#lib/developers/api.ts';
@@ -18,33 +20,42 @@
   let searchOpen = $state(false);
   let cursor = $state(0);
 
-  // ---- routing berbasis hash: #/overview · #/g/<grup> · #/e/<METHOD path> ----
+  // ---- routing berbasis path: /developers/<panduan> · /developers/api/<grup>[?ep=METHOD /path] ----
   type Route = { kind: 'guide'; id: GuideView } | { kind: 'group'; id: string; ep?: string };
   const GUIDES: GuideView[] = ['overview', 'quickstart', 'auth', 'playground', 'errors', 'limits', 'conventions'];
+  const ROOT = '/developers';
   let route = $state<Route>({ kind: 'guide', id: 'overview' });
   let openEps = $state<Record<string, boolean>>({});
 
   const epKey = (e: Endpoint) => `${e.method} ${e.path}`;
+  const guideHref = (g: GuideView) => (g === 'overview' ? ROOT : `${ROOT}/${g}`);
+  const groupHref = (id: string) => `${ROOT}/api/${id}`;
+  const epHref = (e: Endpoint) => `${groupHref(e.group)}?ep=${encodeURIComponent(epKey(e))}`;
 
-  function parseHash() {
-    const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
-    if (h.startsWith('g/')) route = { kind: 'group', id: h.slice(2) };
-    else if (h.startsWith('e/') && data) {
-      const key = h.slice(2);
-      const ep = data.catalog.endpoints.find((e) => epKey(e) === key);
+  function applyUrl(url: { pathname: string; searchParams: { get(name: string): string | null } }) {
+    const seg = url.pathname.replace(/^\/developers\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+    if (seg[0] === 'api' && seg[1]) {
+      const key = url.searchParams.get('ep') ?? undefined;
+      route = { kind: 'group', id: seg[1], ep: key };
+      const ep = key && data ? data.catalog.endpoints.find((e) => epKey(e) === key) : undefined;
       if (ep) {
-        route = { kind: 'group', id: ep.group, ep: key };
-        openEps[key] = true;
+        openEps[epKey(ep)] = true;
         // Tunggu DOM grup dirender dulu, baru gulir ke kartu endpoint (scroll-margin menyisakan ruang header).
-        void tick().then(() => document.getElementById(`ep-${ep.method}-${ep.path}`)?.scrollIntoView({ block: 'start' }));
+        const scrollTo = () => document.getElementById(`ep-${ep.method}-${ep.path}`)?.scrollIntoView({ block: 'start' });
+        void tick().then(scrollTo);
+        setTimeout(scrollTo, 120); // SvelteKit menggulir ke atas setelah navigasi; gulir ulang ke kartu
       }
-    } else if ((GUIDES as string[]).includes(h)) route = { kind: 'guide', id: h as GuideView };
+    } else if ((GUIDES as string[]).includes(seg[0] ?? '')) route = { kind: 'guide', id: seg[0] as GuideView };
     else route = { kind: 'guide', id: 'overview' };
     drawer = false;
   }
-  const go = (hash: string) => {
-    location.hash = hash;
-  };
+  const go = (href: string) => void goto(href);
+
+  // Sinkronkan tampilan dengan URL (juga saat tombol back/forward) setelah katalog termuat.
+  $effect(() => {
+    const url = page.url;
+    if (data) applyUrl(url);
+  });
 
   onMount(() => {
     try {
@@ -54,9 +65,6 @@
       /* penyimpanan diblokir: pakai bawaan */
     }
     void load();
-    const onHash = () => parseHash();
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
   });
 
   async function load() {
@@ -64,7 +72,6 @@
     try {
       data = await loadPortal(location.hostname);
       document.title = `${data.brand.name} · ${t('extapi.portal.docTitle')}`;
-      parseHash();
     } catch {
       failed = true;
     }
@@ -98,7 +105,7 @@
   function pick(ep: Endpoint) {
     query = '';
     searchOpen = false;
-    go(`#/e/${encodeURIComponent(epKey(ep))}`);
+    go(epHref(ep));
   }
   function onSearchKey(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
@@ -161,7 +168,7 @@
 <div class="dv" data-theme={theme} style={accentStyle}>
   <header class="dv-top">
     <button type="button" class="dv-iconbtn dv-burger" aria-label={t('extapi.portal.menu')} onclick={() => (drawer = !drawer)}><i class="icon-menu" style="font-size:16px"></i></button>
-    <a class="dv-brand" href="#/overview">
+    <a class="dv-brand" href={ROOT}>
       {#if data?.brand.logo_url}
         <img src={data.brand.logo_url} alt={data.brand.name} />
       {:else}
@@ -223,8 +230,8 @@
             <h1>{data.brand.name}<br /><em>{data.brand.tagline || t('extapi.portal.docTitle')}</em><span class="dv-caret"></span></h1>
             <p class="lead">{t('extapi.portal.overview.lead')}</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
-              <a class="dv-btn" style="text-decoration:none" href="#/quickstart"><i class="icon-rocket" style="font-size:14px"></i>{t('extapi.portal.nav.quickstart')}</a>
-              <a class="dv-btn ghost" style="text-decoration:none" href="#/auth">{t('extapi.portal.nav.auth')}</a>
+              <a class="dv-btn" style="text-decoration:none" href={guideHref('quickstart')}><i class="icon-rocket" style="font-size:14px"></i>{t('extapi.portal.nav.quickstart')}</a>
+              <a class="dv-btn ghost" style="text-decoration:none" href={guideHref('auth')}>{t('extapi.portal.nav.auth')}</a>
             </div>
             <div class="dv-stats">
               <div class="dv-stat"><b>{data.catalog.endpoints.length}</b><span>{t('extapi.portal.hero.stats.endpoints')}</span></div>
@@ -244,11 +251,11 @@
       <nav class="dv-side" data-open={drawer} aria-label={t('extapi.portal.menu')}>
         <h6>{t('extapi.portal.nav.guides')}</h6>
         {#each GUIDES as g (g)}
-          <button type="button" class="dv-nav" aria-current={route.kind === 'guide' && route.id === g ? 'page' : undefined} onclick={() => go(`#/${g}`)}>{t(`extapi.portal.nav.${g}`)}</button>
+          <button type="button" class="dv-nav" aria-current={route.kind === 'guide' && route.id === g ? 'page' : undefined} onclick={() => go(guideHref(g))}>{t(`extapi.portal.nav.${g}`)}</button>
         {/each}
         <h6>{t('extapi.portal.nav.reference')}</h6>
         {#each data.catalog.groups as g (g.id)}
-          <button type="button" class="dv-nav" aria-current={route.kind === 'group' && route.id === g.id ? 'page' : undefined} onclick={() => go(`#/g/${g.id}`)}>
+          <button type="button" class="dv-nav" aria-current={route.kind === 'group' && route.id === g.id ? 'page' : undefined} onclick={() => go(groupHref(g.id))}>
             {g.title}<span class="dv-count">{g.count}</span>
           </button>
         {/each}
