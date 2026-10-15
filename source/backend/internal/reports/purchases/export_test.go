@@ -3,6 +3,8 @@ package purchases
 import (
 	"bytes"
 	"testing"
+
+	"aciraba/internal/reports/xtable"
 )
 
 // Test tanpa DB: keempat tabel ekspor menghasilkan XLSX/PDF valid, tanpa panic,
@@ -23,16 +25,16 @@ func TestExportTables(t *testing.T) {
 			Totals: DayRow{PurchaseCount: 1, Total: "111.00", NetTotal: "111.00"}}),
 	}
 	for name, tb := range tables {
-		for _, r := range append(append([][]string{}, tb.rows...), tb.total) {
-			if len(r) != len(tb.cols) {
-				t.Fatalf("%s: baris %d nilai, kolom %d", name, len(r), len(tb.cols))
+		for _, r := range append(append([][]string{}, tb.Rows...), tb.Total) {
+			if len(r) != len(tb.Cols) {
+				t.Fatalf("%s: baris %d nilai, kolom %d", name, len(r), len(tb.Cols))
 			}
 		}
-		x, err := tb.toXLSX()
+		x, err := tb.ToXLSX()
 		if err != nil || !bytes.HasPrefix(x, []byte("PK")) {
 			t.Fatalf("%s xlsx: %v", name, err)
 		}
-		p, err := tb.toPDF()
+		p, err := tb.ToPDF()
 		if err != nil || !bytes.HasPrefix(p, []byte("%PDF")) {
 			t.Fatalf("%s pdf: %v", name, err)
 		}
@@ -41,7 +43,7 @@ func TestExportTables(t *testing.T) {
 
 func TestPDFMoney(t *testing.T) {
 	for in, want := range map[string]string{"0": "0,00", "1234567.5": "1.234.567,50", "-999.99": "-999,99", "1000": "1.000,00"} {
-		if got := pdfMoney(in); got != want {
+		if got := xtable.PDFMoney(in); got != want {
 			t.Errorf("pdfMoney(%s) = %s, want %s", in, got, want)
 		}
 	}

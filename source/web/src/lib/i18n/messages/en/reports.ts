@@ -217,7 +217,65 @@ const reports: Messages['reports'] = {
     loadMore: 'Load More',
     noData: 'No data for this range.'
   },
-  // Stock valuation report
+  returnReport: {
+    sale: {
+      invoice: { docTitle: 'Sales Return Report by Invoice', title: 'Sales Returns by Invoice', subtitle: 'One row per sales return document' },
+      detail: { docTitle: 'Sales Return Report by Invoice (Detailed)', title: 'Sales Returns by Invoice (Detailed)', subtitle: 'Each return document with the items returned' }
+    },
+    purchase: {
+      invoice: { docTitle: 'Purchase Return Report by Invoice', title: 'Purchase Returns by Invoice', subtitle: 'One row per purchase return document' },
+      detail: { docTitle: 'Purchase Return Report by Invoice (Detailed)', title: 'Purchase Returns by Invoice (Detailed)', subtitle: 'Each return document with the items sent back to the supplier' }
+    },
+    c: {
+      outlet: 'Outlet',
+      allOutlets: 'All Outlets',
+      member: 'Customer',
+      allMembers: 'All Customers',
+      supplier: 'Supplier',
+      allSuppliers: 'All Suppliers',
+      status: 'Status',
+      allStatuses: 'All Statuses',
+      completed: 'Completed',
+      void: 'Void',
+      settle: 'Settlement',
+      allSettles: 'All',
+      settleOffsetSale: 'Offset Receivable',
+      settleOffsetPurchase: 'Offset Payable',
+      settleRefund: 'Money Refunded',
+      searchSale: 'Search return no. / original invoice',
+      searchPurchase: 'Search return no. / original invoice',
+      date: 'Date',
+      returnNo: 'Return No.',
+      refSale: 'Original Sale',
+      refPurchase: 'Original Invoice',
+      cashier: 'Cashier',
+      createdBy: 'Created By',
+      subtotal: 'Subtotal',
+      discount: 'Discount',
+      tax: 'Tax',
+      surcharge: 'Other Cost',
+      total: 'Total',
+      refund: 'Refunded',
+      method: 'Method',
+      returnCount: 'Returns',
+      voidCount: 'Voided Returns',
+      ratio: 'Return Rate',
+      ratioSale: 'of sales {amount}',
+      ratioPurchase: 'of purchases {amount}',
+      sku: 'SKU',
+      item: 'Item',
+      unit: 'Unit',
+      qty: 'Qty',
+      price: 'Price',
+      value: 'Value',
+      lineTotal: 'Amount',
+      loadMore: 'Load More',
+      noData: 'No returns for this filter.',
+      grandTotal: 'Grand Total',
+      voidReason: 'Void reason',
+      items: '{n} items'
+    }
+  },
   purchase: {
     invoice: { docTitle: 'Purchase Report by Invoice', title: 'Purchases by Invoice', subtitle: 'One row per purchase invoice' },
     detail: { docTitle: 'Purchase Report by Invoice (Detailed)', title: 'Purchases by Invoice (Detailed)', subtitle: 'Every item line of each purchase invoice' },
@@ -274,6 +332,7 @@ const reports: Messages['reports'] = {
       grandTotal: 'Grand Total'
     }
   },
+  // Stock valuation report
   stockValuation: {
     docTitle: 'Inventory Valuation Report',
     title: 'Inventory Valuation',
