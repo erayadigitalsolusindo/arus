@@ -189,6 +189,29 @@ export const nav: NavGroup[] = [
           { labelKey: 'nav.masterSupplier', module: 'stock_reports', href: '/reports/master/suppliers' },
           { labelKey: 'nav.masterSalesperson', module: 'stock_reports', href: '/reports/master/salespeople' }
         ]
+      },
+      {
+        id: 'payableReports',
+        labelKey: 'nav.debtReports',
+        icon: 'file-bar-chart',
+        children: [
+          { labelKey: 'nav.debtReportOutstanding', module: 'supplier_payables', href: '/reports/payables/outstanding' },
+          { labelKey: 'nav.debtReportPayments', module: 'supplier_payables', href: '/reports/payables/payments' },
+          { labelKey: 'nav.debtReportBalances', module: 'supplier_payables', href: '/reports/payables/balances' },
+          { labelKey: 'nav.debtReportLedger', module: 'supplier_payables', href: '/reports/payables/ledger' },
+          { labelKey: 'nav.debtReportCredit', module: 'supplier_credits', href: '/reports/supplier-credits' }
+        ]
+      },
+      {
+        id: 'receivableReports',
+        labelKey: 'nav.recvReports',
+        icon: 'file-bar-chart',
+        children: [
+          { labelKey: 'nav.recvReportOutstanding', module: 'member_receivables', href: '/reports/receivables/outstanding' },
+          { labelKey: 'nav.recvReportPayments', module: 'member_receivables', href: '/reports/receivables/payments' },
+          { labelKey: 'nav.recvReportBalances', module: 'member_receivables', href: '/reports/receivables/balances' },
+          { labelKey: 'nav.recvReportLedger', module: 'member_receivables', href: '/reports/receivables/ledger' }
+        ]
       }
     ]
   },
