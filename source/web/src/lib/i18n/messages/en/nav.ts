@@ -46,6 +46,7 @@ const nav: Messages['nav'] = {
   salesReports: 'Sales Report',
   salesInvoice: 'By Invoice',
   salesItem: 'By Item',
+  salesCashier: 'By Cashier',
   salesByDate: 'By Date',
   salesDetail: 'By Date Detail',
   masterReports: 'Master Reports',

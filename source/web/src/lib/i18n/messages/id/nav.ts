@@ -44,6 +44,7 @@ export default {
   salesReports: 'Laporan Penjualan',
   salesInvoice: 'Per Faktur',
   salesItem: 'Per Barang',
+  salesCashier: 'Per Kasir',
   salesByDate: 'Per Tanggal',
   salesDetail: 'Per Tanggal Detail',
   masterReports: 'Laporan Master',

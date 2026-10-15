@@ -40,7 +40,50 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/detail", h.Detail)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/invoices", h.Invoices)
 		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/items", h.Items)
+		r.With(authz.Require(ModuleReports, authz.ActView)).Get("/cashiers", h.Cashiers)
 	})
+}
+
+// Cashiers: GET /reports/sales/cashiers?from=&to=&outlet_id=&cashier_id=&status=open|closed&diff_only=&all_outlets=&cursor=&limit=&format=xlsx|pdf
+func (h *Handler) Cashiers(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	limit, _ := strconv.Atoi(qs.Get("limit"))
+	format := qs.Get("format")
+	p := CashierParams{
+		AllOutlets: qs.Get("all_outlets") == "true",
+		OutletID:   qs.Get("outlet_id"),
+		From:       qs.Get("from"),
+		To:         qs.Get("to"),
+		CashierID:  qs.Get("cashier_id"),
+		Status:     qs.Get("status"),
+		DiffOnly:   qs.Get("diff_only") == "true",
+		Cursor:     qs.Get("cursor"),
+		Limit:      limit,
+		ForExport:  format == "xlsx" || format == "pdf",
+	}
+	result, err := h.svc.Cashiers(r.Context(), actor(r), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	switch format {
+	case "xlsx":
+		b, err := CashierToXLSX(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CashierFileName(result.From, result.To, "xlsx"), xlsxContentType, b)
+	case "pdf":
+		b, err := CashierToPDF(result)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		h.writeFile(w, r, CashierFileName(result.From, result.To, "pdf"), pdfContentType, b)
+	default:
+		httpx.JSON(w, http.StatusOK, result)
+	}
 }
 
 // ByDate: GET /reports/sales/by-date?from=&to=&outlet_id=&cashier_id=&category_id=&payment_method_id=&all_outlets=&hide_empty=&format=
