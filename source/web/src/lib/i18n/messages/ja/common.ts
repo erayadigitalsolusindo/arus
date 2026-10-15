@@ -9,6 +9,7 @@ const common: Messages['common'] = {
   live: 'ライブ',
   close: '閉じる',
   dateRange: '日付範囲を選択',
+  monthPicker: { choose: '月を選択', prev: '前の年', next: '次の年', thisMonth: '今月' },
   datePicker: { choose: '日付を選択', clear: 'クリア', today: '今日', prev: '前の月', next: '次の月' },
   markdown: {
     write: '書く',

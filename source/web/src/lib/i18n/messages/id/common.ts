@@ -7,6 +7,7 @@ export default {
   live: 'Live',
   close: 'Tutup',
   dateRange: 'Pilih rentang tanggal',
+  monthPicker: { choose: 'Pilih bulan', prev: 'Tahun sebelumnya', next: 'Tahun berikutnya', thisMonth: 'Bulan ini' },
   datePicker: { choose: 'Pilih tanggal', clear: 'Kosongkan', today: 'Hari ini', prev: 'Bulan sebelumnya', next: 'Bulan berikutnya' },
   markdown: {
     write: 'Tulis',

@@ -33,6 +33,9 @@ import (
 	"aciraba/internal/posshortcut"
 	"aciraba/internal/purchasing"
 	"aciraba/internal/receivable"
+	reports_debt "aciraba/internal/reports/debt"
+	reports_purchases "aciraba/internal/reports/purchases"
+	reports_returns "aciraba/internal/reports/returns"
 	reports_sales "aciraba/internal/reports/sales"
 	reports_stock "aciraba/internal/reports/stock"
 	"aciraba/internal/sales"
@@ -135,6 +138,9 @@ func mountModules(r chi.Router, d appDeps) error {
 	reportsSalesSvc := reports_sales.NewService(d.Pool)
 	reports_sales.NewHandler(reportsSalesSvc, perms, tokens, d.Log).Routes(r)
 	reports_stock.NewHandler(reports_stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	reports_purchases.NewHandler(reports_purchases.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	reports_returns.NewHandler(reports_returns.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	reports_debt.NewHandler(reports_debt.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	aiSvc, err := ai.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret, ai.Free{Key: d.Cfg.AIPlatformKey, Limit: d.Cfg.AIFreeDailyLimit}, d.Log)
 	if err != nil {
 		return err
