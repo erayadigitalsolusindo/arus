@@ -314,6 +314,14 @@ func TestFeesLifecycle(t *testing.T) {
 	if before != 1 || after != 1 {
 		t.Fatalf("audit ubah: %d → %d, ingin 1 → 1", before, after)
 	}
+	// Aturan transaksi kecil tersimpan, tampil di respons, dan dicatat di audit.
+	r, err = svc.Update(ctx, a, m.ID, Input{Name: "QRIS BCA", FeePct: "0.5", SmallTxLimit: "100000", SmallTxFlat: "500"})
+	if err != nil || r.SmallTxLimit != "100000.00" || r.SmallTxFlat != "500.00" {
+		t.Fatalf("aturan transaksi kecil: %+v %v", r, err)
+	}
+	if _, err = svc.Update(ctx, a, m.ID, Input{Name: "QRIS BCA", FeePct: "0.5", SmallTxFlat: "500"}); fieldCode(err, "small_tx_limit") != "REQUIRED" {
+		t.Fatalf("flat tanpa batas: %v", err)
+	}
 	// Tunai tidak boleh diberi biaya (aplikasi maupun DB).
 	list, _, _ := svc.List(ctx, a, ListParams{})
 	if _, err = svc.Update(ctx, a, list[0].ID, Input{Name: "Tunai", FeePct: "1"}); fieldCode(err, "fee_pct") != "CASH_NO_FEE" {
@@ -321,6 +329,9 @@ func TestFeesLifecycle(t *testing.T) {
 	}
 	if _, err = admin.Exec(ctx, `UPDATE payment_methods SET fee_flat = 5 WHERE id = $1`, list[0].ID); err == nil {
 		t.Fatal("DB harus menolak biaya pada tunai")
+	}
+	if _, err = admin.Exec(ctx, `UPDATE payment_methods SET small_tx_limit = 5000 WHERE id = $1`, list[0].ID); err == nil {
+		t.Fatal("DB harus menolak aturan transaksi kecil pada tunai")
 	}
 }
 

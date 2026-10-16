@@ -10,6 +10,7 @@
   import { newIdempotencyKey } from '#lib/sales/api.ts';
   import { can } from '#lib/auth/session.svelte.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
+  import { feeCents, feeRate } from '#lib/pos/fee.ts';
   import { t, formatCurrency, formatDate, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
 
@@ -77,11 +78,9 @@
   const valid = $derived(!!picked && amountC > 0n && amountC <= balance && !walletOver && (picked.kind !== 'deposit' || walletBal !== null));
   const feeLine = $derived.by(() => {
     if (!picked || amountC <= 0n) return '';
-    const pctH = BigInt(Math.round(Number(picked.fee_pct ?? 0) * 100));
-    const flat = toCents(picked.fee_flat ?? '');
-    if (pctH === 0n && flat === 0n) return '';
-    const fee = (amountC * pctH + 5000n) / 10000n + flat;
-    const rate = [Number(picked.fee_pct ?? 0) > 0 ? `${Number(picked.fee_pct)}%` : '', flat > 0n ? money(flat) : ''].filter(Boolean).join(' + ');
+    const rate = feeRate(picked, amountC, money);
+    if (!rate) return '';
+    const fee = feeCents(picked, amountC);
     return t('pos.feeLine', { rate, fee: money(fee), who: t(picked.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore') });
   });
 
