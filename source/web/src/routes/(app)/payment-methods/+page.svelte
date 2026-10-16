@@ -29,7 +29,7 @@
   ];
   const kindLabel =(k: PaymentKind) => t(`sales.method.${k}` as 'sales.method.cash');
 
-  type Field = 'name' | 'kind' | 'fee_pct' | 'fee_flat' | 'fee_bearer' | 'account_id';
+  type Field = 'name' | 'kind' | 'fee_pct' | 'fee_flat' | 'small_tx_limit' | 'small_tx_flat' | 'fee_bearer' | 'account_id';
   type Editor = {
     id: string | null;
     name: string;
@@ -37,6 +37,9 @@
     accountId: string; // '' = otomatis (baru) / tetap (ubah)
     feePct: string;
     feeFlat: string;
+    smallOn: boolean; // aturan transaksi kecil (BI)
+    smallLimit: string;
+    smallFlat: string;
     bearer: FeeBearer;
     system: boolean;
     saving: boolean;
@@ -144,11 +147,11 @@
   const canWrite = (m: PaymentMethod | null) => (m ? can('payment_methods', 'update') : can('payment_methods', 'create'));
   const openNew = () => {
     void loadAccounts();
-    editor = { id: null, accountId: '', name: '', kind: 'ewallet', feePct: '', feeFlat: '', bearer: 'store', system: false, saving: false, error: '', errors: {} };
+    editor = { id: null, accountId: '', name: '', kind: 'ewallet', feePct: '', feeFlat: '', smallOn: false, smallLimit: '', smallFlat: '', bearer: 'store', system: false, saving: false, error: '', errors: {} };
   };
   const openMethod = (m: PaymentMethod) => {
     void loadAccounts();
-    editor = { id: m.id, accountId: m.account?.id ?? '', name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, saving: false, error: '', errors: {} };
+    editor = { id: m.id, accountId: m.account?.id ?? '', name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', smallOn: Number(m.small_tx_limit) > 0, smallLimit: Number(m.small_tx_limit) ? m.small_tx_limit : '', smallFlat: Number(m.small_tx_flat) ? m.small_tx_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, saving: false, error: '', errors: {} };
   };
 
   /** Ringkasan biaya untuk tabel, mis. "0,7% + Rp100"; "—" bila tanpa biaya. */
@@ -156,6 +159,7 @@
     const parts: string[] = [];
     if (Number(m.fee_pct) > 0) parts.push(`${formatNumber(Number(m.fee_pct), { maximumFractionDigits: 2 })}%`);
     if (Number(m.fee_flat) > 0) parts.push(formatCurrency(Number(m.fee_flat), { maximumFractionDigits: 2 }));
+    if (Number(m.small_tx_limit) > 0) parts.push(t('catalog.paymentMethods.smallTxText', { limit: formatCurrency(Number(m.small_tx_limit), { maximumFractionDigits: 2 }), flat: formatCurrency(Number(m.small_tx_flat), { maximumFractionDigits: 2 }) }));
     if (!parts.length) return t('catalog.paymentMethods.noFee');
     return `${parts.join(' + ')} · ${t(m.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore')}`;
   }
@@ -174,11 +178,15 @@
     const flat = ed.feeFlat.trim().replace(',', '.');
     if (pct && (!DEC_RE.test(ed.feePct.trim()) || Number(pct) > 100)) next.fee_pct = fieldMessage('INVALID');
     if (flat && !DEC_RE.test(ed.feeFlat.trim())) next.fee_flat = fieldMessage('INVALID');
+    const sLimit = ed.smallOn ? ed.smallLimit.trim().replace(',', '.') : '';
+    const sFlat = ed.smallOn ? ed.smallFlat.trim().replace(',', '.') : '';
+    if (ed.smallOn && (!sLimit || !DEC_RE.test(ed.smallLimit.trim()) || Number(sLimit) <= 0)) next.small_tx_limit = fieldMessage(sLimit ? 'INVALID' : 'REQUIRED');
+    if (sFlat && !DEC_RE.test(ed.smallFlat.trim())) next.small_tx_flat = fieldMessage('INVALID');
     ed.errors = next;
     if (Object.keys(next).length) return;
 
     // Kolom biaya yang kosong TIDAK dikirim: API membaca angka sebagai json.Number dan menolak teks kosong ("").
-    const body = { name: name.value, kind: ed.kind, fee_bearer: ed.bearer, ...(ed.accountId ? { account_id: ed.accountId } : {}), ...(pct ? { fee_pct: pct } : {}), ...(flat ? { fee_flat: flat } : {}) };
+    const body = { name: name.value, kind: ed.kind, fee_bearer: ed.bearer, ...(ed.accountId ? { account_id: ed.accountId } : {}), ...(pct ? { fee_pct: pct } : {}), ...(flat ? { fee_flat: flat } : {}), ...(sLimit ? { small_tx_limit: sLimit } : {}), ...(sFlat ? { small_tx_flat: sFlat } : {}) };
     ed.saving = true;
     try {
       if (ed.id) {
@@ -429,6 +437,26 @@
             </div>
           </div>
           <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.feeHint')}</p>
+          <div class="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-muted,transparent)] p-3">
+            <label class="flex items-start gap-2 text-[13px] font-semibold">
+              <input type="checkbox" class="mt-1" bind:checked={ed.smallOn} disabled={ro} />
+              <span>{t('catalog.paymentMethods.smallTx')}<span class="block text-[11.5px] font-normal text-[var(--text-tertiary)]">{t('catalog.paymentMethods.smallTxHint')}</span></span>
+            </label>
+            {#if ed.smallOn}
+              <div class="grid gap-3 sm:grid-cols-2 mt-3">
+                <div>
+                  <label for="pm-small-limit" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.smallTxLimit')}</label>
+                  <input id="pm-small-limit" inputmode="decimal" class={inputClass} bind:value={ed.smallLimit} maxlength="12" placeholder="100000" disabled={ro} aria-invalid={!!ed.errors.small_tx_limit} />
+                  {#if ed.errors.small_tx_limit}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.small_tx_limit}</p>{/if}
+                </div>
+                <div>
+                  <label for="pm-small-flat" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.smallTxFlat')}</label>
+                  <input id="pm-small-flat" inputmode="decimal" class={inputClass} bind:value={ed.smallFlat} maxlength="12" placeholder="500" disabled={ro} aria-invalid={!!ed.errors.small_tx_flat} />
+                  {#if ed.errors.small_tx_flat}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.small_tx_flat}</p>{/if}
+                </div>
+              </div>
+            {/if}
+          </div>
           <div class="mt-3">
             <label for="pm-bearer" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.bearer')}</label>
             <Select id="pm-bearer" ariaLabel={t('catalog.paymentMethods.bearer')} bind:value={ed.bearer} disabled={ro} options={[{ value: 'store', label: t('catalog.paymentMethods.bearerStore') }, { value: 'customer', label: t('catalog.paymentMethods.bearerCustomer') }]} />

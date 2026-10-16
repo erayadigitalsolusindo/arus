@@ -5452,20 +5452,22 @@ func (q *Queries) PaymentMethodAccountOtherUsers(ctx context.Context, arg Paymen
 }
 
 const paymentMethodActiveList = `-- name: PaymentMethodActiveList :many
-SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
+SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat
 FROM payment_methods
 WHERE tenant_id = $1 AND active
 ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id
 `
 
 type PaymentMethodActiveListRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 func (q *Queries) PaymentMethodActiveList(ctx context.Context, tenantID uuid.UUID) ([]PaymentMethodActiveListRow, error) {
@@ -5485,6 +5487,8 @@ func (q *Queries) PaymentMethodActiveList(ctx context.Context, tenantID uuid.UUI
 			&i.FeePct,
 			&i.FeeFlat,
 			&i.FeeBearer,
+			&i.SmallTxLimit,
+			&i.SmallTxFlat,
 		); err != nil {
 			return nil, err
 		}
@@ -5508,31 +5512,35 @@ func (q *Queries) PaymentMethodCount(ctx context.Context, tenantID uuid.UUID) (i
 }
 
 const paymentMethodCreate = `-- name: PaymentMethodCreate :one
-INSERT INTO payment_methods (tenant_id, name, kind, is_system, fee_pct, fee_flat, fee_bearer)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+INSERT INTO payment_methods (tenant_id, name, kind, is_system, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at
 `
 
 type PaymentMethodCreateParams struct {
-	TenantID  uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
+	TenantID     uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 type PaymentMethodCreateRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	CreatedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) PaymentMethodCreate(ctx context.Context, arg PaymentMethodCreateParams) (PaymentMethodCreateRow, error) {
@@ -5544,6 +5552,8 @@ func (q *Queries) PaymentMethodCreate(ctx context.Context, arg PaymentMethodCrea
 		arg.FeePct,
 		arg.FeeFlat,
 		arg.FeeBearer,
+		arg.SmallTxLimit,
+		arg.SmallTxFlat,
 	)
 	var i PaymentMethodCreateRow
 	err := row.Scan(
@@ -5555,13 +5565,15 @@ func (q *Queries) PaymentMethodCreate(ctx context.Context, arg PaymentMethodCrea
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const paymentMethodGetForUpdate = `-- name: PaymentMethodGetForUpdate :one
-SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at
 FROM payment_methods WHERE tenant_id = $1 AND id = $2 FOR UPDATE
 `
 
@@ -5571,15 +5583,17 @@ type PaymentMethodGetForUpdateParams struct {
 }
 
 type PaymentMethodGetForUpdateRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	CreatedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) PaymentMethodGetForUpdate(ctx context.Context, arg PaymentMethodGetForUpdateParams) (PaymentMethodGetForUpdateRow, error) {
@@ -5594,6 +5608,8 @@ func (q *Queries) PaymentMethodGetForUpdate(ctx context.Context, arg PaymentMeth
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -5614,7 +5630,7 @@ func (q *Queries) PaymentMethodLinkDefaultAccounts(ctx context.Context, tenantID
 }
 
 const paymentMethodList = `-- name: PaymentMethodList :many
-SELECT m.id, m.name, m.kind, m.is_system, m.active, m.fee_pct, m.fee_flat, m.fee_bearer, m.created_at,
+SELECT m.id, m.name, m.kind, m.is_system, m.active, m.fee_pct, m.fee_flat, m.fee_bearer, m.small_tx_limit, m.small_tx_flat, m.created_at,
        m.account_id, a.code AS account_code, a.name AS account_name,
        count(*) OVER () AS total
 FROM payment_methods m
@@ -5635,19 +5651,21 @@ type PaymentMethodListParams struct {
 }
 
 type PaymentMethodListRow struct {
-	ID          uuid.UUID
-	Name        string
-	Kind        string
-	IsSystem    bool
-	Active      bool
-	FeePct      decimal.Decimal
-	FeeFlat     decimal.Decimal
-	FeeBearer   string
-	CreatedAt   pgtype.Timestamptz
-	AccountID   pgtype.UUID
-	AccountCode pgtype.Text
-	AccountName pgtype.Text
-	Total       int64
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
+	AccountID    pgtype.UUID
+	AccountCode  pgtype.Text
+	AccountName  pgtype.Text
+	Total        int64
 }
 
 func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListParams) ([]PaymentMethodListRow, error) {
@@ -5674,6 +5692,8 @@ func (q *Queries) PaymentMethodList(ctx context.Context, arg PaymentMethodListPa
 			&i.FeePct,
 			&i.FeeFlat,
 			&i.FeeBearer,
+			&i.SmallTxLimit,
+			&i.SmallTxFlat,
 			&i.CreatedAt,
 			&i.AccountID,
 			&i.AccountCode,
@@ -5738,7 +5758,7 @@ func (q *Queries) PaymentMethodSetAccountActive(ctx context.Context, arg Payment
 const paymentMethodSetActive = `-- name: PaymentMethodSetActive :one
 UPDATE payment_methods SET active = $3
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at
 `
 
 type PaymentMethodSetActiveParams struct {
@@ -5748,15 +5768,17 @@ type PaymentMethodSetActiveParams struct {
 }
 
 type PaymentMethodSetActiveRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	CreatedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) PaymentMethodSetActive(ctx context.Context, arg PaymentMethodSetActiveParams) (PaymentMethodSetActiveRow, error) {
@@ -5771,37 +5793,43 @@ func (q *Queries) PaymentMethodSetActive(ctx context.Context, arg PaymentMethodS
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const paymentMethodUpdate = `-- name: PaymentMethodUpdate :one
-UPDATE payment_methods SET name = $3, fee_pct = $4, fee_flat = $5, fee_bearer = $6, kind = $7
+UPDATE payment_methods SET name = $3, fee_pct = $4, fee_flat = $5, fee_bearer = $6, kind = $7, small_tx_limit = $8, small_tx_flat = $9
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at
 `
 
 type PaymentMethodUpdateParams struct {
-	TenantID  uuid.UUID
-	ID        uuid.UUID
-	Name      string
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	Kind      string
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+	Name         string
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	Kind         string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 type PaymentMethodUpdateRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	CreatedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
+	CreatedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) PaymentMethodUpdate(ctx context.Context, arg PaymentMethodUpdateParams) (PaymentMethodUpdateRow, error) {
@@ -5813,6 +5841,8 @@ func (q *Queries) PaymentMethodUpdate(ctx context.Context, arg PaymentMethodUpda
 		arg.FeeFlat,
 		arg.FeeBearer,
 		arg.Kind,
+		arg.SmallTxLimit,
+		arg.SmallTxFlat,
 	)
 	var i PaymentMethodUpdateRow
 	err := row.Scan(
@@ -5824,6 +5854,8 @@ func (q *Queries) PaymentMethodUpdate(ctx context.Context, arg PaymentMethodUpda
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -8115,7 +8147,7 @@ func (q *Queries) ReceivablePaymentInsert(ctx context.Context, arg ReceivablePay
 }
 
 const receivablePaymentMethod = `-- name: ReceivablePaymentMethod :one
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods WHERE tenant_id = $1 AND id = $2
 `
 
 type ReceivablePaymentMethodParams struct {
@@ -8124,13 +8156,15 @@ type ReceivablePaymentMethodParams struct {
 }
 
 type ReceivablePaymentMethodRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 func (q *Queries) ReceivablePaymentMethod(ctx context.Context, arg ReceivablePaymentMethodParams) (ReceivablePaymentMethodRow, error) {
@@ -8144,6 +8178,8 @@ func (q *Queries) ReceivablePaymentMethod(ctx context.Context, arg ReceivablePay
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 	)
 	return i, err
 }
@@ -9687,7 +9723,7 @@ func (q *Queries) SalesPaymentInsert(ctx context.Context, arg SalesPaymentInsert
 }
 
 const salesPaymentMethodByID = `-- name: SalesPaymentMethodByID :one
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods WHERE tenant_id = $1 AND id = $2
 `
 
 type SalesPaymentMethodByIDParams struct {
@@ -9696,13 +9732,15 @@ type SalesPaymentMethodByIDParams struct {
 }
 
 type SalesPaymentMethodByIDRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 func (q *Queries) SalesPaymentMethodByID(ctx context.Context, arg SalesPaymentMethodByIDParams) (SalesPaymentMethodByIDRow, error) {
@@ -9716,12 +9754,14 @@ func (q *Queries) SalesPaymentMethodByID(ctx context.Context, arg SalesPaymentMe
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 	)
 	return i, err
 }
 
 const salesPaymentMethodByKind = `-- name: SalesPaymentMethodByKind :one
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods
 WHERE tenant_id = $1 AND kind = $2 AND active
 ORDER BY is_system DESC, created_at, id LIMIT 1
 `
@@ -9732,13 +9772,15 @@ type SalesPaymentMethodByKindParams struct {
 }
 
 type SalesPaymentMethodByKindRow struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	Active    bool
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	Active       bool
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 // Pemanggil lama yang hanya mengirim jenis dasar: pakai metode aktif tertua berjenis itu (Tunai bawaan lebih dulu).
@@ -9753,6 +9795,8 @@ func (q *Queries) SalesPaymentMethodByKind(ctx context.Context, arg SalesPayment
 		&i.FeePct,
 		&i.FeeFlat,
 		&i.FeeBearer,
+		&i.SmallTxLimit,
+		&i.SmallTxFlat,
 	)
 	return i, err
 }

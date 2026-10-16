@@ -26,6 +26,7 @@ import (
 
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
+	"aciraba/internal/paymentmethod"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/wallet"
@@ -422,10 +423,11 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 		var (
 			mKind, mName, mBearer string
 			mPct, mFlat           dec
+			mSLimit, mSFlat       dec
 			mActive               bool
 		)
-		e = tx.QueryRow(ctx, `SELECT kind, name, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2`,
-			a.TenantID, n.method).Scan(&mKind, &mName, &mActive, &mPct, &mFlat, &mBearer)
+		e = tx.QueryRow(ctx, `SELECT kind, name, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods WHERE tenant_id = $1 AND id = $2`,
+			a.TenantID, n.method).Scan(&mKind, &mName, &mActive, &mPct, &mFlat, &mBearer, &mSLimit, &mSFlat)
 		switch {
 		case errors.Is(e, pgx.ErrNoRows):
 			return FieldErrors{"method_id": sanitize.Invalid}
@@ -459,8 +461,10 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 		user := pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}
 		totalFee := decimal.Zero
 		fees := make([]dec, len(used))
-		for i, c := range used {
-			fees[i] = methodFee(c.allocated, mPct, mFlat)
+		feePcts, feeFlats := make([]dec, len(used)), make([]dec, len(used))
+		rule := paymentmethod.Rule{Pct: mPct, Flat: mFlat, SmallLimit: mSLimit, SmallFlat: mSFlat}
+		for i, c := range used { // batas transaksi kecil diukur per alokasi (per baris receivable_payments)
+			fees[i], feePcts[i], feeFlats[i] = rule.Compute(c.allocated)
 			totalFee = totalFee.Add(fees[i])
 		}
 		if e := tx.QueryRow(ctx, `
@@ -476,7 +480,7 @@ func (s *Service) Settle(ctx context.Context, a authz.Actor, key string, in Sett
 				                                 fee_pct, fee_flat, fee_amount, fee_bearer, note, received_by, settlement_id)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
 				a.TenantID, c.id, a.OutletID, fmt.Sprintf("%s/%d", docNo, i+1), fmt.Sprintf("set:%s:%d", setID, i+1), h, mKind, n.method, mName,
-				c.allocated, n.ref, mPct, mFlat, fees[i], mBearer, n.note, user, setID); e != nil {
+				c.allocated, n.ref, feePcts[i], feeFlats[i], fees[i], mBearer, n.note, user, setID); e != nil {
 				return e
 			}
 			allocs = append(allocs, map[string]string{"receivable_id": c.id.String(), "sale_doc_no": c.docNo, "amount": c.allocated.String(),

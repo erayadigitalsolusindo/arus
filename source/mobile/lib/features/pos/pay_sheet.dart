@@ -992,7 +992,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
             child: Text(
               r.method.feeByCustomer
                   ? l.payFeeCustomer(
-                      r.method.feeLabel,
+                      r.method.feeLabelFor(parseInput(r.amount.text)),
                       formatMoney(r.method.feeOf(parseInput(r.amount.text))),
                       formatMoney(
                         parseInput(r.amount.text) +
@@ -1000,7 +1000,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                       ),
                     )
                   : l.payFeeStore(
-                      r.method.feeLabel,
+                      r.method.feeLabelFor(parseInput(r.amount.text)),
                       formatMoney(r.method.feeOf(parseInput(r.amount.text))),
                     ),
               style: TextStyle(color: context.pal.warningText, fontSize: 12),

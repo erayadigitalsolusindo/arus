@@ -182,7 +182,7 @@ VALUES (@tenant_id, @receivable_id, @outlet_id, @doc_no, @idempotency_key, @requ
         @amount, @ref_no, @fee_pct, @fee_flat, @fee_amount, @fee_bearer, @note, sqlc.narg('received_by'));
 
 -- name: ReceivablePaymentMethod :one
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2;
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods WHERE tenant_id = $1 AND id = $2;
 
 -- name: ReceivablePayOutlet :one
 SELECT o.code, o.active, (now() AT TIME ZONE o.timezone)::date AS local_day
