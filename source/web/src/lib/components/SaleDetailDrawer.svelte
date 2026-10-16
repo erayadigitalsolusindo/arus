@@ -3,6 +3,17 @@
   // sumber potongan (manual/kupon/poin), pembayaran, retur (nota asli tetap utuh; retur = dokumen terpisah), dampak stok,
   // dan riwayat audit. Hanya baca.
   import { onMount } from 'svelte';
+
+  let copiedRef = $state('');
+  async function copyRef(v: string) {
+    try {
+      await navigator.clipboard.writeText(v);
+      copiedRef = v;
+      setTimeout(() => { if (copiedRef === v) copiedRef = ''; }, 1500);
+    } catch {
+      /* clipboard diblokir: teks tetap bisa dipilih manual (select-all) */
+    }
+  }
   import { goto } from '$app/navigation';
   import VoidSaleModal from '#lib/components/VoidSaleModal.svelte';
   import SaleReturnModal from '#lib/components/SaleReturnModal.svelte';
@@ -393,6 +404,15 @@
                   <div class="min-w-0 grow">
                     <div class="font-semibold text-[13px]">{p.method_name || (PAY_METHODS.includes(p.method) ? t(`sales.method.${p.method}`) : p.method)}</div>
                     {#if p.ref_no}<div class="font-mono text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.payments.ref')}: {p.ref_no}</div>{/if}
+                    {#if p.gateway_ref}
+                      <div class="flex items-center gap-1.5 text-[11.5px] text-[var(--text-tertiary)]">
+                        <span class="shrink-0">{t('sales.detail.payments.gatewayRef')}:</span>
+                        <span class="min-w-0 break-all font-mono select-all">{p.gateway_ref}</span>
+                        <button type="button" class="shrink-0 rounded p-0.5 hover:text-[var(--color-primary-600)]" title={copiedRef === p.gateway_ref ? t('sales.detail.payments.gatewayRefCopied') : t('sales.detail.payments.gatewayRefCopy')} aria-label={t('sales.detail.payments.gatewayRefCopy')} onclick={() => copyRef(p.gateway_ref!)}>
+                          <i class="{copiedRef === p.gateway_ref ? 'icon-check' : 'icon-copy'} text-[13px]"></i>
+                        </button>
+                      </div>
+                    {/if}
                     {#if num(p.fee) > 0}<div class="text-[11.5px] text-[var(--color-warning-600)]">{Number(p.fee_pct) > 0 ? t('sales.detail.payments.fee', { pct: formatNumber(Number(p.fee_pct), { maximumFractionDigits: 2 }) }) + ' · ' : ''}{p.fee_bearer === 'customer' ? t('sales.detail.payments.feeCustomer') + ' +' : t('sales.detail.payments.feeFlat') + ' −'}{money(p.fee)}</div>{/if}
                   </div>
                   <div class="font-display text-[16px] font-bold tabular-nums">{money(p.amount)}</div>
