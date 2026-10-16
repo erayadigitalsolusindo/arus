@@ -332,6 +332,8 @@ class PayMethodInfo {
     required this.kind,
     this.feePct,
     this.feeFlat,
+    this.smallTxLimit,
+    this.smallTxFlat,
     this.feeByCustomer = false,
   });
 
@@ -343,22 +345,47 @@ class PayMethodInfo {
   final Decimal? feePct;
   final Decimal? feeFlat;
 
+  /// Aturan transaksi kecil (BI): jumlah <= [smallTxLimit] dikenai MDR flat [smallTxFlat] (menggantikan persen + tetap).
+  /// Limit 0/null = nonaktif.
+  final Decimal? smallTxLimit;
+  final Decimal? smallTxFlat;
+
   /// true = ditagihkan ke pelanggan di luar total nota (FR-POS-20); false = biaya toko.
   final bool feeByCustomer;
 
-  /// "0,7%" / "Rp 1.000" / "0,7% + Rp 1.000" untuk label; kosong bila tanpa biaya.
-  String get feeLabel => [
+  bool get hasSmallRule => (smallTxLimit ?? Decimal.zero) > Decimal.zero;
+
+  bool _smallApplies(Decimal amount) =>
+      hasSmallRule && amount <= smallTxLimit!;
+
+  String get _baseLabel => [
     if ((feePct ?? Decimal.zero) > Decimal.zero) '${formatQty(feePct!)}%',
     if ((feeFlat ?? Decimal.zero) > Decimal.zero) formatMoney(feeFlat!),
   ].join(' + ');
 
+  /// Label ringkas untuk chip: "0,7% + Rp 1.000"; bila aturan transaksi kecil aktif ditambah "≤ batas: MDR flat".
+  /// Kosong bila tanpa biaya.
+  String get feeLabel {
+    if (!hasSmallRule) return _baseLabel;
+    final small =
+        '≤${formatMoney(smallTxLimit!)}: ${formatMoney(smallTxFlat ?? Decimal.zero)}';
+    return _baseLabel.isEmpty ? small : '$_baseLabel · $small';
+  }
+
+  /// Tarif yang berlaku pada jumlah ini (transaksi kecil: MDR flat saja).
+  String feeLabelFor(Decimal amount) => _smallApplies(amount)
+      ? formatMoney(smallTxFlat ?? Decimal.zero)
+      : _baseLabel;
+
   bool get hasFee =>
       (feePct ?? Decimal.zero) > Decimal.zero ||
-      (feeFlat ?? Decimal.zero) > Decimal.zero;
+      (feeFlat ?? Decimal.zero) > Decimal.zero ||
+      hasSmallRule;
 
-  /// Rumus server: jumlah × persen / 100 (dibulatkan sen) + biaya tetap.
+  /// Rumus server: transaksi kecil -> MDR flat; selain itu jumlah × persen / 100 (dibulatkan sen) + biaya tetap.
   Decimal feeOf(Decimal amount) {
     if (!hasFee || amount <= Decimal.zero) return Decimal.zero;
+    if (_smallApplies(amount)) return smallTxFlat ?? Decimal.zero;
     final pct = ((amount * (feePct ?? Decimal.zero)) / Decimal.fromInt(100))
         .toDecimal(scaleOnInfinitePrecision: 6)
         .round(scale: 2);
@@ -374,6 +401,8 @@ class PayMethodInfo {
     kind: '${j['kind']}',
     feePct: dec(j['fee_pct']),
     feeFlat: dec(j['fee_flat']),
+    smallTxLimit: dec(j['small_tx_limit']),
+    smallTxFlat: dec(j['small_tx_flat']),
     feeByCustomer: j['fee_bearer'] == 'customer',
   );
 }

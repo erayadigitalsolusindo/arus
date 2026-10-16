@@ -1,5 +1,5 @@
 -- name: PaymentMethodList :many
-SELECT m.id, m.name, m.kind, m.is_system, m.active, m.fee_pct, m.fee_flat, m.fee_bearer, m.created_at,
+SELECT m.id, m.name, m.kind, m.is_system, m.active, m.fee_pct, m.fee_flat, m.fee_bearer, m.small_tx_limit, m.small_tx_flat, m.created_at,
        m.account_id, a.code AS account_code, a.name AS account_name,
        count(*) OVER () AS total
 FROM payment_methods m
@@ -11,29 +11,29 @@ ORDER BY (m.kind <> 'cash'), m.is_system DESC, lower(m.name), m.id
 LIMIT @page_limit OFFSET @page_offset;
 
 -- name: PaymentMethodGetForUpdate :one
-SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at
+SELECT id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at
 FROM payment_methods WHERE tenant_id = $1 AND id = $2 FOR UPDATE;
 
 -- name: PaymentMethodCount :one
 SELECT count(*) FROM payment_methods WHERE tenant_id = $1;
 
 -- name: PaymentMethodCreate :one
-INSERT INTO payment_methods (tenant_id, name, kind, is_system, fee_pct, fee_flat, fee_bearer)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at;
+INSERT INTO payment_methods (tenant_id, name, kind, is_system, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at;
 
 -- name: PaymentMethodUpdate :one
-UPDATE payment_methods SET name = $3, fee_pct = $4, fee_flat = $5, fee_bearer = $6, kind = $7
+UPDATE payment_methods SET name = $3, fee_pct = $4, fee_flat = $5, fee_bearer = $6, kind = $7, small_tx_limit = $8, small_tx_flat = $9
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at;
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at;
 
 -- name: PaymentMethodSetActive :one
 UPDATE payment_methods SET active = $3
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, created_at;
+RETURNING id, name, kind, is_system, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat, created_at;
 
 -- name: PaymentMethodActiveList :many
-SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer
+SELECT id, name, kind, is_system, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat
 FROM payment_methods
 WHERE tenant_id = $1 AND active
 ORDER BY (kind <> 'cash'), is_system DESC, lower(name), id;

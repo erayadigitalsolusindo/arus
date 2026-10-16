@@ -34,6 +34,7 @@ import (
 	gen "aciraba/internal/gen"
 	"aciraba/internal/item"
 	"aciraba/internal/member"
+	"aciraba/internal/paymentmethod"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/receivable"
@@ -780,17 +781,19 @@ func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm)
 		var id uuid.UUID
 		var name, kind string
 		var active bool
-		var feePct, feeFlat dec
+		var feePct, feeFlat, sLimit, sFlat dec
 		var bearer string
 		var err error
 		if p.methodID != nil {
 			var r gen.SalesPaymentMethodByIDRow
 			r, err = q.SalesPaymentMethodByID(ctx, gen.SalesPaymentMethodByIDParams{TenantID: a.TenantID, ID: *p.methodID})
 			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
+				sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
 		} else {
 			var r gen.SalesPaymentMethodByKindRow
 			r, err = q.SalesPaymentMethodByKind(ctx, gen.SalesPaymentMethodByKindParams{TenantID: a.TenantID, Kind: p.method})
 			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
+				sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
 		}
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -803,8 +806,9 @@ func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm)
 			f[k+"method_id"] = sanitize.Invalid // kredit pemasok bukan alat bayar nota
 		}
 		p.methodID, p.name, p.method = &id, name, kind
-		p.feePct, p.feeFlat, p.bearer = feePct, feeFlat, bearer
-		p.fee = methodFee(p.amount, feePct, feeFlat)
+		// Snapshot = tarif efektif: pada transaksi kecil (aturan BI) persen 0 dan nominal = MDR flat.
+		p.fee, p.feePct, p.feeFlat = paymentmethod.Rule{Pct: feePct, Flat: feeFlat, SmallLimit: sLimit, SmallFlat: sFlat}.Compute(p.amount)
+		p.bearer = bearer
 		out[i] = p
 	}
 	if len(f) > 0 {
@@ -826,14 +830,6 @@ func depositPaid(n norm) (string, dec) {
 		}
 	}
 	return key, sum
-}
-
-// methodFee = biaya metode (MDR) atas jumlah yang dibayar: amount × pct% + flat, dibulatkan 2 desimal. Ditanggung toko.
-func methodFee(amount, pct, flat dec) dec {
-	if !pct.IsPositive() && !flat.IsPositive() {
-		return decimal.Zero
-	}
-	return amount.Mul(pct).Div(decimal.NewFromInt(100)).Add(flat).Round(2)
 }
 
 // settle memeriksa pembayaran terhadap total: non-tunai tidak boleh melebihi total (tidak ada kembalian kartu) dan

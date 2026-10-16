@@ -171,6 +171,18 @@ func TestPaymentMethodFeeSnapshot(t *testing.T) {
 		t.Fatalf("split: %+v %v", s2.Payments, err)
 	}
 
+	// Aturan transaksi kecil (BI): <= batas -> MDR flat menggantikan persen + nominal; snapshot memuat tarif efektif.
+	e.exec(t, `UPDATE payment_methods SET small_tx_limit = 5000, small_tx_flat = 50 WHERE id = $1`, qris)
+	s4, _, err := e.svc.Create(ctx, act, key(), Request{Lines: []LineIn{line(a, "5")}, Payments: []PaymentIn{payID(qris, "5000")}})
+	if p := s4.Payments[0]; err != nil || p.Fee != "50.00" || p.FeePct != "0.00" {
+		t.Fatalf("transaksi kecil: %+v %v", s4.Payments, err)
+	}
+	s5, _, err := e.svc.Create(ctx, act, key(), Request{Lines: []LineIn{line(a, "6")}, Payments: []PaymentIn{payID(qris, "6000")}})
+	if p := s5.Payments[0]; err != nil || p.Fee != "142.00" || p.FeePct != "0.70" { // di atas batas: 6.000 × 0,7% + 100
+		t.Fatalf("di atas batas: %+v %v", s5.Payments, err)
+	}
+	e.exec(t, `UPDATE payment_methods SET small_tx_limit = 0, small_tx_flat = 0 WHERE id = $1`, qris)
+
 	// Tarif diubah: nota lama tetap, nota baru memakai tarif baru.
 	e.exec(t, `UPDATE payment_methods SET fee_pct = 2, fee_flat = 0 WHERE id = $1`, qris)
 	old, err := e.svc.Get(ctx, act, s.ID)
@@ -182,13 +194,13 @@ func TestPaymentMethodFeeSnapshot(t *testing.T) {
 		t.Fatalf("tarif baru: %+v %v", s3.Payments, err)
 	}
 
-	// Ringkasan: jumlah dan biaya per metode (170 + 121 + 20 = 311 pada jumlah 10.000 + 3.000 + 1.000).
+	// Ringkasan: jumlah dan biaya per metode (170 + 121 + 50 + 142 + 20 = 503 pada jumlah 10.000 + 3.000 + 5.000 + 6.000 + 1.000).
 	res, err := e.svc.ListAll(ctx, act, AllParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, m := range res.Summary.ByMethod {
-		if m.Name == "QRIS BCA" && (m.Amount != "14000.00" || m.Fee != "311.00") {
+		if m.Name == "QRIS BCA" && (m.Amount != "25000.00" || m.Fee != "503.00") {
 			t.Fatalf("ringkasan QRIS: %+v", m)
 		}
 		if m.Kind == "cash" && m.Fee != "0.00" {

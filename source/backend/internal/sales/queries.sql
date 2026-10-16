@@ -57,11 +57,11 @@ INSERT INTO sale_payments (tenant_id, sale_id, position, method, method_id, meth
 VALUES (@tenant_id, @sale_id, @position, @method, @method_id, @method_name, @amount, @ref_no, @fee_pct, @fee_flat, @fee_amount, @fee_bearer);
 
 -- name: SalesPaymentMethodByID :one
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods WHERE tenant_id = $1 AND id = $2;
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods WHERE tenant_id = $1 AND id = $2;
 
 -- name: SalesPaymentMethodByKind :one
 -- Pemanggil lama yang hanya mengirim jenis dasar: pakai metode aktif tertua berjenis itu (Tunai bawaan lebih dulu).
-SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer FROM payment_methods
+SELECT id, name, kind, active, fee_pct, fee_flat, fee_bearer, small_tx_limit, small_tx_flat FROM payment_methods
 WHERE tenant_id = $1 AND kind = $2 AND active
 ORDER BY is_system DESC, created_at, id LIMIT 1;
 

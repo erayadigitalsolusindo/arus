@@ -99,9 +99,10 @@ export type PaymentKind = 'cash' | 'transfer' | 'debit' | 'credit_card' | 'ewall
 export const isWalletKind = (k: PaymentKind) => k === 'deposit' || k === 'supplier_credit';
 /** Konteks lookup: menentukan apakah Deposit Member / Kredit Pemasok ikut tampil (kosong = hanya metode biasa). */
 export type LookupFor = 'sale' | 'receivable' | 'sale_return' | 'payable' | 'purchase_return' | 'wallet';
-/** fee_pct (%) + fee_flat (Rp per transaksi) = biaya metode (MDR) yang ditanggung toko; "0.00" = tanpa biaya. */
-export type PaymentMethod = { id: string; name: string; kind: PaymentKind; is_system: boolean; active: boolean; fee_pct: string; fee_flat: string; fee_bearer: FeeBearer; created_at: string; account?: { id: string; code: string; name: string } };
-export type PaymentMethodInput = { name: string; kind: PaymentKind; fee_pct?: string; fee_flat?: string; fee_bearer?: FeeBearer; account_id?: string };
+/** fee_pct (%) + fee_flat (Rp per transaksi) = biaya metode (MDR) yang ditanggung toko; "0.00" = tanpa biaya.
+ *  Aturan transaksi kecil: bila small_tx_limit > 0 dan jumlah <= batas, biaya = small_tx_flat (menggantikan persen + nominal). */
+export type PaymentMethod = { id: string; name: string; kind: PaymentKind; is_system: boolean; active: boolean; fee_pct: string; fee_flat: string; fee_bearer: FeeBearer; small_tx_limit: string; small_tx_flat: string; created_at: string; account?: { id: string; code: string; name: string } };
+export type PaymentMethodInput = { name: string; kind: PaymentKind; fee_pct?: string; fee_flat?: string; fee_bearer?: FeeBearer; small_tx_limit?: string; small_tx_flat?: string; account_id?: string };
 
 export const paymentMethods = {
   list: (p: ListQuery = {}, signal?: AbortSignal) => api<Page<PaymentMethod>>(`/payment-methods/${qs(p)}`, { signal }),

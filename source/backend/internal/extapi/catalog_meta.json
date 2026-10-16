@@ -4126,6 +4126,8 @@
                 "fee_pct": "0.70",
                 "fee_flat": "0.00",
                 "fee_bearer": "store",
+                "small_tx_limit": "0.00",
+                "small_tx_flat": "0.00",
                 "created_at": "2026-09-01T02:00:00Z",
                 "account": {
                   "id": "c1d2…",
@@ -4202,6 +4204,16 @@
           "description": "Biaya tetap per transaksi (rupiah), kosong = 0."
         },
         {
+          "name": "small_tx_limit",
+          "type": "decimal",
+          "description": "Aturan transaksi kecil (BI): batas jumlah dibayar (rupiah). Bila > 0 dan jumlah <= batas, biaya = small_tx_flat dan menggantikan fee_pct + fee_flat; di atas batas tarif biasa. Kosong/0 = nonaktif. Wajib diisi bila small_tx_flat diisi (REQUIRED); tunai tidak boleh (CASH_NO_FEE)."
+        },
+        {
+          "name": "small_tx_flat",
+          "type": "decimal",
+          "description": "MDR flat (rupiah) untuk transaksi <= small_tx_limit; 0 = gratis di bawah batas."
+        },
+        {
           "name": "fee_bearer",
           "type": "string",
           "description": "store (ditanggung toko, default) | customer (ditagihkan ke pelanggan). Tunai selalu store."
@@ -4232,6 +4244,8 @@
             "fee_pct": "0.70",
             "fee_flat": "0.00",
             "fee_bearer": "store",
+            "small_tx_limit": "0.00",
+            "small_tx_flat": "0.00",
             "created_at": "2026-09-01T02:00:00Z",
             "account": {
               "id": "c1d2…",
@@ -4245,7 +4259,7 @@
         {
           "status": 422,
           "code": "VALIDATION",
-          "description": "name (REQUIRED | INVALID), kind (REQUIRED | INVALID | KIND_LOCKED), fee_pct/fee_flat INVALID | CASH_NO_FEE, fee_bearer INVALID | CASH_NO_FEE, account_id INVALID."
+          "description": "name (REQUIRED | INVALID), kind (REQUIRED | INVALID | KIND_LOCKED), fee_pct/fee_flat/small_tx_limit/small_tx_flat INVALID | CASH_NO_FEE (small_tx_limit juga REQUIRED), fee_bearer INVALID | CASH_NO_FEE, account_id INVALID."
         },
         {
           "status": 409,
@@ -4286,6 +4300,16 @@
           "description": "Biaya tetap per transaksi (rupiah), kosong = 0."
         },
         {
+          "name": "small_tx_limit",
+          "type": "decimal",
+          "description": "Aturan transaksi kecil (BI): batas jumlah dibayar (rupiah). Bila > 0 dan jumlah <= batas, biaya = small_tx_flat dan menggantikan fee_pct + fee_flat; di atas batas tarif biasa. Kosong/0 = nonaktif. Wajib diisi bila small_tx_flat diisi (REQUIRED); tunai tidak boleh (CASH_NO_FEE)."
+        },
+        {
+          "name": "small_tx_flat",
+          "type": "decimal",
+          "description": "MDR flat (rupiah) untuk transaksi <= small_tx_limit; 0 = gratis di bawah batas."
+        },
+        {
           "name": "fee_bearer",
           "type": "string",
           "description": "store (ditanggung toko, default) | customer (ditagihkan ke pelanggan). Tunai selalu store."
@@ -4315,6 +4339,8 @@
             "fee_pct": "0.70",
             "fee_flat": "0.00",
             "fee_bearer": "store",
+            "small_tx_limit": "0.00",
+            "small_tx_flat": "0.00",
             "created_at": "2026-09-01T02:00:00Z",
             "account": {
               "id": "c1d2…",
@@ -4328,7 +4354,7 @@
         {
           "status": 422,
           "code": "VALIDATION",
-          "description": "name (REQUIRED | INVALID), kind (REQUIRED | INVALID | KIND_LOCKED), fee_pct/fee_flat INVALID | CASH_NO_FEE, fee_bearer INVALID | CASH_NO_FEE, account_id INVALID."
+          "description": "name (REQUIRED | INVALID), kind (REQUIRED | INVALID | KIND_LOCKED), fee_pct/fee_flat/small_tx_limit/small_tx_flat INVALID | CASH_NO_FEE (small_tx_limit juga REQUIRED), fee_bearer INVALID | CASH_NO_FEE, account_id INVALID."
         },
         {
           "status": 409,
@@ -4374,6 +4400,8 @@
             "fee_pct": "0.70",
             "fee_flat": "0.00",
             "fee_bearer": "store",
+            "small_tx_limit": "0.00",
+            "small_tx_flat": "0.00",
             "created_at": "2026-09-01T02:00:00Z",
             "account": {
               "id": "c1d2…",
