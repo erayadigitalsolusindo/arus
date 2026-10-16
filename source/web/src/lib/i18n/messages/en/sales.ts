@@ -137,7 +137,7 @@ const sales: Messages['sales'] = {
       earned: 'Points earned on this receipt',
       lineDiscountItems: 'Line discounts'
     },
-    payments: { method: 'Method', amount: 'Amount', ref: 'Reference no.', paid: 'Total received', change: 'Change', net: 'Net payment', fee: 'Fee {pct}%', feeFlat: 'Fee', feeTotal: 'Method fees (borne by store)', feeCustomer: 'Fee charged to customer', surchargeTotal: 'Extra fee (customer)', charged: 'Total charged', received: 'Received by store after fees', empty: 'No payments.' },
+    payments: { method: 'Method', amount: 'Amount', ref: 'Reference no.', gatewayRef: 'EraPay/DOKU ID', gatewayRefCopy: 'Copy ID', gatewayRefCopied: 'ID copied', paid: 'Total received', change: 'Change', net: 'Net payment', fee: 'Fee {pct}%', feeFlat: 'Fee', feeTotal: 'Method fees (borne by store)', feeCustomer: 'Fee charged to customer', surchargeTotal: 'Extra fee (customer)', charged: 'Total charged', received: 'Received by store after fees', empty: 'No payments.' },
     stock: {
       intro: 'How this receipt moved stock, in each item’s base unit. Edits, voids and returns appear here as new movements.',
       time: 'Time',
