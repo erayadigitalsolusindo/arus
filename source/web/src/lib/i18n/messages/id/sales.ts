@@ -135,7 +135,7 @@ const sales = {
       earned: 'Poin diperoleh nota ini',
       lineDiscountItems: 'Potongan per baris'
     },
-    payments: { method: 'Metode', amount: 'Jumlah', ref: 'No. referensi', gatewayRef: 'ID EraPay/DOKU', gatewayRefCopy: 'Salin ID', gatewayRefCopied: 'ID disalin', paid: 'Total diterima', change: 'Kembalian', net: 'Pembayaran bersih', fee: 'Biaya {pct}%', feeFlat: 'Biaya', feeTotal: 'Biaya metode (ditanggung toko)', feeCustomer: 'Biaya ditagihkan ke pelanggan', surchargeTotal: 'Biaya tambahan (pelanggan)', charged: 'Total ditagih', received: 'Diterima toko setelah biaya', empty: 'Tidak ada pembayaran.' },
+    payments: { method: 'Metode', amount: 'Jumlah', ref: 'No. referensi', gatewayRef: 'ID EraPay/DOKU', gatewayRefCopy: 'Salin ID', gatewayRefCopied: 'ID disalin', qrisCheck: 'Cek status', qrisChecking: 'Memeriksa…', qrisCheckFailed: 'Gagal memeriksa ke EraPay.', qrisWaiting: 'Menunggu pembayaran', qrisFailed: 'Pembayaran gagal', qrisCancelled: 'Pembayaran dibatalkan', qrisExpired: 'QR kedaluwarsa', paid: 'Total diterima', change: 'Kembalian', net: 'Pembayaran bersih', fee: 'Biaya {pct}%', feeFlat: 'Biaya', feeTotal: 'Biaya metode (ditanggung toko)', feeCustomer: 'Biaya ditagihkan ke pelanggan', surchargeTotal: 'Biaya tambahan (pelanggan)', charged: 'Total ditagih', received: 'Diterima toko setelah biaya', empty: 'Tidak ada pembayaran.' },
     stock: {
       intro: 'Dampak nota ini pada stok, dalam satuan dasar barang. Edit, pembatalan, dan retur nota tampil di sini sebagai gerakan baru.',
       time: 'Waktu',
