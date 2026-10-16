@@ -23,6 +23,7 @@ import (
 
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
+	"aciraba/internal/paymentmethod"
 	gen "aciraba/internal/gen"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
@@ -349,13 +350,6 @@ func (n norm) hash(receivable uuid.UUID) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func methodFee(amount, pct, flat dec) dec {
-	if !pct.IsPositive() && !flat.IsPositive() {
-		return decimal.Zero
-	}
-	return amount.Mul(pct).Div(decimal.NewFromInt(100)).Add(flat).Round(2)
-}
-
 type replay struct{ id uuid.UUID }
 
 func (replay) Error() string { return "replay" }
@@ -431,10 +425,10 @@ func (s *Service) Pay(ctx context.Context, a authz.Actor, id uuid.UUID, key stri
 			return e
 		}
 		docNo := fmt.Sprintf("PP-%s-%s-%04d", strings.ToUpper(out.Code), out.LocalDay.Time.Format("060102"), no)
-		fee := methodFee(n.amount, m.FeePct, m.FeeFlat)
+		fee, feePct, feeFlat := paymentmethod.Rule{Pct: m.FeePct, Flat: m.FeeFlat, SmallLimit: m.SmallTxLimit, SmallFlat: m.SmallTxFlat}.Compute(n.amount)
 		if e := q.ReceivablePaymentInsert(ctx, gen.ReceivablePaymentInsertParams{TenantID: a.TenantID, ReceivableID: id, OutletID: a.OutletID,
 			DocNo: docNo, IdempotencyKey: key, RequestHash: h, Method: m.Kind, MethodID: m.ID, MethodName: m.Name, Amount: n.amount, RefNo: n.ref,
-			FeePct: m.FeePct, FeeFlat: m.FeeFlat, FeeAmount: fee, FeeBearer: m.FeeBearer, Note: n.note,
+			FeePct: feePct, FeeFlat: feeFlat, FeeAmount: fee, FeeBearer: m.FeeBearer, Note: n.note,
 			ReceivedBy: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}}); e != nil {
 			return e
 		}

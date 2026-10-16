@@ -106,7 +106,10 @@ type Method struct {
 	FeePct  string `json:"fee_pct,omitempty"`
 	FeeFlat string `json:"fee_flat,omitempty"`
 	// FeeBearer = penanggung biaya: "store" atau "customer".
-	FeeBearer string    `json:"fee_bearer,omitempty"`
+	FeeBearer string `json:"fee_bearer,omitempty"`
+	// Aturan transaksi kecil: jumlah dibayar <= SmallTxLimit -> biaya = SmallTxFlat (menggantikan persen + nominal). Limit "0.00" = nonaktif.
+	SmallTxLimit string    `json:"small_tx_limit,omitempty"`
+	SmallTxFlat  string    `json:"small_tx_flat,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitzero"` // kosong di lookup
 	// Account = akun COA yang dipetakan ke metode ini (kosong bila tenant belum punya bagan akun).
 	Account *AccountRef `json:"account,omitempty"`
@@ -120,6 +123,9 @@ type Input struct {
 	FeeFlat Num    `json:"fee_flat"` // kosong = 0; rupiah per transaksi, maks 2 desimal
 	// FeeBearer: "store" (bawaan) atau "customer". Saat mengubah, kosong = tetap seperti sekarang.
 	FeeBearer string `json:"fee_bearer"`
+	// SmallTxLimit/SmallTxFlat: aturan transaksi kecil. Limit kosong/0 = nonaktif; bila diisi, jumlah <= limit dikenai MDR flat.
+	SmallTxLimit Num `json:"small_tx_limit"`
+	SmallTxFlat  Num `json:"small_tx_flat"`
 	// AccountID: akun COA pilihan. Saat membuat, kosong = buat akun baru otomatis di Aset Lancar (bila tenant punya bagan
 	// akun). Saat mengubah, kosong = tetap seperti sekarang.
 	AccountID *uuid.UUID `json:"account_id"`
@@ -187,6 +193,31 @@ func fees(in Input, kind string, f FieldErrors) (pct, flat decimal.Decimal) {
 	return pct, flat
 }
 
+// smallTx memeriksa aturan transaksi kecil. Limit > 0 mengaktifkan aturan; flat boleh 0 (gratis di bawah batas). Tunai tak berbiaya.
+func smallTx(in Input, kind string, f FieldErrors) (limit, flat decimal.Decimal) {
+	parse := func(n Num, field string) decimal.Decimal {
+		s := strings.TrimSpace(n.String())
+		if s == "" {
+			return decimal.Zero
+		}
+		d, err := decimal.NewFromString(s)
+		if err != nil || d.IsNegative() || !d.Equal(d.Round(2)) || d.GreaterThan(maxFlat) {
+			f[field] = sanitize.Invalid
+			return decimal.Zero
+		}
+		return d
+	}
+	limit = parse(in.SmallTxLimit, "small_tx_limit")
+	flat = parse(in.SmallTxFlat, "small_tx_flat")
+	switch {
+	case !limit.IsPositive() && flat.IsPositive():
+		f["small_tx_limit"] = "REQUIRED" // MDR flat tanpa batas transaksi tidak bermakna
+	case (kind == KindCash || IsInternal(kind)) && limit.IsPositive():
+		f["small_tx_limit"] = "CASH_NO_FEE"
+	}
+	return limit, flat
+}
+
 var defaults = []struct{ name, kind string }{
 	{"Tunai", KindCash}, {"Transfer", KindTransfer}, {"Debit", KindDebit}, {"Kartu Kredit", KindCreditCard}, {"E-Wallet", KindEWallet},
 	{"Deposit Member", KindDeposit}, {"Kredit Pemasok", KindSupplierCredit},
@@ -197,15 +228,16 @@ func SeedDefaults(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
 	q := gen.New(tx)
 	for _, d := range defaults {
 		if _, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: tenant, Name: d.name, Kind: d.kind, IsSystem: d.kind == KindCash || IsInternal(d.kind),
-			FeePct: decimal.Zero, FeeFlat: decimal.Zero, FeeBearer: BearerStore}); err != nil {
+			FeePct: decimal.Zero, FeeFlat: decimal.Zero, FeeBearer: BearerStore, SmallTxLimit: decimal.Zero, SmallTxFlat: decimal.Zero}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func view(id uuid.UUID, name, kind string, system, active bool, pct, flat decimal.Decimal, bearer string, created pgtype.Timestamptz) Method {
-	return Method{ID: id, Name: name, Kind: kind, System: system, Active: active, FeePct: pct.StringFixed(2), FeeFlat: flat.StringFixed(2), FeeBearer: bearer, CreatedAt: created.Time}
+func view(id uuid.UUID, name, kind string, system, active bool, pct, flat decimal.Decimal, bearer string, sLimit, sFlat decimal.Decimal, created pgtype.Timestamptz) Method {
+	return Method{ID: id, Name: name, Kind: kind, System: system, Active: active, FeePct: pct.StringFixed(2), FeeFlat: flat.StringFixed(2), FeeBearer: bearer,
+		SmallTxLimit: sLimit.StringFixed(2), SmallTxFlat: sFlat.StringFixed(2), CreatedAt: created.Time}
 }
 
 func conflict(err error) error {
@@ -252,7 +284,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Meth
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		rows, err := gen.New(tx).PaymentMethodList(ctx, arg)
 		for _, r := range rows {
-			m := view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+			m := view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
 			m.Account = accountRef(r.AccountID, r.AccountCode, r.AccountName)
 			out = append(out, m)
 			total = int(r.Total)
@@ -272,7 +304,8 @@ func (s *Service) Lookup(ctx context.Context, a authz.Actor, forCtx string) ([]M
 				continue
 			}
 			out = append(out, Method{ID: r.ID, Name: r.Name, Kind: r.Kind, System: r.IsSystem, Active: true,
-				FeePct: r.FeePct.StringFixed(2), FeeFlat: r.FeeFlat.StringFixed(2), FeeBearer: r.FeeBearer})
+				FeePct: r.FeePct.StringFixed(2), FeeFlat: r.FeeFlat.StringFixed(2), FeeBearer: r.FeeBearer,
+				SmallTxLimit: r.SmallTxLimit.StringFixed(2), SmallTxFlat: r.SmallTxFlat.StringFixed(2)})
 		}
 		return err
 	})
@@ -280,7 +313,7 @@ func (s *Service) Lookup(ctx context.Context, a authz.Actor, forCtx string) ([]M
 }
 
 func details(m Method) map[string]any {
-	return map[string]any{"name": m.Name, "kind": m.Kind, "fee_pct": m.FeePct, "fee_flat": m.FeeFlat, "fee_bearer": m.FeeBearer}
+	return map[string]any{"name": m.Name, "kind": m.Kind, "fee_pct": m.FeePct, "fee_flat": m.FeeFlat, "fee_bearer": m.FeeBearer, "small_tx_limit": m.SmallTxLimit, "small_tx_flat": m.SmallTxFlat}
 }
 
 func (m Method) detail() map[string]any { return details(m) }
@@ -299,6 +332,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Method,
 	}
 	feePct, feeFlat := fees(in, in.Kind, f)
 	feeBearer := bearer(in, in.Kind, BearerStore, f)
+	sLimit, sFlat := smallTx(in, in.Kind, f)
 	if len(f) > 0 {
 		return nil, f
 	}
@@ -327,7 +361,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Method,
 				return err
 			}
 		}
-		r, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: a.TenantID, Name: name, Kind: in.Kind, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer})
+		r, err := q.PaymentMethodCreate(ctx, gen.PaymentMethodCreateParams{TenantID: a.TenantID, Name: name, Kind: in.Kind, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer, SmallTxLimit: sLimit, SmallTxFlat: sFlat})
 		if err != nil {
 			return err
 		}
@@ -336,7 +370,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Method,
 				return err
 			}
 		}
-		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
 		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
 			return err
 		}
@@ -379,6 +413,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		}
 		feePct, feeFlat := fees(in, kind, f)
 		feeBearer := bearer(in, kind, cur.FeeBearer, f)
+		sLimit, sFlat := smallTx(in, kind, f)
 		if len(f) > 0 {
 			return f
 		}
@@ -392,12 +427,12 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 				return err
 			}
 		}
-		if cur.Name == name && cur.Kind == kind && cur.FeePct.Equal(feePct) && cur.FeeFlat.Equal(feeFlat) && cur.FeeBearer == feeBearer && !newAccount {
-			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt)
+		if cur.Name == name && cur.Kind == kind && cur.FeePct.Equal(feePct) && cur.FeeFlat.Equal(feeFlat) && cur.FeeBearer == feeBearer && cur.SmallTxLimit.Equal(sLimit) && cur.SmallTxFlat.Equal(sFlat) && !newAccount {
+			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.SmallTxLimit, cur.SmallTxFlat, cur.CreatedAt)
 			out.Account = accountRef(curAcc.AccountID, curAcc.AccountCode, curAcc.AccountName)
 			return nil
 		}
-		r, err := q.PaymentMethodUpdate(ctx, gen.PaymentMethodUpdateParams{TenantID: a.TenantID, ID: id, Name: name, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer, Kind: kind})
+		r, err := q.PaymentMethodUpdate(ctx, gen.PaymentMethodUpdateParams{TenantID: a.TenantID, ID: id, Name: name, FeePct: feePct, FeeFlat: feeFlat, FeeBearer: feeBearer, Kind: kind, SmallTxLimit: sLimit, SmallTxFlat: sFlat})
 		if err != nil {
 			return err
 		}
@@ -411,13 +446,13 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 				return err
 			}
 		}
-		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
 		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
 			Action: audit.ActionPaymentMethodUpdate, Entity: audit.EntityPaymentMethod, EntityID: id.String(),
-			Details: map[string]any{"before": view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt).detail(), "after": out.detail()},
+			Details: map[string]any{"before": view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.SmallTxLimit, cur.SmallTxFlat, cur.CreatedAt).detail(), "after": out.detail()},
 		})
 	})
 	if err = conflict(err); err != nil {
@@ -438,7 +473,7 @@ func (s *Service) SetActive(ctx context.Context, a authz.Actor, id uuid.UUID, ac
 			return ErrLocked
 		}
 		if cur.Active == active {
-			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.CreatedAt)
+			out = view(cur.ID, cur.Name, cur.Kind, cur.IsSystem, cur.Active, cur.FeePct, cur.FeeFlat, cur.FeeBearer, cur.SmallTxLimit, cur.SmallTxFlat, cur.CreatedAt)
 			return fillAccount(ctx, q, a.TenantID, &out)
 		}
 		r, err := q.PaymentMethodSetActive(ctx, gen.PaymentMethodSetActiveParams{TenantID: a.TenantID, ID: id, Active: active})
@@ -448,7 +483,7 @@ func (s *Service) SetActive(ctx context.Context, a authz.Actor, id uuid.UUID, ac
 		if err := syncOwnedAccount(ctx, q, a.TenantID, id, cur.Name, cur.Name, &active); err != nil { // akun otomatis ikut aktif/nonaktif
 			return err
 		}
-		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.CreatedAt)
+		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
 		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
 			return err
 		}

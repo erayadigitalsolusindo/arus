@@ -63,6 +63,47 @@ type AiSetting struct {
 	Active    bool
 }
 
+type ApiCredential struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	UserID        uuid.UUID
+	OutletID      uuid.UUID
+	Label         string
+	KeyID         string
+	SecretEnc     string
+	PrevSecretEnc pgtype.Text
+	PrevExpiresAt pgtype.Timestamptz
+	IpAllowlist   []string
+	RateLimitMin  int32
+	Active        bool
+	ExpiresAt     pgtype.Timestamptz
+	LastUsedAt    pgtype.Timestamptz
+	LastUsedIp    pgtype.Text
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type ApiDocBranding struct {
+	ID            uuid.UUID
+	Slug          string
+	Domain        pgtype.Text
+	IsDefault     bool
+	Active        bool
+	Name          string
+	Tagline       string
+	LogoUrl       string
+	Accent        string
+	SupportEmail  string
+	SupportUrl    string
+	Footer        string
+	BaseUrl       string
+	HiddenModules []string
+	SandboxNote   string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type AppSetting struct {
 	Key         string
 	Value       []byte
@@ -553,18 +594,20 @@ type PayableSettlement struct {
 }
 
 type PaymentMethod struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	Name      string
-	Kind      string
-	IsSystem  bool
-	Active    bool
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	FeePct    decimal.Decimal
-	FeeFlat   decimal.Decimal
-	FeeBearer string
-	AccountID pgtype.UUID
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Name         string
+	Kind         string
+	IsSystem     bool
+	Active       bool
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	FeePct       decimal.Decimal
+	FeeFlat      decimal.Decimal
+	FeeBearer    string
+	AccountID    pgtype.UUID
+	SmallTxLimit decimal.Decimal
+	SmallTxFlat  decimal.Decimal
 }
 
 type PlatformAdmin struct {
@@ -945,6 +988,36 @@ type SaleVoucher struct {
 	Kind      string
 	Value     decimal.Decimal
 	Amount    decimal.Decimal
+}
+
+type SalesDailyMethodSummary struct {
+	TenantID  uuid.UUID
+	OutletID  uuid.UUID
+	Day       pgtype.Date
+	CashierID uuid.UUID
+	MethodID  uuid.UUID
+	AmountNet decimal.Decimal
+	Fee       decimal.Decimal
+	Surcharge decimal.Decimal
+}
+
+type SalesDailySummary struct {
+	TenantID    uuid.UUID
+	OutletID    uuid.UUID
+	Day         pgtype.Date
+	CashierID   uuid.UUID
+	SaleCount   int32
+	VoidCount   int32
+	Subtotal    decimal.Decimal
+	Discount    decimal.Decimal
+	TaxStore    decimal.Decimal
+	TaxGov      decimal.Decimal
+	Total       decimal.Decimal
+	PaidNet     decimal.Decimal
+	Receivable  decimal.Decimal
+	VoidTotal   decimal.Decimal
+	ReturnCount int32
+	ReturnTotal decimal.Decimal
 }
 
 type SalesReturn struct {

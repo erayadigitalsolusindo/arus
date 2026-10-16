@@ -10,6 +10,7 @@
   import { approvals, type Approver } from '#lib/approval/api.ts';
   import { paymentMethodsLookup, type PaymentMethod } from '#lib/catalog/api.ts';
   import { centsToNumber, toCents } from '#lib/pos/money.ts';
+  import { feeCents, feeLabel as feeChip, feeRate } from '#lib/pos/fee.ts';
   import { focusOnMount } from '#lib/focus.ts';
   import { loadReceiptSettings, printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
   import ReceiptSettings from '#lib/components/ReceiptSettings.svelte';
@@ -97,8 +98,9 @@
   /** Baris MDR di bawah isian: tarif, nominal biaya, dan siapa yang menanggung. Kosong bila metode tanpa biaya atau jumlah belum diisi. */
   const feeLine = (m: PaymentMethod) => {
     const amt = amountOf(m);
-    if (amt <= 0n || !feeLabel(m)) return '';
-    return t('pos.feeLine', { rate: feeLabel(m), fee: money(feeCents(m, amt)), who: t(m.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore') });
+    const rate = feeRate(m, amt, money);
+    if (amt <= 0n || !rate) return '';
+    return t('pos.feeLine', { rate, fee: money(feeCents(m, amt)), who: t(m.fee_bearer === 'customer' ? 'catalog.paymentMethods.bearerCustomer' : 'catalog.paymentMethods.bearerStore') });
   };
   let splitIds = $state<string[]>([]);
   const shown = $derived(showFor(methods, mode, pickedId, splitIds));
@@ -133,12 +135,8 @@
     fields[oldId] = { amount: '', ref: '' };
     splitIds = splitIds.map((x) => (x === oldId ? newId : x));
   }
-  /** "0,7%" / "Rp1.000" / "0,7% + Rp1.000" untuk label chip; kosong bila tanpa biaya. */
-  const feeLabel = (m: PaymentMethod) => {
-    const pct = Number(m.fee_pct ?? 0);
-    const flat = toCents(m.fee_flat ?? '');
-    return [pct > 0 ? `${pct}%` : '', flat > 0n ? money(flat) : ''].filter(Boolean).join(' + ');
-  };
+  /** Label chip: tarif biasa (+ MDR flat transaksi kecil); kosong bila tanpa biaya. */
+  const feeLabel = (m: PaymentMethod) => feeChip(m, money);
   /** Pilih metode non-tunai: isian lain dikosongkan, jumlah langsung pas dengan total. */
   async function pick(id: string) {
     pickedId = id;
@@ -153,12 +151,6 @@
   const cashPaid = $derived(entered.filter((m) => m.kind === 'cash').reduce((s, m) => s + amountOf(m), 0n));
   const nonCashOver = $derived(paid - cashPaid > total);
   const diff = $derived(paid - total); // negatif = masih kurang
-  /** Pratinjau biaya metode (rumus sama dengan server: jumlah × persen + tetap, dibulatkan sen). Server yang menentukan. */
-  const feeCents = (m: PaymentMethod, amount: bigint): bigint => {
-    const pctH = BigInt(Math.round(Number(m.fee_pct ?? 0) * 100));
-    const flat = toCents(m.fee_flat ?? '');
-    return pctH === 0n && flat === 0n ? 0n : (amount * pctH + 5000n) / 10000n + flat;
-  };
   const customerFees = $derived(entered.filter((m) => m.fee_bearer === 'customer').map((m) => ({ m, amount: amountOf(m), fee: feeCents(m, amountOf(m)) })));
   const surcharge = $derived(customerFees.reduce((s, x) => s + x.fee, 0n));
   // Kredit: sisa yang belum dibayar menjadi piutang member. Pratinjau sen BigInt; server yang menentukan dan memeriksa limit.
