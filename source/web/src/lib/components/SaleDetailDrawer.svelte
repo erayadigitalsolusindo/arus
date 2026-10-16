@@ -17,6 +17,7 @@
   import { goto } from '$app/navigation';
   import VoidSaleModal from '#lib/components/VoidSaleModal.svelte';
   import SaleReturnModal from '#lib/components/SaleReturnModal.svelte';
+  import SaleQrisStatus from '#lib/components/SaleQrisStatus.svelte';
   import { can, session } from '#lib/auth/session.svelte.ts';
   import { sales as api, PAY_METHODS, type SaleDetail } from '#lib/sales/api.ts';
   import { t, tryT, formatCurrency, formatNumber, formatDate, formatDateTime } from '#lib/i18n/index.ts';
@@ -413,6 +414,7 @@
                         </button>
                       </div>
                     {/if}
+                    {#if p.gateway_ref && p.ref_no && can('sales_orders', 'create')}<SaleQrisStatus chargeId={p.ref_no} amountLabel={money(p.amount)} />{/if}
                     {#if num(p.fee) > 0}<div class="text-[11.5px] text-[var(--color-warning-600)]">{Number(p.fee_pct) > 0 ? t('sales.detail.payments.fee', { pct: formatNumber(Number(p.fee_pct), { maximumFractionDigits: 2 }) }) + ' · ' : ''}{p.fee_bearer === 'customer' ? t('sales.detail.payments.feeCustomer') + ' +' : t('sales.detail.payments.feeFlat') + ' −'}{money(p.fee)}</div>{/if}
                   </div>
                   <div class="font-display text-[16px] font-bold tabular-nums">{money(p.amount)}</div>
