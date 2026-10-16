@@ -204,6 +204,7 @@ type Payment struct {
 	MethodName string    `json:"method_name"` // nama saat nota dibuat
 	Amount     string    `json:"amount"`
 	RefNo      string    `json:"ref_no"`
+	GatewayRef string    `json:"gateway_ref,omitempty"` // pembayaran EraPay: ID pembayaran EraPay = partnerReferenceNo di DOKU
 	FeePct     string    `json:"fee_pct"`
 	Fee        string    `json:"fee"`        // biaya metode (MDR)
 	FeeBearer  string    `json:"fee_bearer"` // "store" = ditanggung toko; "customer" = ditagihkan ke pelanggan
@@ -1357,7 +1358,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 			}
 		}
 		for _, p := range ps {
-			out.Payments = append(out.Payments, Payment{Method: p.Method, MethodID: p.MethodID, MethodName: p.MethodName, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo,
+			out.Payments = append(out.Payments, Payment{Method: p.Method, MethodID: p.MethodID, MethodName: p.MethodName, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo, GatewayRef: p.GatewayRef,
 				FeePct: p.FeePct.StringFixed(2), Fee: p.FeeAmount.StringFixed(2), FeeBearer: p.FeeBearer})
 		}
 		return nil

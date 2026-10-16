@@ -86,7 +86,14 @@ SELECT item_id, sku, name, unit_id, unit_name, factor, qty, unit_price, unit_cos
 FROM sale_lines WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
 
 -- name: SalesPayments :many
-SELECT method, method_id, method_name, amount, ref_no, fee_pct, fee_amount, fee_bearer FROM sale_payments WHERE tenant_id = $1 AND sale_id = $2 ORDER BY position;
+-- gateway_ref = ID pembayaran EraPay (sama dengan partnerReferenceNo di DOKU); ref_no pada pembayaran EraPay berisi id charge ARUS.
+-- Join lewat PK charge (ref_no bukan UUID untuk metode lain → CASE melindungi cast).
+SELECT p.method, p.method_id, p.method_name, p.amount, p.ref_no, p.fee_pct, p.fee_amount, p.fee_bearer,
+       coalesce(c.erapay_payment_id, '')::text AS gateway_ref
+FROM sale_payments p
+LEFT JOIN erapay_charges c ON c.tenant_id = p.tenant_id AND c.sale_id = p.sale_id
+  AND c.id = (CASE WHEN p.ref_no ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p.ref_no::uuid END)
+WHERE p.tenant_id = $1 AND p.sale_id = $2 ORDER BY p.position;
 
 -- name: SalesSalespersonState :one
 SELECT active, name FROM salespeople WHERE tenant_id = $1 AND id = $2;
