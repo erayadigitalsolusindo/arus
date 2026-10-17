@@ -39,6 +39,7 @@ const (
 	ActionPlatformImpersonate  = "platform.impersonate"
 	ActionPlatformTenantStatus = "platform.tenant_status"
 	ActionPlatformEditWindow   = "platform.tenant_edit_window" // batas hari edit/batal nota (diatur operator platform)
+	ActionPlatformTenantPlan   = "platform.tenant_plan"        // paket langganan tenant dipasang/diubah manual oleh operator platform
 )
 
 // Master pendukung katalog (Fase 3.1). Aksi `<entitas>.active` = arsip/aktifkan kembali.

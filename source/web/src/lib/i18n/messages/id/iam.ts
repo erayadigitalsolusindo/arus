@@ -53,7 +53,8 @@ export default {
     roles: 'Role & Hak Akses',
     outlets: 'Outlet',
     ai_assistant: 'HalloArus',
-    audit_log: 'Audit Log'
+    audit_log: 'Audit Log',
+    subscription: 'Langganan & Paket'
   },
   users: {
     docTitle: 'Pengguna | ACIRABA',

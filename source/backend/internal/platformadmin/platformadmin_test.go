@@ -162,7 +162,7 @@ func (e *env) newTenant(t *testing.T) tenantFixture {
 		}
 	}
 	t.Cleanup(func() {
-		for _, tbl := range []string{"audit_log", "outlets"} {
+		for _, tbl := range []string{"audit_log", "tenant_subscriptions", "outlets"} {
 			_, _ = e.admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, f.ID)
 		}
 		_, _ = e.admin.Exec(ctx, `DELETE FROM platform_audit_log WHERE tenant_id = $1`, f.ID)

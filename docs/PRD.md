@@ -423,11 +423,12 @@ Pengganti migrasi data. Dipakai untuk toko baru maupun toko pindahan dari legacy
 
 | ID | Kebutuhan | Prioritas | Status |
 |---|---|---|---|
-| FR-PLT-01 | Platform admin: kelola tenant, status aktif, batas hari edit nota, admin lain (lihat FR-AUTH-13). Paket/lisensi/trial menyusul. | M (R0 minimal) | ◐ |
+| FR-PLT-01 | Platform admin: kelola tenant, status aktif, batas hari edit nota, admin lain (lihat FR-AUTH-13). Paket/lisensi: lihat FR-PLT-06. | M (R0 minimal) | ◐ |
 | FR-PLT-02 | Acipay/PPOB (Digiflazz): katalog produk digital, transaksi, deposit, webhook dengan verifikasi signature. | C | ○ |
 | FR-PLT-03 | Payment gateway (Duitku/Tripay/Midtrans) untuk pembayaran non-tunai (QRIS dinamis). | C | ○ |
 | FR-PLT-04 | Notifikasi WhatsApp/email (struk digital, pengingat piutang). | C | ○ |
 | FR-PLT-05 [USULAN] | Pengaturan versi minimum aplikasi mobile per platform (paksa update) dan saklar fitur mobile per tenant. | M (RM) | ○ |
+| FR-PLT-06 | **Paket langganan tenant (dinamis, keputusan 2026-10-17).** Platform Admin membuat/mengubah paket sendiri (kode, nama, harga, masa aktif hari, maks transaksi per hari, maks pengguna aktif termasuk Owner; batas kosong = tanpa batas untuk enterprise/on-premise). Tenant tanpa langganan aktif atau yang sudah kedaluwarsa otomatis memakai paket default (**FREE: 100 transaksi/hari, 2 pengguna**); paket awal berbayar **PRO Rp20.000/30 hari: 300 transaksi/hari, 4 pengguna**. Batas transaksi dihitung per tenant per hari menurut zona waktu outlet tempat nota dibuat (void/retur tidak mengurangi; revisi edit tidak dihitung); nota ke-(maks+1) ditolak `PLAN_TX_LIMIT_REACHED` (402), tambah/aktifkan kembali pengguna melewati batas ditolak `PLAN_USER_LIMIT_REACHED` (pengguna lama tidak dinonaktifkan saat turun paket). Operator dapat memasang paket manual (gratis/trial/enterprise) dengan override batas per tenant dan tanggal berakhir. Owner membeli/memperpanjang paket dari menu Langganan lewat QRIS EraPay **milik platform** (`ERAPAY_PLATFORM_API_KEY`); aktivasi otomatis sekali per pembayaran lunas (polling + penjadwal). | M | ✅ |
 
 ### 7.11 Kasir Mobile (MOB) — [USULAN]
 

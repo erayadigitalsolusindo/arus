@@ -84,6 +84,7 @@ var Modules = []Module{
 	{"outlets", crud},
 	{"ai_assistant", []string{ActView, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), update = kelola API key & model
 	{"audit_log", viewing},
+	{"subscription", viewing}, // halaman Langganan: lihat paket & pemakaian; membeli/memperpanjang khusus Owner (dicek di layanan)
 }
 
 func moduleByID(id string) (Module, bool) {
