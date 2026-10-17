@@ -42,6 +42,8 @@ type Config struct {
 
 	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
 	EraPayBaseURL        string
+	// EraPayPlatformKey: API key EraPay milik PLATFORM untuk menerima pembayaran paket langganan tenant (QRIS). Kosong = upgrade mandiri mati.
+	EraPayPlatformKey    string
 	EraPayProvisionToken string // shared server-to-server secret; never sent to the browser
 
 	// EraPayReconcile: penjadwal rekonsiliasi nota yang disimpan paksa (erapay_pending) ke EraPay.
@@ -78,6 +80,7 @@ func Load() (Config, error) {
 		AIFreeDailyLimit:     10,
 		EraPayBaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
 		EraPayProvisionToken: strings.TrimSpace(os.Getenv("ERAPAY_ARUS_PROVISION_TOKEN")),
+		EraPayPlatformKey:    strings.TrimSpace(os.Getenv("ERAPAY_PLATFORM_API_KEY")),
 		AppBaseURL:           strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
 		SMTPHost:             os.Getenv("SMTP_HOST"),
 		SMTPUser:             os.Getenv("SMTP_USER"),

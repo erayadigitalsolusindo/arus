@@ -881,22 +881,26 @@ textarea.dv-input {
 .dv[data-theme='light'] {
   color-scheme: light;
 }
-.dv input.dv-input,
-.dv textarea.dv-input,
-.dv .dv-search input {
-  color: var(--dv-text) !important;
-  background-color: var(--dv-bg2) !important;
-  caret-color: var(--dv-accent);
-  -webkit-text-fill-color: var(--dv-text);
-}
-.dv input.dv-input::placeholder,
-.dv textarea.dv-input::placeholder,
-.dv .dv-search input::placeholder {
-  color: var(--dv-muted) !important;
-  -webkit-text-fill-color: var(--dv-muted);
-  opacity: 0.8;
-}
-.dv input.dv-input:-webkit-autofill {
-  -webkit-text-fill-color: var(--dv-text);
-  box-shadow: 0 0 0 100px var(--dv-bg2) inset;
+/* Spesifisitas sengaja tinggi DAN di layer `components`: gaya template memaksa `input:not(...)` bergaya putih (!important) di layer itu
+   (deklarasi !important berlayer menang atas !important tanpa layer), sehingga teks terang portal jadi tak terlihat. */
+@layer components {
+html .dv.dv.dv.dv.dv input.dv-input.dv-input,
+  html .dv.dv.dv.dv.dv textarea.dv-input.dv-input,
+  html .dv.dv.dv.dv.dv .dv-search input {
+    color: var(--dv-text) !important;
+    background-color: var(--dv-bg2) !important;
+    caret-color: var(--dv-accent);
+    -webkit-text-fill-color: var(--dv-text);
+  }
+  html .dv.dv.dv.dv.dv input.dv-input.dv-input::placeholder,
+  html .dv.dv.dv.dv.dv textarea.dv-input.dv-input::placeholder,
+  html .dv.dv.dv.dv.dv .dv-search input::placeholder {
+    color: var(--dv-muted) !important;
+    -webkit-text-fill-color: var(--dv-muted);
+    opacity: 0.8;
+  }
+  html .dv.dv input.dv-input:-webkit-autofill {
+    -webkit-text-fill-color: var(--dv-text);
+    box-shadow: 0 0 0 100px var(--dv-bg2) inset;
+  }
 }

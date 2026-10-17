@@ -199,6 +199,12 @@ const errors: Messages['errors'] = {
   AI_TOO_MANY_STEPS: '分析が長すぎます。より具体的な質問に分割してください。',
   AI_BAD_INPUT: '質問が無効です。',
   AI_FORBIDDEN: 'HalloArusは代理人ログインのセッションでは利用できません。',
+  PLAN_TX_LIMIT_REACHED: 'プランの1日の取引上限に達しました。サブスクリプションからアップグレードしてください。',
+  PLAN_USER_LIMIT_REACHED: 'プランのユーザー数上限に達しました。サブスクリプションからアップグレードするか、他のユーザーを無効にしてください。',
+  PAYMENTS_DISABLED: 'プランの支払いはまだ利用できません。ARUS管理者にお問い合わせください。',
+  PLAN_NOT_FOUND: 'このプランは利用できません。',
+  PLAN_INVALID: 'プラン設定が無効です（デフォルトプランは販売できません）。',
+  OWNER_REQUIRED: 'この操作は店舗のオーナーのみ可能です。',
 };
 
 export default errors;

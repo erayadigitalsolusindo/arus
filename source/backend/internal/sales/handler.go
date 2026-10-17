@@ -11,6 +11,7 @@ import (
 	"aciraba/internal/approval"
 	"aciraba/internal/authz"
 	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/plan"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/shift"
 	"aciraba/internal/stock"
@@ -166,6 +167,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "IDEMPOTENCY_MISMATCH", "Idempotency-Key sudah dipakai untuk permintaan yang berbeda.")
 	case errors.Is(err, shift.ErrRequired):
 		httpx.Error(w, http.StatusConflict, "SHIFT_REQUIRED", "Buka shift kasir dulu sebelum menyimpan nota.")
+	case errors.Is(err, plan.ErrTxLimit):
+		httpx.Error(w, http.StatusPaymentRequired, "PLAN_TX_LIMIT_REACHED", "Batas transaksi harian paket tercapai. Upgrade paket untuk menambah batas.")
 	case errors.Is(err, ErrOutletInactive):
 		httpx.Error(w, http.StatusConflict, "OUTLET_NOT_FOUND", "Outlet aktif tidak ditemukan atau tidak aktif.")
 	case errors.As(err, &cl):
