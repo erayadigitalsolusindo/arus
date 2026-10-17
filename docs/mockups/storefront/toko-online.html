@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toko Online — Template Katalog ARUS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dreams-store.css">
+<style>
+.announce{background:var(--primary-800);color:#fff;font-size:12.5px;text-align:center;padding:7px 12px;font-weight:500}
+header.nav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.top{display:flex;align-items:center;gap:14px;height:66px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.logo .ico{width:36px;height:36px;background:linear-gradient(135deg,var(--primary-600),var(--primary-800));color:#fff;font-size:18px}
+.search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:0 12px;max-width:560px}
+.search input{flex:1;border:0;background:transparent;padding:11px 0;font:inherit;color:var(--text);outline:0;min-width:0}
+.search:focus-within{border-color:var(--primary-500);box-shadow:0 0 0 3px var(--primary-100)}
+.sp{margin-left:auto;display:flex;gap:8px}
+.cartbtn{position:relative}
+.cartbtn b{position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:999px;font-size:10.5px;min-width:19px;height:19px;display:grid;place-items:center;padding:0 4px}
+.crumb{padding:12px 0;background:var(--n100);border-bottom:1px solid var(--line);font-size:12px}
+.crumb .wrap{display:flex;justify-content:space-between;align-items:center}
+.crumb h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+.crumb span{color:var(--text3)}.crumb a{color:var(--primary-600);font-weight:600}
+/* hero */
+.hero{margin-top:20px;border-radius:var(--r);padding:28px;display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:center}
+.hero h1{font-size:clamp(24px,3.4vw,36px);line-height:1.15;margin:10px 0}
+.hero p{opacity:.85;max-width:460px;margin-bottom:18px;font-size:14.5px}
+.hero .imgs{display:flex;justify-content:center;gap:10px}
+.hero .imgs img{height:150px;object-fit:contain;filter:drop-shadow(0 12px 18px #0006)}
+.hero .imgs img:nth-child(2){margin-top:26px}
+/* trust */
+.trust{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+.trust .card{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.trust .ico{width:40px;height:40px;font-size:18px}
+.trust b{font-size:13.5px;display:block}.trust small{color:var(--text3);font-size:12px}
+.member{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;font-size:13.5px;background:var(--primary-50);border-color:var(--primary-200)}
+.member strong{color:var(--primary-700)}
+/* categories */
+.catrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+.catc{position:relative;border-radius:var(--r);overflow:hidden;height:96px;border:2px solid transparent;cursor:pointer;padding:0;text-align:left;background:#000}
+.catc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7;transition:.3s}
+.catc:hover img{opacity:.85;transform:scale(1.05)}
+.catc span{position:absolute;left:12px;bottom:10px;color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 6px #000a}
+.catc.on{border-color:var(--primary-500)}
+/* toolbar */
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.bar .cnt{font-size:13px;color:var(--text3)}
+.bar select{margin-left:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;font:inherit;font-size:13px;background:var(--surface);color:var(--text)}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2)}
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(222px,1fr));gap:16px;padding-bottom:44px}
+.pc{display:flex;flex-direction:column;overflow:hidden;transition:.25s}
+.pc:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:var(--primary-200)}
+.pimg{position:relative;aspect-ratio:1/1;background:var(--n100);display:grid;place-items:center;padding:20px}
+.pimg img{max-height:100%;object-fit:contain}
+.pimg .badge{position:absolute;top:10px;left:10px}
+.pimg .fav{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--text3)}
+.pb{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.meta{font-size:11.5px;color:var(--text3)}
+.pn{font-weight:700;font-size:14.5px;line-height:1.3}
+.pp{font-size:18px;font-weight:800;color:var(--primary-700)}
+.pp small{font-weight:500;font-size:12px;color:var(--text3)}.pp s{font-size:12.5px;color:var(--text3);font-weight:500;margin-left:6px}
+.tiers{font-size:11.5px;background:var(--gold-50);color:var(--gold-700);border-radius:var(--r);padding:5px 8px;display:flex;gap:6px;align-items:center}
+.st{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.ok{color:var(--primary-600)}.st.low{color:var(--warn)}.st.out{color:var(--danger)}
+.add{margin-top:auto;display:flex;gap:6px}
+.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.qty button{border:0;background:transparent;width:28px;height:34px;display:grid;place-items:center}
+.qty span{min-width:20px;text-align:center;font-size:13px;font-weight:600}
+.add .btn{flex:1;padding:8px}
+.empty{grid-column:1/-1;text-align:center;color:var(--text3);padding:48px 0}
+/* drawer */
+.shade{position:fixed;inset:0;background:#0007;display:none;z-index:40}.shade.on{display:block}
+aside{position:fixed;right:0;top:0;bottom:0;width:min(430px,100%);background:var(--surface);z-index:50;transform:translateX(100%);transition:.25s;display:flex;flex-direction:column;border-left:1px solid var(--line)}
+aside.on{transform:none}
+aside h2{padding:14px 16px;border-bottom:1px solid var(--line);font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.lines{flex:1;overflow:auto;padding:4px 16px}
+.line{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.line .th{width:54px;height:54px;background:var(--n100);border-radius:var(--r);display:grid;place-items:center;padding:6px}
+.line .th img{max-height:100%;object-fit:contain}
+.line .nm{flex:1;font-size:13px;font-weight:600}.line .nm small{display:block;color:var(--text3);font-weight:400;margin-top:2px}
+.sum{padding:14px 16px;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13.5px}
+.sum div{display:flex;justify-content:space-between}
+.sum .tot{font-size:17px;font-weight:800}
+.sum input,.sum textarea,.sum select{width:100%;border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;font:inherit;font-size:13.5px;background:var(--surface);color:var(--text)}
+.sum .hint{color:var(--text3);font-size:12px}
+footer{background:var(--primary-900);color:#c6e0d8;padding:34px 0;font-size:13.5px}
+footer .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px}
+footer h4{color:#fff;margin-bottom:8px;font-size:14px}footer p{margin-bottom:3px}
+@media(max-width:700px){.top{height:auto;flex-wrap:wrap;padding:10px 0}.search{order:3;flex-basis:100%;max-width:none}.hero{grid-template-columns:1fr}.hero .imgs img{height:110px}.btn.hide-s span{display:none}}
+</style>
+</head>
+<body>
+
+<div class="announce" id="notice"></div>
+<header class="nav"><div class="wrap top">
+  <a class="logo" href="#"><span class="ico"><i class="icon-store"></i></span><span id="storeName"></span></a>
+  <label class="search"><i class="icon-search" style="color:var(--text3)"></i><input id="q" placeholder="Cari nama barang, SKU, atau barcode…" autocomplete="off"></label>
+  <div class="sp">
+    <button class="btn ghost hide-s" id="memberBtn"><i class="icon-user"></i><span id="memberLbl">Masuk Member</span></button>
+    <button class="btn cartbtn" id="cartBtn"><i class="icon-shopping-cart"></i> Keranjang <b id="cartCount">0</b></button>
+  </div>
+</div></header>
+<div class="crumb"><div class="wrap"><h2>Katalog</h2><div><a href="landing-page.html">Beranda</a> <span>/ Semua produk</span></div></div></div>
+
+<main class="wrap">
+  <section class="hero hero-grad">
+    <div>
+      <span class="badge b-glass"><i class="icon-badge-percent"></i> Promo Akhir Pekan</span>
+      <h1>Gadget & gaya terbaru, harga langsung dari toko.</h1>
+      <p>Stok dan harga selalu sama dengan kasir. Pesan online, ambil di outlet atau kami kirim.</p>
+      <button class="btn white lg" id="heroCta">Belanja sekarang <i class="icon-arrow-right"></i></button>
+    </div>
+    <div class="imgs" id="heroImgs"></div>
+  </section>
+
+  <div class="trust" id="trust"></div>
+  <div class="card member" id="memberBar"></div>
+  <div class="catrow" id="cats"></div>
+
+  <div class="bar"><span class="cnt" id="count"></span>
+    <label class="chk"><input type="checkbox" id="inStock"> Hanya yang tersedia</label>
+    <select id="sort"><option value="name">Nama A–Z</option><option value="low">Harga terendah</option><option value="high">Harga tertinggi</option></select>
+  </div>
+  <section class="grid" id="grid"></section>
+</main>
+
+<footer><div class="wrap" id="outlets"></div></footer>
+
+<div class="shade" id="shade"></div>
+<aside id="drawer">
+  <h2>Keranjang belanja <button class="btn ghost sm" id="closeCart"><i class="icon-x"></i></button></h2>
+  <div class="lines" id="lines"></div>
+  <div class="sum" id="sum"></div>
+</aside>
+
+<script>
+/* ============================================================
+   DATA CONTOH — bentuk mengikuti tabel ARUS (diganti API publik di produksi):
+   outlets → STORE.outlets · categories → CATEGORIES · items (sku, name, sell_price, unit,
+   active) → ITEMS · harga grosir → tiers · stock_balances → stock · members.points → MEMBER.
+   ============================================================ */
+const A = "../../../reference/template/assets/";   // aset gambar bawaan Dreams Core (acuan visual)
+const STORE = {
+  name: "Mitra Gadget & Gaya",
+  notice: "Gratis ongkir area Bandung untuk belanja di atas Rp1.000.000 · Member dapat 1 poin tiap Rp10.000",
+  whatsapp: "6281234567890",
+  pointRule: { perRupiah: 10000, rupiahPerPoint: 100 },
+  freeShipFrom: 1000000,
+  outlets: [
+    { name: "Cabang Pusat", address: "Jl. Asia Afrika No. 21, Bandung", hours: "Setiap hari 09.00–21.00", phone: "022-1234567" },
+    { name: "Cabang Dago",  address: "Jl. Ir. H. Juanda No. 88, Bandung", hours: "Setiap hari 10.00–22.00", phone: "022-7654321" }
+  ]
+};
+const CATEGORIES = [
+  { n: "Semua", img: "electronics-Cz9WIidX.jpg" }, { n: "Elektronik", img: "electronics-Cz9WIidX.jpg" },
+  { n: "Fashion", img: "fashion-CvNmuQPf.jpg" }, { n: "Olahraga", img: "sports-CG1Pabjl.jpg" },
+  { n: "Aksesori", img: "jewelry-o5pA9ctx.jpg" }
+];
+const ITEMS = [
+  { sku:"ELK-001", name:"Laptop Slim 14\" 8/256GB",       cat:"Elektronik", unit:"unit",   price:6499000, was:6999000, stock:12, img:"product-1-Bm819fTN.png",  tiers:[] },
+  { sku:"ELK-007", name:"Laptop Kerja 15\" Ryzen 5",       cat:"Elektronik", unit:"unit",   price:7850000, stock:5,  img:"product-6-C62FNoXI.png",  tiers:[{min:3,price:7600000}] },
+  { sku:"ELK-012", name:"Smartphone 6,1\" 128GB Hijau",    cat:"Elektronik", unit:"unit",   price:4299000, stock:21, img:"product-11-CkoCs1Sk.png", tiers:[] },
+  { sku:"ELK-013", name:"Smartphone 6,5\" 256GB Hitam",    cat:"Elektronik", unit:"unit",   price:3899000, was:4199000, stock:0, img:"product-2-DcIR_GVi.png", tiers:[] },
+  { sku:"ELK-020", name:"Tablet 10\" Wi-Fi 64GB",          cat:"Elektronik", unit:"unit",   price:2750000, stock:9,  img:"product-8-3WX3y-43.png",  tiers:[] },
+  { sku:"ELK-031", name:"Earbuds Nirkabel Gen 3",          cat:"Aksesori",   unit:"set",    price:1850000, stock:40, img:"product-4-CM5etwyd.png",  tiers:[{min:3,price:1750000},{min:10,price:1650000}] },
+  { sku:"ELK-035", name:"Headphone Over-Ear Studio",       cat:"Aksesori",   unit:"unit",   price:1250000, stock:7,  img:"product-7-BVL2W8Eq.png",  tiers:[] },
+  { sku:"ELK-040", name:"Smartwatch Trio AMOLED",          cat:"Aksesori",   unit:"unit",   price:1499000, was:1799000, stock:18, img:"product-10-xGx7aFwJ.png", tiers:[{min:5,price:1399000}] },
+  { sku:"ACC-004", name:"Jam Tangan Otomatis Steel",       cat:"Aksesori",   unit:"unit",   price:8900000, stock:3,  img:"product-16-C0I4xcKb.png", tiers:[] },
+  { sku:"FSH-002", name:"Sepatu Pantofel Kulit Pria",      cat:"Fashion",    unit:"pasang", price:749000,  stock:26, img:"product-14-DcTsd2NE.png", tiers:[{min:6,price:690000}] },
+  { sku:"FSH-009", name:"Sneakers Retro Biru Merah",       cat:"Fashion",    unit:"pasang", price:559000,  stock:34, img:"product-5-BF6ZFJSS.png",  tiers:[{min:6,price:515000}] },
+  { sku:"OLR-003", name:"Sepatu Lari Ringan Merah",        cat:"Olahraga",   unit:"pasang", price:689000,  was:799000, stock:15, img:"product-3-Dt7pTiks.png", tiers:[] },
+  { sku:"ELK-050", name:"Laptop 2-in-1 + Keyboard Dok",    cat:"Elektronik", unit:"unit",   price:9250000, stock:2,  img:"product-9-U2px_UYV.png",  tiers:[] }
+];
+const MEMBER_DEMO = { code:"M-000124", name:"Siti Aminah", points:1860, tier:"Gold" };
+
+const $ = s => document.querySelector(s);
+const rp = n => "Rp" + Math.round(n).toLocaleString("id-ID");
+let cat = "Semua", term = "", sort = "name", onlyStock = false, member = null;
+const cart = {};                                           // sku → qty
+
+const unitPrice = (it, q) => { const t = it.tiers.filter(t => q >= t.min).sort((a,b)=>b.min-a.min)[0]; return t ? t.price : it.price; };
+const stockLabel = it => it.stock <= 0 ? ["Stok habis","out"] : it.stock <= 10 ? ["Sisa "+it.stock+" "+it.unit,"low"] : ["Tersedia","ok"];
+
+function render(){
+  let list = ITEMS.filter(i => (cat==="Semua"||i.cat===cat) && (!onlyStock||i.stock>0) &&
+    (i.name+" "+i.sku).toLowerCase().includes(term.toLowerCase()));
+  list.sort((a,b)=> sort==="low"?a.price-b.price : sort==="high"?b.price-a.price : a.name.localeCompare(b.name));
+  $("#count").textContent = list.length + " produk";
+  $("#grid").innerHTML = list.map(it => {
+    const [sl, sc] = stockLabel(it), q = cart[it.sku]||0;
+    const tiers = it.tiers.length ? `<div class="tiers"><i class="icon-tag"></i>Grosir ${it.tiers.map(t=>`≥${t.min}: ${rp(t.price)}`).join(" · ")}</div>` : "";
+    return `<article class="card pc">
+      <div class="pimg"><img src="${A+it.img}" alt="${it.name}" loading="lazy">
+        ${it.was?`<span class="badge b-bad">-${Math.round((1-it.price/it.was)*100)}%</span>`:""}
+        <span class="fav"><i class="icon-heart"></i></span></div>
+      <div class="pb">
+        <span class="meta">${it.cat} · ${it.sku}</span>
+        <h3 class="pn">${it.name}</h3>
+        <div class="pp">${rp(it.price)}<small>/${it.unit}</small>${it.was?`<s>${rp(it.was)}</s>`:""}</div>
+        ${tiers}
+        <span class="st ${sc}">${sl}</span>
+        <div class="add">
+          <div class="qty"><button data-m="${it.sku}"><i class="icon-minus"></i></button><span>${q}</span><button data-p="${it.sku}"><i class="icon-plus"></i></button></div>
+          <button class="btn" data-a="${it.sku}" ${it.stock<=0?"disabled":""}>${it.stock<=0?"Habis":"Tambah"}</button>
+        </div></div></article>`;
+  }).join("") || `<p class="empty">Barang tidak ditemukan.</p>`;
+}
+function renderCats(){
+  $("#cats").innerHTML = CATEGORIES.map(c=>`<button class="catc ${c.n===cat?"on":""}" data-c="${c.n}"><img src="${A+c.img}" alt=""><span>${c.n}</span></button>`).join("");
+}
+function renderMember(){
+  $("#memberBar").innerHTML = member
+    ? `<span><i class="icon-award"></i> Halo <strong>${member.name}</strong> (${member.tier}) · Poin Anda <strong>${member.points.toLocaleString("id-ID")}</strong> ≈ ${rp(member.points*STORE.pointRule.rupiahPerPoint)}</span><button class="btn ghost sm" id="logout">Keluar</button>`
+    : `<span><i class="icon-gift"></i> <strong>Gabung member gratis</strong> — kumpulkan poin tiap belanja dan tukar jadi potongan harga.</span><button class="btn sm" id="join">Daftar / Masuk</button>`;
+  $("#memberLbl").textContent = member ? member.name.split(" ")[0] : "Masuk Member";
+}
+
+function setQty(sku, d){
+  const it = ITEMS.find(i=>i.sku===sku); if(!it) return;
+  const n = Math.max(0, Math.min(it.stock, (cart[sku]||0)+d));       // tidak boleh melebihi stok
+  n ? cart[sku]=n : delete cart[sku];
+  render(); renderCart();
+}
+function renderCart(){
+  const rows = Object.entries(cart).map(([sku,q])=>{ const it=ITEMS.find(i=>i.sku===sku); const u=unitPrice(it,q); return {it,q,u,sub:u*q}; });
+  const sub = rows.reduce((a,r)=>a+r.sub,0), cnt = rows.reduce((a,r)=>a+r.q,0);
+  const earn = Math.floor(sub/STORE.pointRule.perRupiah);
+  $("#cartCount").textContent = cnt;
+  $("#lines").innerHTML = rows.length ? rows.map(r=>`
+    <div class="line"><div class="th"><img src="${A+r.it.img}" alt=""></div>
+      <div class="nm">${r.it.name}<small>${r.q} ${r.it.unit} × ${rp(r.u)}${r.u<r.it.price?" · harga grosir":""}</small></div>
+      <div class="qty"><button data-m="${r.it.sku}"><i class="icon-minus"></i></button><span>${r.q}</span><button data-p="${r.it.sku}"><i class="icon-plus"></i></button></div></div>`).join("")
+    : `<p class="empty" style="padding:56px 0"><i class="icon-shopping-bag" style="font-size:32px"></i><br>Keranjang masih kosong.</p>`;
+  $("#sum").innerHTML = rows.length ? `
+    <div><span>Subtotal</span><span>${rp(sub)}</span></div>
+    <div><span>Ongkir</span><span>${sub>=STORE.freeShipFrom?"Gratis":"Dihitung admin"}</span></div>
+    <div class="tot"><span>Estimasi total</span><span>${rp(sub)}</span></div>
+    <div class="hint">${member?`Anda akan mendapat ±${earn} poin.`:`Login member untuk mendapat ±${earn} poin.`} Harga dan stok final dikonfirmasi toko.</div>
+    <select id="outletSel">${STORE.outlets.map(o=>`<option>${o.name}</option>`).join("")}</select>
+    <input id="nm" placeholder="Nama penerima" value="${member?member.name:""}">
+    <textarea id="adr" rows="2" placeholder="Alamat pengiriman, atau tulis 'ambil di toko'"></textarea>
+    <button class="btn wa lg" id="checkout"><i class="icon-message-circle"></i> Pesan via WhatsApp</button>` : "";
+}
+function checkout(){
+  const rows = Object.entries(cart).map(([sku,q])=>{const it=ITEMS.find(i=>i.sku===sku);return {it,q,u:unitPrice(it,q)}});
+  const sub = rows.reduce((a,r)=>a+r.u*r.q,0);
+  const txt = [`*Pesanan baru — ${STORE.name}*`,`Outlet: ${$("#outletSel").value}`, member?`Member: ${member.name} (${member.code})`:"",
+    "", ...rows.map(r=>`• ${r.it.name} (${r.it.sku}) ${r.q} ${r.it.unit} × ${rp(r.u)} = ${rp(r.u*r.q)}`),
+    "", `Total: ${rp(sub)}`, `Penerima: ${$("#nm").value||"-"}`, `Alamat/catatan: ${$("#adr").value||"-"}`].join("\n");
+  window.open(`https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent(txt)}`,"_blank");
+}
+const drawer = on => { $("#drawer").classList.toggle("on",on); $("#shade").classList.toggle("on",on); };
+
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if(!t) return;
+  if(t.dataset.c){ cat=t.dataset.c; renderCats(); render(); }
+  else if(t.dataset.a||t.dataset.p) setQty(t.dataset.a||t.dataset.p, 1);
+  else if(t.dataset.m) setQty(t.dataset.m, -1);
+  else if(t.id==="cartBtn") drawer(true);
+  else if(t.id==="closeCart") drawer(false);
+  else if(t.id==="checkout") checkout();
+  else if(t.id==="heroCta") $("#cats").scrollIntoView({behavior:"smooth"});
+  else if(["join","memberBtn","logout"].includes(t.id)){ member = (t.id==="logout"||member) ? null : MEMBER_DEMO; renderMember(); renderCart(); }
+});
+$("#shade").onclick = ()=>drawer(false);
+$("#q").oninput = e=>{ term=e.target.value; render(); };
+$("#sort").onchange = e=>{ sort=e.target.value; render(); };
+$("#inStock").onchange = e=>{ onlyStock=e.target.checked; render(); };
+
+document.title = STORE.name + " — Toko Online";
+$("#storeName").textContent = STORE.name;
+$("#notice").textContent = STORE.notice;
+$("#heroImgs").innerHTML = ["product-11-CkoCs1Sk.png","product-4-CM5etwyd.png","product-10-xGx7aFwJ.png"].map(f=>`<img src="${A+f}" alt="">`).join("");
+$("#trust").innerHTML = [["truck","Kirim cepat","Same-day area Bandung","g"],["shield-check","Garansi resmi","Barang baru & bergaransi","y"],["credit-card","Bayar fleksibel","Tunai, transfer, QRIS","s"],["award","Poin member","1 poin / Rp10.000","g"]]
+  .map(([i,t,s,c])=>`<div class="card"><span class="ico ${c}"><i class="icon-${i}"></i></span><div><b>${t}</b><small>${s}</small></div></div>`).join("");
+$("#outlets").innerHTML = `<div><h4>${STORE.name}</h4><p>Belanja online, ambil di toko atau kirim ke rumah.</p></div>` +
+  STORE.outlets.map(o=>`<div><h4>${o.name}</h4><p><i class="icon-map-pin"></i> ${o.address}</p><p><i class="icon-clock"></i> ${o.hours}</p><p><i class="icon-phone"></i> ${o.phone}</p></div>`).join("") +
+  `<div><h4>Didukung ARUS</h4><p>Harga, stok, dan poin member tersinkron langsung dari kasir.</p></div>`;
+renderCats(); renderMember(); render(); renderCart();
+</script>
+</body>
+</html>

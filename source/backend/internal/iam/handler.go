@@ -11,6 +11,7 @@ import (
 
 	"aciraba/internal/authz"
 	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/plan"
 	"aciraba/internal/platform/httpx"
 )
 
@@ -94,6 +95,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "ROLE_IN_USE", "Role masih dipakai pengguna.")
 	case errors.Is(err, ErrNameTaken):
 		httpx.Error(w, http.StatusConflict, "NAME_TAKEN", "Nama role sudah dipakai.")
+	case errors.Is(err, plan.ErrUserLimit):
+		httpx.Error(w, http.StatusPaymentRequired, "PLAN_USER_LIMIT_REACHED", "Batas jumlah pengguna paket tercapai. Upgrade paket untuk menambah pengguna.")
 	case errors.Is(err, ErrEmailTaken):
 		httpx.Error(w, http.StatusConflict, "EMAIL_TAKEN", "Email sudah terdaftar.")
 	case errors.Is(err, ErrLastOwner):

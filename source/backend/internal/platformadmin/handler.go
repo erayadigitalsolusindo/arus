@@ -108,6 +108,12 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Put("/platform/ext/brands/{id}", h.ExtUpdateBrand)
 			r.Delete("/platform/ext/brands/{id}", h.ExtDeleteBrand)
 
+			r.Get("/platform/plans", h.ListPlans)
+			r.Post("/platform/plans", h.CreatePlan)
+			r.Put("/platform/plans/{id}", h.UpdatePlan)
+			r.Get("/platform/tenants/{id}/plan", h.GetTenantPlan)
+			r.Put("/platform/tenants/{id}/plan", h.SetTenantPlan)
+
 			r.Get("/platform/languages", h.ListLanguages)
 			r.Post("/platform/languages", h.CreateLanguage)
 			r.Put("/platform/languages/{code}", h.UpdateLanguage)

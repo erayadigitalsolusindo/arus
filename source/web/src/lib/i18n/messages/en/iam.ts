@@ -55,7 +55,8 @@ const iam: Messages['iam'] = {
     roles: 'Roles & Permissions',
     outlets: 'Outlets',
     ai_assistant: 'HalloArus',
-    audit_log: 'Audit Log'
+    audit_log: 'Audit Log',
+    subscription: 'Subscription & Plan'
   },
   users: {
     docTitle: 'Users | ACIRABA',

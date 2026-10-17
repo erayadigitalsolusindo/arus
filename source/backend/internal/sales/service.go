@@ -293,6 +293,8 @@ type Service struct {
 	// shiftGuard != nil: nota baru hanya boleh disimpan bila kasir punya shift terbuka di outlet aktif (shift.Guard).
 	// nil di tes modul ini agar fixture tidak perlu membuka shift.
 	shiftGuard func(ctx context.Context, tx pgx.Tx, a authz.Actor) error
+	// planGuard != nil: nota baru dihitung ke batas transaksi harian paket tenant (plan.ConsumeTx); revisi edit tidak dihitung.
+	planGuard func(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, day pgtype.Date) error
 	// payVerifier != nil: pembayaran QRIS EraPay harus punya charge lunas (lihat payverify.go).
 	payVerifier PayVerifier
 }
@@ -304,6 +306,12 @@ func NewService(pool *pgxpool.Pool, approvals *approval.Service) *Service {
 // WithShiftGuard memasang pemeriksa shift kasir untuk nota baru (bukan revisi edit).
 func (s *Service) WithShiftGuard(g func(ctx context.Context, tx pgx.Tx, a authz.Actor) error) *Service {
 	s.shiftGuard = g
+	return s
+}
+
+// WithPlanGuard memasang penegak batas transaksi harian paket (plan.ConsumeTx) untuk nota baru.
+func (s *Service) WithPlanGuard(g func(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, day pgtype.Date) error) *Service {
+	s.planGuard = g
 	return s
 }
 
@@ -930,6 +938,12 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	}
 	if err != nil {
 		return err
+	}
+
+	if ed == nil && s.planGuard != nil {
+		if err := s.planGuard(ctx, tx, a.TenantID, out.LocalDay); err != nil {
+			return err
+		}
 	}
 
 	day := out.LocalDay // hari bisnis untuk kupon/member; revisi memakai hari nota asli

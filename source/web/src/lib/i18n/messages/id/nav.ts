@@ -6,6 +6,7 @@ export default {
   roles: 'Role & Hak Akses',
   outlets: 'Outlet',
   auditLog: 'Audit Log',
+  subscription: 'Langganan',
   siak: 'SIAK Aciraba',
   halloarus: 'HalloArus',
   backToArus: 'Kembali ke ARUS',

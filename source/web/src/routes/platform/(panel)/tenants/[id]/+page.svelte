@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { platformApi, type TenantDetail, type TenantAuditItem } from '#lib/platform/api.ts';
+  import { platformApi, type TenantDetail, type TenantAuditItem, type TenantPlan, type PlanRow } from '#lib/platform/api.ts';
+  import Select from '#lib/components/Select.svelte';
+  import DatePicker from '#lib/components/DatePicker.svelte';
   import { startImpersonation } from '#lib/auth/session.svelte.ts';
   import { t, tryT, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -50,8 +52,67 @@
     }
   }
 
+  // ---- Paket langganan ----
+  let tplan = $state<TenantPlan | null>(null);
+  let planList = $state<PlanRow[]>([]);
+  let planChoice = $state(''); // '' = paket default (tanpa langganan manual)
+  let planExpires = $state(''); // datetime-local; kosong = tanpa kedaluwarsa
+  let planTx = $state('');
+  let planUsers = $state('');
+  let planNote = $state('');
+  let savingPlan = $state(false);
+  let planSaved = $state(false);
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const toLocal = (iso: string | null) => (iso ? ymd(new Date(iso)) : '');
+  const inDays = (n: number) => ymd(new Date(Date.now() + n * 86_400_000));
+  async function loadPlan() {
+    try {
+      const [tp, pl] = await Promise.all([platformApi.tenantPlan(id), platformApi.plans()]);
+      tplan = tp;
+      planList = pl.items;
+      const sub = tp.subscription;
+      planChoice = sub ? sub.plan_id : '';
+      planExpires = toLocal(sub?.expires_at ?? null);
+      planTx = sub?.override_max_tx_per_day == null ? '' : String(sub.override_max_tx_per_day);
+      planUsers = sub?.override_max_users == null ? '' : String(sub.override_max_users);
+      planNote = sub?.note ?? '';
+    } catch (err) {
+      error = errorMessage(err);
+    }
+  }
+  const planOptions = $derived([
+    { value: '', label: t('platform.tenantPlan.useDefault') },
+    ...planList.map((p) => ({ value: p.id, label: p.name + (p.active ? '' : ' (' + t('platform.plans.inactive') + ')') }))
+  ]);
+  const limitText = (n: number | null) => (n === null ? t('platform.tenantPlan.unlimited') : formatNumber(n));
+  async function savePlan() {
+    if (savingPlan) return;
+    savingPlan = true;
+    error = '';
+    planSaved = false;
+    const num = (v: string) => (v.trim() === '' ? null : Number(v));
+    try {
+      await platformApi.setTenantPlan(id, {
+        plan_id: planChoice || null,
+        expires_at: planChoice && planExpires ? new Date(`${planExpires}T23:59:59`).toISOString() : null,
+        override_max_tx_per_day: planChoice ? num(planTx) : null,
+        override_max_users: planChoice ? num(planUsers) : null,
+        note: planChoice ? planNote.trim() : ''
+      });
+      await Promise.all([loadPlan(), loadAudit()]);
+      planSaved = true;
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      savingPlan = false;
+    }
+  }
+
   onMount(() => {
     void load();
+    void loadPlan();
     void loadAudit();
   });
 
@@ -252,6 +313,77 @@
         </ul>
         {#if activeOutlets.length === 0 && tenant.outlets.length > 0}
           <p class="px-4 py-3 border-t border-[var(--border-subtle)] text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.noActiveOutlet')}</p>
+        {/if}
+      </section>
+
+      <!-- Paket langganan -->
+      <section class="surface-card p-4 space-y-3">
+        <div>
+          <h2 class="font-display font-bold text-[14px] flex items-center gap-2"><i class="icon-badge-dollar-sign text-[16px] text-[var(--text-tertiary)]"></i>{t('platform.tenantPlan.title')}</h2>
+          <p class="text-[12px] mt-1.5 text-[var(--text-tertiary)]">{t('platform.tenantPlan.subtitle')}</p>
+        </div>
+        {#if tplan}
+          <div class="rounded-lg bg-[var(--surface-sunken)] p-3 text-[12.5px] space-y-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[var(--text-tertiary)]">{t('platform.tenantPlan.effective')}</span>
+              <span class="font-semibold">{tplan.effective.name}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[var(--text-tertiary)]">{t('platform.tenantPlan.txToday')}</span>
+              <span class="tabular-nums">{t('platform.tenantPlan.usedOf', { used: formatNumber(tplan.usage.tx_today), limit: limitText(tplan.effective.max_tx_per_day) })}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[var(--text-tertiary)]">{t('platform.tenantPlan.activeUsers')}</span>
+              <span class="tabular-nums">{t('platform.tenantPlan.usedOf', { used: formatNumber(tplan.usage.users), limit: limitText(tplan.effective.max_users) })}</span>
+            </div>
+            <p class="text-[11.5px] text-[var(--text-tertiary)]">
+              {#if tplan.subscription?.expired}{t('platform.tenantPlan.expiredNote')}
+              {:else if tplan.effective.is_default}{t('platform.tenantPlan.defaultNote')}
+              {:else if tplan.effective.expires_at}{t('platform.tenantPlan.expiresOn', { date: formatDateTime(tplan.effective.expires_at, { dateStyle: 'medium', timeStyle: 'short' }) })}
+              {:else}{t('platform.tenantPlan.noExpiry')}{/if}
+            </p>
+          </div>
+          <form
+            class="space-y-3"
+            onsubmit={(e) => {
+              e.preventDefault();
+              void savePlan();
+            }}
+          >
+            <div>
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.plan')}</span>
+              <Select bind:value={planChoice} options={planOptions} ariaLabel={t('platform.tenantPlan.plan')} onchange={() => (planSaved = false)} />
+            </div>
+            {#if planChoice}
+              <label class="block">
+                <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.expires')}</span>
+                <DatePicker bind:value={planExpires} min={inDays(1)} placeholder={t('platform.tenantPlan.noExpiry')} />
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  {#each [30, 90, 365] as d (d)}
+                    <button type="button" class="rounded-full border border-[var(--border-subtle)] px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--text-secondary)] hover:border-[var(--color-primary-400)] hover:text-[var(--color-primary-600)] {planExpires === inDays(d) ? '!bg-[var(--color-primary-600)] !border-[var(--color-primary-600)] !text-white' : ''}" onclick={() => { planExpires = inDays(d); planSaved = false; }}>{t('platform.plans.days', { count: d })}</button>
+                  {/each}
+                </div>
+                <span class="mt-1 block text-[11px] text-[var(--text-tertiary)]">{t('platform.tenantPlan.expiresHelp')}</span>
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideTx')}</span>
+                  <input class="field-control w-full text-end tabular-nums" inputmode="numeric" bind:value={planTx} oninput={() => (planSaved = false)} />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideUsers')}</span>
+                  <input class="field-control w-full text-end tabular-nums" inputmode="numeric" bind:value={planUsers} oninput={() => (planSaved = false)} />
+                </label>
+              </div>
+              <p class="-mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideHelp')}</p>
+              <label class="block">
+                <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.note')}</span>
+                <input class="field-control w-full" maxlength="300" bind:value={planNote} oninput={() => (planSaved = false)} />
+              </label>
+            {/if}
+            <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={savingPlan}>{savingPlan ? t('platform.tenantPlan.saving') : t('platform.tenantPlan.save')}</button>
+            {#if planSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenantPlan.saved')}</p>{/if}
+          </form>
         {/if}
       </section>
 

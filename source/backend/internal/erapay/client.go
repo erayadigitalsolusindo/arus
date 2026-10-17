@@ -50,6 +50,11 @@ type createReq struct {
 	ExpiresAt         string `json:"expires_at,omitempty"`
 }
 
+// CreateQRIS membuat tagihan QRIS sederhana (dipakai penagihan paket langganan). ref = merchant_reference; idemKey = Idempotency-Key.
+func (c *Client) CreateQRIS(ctx context.Context, idemKey, ref string, amount int64, description string) (Payment, error) {
+	return c.Create(ctx, idemKey, createReq{MerchantReference: ref, Amount: amount, Currency: "IDR", PaymentMethod: "QRIS", Description: description})
+}
+
 // ErrRejected = EraPay/gateway menolak tagihan (4xx); pesan aman untuk ditampilkan.
 var ErrRejected = errors.New("EraPay menolak tagihan QRIS")
 
