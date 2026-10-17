@@ -27,6 +27,7 @@ type env struct {
 	outlet   uuid.UUID // outlet pertama tenant uji
 	owner    authz.Actor
 	ownerRol uuid.UUID
+	plan     uuid.UUID // paket uji tenant (tanpa batas pengguna)
 	suffix   string
 }
 
@@ -54,7 +55,7 @@ func newEnv(t *testing.T) *env {
 	rdb := redis.NewClient(opt)
 	t.Cleanup(func() { _ = rdb.Close() })
 
-	e := &env{admin: admin, res: authz.NewResolver(app), sessions: pauth.NewSessions(rdb), tenant: uuid.New(), outlet: uuid.New(), ownerRol: uuid.New()}
+	e := &env{admin: admin, res: authz.NewResolver(app), sessions: pauth.NewSessions(rdb), tenant: uuid.New(), outlet: uuid.New(), ownerRol: uuid.New(), plan: uuid.New()}
 	e.svc = NewService(app, e.res, e.sessions)
 	e.suffix = fmt.Sprintf("%d-%s", os.Getpid(), e.tenant.String()[:8])
 	owner := uuid.New()
@@ -66,16 +67,20 @@ func newEnv(t *testing.T) *env {
 		{`INSERT INTO outlets (id, tenant_id, code, name) VALUES ($1, $2, 'main', 'Pusat')`, []any{e.outlet, e.tenant}},
 		{`INSERT INTO roles (id, tenant_id, name, permissions, is_system) VALUES ($1, $2, 'Owner', '{"*":true}', true)`, []any{e.ownerRol, e.tenant}},
 		{`INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, 'Pemilik', 'x')`, []any{owner, e.tenant, e.ownerRol, "owner-" + e.suffix + "@iam.test"}},
+		// Paket tanpa batas pengguna agar tes aturan pengguna tidak terhambat batas FREE; batas diuji di TestPlanUserLimit.
+		{`INSERT INTO plans (id, code, name) VALUES ($1, $2, 'UJI')`, []any{e.plan, "iam-" + e.suffix}},
+		{`INSERT INTO tenant_subscriptions (tenant_id, plan_id) VALUES ($1, $2)`, []any{e.tenant, e.plan}},
 	} {
 		if _, err := admin.Exec(ctx, q.sql, q.args...); err != nil {
 			t.Fatalf("siapkan data: %v", err)
 		}
 	}
 	t.Cleanup(func() {
-		for _, tbl := range []string{"audit_log", "user_outlets", "users", "roles", "outlets"} {
+		for _, tbl := range []string{"audit_log", "user_outlets", "users", "roles", "outlets", "tenant_subscriptions"} {
 			_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, e.tenant)
 		}
 		_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, e.tenant)
+		_, _ = admin.Exec(ctx, `DELETE FROM plans WHERE id = $1`, e.plan)
 	})
 	e.owner = e.actor(owner, authz.Permissions{All: true})
 	return e

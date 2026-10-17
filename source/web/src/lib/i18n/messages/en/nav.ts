@@ -8,6 +8,7 @@ const nav: Messages['nav'] = {
   roles: 'Roles & Permissions',
   outlets: 'Outlets',
   auditLog: 'Audit Log',
+  subscription: 'Subscription',
   siak: 'SIAK Aciraba',
   halloarus: 'HalloArus',
   backToArus: 'Back to ARUS',

@@ -55,7 +55,8 @@ const iam: Messages['iam'] = {
     roles: 'ロールと権限',
     outlets: '店舗',
     ai_assistant: 'HalloArus',
-    audit_log: '監査ログ'
+    audit_log: '監査ログ',
+    subscription: 'サブスクリプションとプラン'
   },
   users: {
     docTitle: 'ユーザー | ACIRABA',

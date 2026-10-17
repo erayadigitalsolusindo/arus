@@ -107,6 +107,28 @@ export type ExtBrand = {
 export type ExtBrandInput = Omit<ExtBrand, 'id'>;
 export type ExtGroup = { id: string; title: string; count: number };
 
+export type PlanRow = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  price: string;
+  duration_days: number | null;
+  max_tx_per_day: number | null;
+  max_users: number | null;
+  is_default: boolean;
+  self_service: boolean;
+  active: boolean;
+  sort_order: number;
+};
+export type PlanInput = Omit<PlanRow, 'id' | 'is_default' | 'code'>;
+export type TenantPlan = {
+  effective: { plan_id: string; code: string; name: string; max_tx_per_day: number | null; max_users: number | null; expires_at: string | null; is_default: boolean };
+  subscription: { plan_id: string; expires_at: string | null; expired: boolean; override_max_tx_per_day: number | null; override_max_users: number | null; note: string } | null;
+  usage: { tx_today: number; users: number };
+};
+export type TenantPlanInput = { plan_id: string | null; expires_at: string | null; override_max_tx_per_day: number | null; override_max_users: number | null; note: string };
+
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
 
 export const platformApi = {
@@ -152,6 +174,12 @@ export const platformApi = {
   extCreateBrand: (body: ExtBrandInput) => papi<{ id: string }>('/platform/ext/brands', { method: 'POST', body: json(body) }),
   extUpdateBrand: (id: string, body: ExtBrandInput) => papi<{ id: string }>(`/platform/ext/brands/${id}`, { method: 'PUT', body: json(body) }),
   extDeleteBrand: (id: string) => papi<void>(`/platform/ext/brands/${id}`, { method: 'DELETE' }),
+
+  plans: () => papi<{ items: PlanRow[] }>('/platform/plans'),
+  createPlan: (body: PlanInput & { code: string }) => papi<{ id: string }>('/platform/plans', { method: 'POST', body: json(body) }),
+  updatePlan: (id: string, body: PlanInput) => papi<{ id: string }>(`/platform/plans/${id}`, { method: 'PUT', body: json(body) }),
+  tenantPlan: (id: string) => papi<TenantPlan>(`/platform/tenants/${id}/plan`),
+  setTenantPlan: (id: string, body: TenantPlanInput) => papi<void>(`/platform/tenants/${id}/plan`, { method: 'PUT', body: json(body) }),
 
   languages: () => papi<{ items: LanguageRow[] }>('/platform/languages'),
   createLanguage: (body: { code: string; name: string; short: string; intl: string; sort_order: number }) =>

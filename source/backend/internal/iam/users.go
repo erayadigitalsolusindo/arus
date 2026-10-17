@@ -13,6 +13,7 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/plan"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
@@ -195,6 +196,9 @@ func (s *Service) CreateUser(ctx context.Context, actor authz.Actor, in CreateUs
 		if !authz.ParseStored(role.Permissions).All && len(outlets) == 0 {
 			return FieldErrors{"outlet_ids": "REQUIRED"} // pengguna non-pemilik wajib punya minimal satu outlet
 		}
+		if err := plan.CheckUserSlot(ctx, tx, actor.TenantID); err != nil {
+			return err
+		}
 		id, err = q.IamCreateUser(ctx, gen.IamCreateUserParams{
 			TenantID: actor.TenantID, RoleID: in.RoleID, Email: email, Name: name, Phone: phone, PasswordHash: hash,
 		})
@@ -298,6 +302,11 @@ func (s *Service) UpdateUser(ctx context.Context, actor authz.Actor, id uuid.UUI
 			return ErrSelfChange // tidak mencabut/menambah outlet akun sendiri (bisa mengunci diri dari outlet aktif)
 		}
 
+		if in.Active && !target.Active { // mengaktifkan kembali = memakai satu slot pengguna paket
+			if err := plan.CheckUserSlot(ctx, tx, actor.TenantID); err != nil {
+				return err
+			}
+		}
 		n, err := q.IamUpdateUser(ctx, gen.IamUpdateUserParams{TenantID: actor.TenantID, ID: id, Name: name, Phone: phone, RoleID: in.RoleID, Active: in.Active, ValidAfter: now()})
 		if err != nil {
 			return err

@@ -1,0 +1,70 @@
+import type { Messages } from '../../types.ts';
+
+const subscription: Messages['subscription'] = {
+  docTitle: 'サブスクリプション | ACIRABA',
+  title: 'サブスクリプションとプラン',
+  subtitle: '現在のプラン、本日の利用状況、QRISでのアップグレード。',
+  current: '現在のプラン',
+  expiresOn: '{date}まで有効',
+  noExpiry: '期限なし',
+  freeNote: '無料プランです。取引数とユーザー数の上限を増やすにはアップグレードしてください。',
+  usage: '利用状況',
+  txToday: '本日の取引数',
+  activeUsers: '有効なユーザー',
+  unlimited: '無制限',
+  usedOf: '{limit}中{used}',
+  txLimit: '1日{count}件の取引',
+  userLimit: '{count}ユーザー（オーナー含む）',
+  upgrade: 'プランを選択',
+  perDuration: '/ {count}日',
+  buy: 'QRISで支払う',
+  renew: 'QRISで更新',
+  ownerOnly: 'プランの購入・更新はオーナーのみ可能です。',
+  paymentsOff: 'プランの支払いはまだ利用できません。ARUS管理者にお問い合わせください。',
+  noPlans: '購入可能なプランはまだありません。',
+  creating: '請求書を作成中…',
+  unitTx: '件',
+  unitUsers: '名',
+  statusFree: '無料プラン',
+  statusActive: '有効',
+  statusExpiring: 'まもなく終了',
+  daysLeft: '残り{count}日',
+  resetNote: '取引数は毎日リセット',
+  meterUnlimited: 'このプランでは無制限です。',
+  meterFull: '上限に達しました。続けるにはアップグレードしてください。',
+  meterNear: 'まもなく上限: 残り{left}{unit}。',
+  meterLeft: '残り{left}{unit}。',
+  gain: '{from}から{to}に増加',
+  badgeCurrent: '現在のプラン',
+  badgeRecommended: 'おすすめ',
+  featureQris: 'QRISで一度払えば自動で有効化',
+  how: {
+    title: 'アップグレード方法',
+    s1t: 'プランを選ぶ',
+    s1d: '取引数とユーザー数の上限を比べて、支払いをクリックします。',
+    s2t: 'QRISをスキャン',
+    s2d: 'QRIS対応の電子マネーやモバイルバンキングで支払えます。',
+    s3t: '自動で有効化',
+    s3d: '支払いが確認されるとすぐにプランが有効になります。管理者への連絡は不要です。'
+  },
+  notes: {
+    title: 'ご案内',
+    n1: '取引数の上限は店舗のタイムゾーンで1日ごとに数え、毎日ゼロから始まります。',
+    n2: '伝票を取り消しても、その日の取引枠は戻りません。',
+    n3: '期限前に更新すると、現在の期限の後ろに期間が追加され、無駄になりません。',
+    n4: 'プランが終了すると無料プランに戻ります。上限を超えるユーザーもログインできますが、新規追加はできません。'
+  },
+  pay: {
+    scanShort: 'お支払いアプリでこのQRISをスキャンしてください。',
+    title: '{plan}の支払い',
+    scan: 'お支払いアプリでこのQRISをスキャンしてください: {amount}',
+    waiting: '支払いを待っています…',
+    paid: '支払いを受け付けました。{plan}は{date}まで有効です。',
+    failed: '支払いに失敗したか期限切れです。もう一度お試しください。',
+    check: '状況を確認',
+    close: '閉じる',
+    qrAlt: 'プラン支払いのQRISコード'
+  }
+};
+
+export default subscription;

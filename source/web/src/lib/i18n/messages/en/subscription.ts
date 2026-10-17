@@ -1,0 +1,70 @@
+import type { Messages } from '../../types.ts';
+
+const subscription: Messages['subscription'] = {
+  docTitle: 'Subscription | ACIRABA',
+  title: 'Subscription & Plan',
+  subtitle: 'Your active plan, today\'s usage, and upgrade via QRIS.',
+  current: 'Current plan',
+  expiresOn: 'Valid until {date}',
+  noExpiry: 'No expiry',
+  freeNote: 'Free plan. Upgrade to raise your transaction and user limits.',
+  usage: 'Usage',
+  txToday: 'Transactions today',
+  activeUsers: 'Active users',
+  unlimited: 'Unlimited',
+  usedOf: '{used} of {limit}',
+  txLimit: '{count} transactions per day',
+  userLimit: '{count} users (including Owner)',
+  upgrade: 'Choose a plan',
+  perDuration: '/ {count} days',
+  buy: 'Pay with QRIS',
+  renew: 'Renew with QRIS',
+  ownerOnly: 'Only the Owner can buy or renew a plan.',
+  paymentsOff: 'Plan payments are not available yet. Contact the ARUS admin.',
+  noPlans: 'No plans available for purchase yet.',
+  creating: 'Creating invoice…',
+  unitTx: 'transactions',
+  unitUsers: 'users',
+  statusFree: 'Free plan',
+  statusActive: 'Active',
+  statusExpiring: 'Expiring soon',
+  daysLeft: '{count} days left',
+  resetNote: 'Transactions reset daily',
+  meterUnlimited: 'Unlimited on this plan.',
+  meterFull: 'Limit reached. Upgrade to continue.',
+  meterNear: 'Almost full: {left} {unit} left.',
+  meterLeft: '{left} {unit} left.',
+  gain: 'Up from {from} to {to}',
+  badgeCurrent: 'Your plan',
+  badgeRecommended: 'Recommended',
+  featureQris: 'Pay once via QRIS, activates automatically',
+  how: {
+    title: 'How to upgrade',
+    s1t: 'Choose a plan',
+    s1d: 'Compare the transaction and user limits, then click pay.',
+    s2t: 'Scan QRIS',
+    s2d: 'Pay with any e-wallet or mobile banking app that supports QRIS.',
+    s3t: 'Activates automatically',
+    s3d: 'Your plan is active as soon as payment is confirmed, no need to contact the admin.'
+  },
+  notes: {
+    title: 'Good to know',
+    n1: 'The transaction limit is counted per day in the outlet time zone and starts from zero each day.',
+    n2: 'Voiding a sale does not give back that day\'s transaction allowance.',
+    n3: 'Renew before it ends: the new period is added after the current end date, nothing is lost.',
+    n4: 'When a plan ends the store returns to the free plan. Existing users above the limit can still sign in, but you cannot add new users.'
+  },
+  pay: {
+    scanShort: 'Scan this QRIS with your payment app.',
+    title: 'Pay for {plan}',
+    scan: 'Scan this QRIS with your payment app: {amount}',
+    waiting: 'Waiting for payment…',
+    paid: 'Payment received. {plan} is active until {date}.',
+    failed: 'Payment failed or expired. Please try again.',
+    check: 'Check status',
+    close: 'Close',
+    qrAlt: 'Plan payment QRIS code'
+  }
+};
+
+export default subscription;

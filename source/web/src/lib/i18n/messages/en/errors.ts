@@ -199,6 +199,12 @@ JOURNAL_UNBALANCED: 'Total debit and credit must be equal.',
   AI_TOO_MANY_STEPS: 'The analysis got too long. Split it into more specific questions.',
   AI_BAD_INPUT: 'Invalid question.',
   AI_FORBIDDEN: 'HalloArus is not available in an impersonation session.',
+  PLAN_TX_LIMIT_REACHED: 'The daily transaction limit of your plan has been reached. Upgrade under Subscription to raise it.',
+  PLAN_USER_LIMIT_REACHED: 'The user limit of your plan has been reached. Upgrade under Subscription or deactivate another user.',
+  PAYMENTS_DISABLED: 'Plan payments are not available yet. Contact the ARUS admin.',
+  PLAN_NOT_FOUND: 'This plan is not available.',
+  PLAN_INVALID: 'Invalid plan settings (the default plan cannot be sold).',
+  OWNER_REQUIRED: 'Only the store Owner can do this.',
 };
 
 export default errors;

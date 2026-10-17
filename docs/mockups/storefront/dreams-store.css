@@ -1,0 +1,87 @@
+/* Token & komponen diambil dari Dreams Core (reference/template): Plus Jakarta Sans, skala primary hijau,
+   neutral, radius 5px, kartu "surface-card", badge-soft, ikon Lucide. Hanya acuan visual; tanpa JS template. */
+@font-face{font-family:lucide;src:url(../../../reference/template/assets/lucide-DfBtY06I_1bkczge.woff2) format("woff2"),url(../../../reference/template/assets/lucide-BZb48yAI_1bkczge.woff) format("woff")}
+:root{
+  --font-sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --primary-50:#effaf6;--primary-100:#d7f2e7;--primary-200:#b0e4d0;--primary-500:#24997c;--primary-600:#187f65;--primary-700:#146553;--primary-800:#135144;--primary-900:#114339;
+  --gold-50:#fdf7e7;--gold-100:#faebc0;--gold-400:#dda92c;--gold-500:#c4901d;--gold-700:#7c5a12;
+  --n0:#fff;--n50:#f7f8f7;--n100:#eff1f0;--n150:#e4e7e5;--n200:#d8dcd9;--n400:#98a29b;--n500:#757f79;--n600:#5a625c;--n700:#454b46;--n900:#1e211f;
+  --danger:#c92a2a;--danger-soft:#fcecea;--success:#187f65;--warn:#a17517;
+  --r:5px;--shadow-sm:0 1px 2px #1e211f0d,0 1px 3px #1e211f14;--shadow-md:0 8px 24px #1e211f1a;
+  --bg:var(--n50);--surface:var(--n0);--line:var(--n150);--text:var(--n900);--text2:var(--n600);--text3:var(--n500);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#131615;--surface:#171a18;--line:#ffffff1a;--text:#f7f8f7;--text2:#c0c6c2;--text3:#98a29b;
+  --primary-50:#16231f;--primary-100:#1c2f29;--shadow-sm:none;--shadow-md:0 8px 24px #0008;--danger-soft:#38130e;--gold-50:#2a2412}
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer;color:inherit}
+img{max-width:100%;display:block}
+[class^=icon-],[class*=" icon-"]{font-family:lucide!important;font-style:normal;line-height:1;color:inherit;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:var(--r);padding:10px 18px;font-weight:700;font-size:14px;background:linear-gradient(180deg,var(--primary-500),var(--primary-700));color:#fff;box-shadow:0 4px 12px #24997c40;transition:.2s}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--surface);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.btn.white{background:#fff;color:var(--primary-700);box-shadow:none}
+.btn.wa{background:#1fa855;box-shadow:0 4px 12px #1fa85540}
+.btn.sm{padding:7px 12px;font-size:13px}.btn.lg{padding:13px 26px;font-size:15px}
+.btn[disabled]{background:var(--n200);color:var(--n500);box-shadow:none;cursor:not-allowed}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:var(--r);padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--primary-50);color:var(--primary-700)}.b-warn{background:var(--gold-50);color:var(--gold-700)}.b-bad{background:var(--danger-soft);color:var(--danger)}.b-glass{background:#ffffff26;color:#fff}
+.ico{display:grid;place-items:center;border-radius:var(--r);flex:none}
+.ico.g{background:var(--primary-50);color:var(--primary-600)}.ico.y{background:var(--gold-50);color:var(--gold-500)}.ico.s{background:#e3edf5;color:#2f6f9a}
+.hero-grad{background:linear-gradient(135deg,var(--primary-700),var(--primary-900));color:#fff;position:relative;overflow:hidden}
+.hero-grad::before{content:"";position:absolute;inset:0;opacity:.07;background-image:radial-gradient(circle at 15% 25%,#fff 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
+.hero-grad>*{position:relative}
+.icon-shopping-cart:before{content:"\e15c"}
+.icon-shopping-bag:before{content:"\e15b"}
+.icon-search:before{content:"\e151"}
+.icon-store:before{content:"\e3e4"}
+.icon-star:before{content:"\e176"}
+.icon-heart:before{content:"\e0f2"}
+.icon-user:before{content:"\e19f"}
+.icon-phone:before{content:"\e133"}
+.icon-map-pin:before{content:"\e111"}
+.icon-clock:before{content:"\e087"}
+.icon-truck:before{content:"\e194"}
+.icon-shield-check:before{content:"\e1ff"}
+.icon-badge-percent:before{content:"\e479"}
+.icon-gift:before{content:"\e0e1"}
+.icon-message-circle:before{content:"\e116"}
+.icon-x:before{content:"\e1b2"}
+.icon-plus:before{content:"\e13d"}
+.icon-minus:before{content:"\e11c"}
+.icon-chevron-right:before{content:"\e06f"}
+.icon-arrow-right:before{content:"\e049"}
+.icon-package:before{content:"\e129"}
+.icon-credit-card:before{content:"\e0aa"}
+.icon-tag:before{content:"\e17f"}
+.icon-sparkles:before{content:"\e412"}
+.icon-menu:before{content:"\e115"}
+.icon-zap:before{content:"\e1b4"}
+.icon-award:before{content:"\e04f"}
+.icon-headphones:before{content:"\e0f1"}
+.icon-check-circle-2:before{content:"\e226"}
+.icon-check:before{content:"\e06c"}
+.icon-wallet:before{content:"\e204"}
+.icon-qr-code:before{content:"\e1df"}
+.icon-layout-grid:before{content:"\e0ff"}
+.icon-mail:before{content:"\e10f"}
+.icon-tickets:before{content:"\e622"}
+.icon-percent:before{content:"\e132"}
+.icon-smartphone:before{content:"\e163"}
+.icon-laptop:before{content:"\e1cd"}
+.icon-watch:before{content:"\e1ad"}
+.icon-footprints:before{content:"\e3b9"}
+.icon-shirt:before{content:"\e1ca"}
+.icon-gem:before{content:"\e242"}
+.icon-dumbbell:before{content:"\e3a1"}
+.icon-sofa:before{content:"\e2c4"}
+.icon-quote:before{content:"\e239"}
+.icon-undo-2:before{content:"\e2a1"}
+.icon-headset:before{content:"\e5bd"}
+.icon-sun:before{content:"\e178"}
+.icon-moon:before{content:"\e11e"}

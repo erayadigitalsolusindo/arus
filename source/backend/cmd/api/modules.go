@@ -30,6 +30,7 @@ import (
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/storage"
+	"aciraba/internal/plan"
 	"aciraba/internal/platformadmin"
 	"aciraba/internal/posshortcut"
 	"aciraba/internal/purchasing"
@@ -41,6 +42,7 @@ import (
 	reports_stock "aciraba/internal/reports/stock"
 	"aciraba/internal/sales"
 	"aciraba/internal/shift"
+	"aciraba/internal/subscription"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
 	"aciraba/internal/wallet"
@@ -123,7 +125,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		return err
 	}
 	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken)
-	salesSvc := sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPayVerifier(eraSvc)
+	salesSvc := sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPlanGuard(plan.ConsumeTx).WithPayVerifier(eraSvc)
 	salesH := sales.NewHandler(salesSvc, perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)
 	salesH.Routes(r)
@@ -134,6 +136,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
 	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
+	subSvc := subscription.NewService(d.Pool, d.Cfg.EraPayBaseURL, d.Cfg.EraPayPlatformKey)
+	subscription.NewHandler(subSvc, perms, tokens, d.Log).Routes(r)
 	purchaseH := purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log)
 	purchaseH.Routes(r)
 	purchaseH.ReturnRoutes(r)
@@ -161,6 +165,8 @@ func mountModules(r chi.Router, d appDeps) error {
 		go accounting.NewScheduler(accSvc, d.Pool, d.Log).Run(d.Ctx) // draf jurnal otomatis tiap malam; berhenti saat shutdown
 	}
 	if d.Cfg.EraPayReconcile {
+		go subscription.NewReconciler(subSvc, d.Log).Run(d.Ctx) // aktivasi paket dari pembayaran QRIS yang lunas
+
 		go sales.NewEraPayReconciler(salesSvc, d.Pool, d.Log).Run(d.Ctx) // verifikasi nota paksa ke EraPay; berhenti saat shutdown
 	}
 	return nil
