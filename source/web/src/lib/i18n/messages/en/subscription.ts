@@ -64,6 +64,31 @@ const subscription: Messages['subscription'] = {
     check: 'Check status',
     close: 'Close',
     qrAlt: 'Plan payment QRIS code'
+  },
+  lock: {
+    title: '{menu} is not included in your plan',
+    body: 'This menu is available on a higher plan. Upgrade to unlock it; your data stays safe and unchanged.',
+    upgrade: 'View plans & upgrade',
+    later: 'Not now',
+    badge: 'Locked by plan'
+  },
+  featuresTitle: 'What you get',
+  yourFeatures: 'Your plan includes',
+  yourFeaturesHint: 'Features active on this plan, and those that unlock when you upgrade.',
+  seeMenus: 'See all menus ({count})',
+  hideMenus: 'Hide menus',
+  allMenus: 'All menus available',
+  notIncluded: 'Not included',
+  features: {
+    pos: { name: 'Point of sale', desc: 'Cashier screen, shifts, petty cash, returns, and approval PINs.' },
+    sales: { name: 'Sales & reports', desc: 'Sales list, live sales, sales reports, cost and profit.' },
+    stock: { name: 'Inventory', desc: 'Items, stock card, opening balance, stocktake, unit conversion, outlet transfers.' },
+    qris: { name: 'EraPay QRIS & payment methods', desc: 'Accept QRIS and configure payment methods and fees.' },
+    members: { name: 'Members & receivables', desc: 'Members, points, deposits, and customer receivables.' },
+    purchasing: { name: 'Purchasing & payables', desc: 'Purchase invoices, purchase returns, supplier payables and credits.' },
+    accounting: { name: 'Accounting (SIAK)', desc: 'Journals, general ledger, balance sheet, income statement, period closing.' },
+    ai: { name: 'HalloArus (AI assistant)', desc: 'Ask questions about your business data and get advice.' },
+    audit: { name: 'Audit log', desc: 'Trail of data changes made by each user.' }
   }
 };
 

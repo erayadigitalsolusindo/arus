@@ -4,7 +4,7 @@
 // Induk tanpa `module` tampil bila ada anak yang tampil.
 import type { MessageKey } from '#lib/i18n/index.ts';
 
-export type NavChild = { labelKey: MessageKey; module?: string; href?: string };
+export type NavChild = { labelKey: MessageKey; module?: string; href?: string; /** terkunci paket langganan (tampil bergembok) */ locked?: boolean };
 
 export type NavItem = {
   id: string; // kunci stabil (state buka/tutup submenu), independen dari bahasa
@@ -14,6 +14,8 @@ export type NavItem = {
   /** Alternatif izin: item juga tampil bila pengguna punya salah satu modul ini. */
   anyOf?: string[];
   href?: string;
+  /** terkunci paket langganan (tampil bergembok) */
+  locked?: boolean;
   children?: NavChild[];
 };
 
@@ -232,17 +234,24 @@ export const nav: NavGroup[] = [
  * Menyaring menu menurut izin: item tanpa izin `view` dibuang. Induk yang punya izin sendiri tetapi tidak punya anak
  * yang boleh dilihat menjadi item biasa; induk tanpa izin sendiri hilang bila semua anaknya hilang.
  */
-export function visibleNav(allowed: (module: string) => boolean, source: NavGroup[] = nav): NavGroup[] {
+export function visibleNav(allowed: (module: string) => boolean, source: NavGroup[] = nav, locked: (module: string) => boolean = () => false): NavGroup[] {
   const out: NavGroup[] = [];
   for (const group of source) {
     const items: NavItem[] = [];
     for (const item of group.items) {
       if (item.children) {
-        const children = item.children.filter((c) => !c.module || allowed(c.module));
+        const children: NavChild[] = [];
+        for (const c of item.children) {
+          if (!c.module || allowed(c.module)) children.push(c);
+          else if (locked(c.module)) children.push({ ...c, locked: true });
+        }
         if (children.length) items.push({ ...item, children });
         else if (item.module && allowed(item.module)) items.push({ ...item, children: undefined });
+        else if (item.module && locked(item.module)) items.push({ ...item, children: undefined, locked: true });
       } else if (item.id === 'dashboard' || (item.module && allowed(item.module)) || item.anyOf?.some(allowed)) {
         items.push(item);
+      } else if ((item.module && locked(item.module)) || item.anyOf?.some(locked)) {
+        items.push({ ...item, locked: true });
       }
     }
     if (items.length) out.push({ ...group, items });
@@ -287,3 +296,19 @@ export const siakNav: NavGroup[] = [
     ]
   }
 ];
+
+/** Modul pada halaman `path` (kecocokan href terpanjang di menu ARUS dan SIAK); undefined bila halaman tak terikat modul. */
+export function moduleForPath(path: string): { module: string; labelKey: MessageKey } | undefined {
+  let best: { module: string; labelKey: MessageKey; len: number } | undefined;
+  const consider = (href: string | undefined, module: string | undefined, labelKey: MessageKey) => {
+    if (!href || !module || href === '#') return;
+    if ((path === href || path.startsWith(href + '/')) && (!best || href.length > best.len)) best = { module, labelKey, len: href.length };
+  };
+  for (const g of [...nav, ...siakNav]) {
+    for (const i of g.items) {
+      consider(i.href, i.module, i.labelKey);
+      for (const c of i.children ?? []) consider(c.href, c.module, c.labelKey);
+    }
+  }
+  return best && { module: best.module, labelKey: best.labelKey };
+}

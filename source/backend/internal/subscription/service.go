@@ -54,6 +54,8 @@ type PlanInfo struct {
 	DurationDays *int      `json:"duration_days"`
 	MaxTxPerDay  *int      `json:"max_tx_per_day"`
 	MaxUsers     *int      `json:"max_users"`
+	Modules      []string  `json:"modules"` // menu yang termasuk paket; nil = semua menu
+	Highlights   []string  `json:"highlights"`
 }
 
 type Status struct {
@@ -87,7 +89,7 @@ func (s *Service) Status(ctx context.Context, a authz.Actor) (Status, error) {
 		if st.Usage, err = plan.UsageFor(ctx, tx, a.TenantID, day); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT id, code, name, description, price, duration_days, max_tx_per_day, max_users
+		rows, err := tx.Query(ctx, `SELECT id, code, name, description, price, duration_days, max_tx_per_day, max_users, modules, highlights
 			FROM plans WHERE self_service AND active ORDER BY sort_order, price`)
 		if err != nil {
 			return err
@@ -99,7 +101,7 @@ func (s *Service) Status(ctx context.Context, a authz.Actor) (Status, error) {
 				price          decimal.Decimal
 				dur, mtx, musr pgtype.Int4
 			)
-			if err := rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &price, &dur, &mtx, &musr); err != nil {
+			if err := rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &price, &dur, &mtx, &musr, &p.Modules, &p.Highlights); err != nil {
 				return err
 			}
 			p.Price, p.DurationDays, p.MaxTxPerDay, p.MaxUsers = price.StringFixed(0), nullInt(dur), nullInt(mtx), nullInt(musr)

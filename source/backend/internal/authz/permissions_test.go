@@ -109,3 +109,45 @@ func TestNormalizePosOnlyIsFixedBundle(t *testing.T) {
 		t.Error("modul tak dikenal harus tetap ditolak")
 	}
 }
+
+func TestPlanLockedModules(t *testing.T) {
+	if LockedFor(nil) != nil {
+		t.Fatal("paket tanpa daftar modul = semua modul, tidak boleh ada yang terkunci")
+	}
+	locked := LockedFor([]string{"items"})
+	if locked["items"] || locked["subscription"] {
+		t.Fatalf("items (dalam paket) dan subscription (selalu terbuka) tidak boleh terkunci: %v", locked)
+	}
+	if !locked["journals"] || !locked["users"] {
+		t.Fatal("modul di luar paket harus terkunci")
+	}
+
+	// Owner (`*`) pun tidak menembus kunci paket; modul lain tetap lolos.
+	owner := Permissions{All: true, Locked: locked}
+	if owner.Has("journals", ActView) || !owner.Has("items", ActDelete) || !owner.Has("subscription", ActView) {
+		t.Fatal("Owner: modul terkunci harus ditolak, modul paket dan subscription tetap boleh")
+	}
+	// Role biasa: izin role ∩ modul paket.
+	role := Permissions{Grants: map[string][]string{"items": {ActView}, "journals": {ActView}}, Locked: locked}
+	if !role.Has("items", ActView) || role.Has("journals", ActView) {
+		t.Fatal("role: izin harus dipotong oleh paket")
+	}
+
+	raw, err := json.Marshal(role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &out)
+	if _, ok := out["journals"]; ok {
+		t.Error("modul terkunci tidak boleh muncul sebagai izin di JSON klien")
+	}
+	var lockedIDs []string
+	_ = json.Unmarshal(out["_locked"], &lockedIDs)
+	if !slices.Equal(lockedIDs, []string{"journals"}) {
+		t.Errorf("_locked = %v, want [journals] (hanya modul terkunci yang role-nya mengizinkan)", lockedIDs)
+	}
+	if !ValidModuleIDs([]string{"items", "users"}) || ValidModuleIDs([]string{"items", "nope"}) {
+		t.Error("ValidModuleIDs salah")
+	}
+}

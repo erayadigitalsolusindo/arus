@@ -4,7 +4,8 @@
   import { cubicOut } from 'svelte/easing';
   import { subscription, payFinal, type SubscriptionStatus, type PlanInfo, type PlanPayment } from '#lib/subscription/api.ts';
   import { session } from '#lib/auth/session.svelte.ts';
-  import { t, formatNumber, formatDateTime } from '#lib/i18n/index.ts';
+  import { t, tryT, formatNumber, formatDateTime } from '#lib/i18n/index.ts';
+  import { featureGroups, planHas } from '#lib/subscription/features.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
 
@@ -90,6 +91,12 @@
     if (!cur || p.id === cur.plan_id || from == null || to == null || to <= from) return '';
     return t('subscription.gain', { from: formatNumber(from), to: formatNumber(to) });
   }
+  const featName = (id: string) => tryT(`subscription.features.${id}.name`) ?? id;
+  const featDesc = (id: string) => tryT(`subscription.features.${id}.desc`) ?? '';
+  const menuName = (id: string) => tryT(`iam.module.${id}`) ?? id;
+  // Menu yang bisa dibuka per paket (tanpa modul pendukung teknis seperti PIN penyetuju), untuk daftar "lihat semua menu".
+  const menusOf = (modules: string[] | null) => (modules ?? []).filter((m) => m !== 'subscription');
+  let openMenus = $state<Record<string, boolean>>({});
   const recommended = $derived(status?.plans.find((p) => p.id !== cur?.plan_id)?.id ?? status?.plans[0]?.id);
 
   async function setPayment(p: PlanPayment) {
@@ -235,6 +242,26 @@
       </div>
     </section>
 
+    <!-- Isi paket aktif -->
+    <section class="surface-card p-6 sm:p-7" in:fly={{ y: 14, duration: dur(450), delay: dur(100), easing: cubicOut }}>
+      <div class="mb-4">
+        <h2 class="font-display font-bold text-[15px]">{t('subscription.yourFeatures')} <span class="text-[var(--color-primary-600)]">{cur.name}</span></h2>
+        <p class="text-[12px] mt-1 text-[var(--text-tertiary)]">{t('subscription.yourFeaturesHint')}</p>
+      </div>
+      <ul class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {#each featureGroups as g (g.id)}
+          {@const has = planHas(cur.modules, g)}
+          <li class="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] p-3.5 {has ? '' : 'opacity-55'}">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg {has ? 'bg-[var(--color-success-500)]/12 text-[var(--color-success-600)]' : 'bg-[var(--surface-sunken)] text-[var(--text-tertiary)]'}"><i class="icon-{has ? g.icon : 'lock'} text-[16px]"></i></span>
+            <span class="min-w-0">
+              <span class="block text-[13px] font-semibold">{featName(g.id)}</span>
+              <span class="block text-[11.5px] text-[var(--text-tertiary)]">{has ? featDesc(g.id) : t('subscription.notIncluded')}</span>
+            </span>
+          </li>
+        {/each}
+      </ul>
+    </section>
+
     <!-- Pilihan paket -->
     <section class="space-y-5">
       <div class="flex flex-wrap items-end justify-between gap-2">
@@ -286,6 +313,40 @@
                   <span>{t('subscription.featureQris')}</span>
                 </li>
               </ul>
+              <div class="border-t border-[var(--border-subtle)] pt-4 space-y-2.5">
+                <div class="text-[11px] font-bold uppercase tracking-wide text-[var(--text-tertiary)]">{t('subscription.featuresTitle')}</div>
+                <ul class="space-y-2">
+                  {#each featureGroups as g (g.id)}
+                    {@const has = planHas(p.modules, g)}
+                    <li class="flex items-start gap-2 text-[12.5px] {has ? '' : 'text-[var(--text-tertiary)] opacity-60'}">
+                      <i class="icon-{has ? 'circle-check' : 'circle-minus'} mt-0.5 text-[15px] shrink-0 {has ? 'text-[var(--color-success-600)]' : ''}" aria-hidden="true"></i>
+                      <span>
+                        <span class="font-medium">{featName(g.id)}</span>
+                        {#if has}<span class="block text-[11.5px] text-[var(--text-tertiary)]">{featDesc(g.id)}</span>{/if}
+                      </span>
+                    </li>
+                  {/each}
+                </ul>
+                {#if p.highlights.length}
+                  <ul class="space-y-1.5 pt-1">
+                    {#each p.highlights as h, i (i)}
+                      <li class="flex items-start gap-2 text-[12.5px] font-medium"><i class="icon-sparkles mt-0.5 text-[14px] shrink-0 text-[var(--color-primary-600)]" aria-hidden="true"></i>{h}</li>
+                    {/each}
+                  </ul>
+                {/if}
+                {#if p.modules === null}
+                  <p class="text-[11.5px] font-medium text-[var(--color-success-600)]"><i class="icon-infinity me-1"></i>{t('subscription.allMenus')}</p>
+                {:else}
+                  <button type="button" class="text-[11.5px] font-medium text-[var(--color-primary-600)]" aria-expanded={!!openMenus[p.id]} onclick={() => (openMenus[p.id] = !openMenus[p.id])}>
+                    {openMenus[p.id] ? t('subscription.hideMenus') : t('subscription.seeMenus', { count: menusOf(p.modules).length })}
+                  </button>
+                  {#if openMenus[p.id]}
+                    <div class="flex flex-wrap gap-1.5">
+                      {#each menusOf(p.modules) as m (m)}<span class="rounded-full bg-[var(--surface-sunken)] px-2 py-0.5 text-[11px]">{menuName(m)}</span>{/each}
+                    </div>
+                  {/if}
+                {/if}
+              </div>
               <button
                 type="button"
                 class="btn {star || mine ? 'btn-primary' : 'btn-outline'} !text-[13px] !py-2.5 disabled:opacity-60 buy-btn"

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { session, logout, can } from '#lib/auth/session.svelte.ts';
+  import { session, logout, can, isLocked } from '#lib/auth/session.svelte.ts';
+  import { showLockPrompt } from '#lib/subscription/lock.svelte.ts';
   import { page } from '$app/state';
   import { visibleNav, siakNav, SIAK_PREFIX, type NavItem } from '#lib/nav.ts';
   import { t } from '#lib/i18n/index.ts';
@@ -17,12 +18,12 @@
 
   // Mode SIAK: di halaman akuntansi, menu ARUS diganti menu SIAK (dengan tautan kembali ke ARUS).
   const siakMode = $derived(page.url.pathname === SIAK_PREFIX || page.url.pathname.startsWith(SIAK_PREFIX + '/'));
-  const siakGroups = $derived(visibleNav(allowed, siakNav));
+  const siakGroups = $derived(visibleNav(allowed, siakNav, isLocked));
   const siakEntry = $derived(siakGroups[0]?.items[0]?.href ?? '/accounting/accounts');
   const groups = $derived(
     siakMode
       ? siakGroups
-      : visibleNav(allowed).map((g) => ({ ...g, items: g.items.map((i) => (i.id === 'siak' ? { ...i, href: siakEntry } : i)) }))
+      : visibleNav(allowed, undefined, isLocked).map((g) => ({ ...g, items: g.items.map((i) => (i.id === 'siak' ? { ...i, href: siakEntry } : i)) }))
   );
 
   // Semua submenu tertutup saat halaman dimuat/di-reload.
@@ -120,12 +121,28 @@
               <ul class="sidebar-submenu">
                 {#each item.children as child (child.labelKey)}
                   <li>
-                    <a href={child.href ?? '#'} class="sidebar-link !text-[12.5px]">
-                      <span class="sidebar-label">{t(child.labelKey)}</span>
-                    </a>
+                    {#if child.locked}
+                      <button type="button" class="sidebar-link !text-[12.5px] w-full opacity-60" onclick={() => showLockPrompt(child.labelKey)}>
+                        <span class="sidebar-label">{t(child.labelKey)}</span>
+                        <i class="icon-lock text-[12px] ms-auto" aria-hidden="true"></i>
+                        <span class="sr-only">{t('subscription.lock.badge')}</span>
+                      </button>
+                    {:else}
+                      <a href={child.href ?? '#'} class="sidebar-link !text-[12.5px]">
+                        <span class="sidebar-label">{t(child.labelKey)}</span>
+                      </a>
+                    {/if}
                   </li>
                 {/each}
               </ul>
+            </li>
+          {:else if item.locked}
+            <li>
+              <button type="button" class="sidebar-link w-full opacity-60" aria-label="{t(item.labelKey)} ({t('subscription.lock.badge')})" onclick={() => showLockPrompt(item.labelKey)}>
+                <i class="icon-{item.icon} text-[16px]"></i>
+                <span class="sidebar-label">{t(item.labelKey)}</span>
+                <i class="icon-lock text-[12px] ms-auto sidebar-label" aria-hidden="true"></i>
+              </button>
             </li>
           {:else}
             <li>
@@ -164,15 +181,30 @@
         <ul>
           {#each bubbleItem.children as child (child.labelKey)}
             <li>
-              <a
-                href={child.href ?? '#'}
-                class:is-active={child.href && page.url.pathname === child.href}
-                aria-current={child.href && page.url.pathname === child.href ? 'page' : undefined}
-                onclick={() => (bubbleItem = null)}
-              >
-                {t(child.labelKey)}
-                <i class="icon-chevron-right sidebar-bubble-arrow" aria-hidden="true"></i>
-              </a>
+              {#if child.locked}
+                <a
+                  href="/subscription"
+                  class="opacity-60"
+                  onclick={(e) => {
+                    e.preventDefault();
+                    bubbleItem = null;
+                    showLockPrompt(child.labelKey);
+                  }}
+                >
+                  {t(child.labelKey)}
+                  <i class="icon-lock sidebar-bubble-arrow" aria-hidden="true"></i>
+                </a>
+              {:else}
+                <a
+                  href={child.href ?? '#'}
+                  class:is-active={child.href && page.url.pathname === child.href}
+                  aria-current={child.href && page.url.pathname === child.href ? 'page' : undefined}
+                  onclick={() => (bubbleItem = null)}
+                >
+                  {t(child.labelKey)}
+                  <i class="icon-chevron-right sidebar-bubble-arrow" aria-hidden="true"></i>
+                </a>
+              {/if}
             </li>
           {/each}
         </ul>

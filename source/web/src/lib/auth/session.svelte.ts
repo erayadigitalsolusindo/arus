@@ -54,9 +54,17 @@ setAuthListener(apply);
 /** Apakah pengguna punya izin `module.action` (hanya untuk menyaring UI; server tetap menegakkan). */
 export function can(module: string, action = 'view'): boolean {
   const p = session.permissions;
+  // `_locked` = modul di luar paket langganan tenant: menimpa izin role, termasuk Owner.
+  if (Array.isArray(p._locked) && p._locked.includes(module)) return false;
   if (p["*"] === true) return true;
   const acts = p[module];
   return Array.isArray(acts) && acts.includes(action);
+}
+
+/** Modul yang izin role-nya ada tetapi terkunci paket langganan tenant (ditampilkan bergembok, bukan disembunyikan). */
+export function isLocked(module: string): boolean {
+  const l = session.permissions._locked;
+  return Array.isArray(l) && l.includes(module);
 }
 
 /** Menandai email terverifikasi di UI (dipanggil halaman verifikasi bila pengguna sedang masuk). */
