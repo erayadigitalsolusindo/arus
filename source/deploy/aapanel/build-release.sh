@@ -15,7 +15,7 @@ echo "==> 1/3 build API (Go)"
 cp -r "$SRC/backend/db/migrations" "$OUT/migrations"
 
 echo "==> 2/3 build web (SvelteKit)"
-( cd "$SRC/web" && npm ci && VITE_API_URL="$API_URL" npm run build )
+( cd "$SRC/web" && bun install --frozen-lockfile && VITE_API_URL="$API_URL" bun run build )
 mkdir -p "$OUT/web"
 cp -r "$SRC/web/build/." "$OUT/web/"
 

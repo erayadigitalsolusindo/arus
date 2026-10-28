@@ -156,7 +156,7 @@ flowchart LR
 
 ## 🚀 Mulai cepat
 
-**Prasyarat:** Go 1.27+, Node.js 26 (npm 11), Docker + Compose, [`goose`](https://github.com/pressly/goose) (`go install github.com/pressly/goose/v3/cmd/goose@latest`). `sqlc` hanya diperlukan bila mengubah `queries.sql`. Aplikasi mobile tambahan butuh Flutter 3.47 + JDK 17 + Android SDK (lihat [`docs/DEV-ENV.md`](docs/DEV-ENV.md)).
+**Prasyarat:** Go 1.27+, Node.js 26, [Bun](https://bun.sh) 1.4+, Docker + Compose, [`goose`](https://github.com/pressly/goose) (`go install github.com/pressly/goose/v3/cmd/goose@latest`). `sqlc` hanya diperlukan bila mengubah `queries.sql`. Aplikasi mobile tambahan butuh Flutter 3.47 + JDK 17 + Android SDK (lihat [`docs/DEV-ENV.md`](docs/DEV-ENV.md)).
 
 Jalankan dari root repo (folder `arus`):
 
@@ -178,7 +178,7 @@ goose -dir source/backend/db/migrations postgres "$MIGRATE_DATABASE_URL" up
 go -C source/backend run ./cmd/api
 
 # 5. Web → http://localhost:5173 (terminal lain)
-cd source/web && cp .env.example .env && npm ci && npm run dev
+cd source/web && cp .env.example .env && bun install && bun run dev
 ```
 
 Buka <http://localhost:5173> → **Register** untuk membuat tenant dan akun Owner pertama. Di mode development email tidak dikirim. Isinya, termasuk tautan verifikasi/reset, hanya dicatat di log API.
@@ -188,7 +188,6 @@ Buka <http://localhost:5173> → **Register** untuk membuat tenant dan akun Owne
 
 - **Dua URL database disengaja.** `MIGRATE_DATABASE_URL` adalah pemilik skema (khusus goose; melewati RLS). `DATABASE_URL` adalah role `aciraba_app` yang dipakai API: bukan pemilik dan tanpa BYPASSRLS, sehingga RLS selalu berlaku. Role ini dibuat otomatis oleh `source/deploy/initdb/01-app-role.sh` saat volume Postgres pertama kali dibuat.
 - **Jangan `source` file `.env` secara utuh**, karena nilai berspasi (mis. `SMTP_FROM`) akan rusak. Cukup `export` variabel yang dibutuhkan.
-- **npm 10 menolak lock file**; pakai npm 11 (`npx -y npm@11 ci`).
 - **Platform Admin (opsional):** isi `PLATFORM_SETUP_TOKEN` (≥ 32 karakter) di `backend/.env`, restart API, lalu buka `/platform/setup` untuk membuat admin pertama (wajib daftar 2FA). **Hapus token itu setelah selesai.**
 - Folder `docker/` di root adalah compose mesin dev pengembang (`eds_postgres`/`eds_redis`), **bukan** compose ARUS. Pakai `source/deploy/docker-compose.yml`.
 
@@ -227,7 +226,7 @@ export TEST_REDIS_URL=...           # = REDIS_URL
 (cd source/backend && go vet ./... && go test ./...)
 
 # Frontend
-(cd source/web && npm run check && npm run build)
+(cd source/web && bun run check && bun run build)
 
 # Print-agent
 (cd source/print-agent && go test ./...)
@@ -250,7 +249,6 @@ Test membuat dan membersihkan tenant uji sendiri; pakai database dev, bukan prod
 | UI "Server unreachable" | API mati / `VITE_API_URL` ≠ `HTTP_ADDR` / origin belum ada di `CORS_ORIGINS` |
 | Rute/kolom baru tidak ada setelah `git pull` | migration belum diterapkan atau proses API lama belum di-restart |
 | Test integrasi ter-skip | `TEST_DATABASE_URL`, `TEST_ADMIN_DATABASE_URL`, `TEST_REDIS_URL` belum diatur |
-| `npm ci`: "lock file out of sync" | npm terlalu lama; pakai npm 11 |
 | Kasir tak bisa simpan nota (`SHIFT_REQUIRED`) | kasir belum membuka shift |
 | Struk tak tercetak lewat agent | agent belum berjalan atau origin web belum terdaftar; lihat [`PC-KASIR.md`](source/deploy/PC-KASIR.md) |
 | Login berputar di produksi | Cloudflare SSL *Flexible* (harus *Full strict*), atau web & API beda domain induk |
@@ -300,7 +298,7 @@ Modul backend ada di `source/backend/internal/`: `auth`, `authz`, `iam`, `audit`
 - [ ] Import barang + saldo awal stok dari Excel/CSV (katalog pilot >100 ribu barang)
 - [ ] Backup terjadwal ke luar server + satu kali uji restore
 - [ ] Spec test penjualan untuk kasus tersering, disetujui pemilik produk
-- [ ] CI GitHub Actions (`go test`, `npm run check`)
+- [ ] CI GitHub Actions (`go test`, `bun run check`)
 - [ ] Gladi bersih di PC kasir toko: shift, struk di printer asli, retur, piutang
 
 **Batasan yang perlu diketahui:** kasir belum bisa offline · teks Syarat Layanan & Kebijakan Privasi masih **draf** (harus ditinjau konsultan hukum) · email verifikasi belum memblokir login dan dikirim tanpa antrean/retry · laporan (Fase 7) belum ada.

@@ -99,7 +99,7 @@ grep " $F\$" SHASUMS256.txt | sha256sum -c -
 sudo mkdir -p /opt/node26 && sudo tar -xJf $F -C /opt/node26 --strip-components=1
 /opt/node26/bin/node -v && rm -f $F SHASUMS256.txt
 ```
-Kedua pemeriksaan hash harus `OK`; bila tidak, jangan dipasang. Node 26 dipakai (bukan 22) karena `package-lock.json` dibuat dengan npm versi itu; npm 10 menolak lock tersebut (`npm ci` gagal "lock file out of sync" akibat peer opsional `bits-ui`).
+Kedua pemeriksaan hash harus `OK`; bila tidak, jangan dipasang. Build web memakai Bun (`bun.lock`); pasang Bun di mesin build (`curl -fsSL https://bun.sh/install | bash`) selain Node.
 
 ## 5. Skrip build, update, dan cek
 Salin ke home user admin (bukan dijalankan dari repo, supaya `git pull` tidak mengubah skrip yang sedang berjalan):
@@ -207,8 +207,8 @@ Memeriksa API, akses dari internet, Docker, versi migrasi, umur backup, disk, da
 |---|---|
 | API menolak start: `JWT_SECRET wajib diisi, minimal 32 karakter` | `JWT_SECRET` kosong atau masih placeholder |
 | `healthz` → `redis: down` | Password di `REDIS_URL` beda dengan `REDIS_PASSWORD` di `deploy/.env` (langkah 3) |
-| `npm ci` gagal "lock file out of sync" | Memakai npm 10; pakai Node 26 (langkah 4) |
-| `npm ci` gagal `EPERM … lightningcss` (Windows) | Dev server/editor memegang `node_modules`; build di server menghindarinya |
+| `bun install --frozen-lockfile` gagal | `bun.lock` tidak sinkron dengan `package.json`; jalankan `bun install` lalu commit `bun.lock` |
+| `bun install` gagal `EPERM … lightningcss` (Windows) | Dev server/editor memegang `node_modules`; build di server menghindarinya |
 | Halaman putih, CSS/JS tak termuat | Rewrite memakai `%{REQUEST_FILENAME}` (lihat langkah 7) |
 | `update.sh` gagal di `rsync` | `.user.ini` terkunci di `/www/wwwroot/arus/web`: matikan anti-cross-site di aaPanel, `sudo chattr -i` lalu hapus berkasnya |
 | Login berhasil lalu langsung keluar / refresh 401 | `CORS_ORIGINS`/`APP_BASE_URL` tak persis `https://arus.erayadigital.co.id` (tanpa slash akhir), atau Cloudflare mode Flexible |
