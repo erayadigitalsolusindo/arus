@@ -30,8 +30,8 @@ Copy-Item "$root\backend\db\migrations" "$out\migrations" -Recurse
 Push-Location "$root\web"
 try {
     $env:VITE_API_URL = $ApiUrl
-    npm ci;           Assert-Ok 'npm ci (hentikan npm run dev / editor yang memakai source\web bila EPERM)'
-    npm run build;    Assert-Ok 'npm run build'
+    bun install --frozen-lockfile; Assert-Ok 'bun install (hentikan bun run dev / editor yang memakai source\web bila EPERM)'
+    bun run build;    Assert-Ok 'bun run build'
 } finally {
     Remove-Item Env:VITE_API_URL -ErrorAction SilentlyContinue
     Pop-Location
