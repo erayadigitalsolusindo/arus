@@ -107,3 +107,82 @@ func TestAuthenticateMiddleware(t *testing.T) {
 		t.Errorf("akun nonaktif: status %d, want 401", code)
 	}
 }
+
+// Paket langganan membatasi modul: Require menolak modul di luar paket walau role (termasuk Owner `*`) mengizinkan.
+func TestPlanModuleLockEnforced(t *testing.T) {
+	appURL, adminURL := os.Getenv("TEST_DATABASE_URL"), os.Getenv("TEST_ADMIN_DATABASE_URL")
+	if appURL == "" || adminURL == "" {
+		t.Skip("TEST_DATABASE_URL/TEST_ADMIN_DATABASE_URL tidak di-set")
+	}
+	ctx := context.Background()
+	app, err := pgxpool.New(ctx, appURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(app.Close)
+	admin, err := pgxpool.New(ctx, adminURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(admin.Close)
+
+	tenant, ownerRole, userID, outlet, planID := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	sfx := tenant.String()[:8]
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO tenants (id, code, name) VALUES ($1, $2, $3)`, []any{tenant, "pm-" + sfx, "UJI-PM-" + sfx}},
+		{`INSERT INTO outlets (id, tenant_id, code, name) VALUES ($1, $2, 'a', 'A')`, []any{outlet, tenant}},
+		{`INSERT INTO roles (id, tenant_id, name, permissions, is_system) VALUES ($1, $2, 'Owner', '{"*":true}', true)`, []any{ownerRole, tenant}},
+		{`INSERT INTO users (id, tenant_id, role_id, email, name, password_hash) VALUES ($1, $2, $3, $4, 'O', 'x')`, []any{userID, tenant, ownerRole, "pm-" + sfx + "@pm.test"}},
+		{`INSERT INTO plans (id, code, name, modules) VALUES ($1, $2, 'UJI', ARRAY['items'])`, []any{planID, "uji-pm-" + sfx}},
+		{`INSERT INTO tenant_subscriptions (tenant_id, plan_id) VALUES ($1, $2)`, []any{tenant, planID}},
+	} {
+		if _, err := admin.Exec(ctx, q.sql, q.args...); err != nil {
+			t.Fatalf("siapkan: %v", err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(ctx, `DELETE FROM tenant_subscriptions WHERE tenant_id = $1`, tenant)
+		for _, tbl := range []string{"users", "roles", "outlets"} {
+			_, _ = admin.Exec(ctx, `DELETE FROM `+tbl+` WHERE tenant_id = $1`, tenant)
+		}
+		_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tenant)
+		_, _ = admin.Exec(ctx, `DELETE FROM plans WHERE id = $1`, planID)
+	})
+
+	issuer := pauth.NewTokenIssuer("rahasia-uji-rahasia-uji-rahasia-uji-123")
+	res := NewResolver(app)
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	call := func(module string) int {
+		tok, err := issuer.Issue(userID.String(), tenant.String(), outlet.String(), "Owner", time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		httpx.RequireAuth(issuer)(res.Authenticate(Require(module, ActView)(ok))).ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	if c := call("items"); c != 200 {
+		t.Errorf("modul dalam paket: status %d, want 200", c)
+	}
+	if c := call("journals"); c != 403 {
+		t.Errorf("Owner pada modul di luar paket: status %d, want 403", c)
+	}
+	if c := call("subscription"); c != 200 {
+		t.Errorf("subscription selalu terbuka: status %d, want 200", c)
+	}
+
+	// Naik paket (modul NULL = semua): berlaku seketika setelah cache tenant dibuang.
+	if _, err := admin.Exec(ctx, `UPDATE plans SET modules = NULL WHERE id = $1`, planID); err != nil {
+		t.Fatal(err)
+	}
+	res.InvalidateTenant(tenant)
+	if c := call("journals"); c != 200 {
+		t.Errorf("paket semua modul: status %d, want 200", c)
+	}
+}

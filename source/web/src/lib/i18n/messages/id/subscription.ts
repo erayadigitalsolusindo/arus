@@ -62,5 +62,30 @@ export default {
     check: 'Cek status',
     close: 'Tutup',
     qrAlt: 'Kode QRIS pembayaran paket'
+  },
+  lock: {
+    title: '{menu} belum termasuk paket Anda',
+    body: 'Menu ini tersedia di paket yang lebih tinggi. Upgrade paket untuk membukanya; data Anda tetap aman dan tidak berubah.',
+    upgrade: 'Lihat paket & upgrade',
+    later: 'Nanti saja',
+    badge: 'Terkunci paket'
+  },
+  featuresTitle: 'Yang Anda dapatkan',
+  yourFeatures: 'Isi paket Anda',
+  yourFeaturesHint: 'Fitur yang aktif di paket ini dan yang baru terbuka bila upgrade.',
+  seeMenus: 'Lihat semua menu ({count})',
+  hideMenus: 'Sembunyikan menu',
+  allMenus: 'Semua menu tersedia',
+  notIncluded: 'Tidak termasuk',
+  features: {
+    pos: { name: 'Kasir (POS)', desc: 'Layar kasir, shift, kas kecil, retur, dan PIN penyetuju.' },
+    sales: { name: 'Penjualan & laporan', desc: 'Daftar penjualan, penjualan langsung, laporan penjualan, HPP dan laba.' },
+    stock: { name: 'Persediaan', desc: 'Barang, kartu stok, saldo awal, opname, pecah satuan, mutasi antar outlet.' },
+    qris: { name: 'QRIS EraPay & metode bayar', desc: 'Terima QRIS dan atur metode pembayaran beserta biayanya.' },
+    members: { name: 'Member & piutang', desc: 'Member, poin, deposit, dan piutang pelanggan.' },
+    purchasing: { name: 'Pembelian & hutang pemasok', desc: 'Faktur pembelian, retur beli, hutang dan kredit pemasok.' },
+    accounting: { name: 'Akuntansi (SIAK)', desc: 'Jurnal, buku besar, neraca, laba rugi, dan tutup buku.' },
+    ai: { name: 'HalloArus (asisten AI)', desc: 'Tanya data usaha Anda dan dapatkan saran.' },
+    audit: { name: 'Audit log', desc: 'Jejak perubahan data oleh setiap pengguna.' }
   }
 };

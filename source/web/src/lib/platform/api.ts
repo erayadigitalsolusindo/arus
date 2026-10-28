@@ -120,6 +120,10 @@ export type PlanRow = {
   self_service: boolean;
   active: boolean;
   sort_order: number;
+  /** Modul izin yang boleh dipakai paket; null = semua modul. */
+  modules: string[] | null;
+  /** Poin keunggulan bebas untuk kartu paket. */
+  highlights: string[];
 };
 export type PlanInput = Omit<PlanRow, 'id' | 'is_default' | 'code'>;
 export type TenantPlan = {
@@ -176,6 +180,7 @@ export const platformApi = {
   extDeleteBrand: (id: string) => papi<void>(`/platform/ext/brands/${id}`, { method: 'DELETE' }),
 
   plans: () => papi<{ items: PlanRow[] }>('/platform/plans'),
+  planModules: () => papi<{ modules: { id: string; actions: string[] }[] }>('/platform/plans/modules').then((r) => r.modules),
   createPlan: (body: PlanInput & { code: string }) => papi<{ id: string }>('/platform/plans', { method: 'POST', body: json(body) }),
   updatePlan: (id: string, body: PlanInput) => papi<{ id: string }>(`/platform/plans/${id}`, { method: 'PUT', body: json(body) }),
   tenantPlan: (id: string) => papi<TenantPlan>(`/platform/tenants/${id}/plan`),

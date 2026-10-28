@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { platformApi, type PlanRow } from '#lib/platform/api.ts';
-  import { t, formatNumber } from '#lib/i18n/index.ts';
+  import { t, tryT, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
   import MoneyInput from '#lib/components/MoneyInput.svelte';
@@ -23,6 +23,10 @@
     active: boolean;
     sort: string;
     isDefault: boolean;
+    /** null = semua menu */
+    modules: string[] | null;
+    /** satu poin per baris */
+    highlights: string;
   };
 
   let plans = $state<PlanRow[]>([]);
@@ -32,6 +36,10 @@
   let form = $state<Form | null>(null);
   let saving = $state(false);
   let fieldErrors = $state<Record<string, string>>({});
+  let moduleIds = $state<string[]>([]);
+  let moduleQuery = $state('');
+  const moduleLabel = (id: string) => tryT(`iam.module.${id}`) ?? id;
+  const shownModules = $derived(moduleIds.filter((id) => !moduleQuery.trim() || moduleLabel(id).toLowerCase().includes(moduleQuery.trim().toLowerCase()) || id.includes(moduleQuery.trim().toLowerCase())));
 
   async function load() {
     loading = true;
@@ -44,7 +52,15 @@
       loading = false;
     }
   }
-  onMount(load);
+  onMount(() => {
+    void load();
+    platformApi.planModules().then((m) => (moduleIds = m.map((x) => x.id).filter((id) => id !== 'subscription'))).catch(() => {});
+  });
+
+  function toggleModule(id: string) {
+    if (!form || form.modules === null) return;
+    form.modules = form.modules.includes(id) ? form.modules.filter((m) => m !== id) : [...form.modules, id];
+  }
 
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
   const limitLabel = (n: number | null, key: 'perDay' | 'days' | null) =>
@@ -53,7 +69,7 @@
   function openNew() {
     notice = '';
     fieldErrors = {};
-    form = { id: null, code: '', name: '', description: '', price: '0', duration: '', maxTx: '', maxUsers: '', selfService: false, active: true, sort: String(plans.length + 1), isDefault: false };
+    form = { id: null, code: '', name: '', description: '', price: '0', duration: '', maxTx: '', maxUsers: '', selfService: false, active: true, sort: String(plans.length + 1), isDefault: false, modules: null, highlights: '' };
   }
 
   function openEdit(p: PlanRow) {
@@ -64,7 +80,9 @@
       duration: p.duration_days === null ? '' : String(p.duration_days),
       maxTx: p.max_tx_per_day === null ? '' : String(p.max_tx_per_day),
       maxUsers: p.max_users === null ? '' : String(p.max_users),
-      selfService: p.self_service, active: p.active, sort: String(p.sort_order), isDefault: p.is_default
+      selfService: p.self_service, active: p.active, sort: String(p.sort_order), isDefault: p.is_default,
+      modules: p.modules === null ? null : [...p.modules],
+      highlights: p.highlights.join('\n')
     };
   }
 
@@ -82,7 +100,9 @@
       max_users: num(form.maxUsers),
       self_service: form.selfService,
       active: form.active,
-      sort_order: Number(form.sort) || 0
+      sort_order: Number(form.sort) || 0,
+      modules: form.modules,
+      highlights: form.highlights.split('\n').map((l) => l.trim()).filter(Boolean)
     };
     try {
       if (form.id) await platformApi.updatePlan(form.id, body);
@@ -172,6 +192,7 @@
     { ok: form.active, text: t('platform.plans.m.chkActive') }
   ]}
   {@const sellable = checks.every((c) => c.ok)}
+  {@const hlLines = form.highlights.split('\n').map((l) => l.trim()).filter(Boolean)}
   <Modal title={form.id ? t('platform.plans.editTitle') : t('platform.plans.addTitle')} onclose={() => (form = null)} xl>
     <div class="mhead">
       <span class="mhead-ico"><i class="icon-{form.id ? 'pencil' : 'badge-dollar-sign'}"></i></span>
@@ -222,7 +243,7 @@
               </div>
               <div>
                 <label for="plan-days" class="mlabel">{t('platform.plans.duration')}</label>
-                <div class="affix"><input id="plan-days" class="form-input !text-[13px] text-end" inputmode="numeric" bind:value={form.duration} placeholder="∞" /><span class="after">{t('platform.plans.m.daysUnit')}</span></div>
+                <div class="affix"><input id="plan-days" class="form-input !text-[13px] text-end !pe-14" inputmode="numeric" bind:value={form.duration} placeholder="∞" /><span class="after">{t('platform.plans.m.daysUnit')}</span></div>
                 <div class="mt-2 flex flex-wrap gap-1.5">
                   {#each [30, 90, 365] as d (d)}
                     <button type="button" class="mpreset {form.duration === String(d) ? 'on' : ''}" onclick={() => (form!.duration = String(d))}>{t('platform.plans.days', { count: d })}</button>
@@ -257,7 +278,42 @@
           </section>
 
           <section class="msec">
-            <h3 class="msec-title"><span class="msec-num">4</span>{t('platform.plans.m.secSales')}</h3>
+            <h3 class="msec-title"><span class="msec-num">4</span>{t('platform.plans.m.secModules')}</h3>
+            <div class="flex items-start gap-3">
+              <Switch bind:checked={() => form!.modules !== null, (v) => (form!.modules = v ? [...moduleIds] : null)} label={t('platform.plans.m.limitModules')} />
+              <div>
+                <div class="text-[13px] font-semibold">{t('platform.plans.m.limitModules')}</div>
+                <p class="mhint !mt-0.5 {fe('modules') ? '!text-[var(--color-danger-600)]' : ''}">{fe('modules') || (form.modules === null ? t('platform.plans.m.modulesAllHint') : t('platform.plans.m.modulesHelp'))}</p>
+              </div>
+            </div>
+            {#if form.modules !== null}
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <input class="form-input !text-[12.5px] !w-52" bind:value={moduleQuery} placeholder={t('platform.plans.m.modulesSearch')} />
+                <button type="button" class="mpreset" onclick={() => (form!.modules = [...moduleIds])}>{t('platform.plans.m.pickAll')}</button>
+                <button type="button" class="mpreset" onclick={() => (form!.modules = [])}>{t('platform.plans.m.pickNone')}</button>
+                <span class="text-[11.5px] text-[var(--text-tertiary)] tabular-nums ms-auto">{t('platform.plans.m.modulesCount', { count: form.modules.length, total: moduleIds.length })}</span>
+              </div>
+              <div class="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 max-h-64 overflow-y-auto scroll-thin rounded-lg border border-[var(--border-subtle)] p-2">
+                {#each shownModules as id (id)}
+                  <label class="flex items-center gap-2 rounded px-1.5 py-1 text-[12.5px] hover:bg-[var(--surface-sunken)] cursor-pointer">
+                    <input type="checkbox" checked={form.modules.includes(id)} onchange={() => toggleModule(id)} />
+                    <span class="truncate">{moduleLabel(id)}</span>
+                  </label>
+                {/each}
+              </div>
+              {#if form.modules.length === 0}<div class="mnote mnote-info"><i class="icon-info"></i>{t('platform.plans.m.modulesNone')}</div>{/if}
+            {/if}
+          </section>
+
+          <section class="msec">
+            <h3 class="msec-title"><span class="msec-num">5</span>{t('platform.plans.m.secHighlights')}</h3>
+            <label for="plan-hl" class="mlabel flex justify-between">{t('platform.plans.m.highlights')}<span class="font-normal text-[11px] text-[var(--text-tertiary)] tabular-nums">{hlLines.length}/12</span></label>
+            <textarea id="plan-hl" class="form-input !text-[13px] w-full" rows="4" bind:value={form.highlights} placeholder={t('platform.plans.m.highlightsPlaceholder')}></textarea>
+            <p class="mhint {fe('highlights') || hlLines.length > 12 || hlLines.some((l) => l.length > 120) ? '!text-[var(--color-danger-600)]' : ''}">{fe('highlights') || t('platform.plans.m.highlightsHelp')}</p>
+          </section>
+
+          <section class="msec">
+            <h3 class="msec-title"><span class="msec-num">6</span>{t('platform.plans.m.secSales')}</h3>
             {#if form.isDefault}
               <div class="mnote mnote-info !mt-0"><i class="icon-info"></i>{t('platform.plans.m.defaultNote')}</div>
             {:else}
@@ -302,6 +358,8 @@
               <ul class="space-y-2 text-[12.5px]">
                 <li class="flex items-center gap-2"><span class="pv-ok"><i class="icon-check"></i></span>{txN === null ? t('platform.plans.m.unlimitedTx') : t('platform.plans.m.txPerDay', { count: formatNumber(txN) })}</li>
                 <li class="flex items-center gap-2"><span class="pv-ok"><i class="icon-check"></i></span>{usersN === null ? t('platform.plans.m.unlimitedUsers') : t('platform.plans.m.usersIncl', { count: formatNumber(usersN) })}</li>
+                {#each hlLines.slice(0, 12) as h, i (i)}<li class="flex items-center gap-2"><span class="pv-ok"><i class="icon-sparkles"></i></span>{h}</li>{/each}
+                <li class="flex items-center gap-2"><span class="pv-ok"><i class="icon-check"></i></span>{form.modules === null ? t('platform.plans.m.allModules') : t('platform.plans.m.modulesCount', { count: form.modules.length, total: moduleIds.length })}</li>
               </ul>
               <div class="pv-btn"><i class="icon-qr-code"></i>{t('platform.plans.m.payBtn')}</div>
             </div>

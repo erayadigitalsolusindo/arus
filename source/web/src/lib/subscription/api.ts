@@ -8,6 +8,8 @@ export type EffectivePlan = {
   /** null = tanpa batas. */
   max_tx_per_day: number | null;
   max_users: number | null;
+  /** Menu yang termasuk paket; null = semua menu. */
+  modules: string[] | null;
   /** null = tanpa kedaluwarsa. */
   expires_at: string | null;
   is_default: boolean;
@@ -21,6 +23,10 @@ export type PlanInfo = {
   duration_days: number | null;
   max_tx_per_day: number | null;
   max_users: number | null;
+  /** Menu yang termasuk paket; null = semua menu. */
+  modules: string[] | null;
+  /** Poin keunggulan bebas yang ditulis admin. */
+  highlights: string[];
 };
 export type SubscriptionStatus = {
   current: EffectivePlan;

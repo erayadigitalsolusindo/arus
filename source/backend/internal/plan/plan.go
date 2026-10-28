@@ -27,6 +27,8 @@ type Effective struct {
 	MaxUsers    *int       `json:"max_users"`      // nil = tanpa batas
 	ExpiresAt   *time.Time `json:"expires_at"`     // nil = tanpa kedaluwarsa
 	IsDefault   bool       `json:"is_default"`
+	// Modules = id modul izin yang boleh dipakai paket ini; nil = semua modul.
+	Modules []string `json:"modules"`
 }
 
 // Langganan yang kedaluwarsa dilewati sehingga tenant jatuh ke paket default tanpa job apa pun.
@@ -39,7 +41,7 @@ WITH s AS (
 SELECT p.id, p.code, p.name,
        coalesce((SELECT o_tx FROM s), p.max_tx_per_day),
        coalesce((SELECT o_users FROM s), p.max_users),
-       (SELECT expires_at FROM s), p.is_default
+       (SELECT expires_at FROM s), p.is_default, p.modules
   FROM plans p
  WHERE p.id = coalesce((SELECT plan_id FROM s), (SELECT id FROM plans WHERE is_default))`
 
@@ -50,7 +52,7 @@ func Get(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) (Effective, error) {
 		maxTx, maxUsr pgtype.Int4
 		expiresAt pgtype.Timestamptz
 	)
-	if err := tx.QueryRow(ctx, effectiveSQL, tenant).Scan(&e.PlanID, &e.Code, &e.Name, &maxTx, &maxUsr, &expiresAt, &e.IsDefault); err != nil {
+	if err := tx.QueryRow(ctx, effectiveSQL, tenant).Scan(&e.PlanID, &e.Code, &e.Name, &maxTx, &maxUsr, &expiresAt, &e.IsDefault, &e.Modules); err != nil {
 		return Effective{}, err
 	}
 	e.MaxTxPerDay, e.MaxUsers = intPtr(maxTx), intPtr(maxUsr)

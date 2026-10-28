@@ -64,6 +64,31 @@ const subscription: Messages['subscription'] = {
     check: '状況を確認',
     close: '閉じる',
     qrAlt: 'プラン支払いのQRISコード'
+  },
+  lock: {
+    title: '{menu} は現在のプランに含まれていません',
+    body: 'このメニューは上位プランでご利用いただけます。アップグレードで解除できます。データはそのまま安全に保たれます。',
+    upgrade: 'プランを見てアップグレード',
+    later: '後で',
+    badge: 'プランによりロック中'
+  },
+  featuresTitle: '含まれる機能',
+  yourFeatures: '現在のプランの内容',
+  yourFeaturesHint: 'このプランで有効な機能と、アップグレードで解放される機能です。',
+  seeMenus: 'すべてのメニューを見る（{count}）',
+  hideMenus: 'メニューを隠す',
+  allMenus: 'すべてのメニューが利用可能',
+  notIncluded: '含まれません',
+  features: {
+    pos: { name: 'レジ（POS）', desc: 'レジ画面、シフト、小口現金、返品、承認PIN。' },
+    sales: { name: '販売とレポート', desc: '販売一覧、リアルタイム販売、販売レポート、原価と利益。' },
+    stock: { name: '在庫', desc: '商品、在庫カード、期首残高、棚卸、単位変換、店舗間移動。' },
+    qris: { name: 'EraPay QRISと支払方法', desc: 'QRIS決済の受付、支払方法と手数料の設定。' },
+    members: { name: '会員と売掛', desc: '会員、ポイント、デポジット、顧客の売掛。' },
+    purchasing: { name: '仕入と買掛', desc: '仕入請求書、仕入返品、仕入先の買掛とクレジット。' },
+    accounting: { name: '会計（SIAK）', desc: '仕訳、総勘定元帳、貸借対照表、損益計算書、締め処理。' },
+    ai: { name: 'HalloArus（AIアシスタント）', desc: '事業データについて質問し、助言を得られます。' },
+    audit: { name: '監査ログ', desc: '各ユーザーによるデータ変更の履歴。' }
   }
 };
 

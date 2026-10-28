@@ -300,3 +300,30 @@ func TestPlanWritesNeedPlatformAdmin(t *testing.T) {
 		t.Fatal("role aplikasi bisa menulis tenant_subscriptions langsung")
 	}
 }
+
+func TestPlanModules(t *testing.T) {
+	e := newEnv(t)
+	get := func() Effective {
+		var got Effective
+		if err := db.WithTenant(context.Background(), e.app, e.tenant, func(tx pgx.Tx) error {
+			var err error
+			got, err = Get(context.Background(), tx, e.tenant)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	pid := e.newPlan(t, "uji-mod", nil, nil, nil)
+	if got := get(); got.Modules != nil {
+		t.Fatalf("modul = %v, want nil (semua modul)", got.Modules)
+	}
+	e.exec(t, `UPDATE plans SET modules = ARRAY['items','members'] WHERE id = $1`, pid)
+	if got := get(); len(got.Modules) != 2 || got.Modules[0] != "items" {
+		t.Fatalf("modul = %v, want [items members]", got.Modules)
+	}
+	e.exec(t, `UPDATE plans SET modules = '{}' WHERE id = $1`, pid)
+	if got := get(); got.Modules == nil || len(got.Modules) != 0 {
+		t.Fatalf("daftar kosong harus tetap kosong (bukan semua modul): %#v", got.Modules)
+	}
+}

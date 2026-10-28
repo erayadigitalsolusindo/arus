@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	gen "aciraba/internal/gen"
+	"aciraba/internal/plan"
 	"aciraba/internal/platform/db"
 )
 
@@ -74,6 +75,12 @@ func (r *Resolver) For(ctx context.Context, tenantID, userID uuid.UUID) (Access,
 			return ErrInactive
 		}
 		perms := ParseStored(row.Permissions)
+		// Paket langganan membatasi modul. Satu baris per tenant (kunci utama), hanya dibaca saat cache pengguna kedaluwarsa.
+		pl, err := plan.Get(ctx, tx, tenantID)
+		if err != nil {
+			return err
+		}
+		perms.Locked = LockedFor(pl.Modules)
 		// Owner (izin `*`) mengakses semua outlet aktif tanpa penugasan; yang lain hanya outlet yang ditugaskan.
 		ids, err := q.AuthzListAccessibleOutlets(ctx, gen.AuthzListAccessibleOutletsParams{TenantID: tenantID, AllOutlets: perms.All, UserID: userID})
 		if err != nil {
@@ -94,7 +101,16 @@ func (r *Resolver) For(ctx context.Context, tenantID, userID uuid.UUID) (Access,
 
 	r.mu.Lock()
 	if len(r.cache) >= maxCacheEntries {
-		clear(r.cache) // batas memori sederhana; isi akan terisi ulang dari DB
+		// Buang yang sudah kedaluwarsa dulu; mengosongkan semuanya membuat seluruh pengguna aktif serentak kembali ke DB.
+		now := r.now()
+		for k, e := range r.cache {
+			if now.Sub(e.at) >= r.ttl {
+				delete(r.cache, k)
+			}
+		}
+		if len(r.cache) >= maxCacheEntries {
+			clear(r.cache)
+		}
 	}
 	r.cache[key] = cacheEntry{access: access, at: r.now()}
 	r.mu.Unlock()

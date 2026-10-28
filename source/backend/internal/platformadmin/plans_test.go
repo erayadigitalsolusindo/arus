@@ -1,6 +1,7 @@
 package platformadmin
 
 import (
+	"strings"
 	"context"
 	"errors"
 	"testing"
@@ -107,3 +108,87 @@ func TestPlansSeedAndCRUD(t *testing.T) {
 }
 
 func intPtr(n int) *int { return &n }
+
+// Modul paket: daftar tersimpan apa adanya, nil = semua modul, id tak dikenal ditolak.
+func TestPlanModulesSave(t *testing.T) {
+	e := newEnv(t, "")
+	a := mustActor(t, e)
+	ctx := context.Background()
+	code := "uji-" + uuid.NewString()[:8]
+	t.Cleanup(func() { _, _ = e.admin.Exec(context.Background(), `DELETE FROM plans WHERE code = $1`, code) })
+
+	in := SavePlanInput{Code: code, Name: "Uji Modul", Price: decimal.Zero, Active: true, Modules: []string{"items", "members"}}
+	id, err := e.svc.SavePlan(ctx, a, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modulesOf := func() []string {
+		t.Helper()
+		plans, err := e.svc.ListPlans(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range plans {
+			if p.ID == id {
+				return p.Modules
+			}
+		}
+		t.Fatal("paket tidak ditemukan")
+		return nil
+	}
+	if got := modulesOf(); len(got) != 2 || got[0] != "items" || got[1] != "members" {
+		t.Fatalf("modul = %v", got)
+	}
+	bad := in
+	bad.ID, bad.Modules = &id, []string{"items", "tidak_ada"}
+	var fe FieldErrors
+	if _, err := e.svc.SavePlan(ctx, a, bad); !errors.As(err, &fe) || fe["modules"] == "" {
+		t.Fatalf("modul tak dikenal = %v, want validasi modules", err)
+	}
+	all := in
+	all.ID, all.Modules = &id, nil
+	if _, err := e.svc.SavePlan(ctx, a, all); err != nil {
+		t.Fatal(err)
+	}
+	if got := modulesOf(); got != nil {
+		t.Fatalf("modul = %v, want nil (semua modul)", got)
+	}
+}
+
+// Poin keunggulan: dipangkas, baris kosong dibuang, batas 12 poin dan 120 karakter ditegakkan.
+func TestPlanHighlights(t *testing.T) {
+	e := newEnv(t, "")
+	a := mustActor(t, e)
+	ctx := context.Background()
+	code := "uji-" + uuid.NewString()[:8]
+	t.Cleanup(func() { _, _ = e.admin.Exec(context.Background(), `DELETE FROM plans WHERE code = $1`, code) })
+
+	in := SavePlanInput{Code: code, Name: "Uji Poin", Price: decimal.Zero, Active: true, Highlights: cleanLines([]string{"  Backup harian ", "", "Dukungan prioritas"})}
+	id, err := e.svc.SavePlan(ctx, a, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans, err := e.svc.ListPlans(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range plans {
+		if p.ID == id && (len(p.Highlights) != 2 || p.Highlights[0] != "Backup harian") {
+			t.Fatalf("poin = %q", p.Highlights)
+		}
+	}
+	var fe FieldErrors
+	long := in
+	long.ID, long.Highlights = &id, []string{strings.Repeat("x", 121)}
+	if _, err := e.svc.SavePlan(ctx, a, long); !errors.As(err, &fe) || fe["highlights"] == "" {
+		t.Fatalf("poin 121 karakter = %v, want validasi highlights", err)
+	}
+	many := in
+	many.ID, many.Highlights = &id, make([]string, 13)
+	for i := range many.Highlights {
+		many.Highlights[i] = "poin"
+	}
+	if _, err := e.svc.SavePlan(ctx, a, many); !errors.As(err, &fe) || fe["highlights"] == "" {
+		t.Fatalf("13 poin = %v, want validasi highlights", err)
+	}
+}

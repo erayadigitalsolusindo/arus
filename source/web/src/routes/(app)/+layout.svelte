@@ -1,7 +1,11 @@
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
   import { afterNavigate, goto } from '$app/navigation';
-  import { session } from '#lib/auth/session.svelte.ts';
+  import { session, isLocked } from '#lib/auth/session.svelte.ts';
+  import { page } from '$app/state';
+  import { moduleForPath } from '#lib/nav.ts';
+  import { lockPrompt } from '#lib/subscription/lock.svelte.ts';
+  import UpgradePrompt from '#lib/components/UpgradePrompt.svelte';
   import Sidebar from '#lib/components/Sidebar.svelte';
   import Header from '#lib/components/Header.svelte';
   import TabBar from '#lib/components/TabBar.svelte';
@@ -14,6 +18,12 @@
 
   let collapsed = $state(false);
   let mobileOpen = $state(false);
+
+  // Halaman yang modulnya terkunci paket (URL dibuka langsung): tampilkan ajakan upgrade, bukan halaman kosong/403.
+  const lockedHit = $derived.by(() => {
+    const hit = moduleForPath(page.url.pathname);
+    return hit && isLocked(hit.module) ? hit : undefined;
+  });
 
   afterNavigate(() => (mobileOpen = false));
 
@@ -37,6 +47,14 @@
     <TabBar />
     <UnsavedDialog />
     <VerifyBanner />
-    {@render children()}
+    {#if lockedHit}
+      <UpgradePrompt labelKey={lockedHit.labelKey} panel />
+    {:else}
+      {@render children()}
+    {/if}
   </div>
 </div>
+
+{#if lockPrompt.labelKey}
+  <UpgradePrompt labelKey={lockPrompt.labelKey} onclose={() => (lockPrompt.labelKey = null)} />
+{/if}

@@ -102,12 +102,49 @@ func moduleByID(id string) (Module, bool) {
 type Permissions struct {
 	All    bool
 	Grants map[string][]string
+	// Locked = modul yang tidak termasuk paket langganan tenant. Menimpa semua izin role, termasuk Owner (`*`).
+	// Hanya diisi Resolver (izin efektif); izin role mentah (ParseStored/Normalize) tidak pernah memuatnya.
+	Locked map[string]bool
 }
 
 var ErrInvalidPermissions = errors.New("izin tidak valid")
 
 func (p Permissions) Has(module, action string) bool {
+	if p.Locked[module] {
+		return false
+	}
 	return p.All || slices.Contains(p.Grants[module], action)
+}
+
+// alwaysOpen = modul yang tidak pernah dikunci paket: tenant harus tetap bisa membuka halaman Langganan untuk upgrade.
+var alwaysOpen = map[string]bool{"subscription": true}
+
+// LockedFor menghitung modul yang terkunci bagi paket yang hanya mengizinkan `allowed` (nil = semua modul, tidak ada yang terkunci).
+func LockedFor(allowed []string) map[string]bool {
+	if allowed == nil {
+		return nil
+	}
+	ok := make(map[string]bool, len(allowed))
+	for _, id := range allowed {
+		ok[id] = true
+	}
+	locked := map[string]bool{}
+	for _, m := range Modules {
+		if !ok[m.ID] && !alwaysOpen[m.ID] {
+			locked[m.ID] = true
+		}
+	}
+	return locked
+}
+
+// ValidModuleIDs menolak id modul yang tidak ada di registri (dipakai Platform Admin saat menyimpan paket).
+func ValidModuleIDs(ids []string) bool {
+	for _, id := range ids {
+		if _, ok := moduleByID(id); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // Covers: apakah p boleh memberikan `target` kepada orang lain. Mencegah eskalasi hak: pemegang izin
@@ -129,15 +166,28 @@ func (p Permissions) Covers(target Permissions) bool {
 	return true
 }
 
+// MarshalJSON: modul terkunci paket tidak muncul sebagai izin. Yang dikirim di `_locked` hanya modul terkunci yang role-nya
+// sebenarnya mengizinkan (view), agar UI menampilkannya bergembok + ajakan upgrade; modul yang memang bukan hak role tetap tersembunyi.
 func (p Permissions) MarshalJSON() ([]byte, error) {
+	out := map[string]any{}
 	if p.All {
-		return []byte(`{"*":true}`), nil
+		out["*"] = true
 	}
-	g := p.Grants
-	if g == nil {
-		g = map[string][]string{}
+	for id, acts := range p.Grants {
+		if !p.Locked[id] {
+			out[id] = acts
+		}
 	}
-	return json.Marshal(g)
+	if len(p.Locked) > 0 {
+		ids := make([]string, 0, len(p.Locked))
+		for _, m := range Modules { // urutan registri: keluaran stabil
+			if p.Locked[m.ID] && (p.All || slices.Contains(p.Grants[m.ID], ActView)) {
+				ids = append(ids, m.ID)
+			}
+		}
+		out["_locked"] = ids
+	}
+	return json.Marshal(out)
 }
 
 // ParseStored membaca roles.permissions dari DB. Longgar terhadap modul/aksi yang sudah tidak ada (dibuang),
