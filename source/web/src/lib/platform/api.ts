@@ -135,6 +135,22 @@ export type TenantPlanInput = { plan_id: string | null; expires_at: string | nul
 
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
 
+export type QAStatus = 'pass' | 'fail' | 'skip';
+export type QAItem = { key: string; title: string };
+export type QAGroup = { key: string; title: string; items: QAItem[] };
+export type QAApp = { key: string; title: string; groups: QAGroup[] };
+export type QARun = {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  closed_at: string | null;
+  pass: number;
+  fail: number;
+  skip: number;
+};
+export type QAResult = { key: string; status: QAStatus; note: string; updated_by: string; updated_at: string };
+
 export type DomainRow = {
   id: string;
   tenant_id: string;
@@ -210,5 +226,14 @@ export const platformApi = {
   createDomain: (body: { tenant_id: string; host: string }) => papi<{ id: string }>('/platform/domains', { method: 'POST', body: json(body) }),
   verifyDomain: (id: string) => papi<DomainRow>(`/platform/domains/${id}/verify`, { method: 'POST' }),
   setDomainDisabled: (id: string, disabled: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ disabled }) }),
-  deleteDomain: (id: string) => papi<void>(`/platform/domains/${id}`, { method: 'DELETE' })
+  deleteDomain: (id: string) => papi<void>(`/platform/domains/${id}`, { method: 'DELETE' }),
+
+  qaCatalog: () => papi<{ apps: QAApp[]; total: number }>('/platform/qa/catalog'),
+  qaRuns: () => papi<{ items: QARun[]; total: number }>('/platform/qa/runs'),
+  createQARun: (name: string) => papi<{ id: string }>('/platform/qa/runs', { method: 'POST', body: json({ name }) }),
+  closeQARun: (id: string, closed: boolean) => papi<void>(`/platform/qa/runs/${id}`, { method: 'PATCH', body: json({ closed }) }),
+  deleteQARun: (id: string) => papi<void>(`/platform/qa/runs/${id}`, { method: 'DELETE' }),
+  qaResults: (id: string) => papi<{ items: QAResult[] }>(`/platform/qa/runs/${id}/results`),
+  setQAResult: (id: string, body: { key: string; status: QAStatus | 'todo'; note: string }) =>
+    papi<void>(`/platform/qa/runs/${id}/results`, { method: 'PUT', body: json(body) })
 };

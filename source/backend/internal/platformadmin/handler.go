@@ -124,6 +124,14 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Patch("/platform/domains/{id}", h.PatchDomain)
 			r.Delete("/platform/domains/{id}", h.DeleteDomain)
 
+			r.Get("/platform/qa/catalog", h.QACatalog)
+			r.Get("/platform/qa/runs", h.ListQARuns)
+			r.Post("/platform/qa/runs", h.CreateQARun)
+			r.Patch("/platform/qa/runs/{id}", h.PatchQARun)
+			r.Delete("/platform/qa/runs/{id}", h.DeleteQARun)
+			r.Get("/platform/qa/runs/{id}/results", h.QAResults)
+			r.Put("/platform/qa/runs/{id}/results", h.SetQAResult)
+
 			r.Get("/platform/languages", h.ListLanguages)
 			r.Post("/platform/languages", h.CreateLanguage)
 			r.Put("/platform/languages/{code}", h.UpdateLanguage)
