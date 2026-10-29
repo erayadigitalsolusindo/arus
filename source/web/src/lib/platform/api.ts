@@ -135,6 +135,19 @@ export type TenantPlanInput = { plan_id: string | null; expires_at: string | nul
 
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
 
+export type DomainRow = {
+  id: string;
+  tenant_id: string;
+  tenant_code: string;
+  tenant_name: string;
+  host: string;
+  status: 'pending' | 'active' | 'disabled';
+  verified_at: string | null;
+  last_check_at: string | null;
+  last_check_error: string;
+  created_at: string;
+};
+
 export const platformApi = {
   apkInfo: () => papi<ApkInfo>('/public/mobile/apk/info'),
   /** Unggah APK Kasir (multipart; versi harus dikirim sebelum berkas). */
@@ -191,5 +204,11 @@ export const platformApi = {
     papi<{ code: string }>('/platform/languages', { method: 'POST', body: json(body) }),
   updateLanguage: (code: string, body: { name: string; active: boolean; sort_order: number }) =>
     papi<void>(`/platform/languages/${code}`, { method: 'PUT', body: json(body) }),
-  deleteLanguage: (code: string) => papi<void>(`/platform/languages/${code}`, { method: 'DELETE' })
+  deleteLanguage: (code: string) => papi<void>(`/platform/languages/${code}`, { method: 'DELETE' }),
+
+  domains: () => papi<{ items: DomainRow[]; target: string }>('/platform/domains'),
+  createDomain: (body: { tenant_id: string; host: string }) => papi<{ id: string }>('/platform/domains', { method: 'POST', body: json(body) }),
+  verifyDomain: (id: string) => papi<DomainRow>(`/platform/domains/${id}/verify`, { method: 'POST' }),
+  setDomainDisabled: (id: string, disabled: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ disabled }) }),
+  deleteDomain: (id: string) => papi<void>(`/platform/domains/${id}`, { method: 'DELETE' })
 };

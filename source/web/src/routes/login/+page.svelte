@@ -2,7 +2,7 @@
   import { z } from 'zod';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { api, API_URL, ApiError, request, type AuthResponse } from '#lib/api/client.ts';
+  import { api, API_URL, ApiError, isCustomDomain, request, type AuthResponse } from '#lib/api/client.ts';
   import { homePath, safeNext, startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -14,7 +14,14 @@
   // APK Kasir yang diunggah Platform Admin; tombol hanya tampil bila sudah ada.
   const APK_URL = `${API_URL}/public/mobile/apk`;
   let apk = $state<{ available: boolean; version?: string } | null>(null);
+  // Domain white label: tampilkan nama tenant pemilik domain (endpoint publik, hanya nama).
+  let brand = $state('');
   onMount(() => {
+    if (isCustomDomain) {
+      request<{ tenant_name: string }>(`/public/branding?host=${encodeURIComponent(location.hostname)}`, {}, null)
+        .then((r) => (brand = r.tenant_name))
+        .catch(() => (brand = ''));
+    }
     request<{ available: boolean; version?: string }>('/public/mobile/apk/info', {}, null)
       .then((r) => (apk = r))
       .catch(() => (apk = null));
@@ -112,6 +119,7 @@
         <img src="/logo_dengan_text-no-bg.svg" alt={t('auth.login.titleLine2')} class="mt-1 h-20 w-auto" />
       </h1>
       <p class="flex justify-center items-center text-[12.5px] mt-1.5 text-tertiary">{t('auth.login.subtitle')}</p>
+      {#if brand}<p class="flex justify-center items-center text-[13px] mt-1 font-semibold">{t('auth.login.brandedFor', { name: brand })}</p>{/if}
 
       <div class="grid grid-cols-2 gap-3 mt-6">
         <button type="button" class="btn btn-outline !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>

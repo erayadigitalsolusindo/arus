@@ -1,7 +1,21 @@
 // Klien HTTP tipis untuk API Go. Error API berbentuk { error: { code, message, fields? } } (AGENTS.md §6).
 import { i18n } from '#lib/i18n/i18n.svelte.ts';
 
-export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+// Host utama aplikasi (VITE_PRIMARY_HOSTS, dipisah koma). Halaman yang dibuka dari host LAIN (domain white label tenant,
+// mis. arus.kotakcantik.com) dilayani reverse proxy yang juga meneruskan path API, jadi API dipanggil lewat origin yang sama:
+// cookie refresh tetap first-party dan CORS tidak terlibat. Kosong = perilaku lama (selalu VITE_API_URL).
+const primaryHosts = String(import.meta.env.VITE_PRIMARY_HOSTS ?? '')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+const devHosts = ['localhost', '127.0.0.1', '[::1]'];
+export const isCustomDomain: boolean =
+  primaryHosts.length > 0 &&
+  typeof location !== 'undefined' &&
+  !primaryHosts.includes(location.hostname.toLowerCase()) &&
+  !devHosts.includes(location.hostname.toLowerCase());
+
+export const API_URL: string = isCustomDomain ? '' : (import.meta.env.VITE_API_URL ?? 'http://localhost:8080');
 
 export class ApiError extends Error {
   constructor(

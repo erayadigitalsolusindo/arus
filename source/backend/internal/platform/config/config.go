@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -41,7 +42,7 @@ type Config struct {
 	AIFreeDailyLimit int
 
 	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
-	EraPayBaseURL        string
+	EraPayBaseURL string
 	// EraPayPlatformKey: API key EraPay milik PLATFORM untuk menerima pembayaran paket langganan tenant (QRIS). Kosong = upgrade mandiri mati.
 	EraPayPlatformKey    string
 	EraPayProvisionToken string // shared server-to-server secret; never sent to the browser
@@ -52,6 +53,8 @@ type Config struct {
 
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
+	// DomainTarget = host yang dituju CNAME domain kustom (white label) tenant. Bawaan: host dari APP_BASE_URL.
+	DomainTarget string
 	// SMTP: kosongkan SMTPHost di dev agar email hanya dicatat ke log (LogMailer).
 	SMTPHost string
 	SMTPPort int
@@ -86,6 +89,12 @@ func Load() (Config, error) {
 		SMTPUser:             os.Getenv("SMTP_USER"),
 		SMTPPass:             os.Getenv("SMTP_PASS"),
 		SMTPFrom:             getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+	}
+	c.DomainTarget = strings.ToLower(strings.TrimSpace(os.Getenv("CUSTOM_DOMAIN_TARGET")))
+	if c.DomainTarget == "" {
+		if u, err := url.Parse(c.AppBaseURL); err == nil {
+			c.DomainTarget = strings.ToLower(u.Hostname())
+		}
 	}
 	c.AutoJournal = !c.IsDev()
 	if v := os.Getenv("AUTO_JOURNAL"); v != "" {

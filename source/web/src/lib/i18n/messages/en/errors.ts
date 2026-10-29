@@ -203,6 +203,8 @@ JOURNAL_UNBALANCED: 'Total debit and credit must be equal.',
   PLAN_USER_LIMIT_REACHED: 'The user limit of your plan has been reached. Upgrade under Subscription or deactivate another user.',
   PAYMENTS_DISABLED: 'Plan payments are not available yet. Contact the ARUS admin.',
   PLAN_NOT_FOUND: 'This plan is not available.',
+  DOMAIN_TAKEN: 'This domain is already registered.',
+  NO_TARGET: 'The CNAME target is not configured on the server.',
   PLAN_INVALID: 'Invalid plan settings (the default plan cannot be sold).',
   OWNER_REQUIRED: 'Only the store Owner can do this.',
 };

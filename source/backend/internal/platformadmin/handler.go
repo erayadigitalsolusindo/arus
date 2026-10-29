@@ -60,6 +60,9 @@ func (h *Handler) Routes(r chi.Router) {
 	// APK Kasir: unduh publik (halaman login web); unggah/hapus khusus Platform Admin (di bawah).
 	r.With(httpx.RateLimit(h.Redis, "public-apk-info", 600, time.Hour)).Get("/public/mobile/apk/info", h.APKInfoPublic)
 	r.With(httpx.RateLimit(h.Redis, "public-apk", 60, time.Hour)).Get("/public/mobile/apk", h.APKDownload)
+	// Domain kustom (white label): dipanggil reverse proxy (izin sertifikat TLS) dan halaman login di domain itu.
+	r.With(httpx.RateLimit(h.Redis, "public-domain-check", 6000, time.Hour)).Get("/public/domain-check", h.DomainCheck)
+	r.With(httpx.RateLimit(h.Redis, "public-domain-branding", 600, time.Hour)).Get("/public/branding", h.DomainBranding)
 	r.With(httpx.RateLimit(h.Redis, "platform-setup", 10, time.Hour)).Post("/platform/setup", h.Setup)
 	r.With(httpx.RateLimit(h.Redis, "platform-login", 30, 15*time.Minute)).Post("/platform/auth/login", h.Login)
 	r.With(httpx.RateLimit(h.Redis, "platform-login-mfa", 30, 15*time.Minute)).Post("/platform/auth/login/mfa", h.LoginMFA)
@@ -114,6 +117,12 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Put("/platform/plans/{id}", h.UpdatePlan)
 			r.Get("/platform/tenants/{id}/plan", h.GetTenantPlan)
 			r.Put("/platform/tenants/{id}/plan", h.SetTenantPlan)
+
+			r.Get("/platform/domains", h.ListDomains)
+			r.Post("/platform/domains", h.CreateDomain)
+			r.Post("/platform/domains/{id}/verify", h.VerifyDomain)
+			r.Patch("/platform/domains/{id}", h.PatchDomain)
+			r.Delete("/platform/domains/{id}", h.DeleteDomain)
 
 			r.Get("/platform/languages", h.ListLanguages)
 			r.Post("/platform/languages", h.CreateLanguage)

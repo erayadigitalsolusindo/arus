@@ -202,6 +202,8 @@ JOURNAL_UNBALANCED: 'Total debit dan kredit harus sama.',
   PLAN_USER_LIMIT_REACHED: 'Batas jumlah pengguna paket Anda tercapai. Upgrade paket di menu Langganan atau nonaktifkan pengguna lain.',
   PAYMENTS_DISABLED: 'Pembayaran paket belum tersedia. Hubungi admin ARUS.',
   PLAN_NOT_FOUND: 'Paket tidak tersedia.',
+  DOMAIN_TAKEN: 'Domain ini sudah terdaftar.',
+  NO_TARGET: 'Tujuan CNAME belum dikonfigurasi di server.',
   PLAN_INVALID: 'Pengaturan paket tidak valid (paket default tidak boleh dijual sendiri).',
   OWNER_REQUIRED: 'Hanya Owner toko yang dapat melakukan ini.',
 };
