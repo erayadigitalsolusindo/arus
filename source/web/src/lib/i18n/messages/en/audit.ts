@@ -123,7 +123,10 @@ const audit: Messages['audit'] = {
     member_level_active: 'Changed member level status',
     platform_impersonate: 'Platform Admin entered tenant (full access)',
     platform_tenant_status: 'Platform Admin changed the tenant status',
-    platform_tenant_edit_window: 'Platform Admin changed the receipt edit window'
+    platform_tenant_edit_window: 'Platform Admin changed the receipt edit window',
+    platform_tenant_delete_schedule: 'Platform Admin scheduled tenant deletion',
+    platform_tenant_delete_cancel: 'Platform Admin cancelled tenant deletion',
+    platform_tenant_purge: 'Platform Admin permanently deleted the tenant'
   }
 };
 

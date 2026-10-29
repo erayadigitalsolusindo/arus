@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { platformApi, type TenantDetail, type TenantAuditItem, type TenantPlan, type PlanRow } from '#lib/platform/api.ts';
+  import { platformApi, type DeleteSchedule, type TenantDetail, type TenantAuditItem, type TenantPlan, type PlanRow } from '#lib/platform/api.ts';
   import Select from '#lib/components/Select.svelte';
   import DatePicker from '#lib/components/DatePicker.svelte';
   import { startImpersonation } from '#lib/auth/session.svelte.ts';
@@ -114,6 +114,7 @@
     void load();
     void loadPlan();
     void loadAudit();
+    void loadDeletion();
   });
 
   async function enter(outletId = '') {
@@ -138,11 +139,64 @@
     error = '';
     try {
       await platformApi.setTenantActive(id, next);
-      await Promise.all([load(), loadAudit()]);
+      await Promise.all([load(), loadAudit(), loadDeletion()]);
     } catch (err) {
       error = errorMessage(err);
     } finally {
       busy = false;
+    }
+  }
+
+  // ---- Hapus tenant permanen ----
+  let delSchedule = $state<DeleteSchedule | null>(null);
+  let delDays = $state('30');
+  let delConfirm = $state('');
+  let delBusy = $state(false);
+
+  async function loadDeletion() {
+    try {
+      delSchedule = (await platformApi.deleteSchedule(id)).schedule;
+    } catch (err) {
+      error = errorMessage(err);
+    }
+  }
+  const delDaysValid = $derived(/^[0-9]{1,3}$/.test(delDays.trim()) && Number(delDays) <= 365);
+  async function scheduleDelete() {
+    if (!delDaysValid || delBusy) return;
+    delBusy = true;
+    error = '';
+    try {
+      await platformApi.scheduleDelete(id, Number(delDays));
+      await Promise.all([loadDeletion(), loadAudit()]);
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      delBusy = false;
+    }
+  }
+  async function cancelDelete() {
+    if (delBusy) return;
+    delBusy = true;
+    error = '';
+    try {
+      await platformApi.cancelDelete(id);
+      await Promise.all([loadDeletion(), loadAudit()]);
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      delBusy = false;
+    }
+  }
+  async function purgeNow() {
+    if (!tenant || delBusy || delConfirm.trim() !== tenant.name) return;
+    delBusy = true;
+    error = '';
+    try {
+      await platformApi.purgeTenant(id, delConfirm.trim());
+      await goto('/platform/tenants');
+    } catch (err) {
+      error = errorMessage(err);
+      delBusy = false;
     }
   }
 
@@ -409,6 +463,55 @@
         {#if windowSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.editWindowSaved')}</p>{/if}
         {#if !windowValid}<p class="text-[12px] text-[var(--color-danger-600)]">{t('platform.tenant.editWindowInvalid')}</p>{/if}
         <p class="text-[11.5px] text-[var(--text-tertiary)]">{Number(windowDays) === 0 ? t('platform.tenant.editWindowSameDay') : t('platform.tenant.editWindowDaysHint', { days: windowDays })}</p>
+      </section>
+
+      <!-- Hapus tenant permanen -->
+      <section class="surface-card space-y-3 border border-[var(--color-danger-200,var(--border-subtle))]">
+        <h2 class="font-display font-bold text-[14px] flex items-center gap-2 text-[var(--color-danger-600)]"><i class="icon-trash-2 text-[16px]"></i>{t('platform.tenant.deleteTitle')}</h2>
+        <p class="text-[12px] text-[var(--text-secondary)]">{t('platform.tenant.deleteHelp')}</p>
+        {#if tenant.active}
+          <p class="text-[12px] font-semibold text-[var(--text-tertiary)]"><i class="icon-info me-1"></i>{t('platform.tenant.deleteNeedInactive')}</p>
+        {:else}
+          {#if delSchedule}
+            <p class="text-[12.5px] font-semibold text-[var(--color-danger-600)]">
+              {delSchedule.due ? t('platform.tenant.deleteDueNow') : t('platform.tenant.deleteScheduledOn', { date: formatDateTime(delSchedule.delete_at, { dateStyle: 'medium', timeStyle: 'short' }) })}
+            </p>
+          {/if}
+          <form
+            class="flex flex-wrap items-end gap-2"
+            onsubmit={(e) => {
+              e.preventDefault();
+              void scheduleDelete();
+            }}
+          >
+            <label class="block">
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.deleteDaysLabel')}</span>
+              <input class="field-control w-28 text-end tabular-nums" inputmode="numeric" maxlength="3" bind:value={delDays} aria-invalid={!delDaysValid} />
+            </label>
+            <button type="submit" class="btn btn-outline !text-[12.5px] disabled:opacity-60" disabled={!delDaysValid || delBusy}>{delSchedule ? t('platform.tenant.deleteReschedule') : t('platform.tenant.deleteSchedule')}</button>
+            {#if delSchedule}
+              <button type="button" class="btn btn-outline !text-[12.5px] disabled:opacity-60" disabled={delBusy} onclick={cancelDelete}>{t('platform.tenant.deleteCancel')}</button>
+            {/if}
+          </form>
+          <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.deleteDaysHint')}</p>
+          {#if delSchedule?.due}
+            <form
+              class="space-y-2 border-t border-[var(--border-subtle)] pt-3"
+              onsubmit={(e) => {
+                e.preventDefault();
+                void purgeNow();
+              }}
+            >
+              <label class="block">
+                <span class="mb-1 block text-[12px] font-semibold">{t('platform.tenant.deleteConfirmName', { name: tenant.name })}</span>
+                <input class="field-control w-full" bind:value={delConfirm} autocomplete="off" />
+              </label>
+              <button type="submit" class="btn btn-primary !bg-[var(--color-danger-600)] !text-[12.5px] disabled:opacity-60" disabled={delBusy || delConfirm.trim() !== tenant.name}>
+                <i class="icon-trash-2 text-[13px]"></i>{t('platform.tenant.deleteNow')}
+              </button>
+            </form>
+          {/if}
+        {/if}
       </section>
 
       <p class="text-[11.5px] text-[var(--text-tertiary)] px-1"><i class="icon-info me-1"></i>{t('platform.tenant.enterAsHelp')}</p>

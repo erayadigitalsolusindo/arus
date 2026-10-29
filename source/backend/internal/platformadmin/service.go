@@ -21,6 +21,7 @@ import (
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
 	pauth "aciraba/internal/platform/auth"
+	"aciraba/internal/platform/storage"
 )
 
 var (
@@ -57,6 +58,8 @@ type Deps struct {
 	SetupToken string
 	// DomainTarget = host aplikasi yang dituju CNAME domain kustom tenant (mis. arus.erayadigital.co.id); kosong = verifikasi domain mati.
 	DomainTarget string
+	// Files = penyimpanan unggahan tenant (gambar barang/member); dibersihkan saat tenant dihapus permanen. nil = dilewati.
+	Files *storage.Local
 }
 
 type Service struct {

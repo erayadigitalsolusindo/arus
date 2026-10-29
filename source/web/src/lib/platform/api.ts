@@ -28,6 +28,8 @@ export type UserRow = {
 };
 export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; sale_edit_window_days: number; outlets: OutletRow[]; users: UserRow[] };
 
+export type DeleteSchedule = { delete_at: string; requested_at: string; due: boolean };
+
 export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string };
 
 export type TenantAuditItem = {
@@ -178,6 +180,13 @@ export const platformApi = {
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
   /** Batas hari edit/batal nota tenant (0 = hanya hari nota dibuat, maks 3650). Hanya operator platform yang boleh mengubah. */
   setSaleEditWindow: (id: string, days: number) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ sale_edit_window_days: days }) }),
+  /** Jadwal hapus permanen tenant (null = tidak dijadwalkan). */
+  deleteSchedule: (id: string) => papi<{ schedule: DeleteSchedule | null }>(`/platform/tenants/${id}/deletion`),
+  /** Jadwalkan hapus permanen setelah `days` hari (0-365; 0 = langsung boleh dihapus). Tenant wajib nonaktif. */
+  scheduleDelete: (id: string, days: number) => papi<{ delete_at: string }>(`/platform/tenants/${id}/deletion`, { method: 'PUT', body: json({ days }) }),
+  cancelDelete: (id: string) => papi<void>(`/platform/tenants/${id}/deletion`, { method: 'DELETE' }),
+  /** Hapus permanen sekarang (hanya bila jatuh tempo); `confirmName` harus sama persis dengan nama tenant. */
+  purgeTenant: (id: string, confirmName: string) => papi<{ deleted: boolean }>(`/platform/tenants/${id}/purge`, { method: 'POST', body: json({ confirm_name: confirmName }) }),
   setTenantActive: (id: string, active: boolean) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ active }) }),
   tenantAudit: (id: string, cursor = '') =>
     papi<{ items: TenantAuditItem[]; next_cursor: string }>(`/platform/tenants/${id}/audit?${new URLSearchParams({ limit: '30', ...(cursor ? { cursor } : {}) })}`),
