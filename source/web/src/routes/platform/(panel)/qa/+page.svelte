@@ -352,23 +352,25 @@
   <!-- ============ Form run baru ============ -->
   {#if showNew}
     <form
-      class="surface-card p-4 flex flex-wrap items-end gap-3"
+      class="surface-card p-4"
       onsubmit={(e) => {
         e.preventDefault();
         void createRun();
       }}
     >
-      <div class="flex-1 basis-72">
-        <label class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]" for="qa-new">{t('platform.qa.runName')}</label>
-        <input id="qa-new" class="field-control qa-field mt-1 w-full" maxlength="120" placeholder={t('platform.qa.runNamePh')} bind:value={newName} />
-        <p class="mt-1 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.qa.runNameHelp', { n: total })}</p>
+      <label class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]" for="qa-new">{t('platform.qa.runName')}</label>
+      <div class="mt-1.5 flex flex-wrap items-center gap-3">
+        <input id="qa-new" class="field-control qa-field flex-1 basis-72" maxlength="120" placeholder={t('platform.qa.runNamePh')} bind:value={newName} />
+        <div class="flex items-center gap-2">
+          <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={creating || !newName.trim()}>
+            <i class="icon-plus text-[13px]"></i>{creating ? t('platform.qa.creating') : t('platform.qa.create')}
+          </button>
+          {#if runs.length}
+            <button type="button" class="btn btn-secondary !text-[12.5px]" onclick={() => (showNew = false)}>{t('platform.qa.cancel')}</button>
+          {/if}
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={creating || !newName.trim()}>
-        <i class="icon-plus text-[13px]"></i>{creating ? t('platform.qa.creating') : t('platform.qa.create')}
-      </button>
-      {#if runs.length}
-        <button type="button" class="btn btn-secondary !text-[12.5px]" onclick={() => (showNew = false)}>{t('platform.qa.cancel')}</button>
-      {/if}
+      <p class="mt-2 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.qa.runNameHelp', { n: total })}</p>
     </form>
   {/if}
 
