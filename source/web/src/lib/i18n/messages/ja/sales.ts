@@ -137,7 +137,7 @@ const sales: Messages['sales'] = {
       earned: 'この伝票で獲得したポイント',
       lineDiscountItems: '行ごとの値引'
     },
-    payments: { method: '方法', amount: '金額', ref: '参照番号', gatewayRef: 'EraPay/DOKU ID', gatewayRefCopy: 'IDをコピー', gatewayRefCopied: 'IDをコピーしました', qrisCheck: '状況を確認', qrisChecking: '確認中…', qrisCheckFailed: 'EraPayに確認できませんでした。', qrisWaiting: '支払い待ち', qrisFailed: '支払い失敗', qrisCancelled: '支払いキャンセル', qrisExpired: 'QRの有効期限切れ', paid: '受領合計', change: '釣銭', net: '純支払い', fee: '手数料 {pct}%', feeFlat: '手数料', feeTotal: '決済手数料(店舗負担)', feeCustomer: '顧客に請求する手数料', surchargeTotal: '追加手数料(顧客)', charged: '請求合計', received: '手数料後の店舗受取額', empty: '支払いはありません。' },
+    payments: { method: '方法', amount: '金額', ref: '参照番号', gatewayRef: 'ID EraPay', gatewayRefCopy: 'IDをコピー', gatewayRefCopied: 'IDをコピーしました', qrisCheck: '状況を確認', qrisChecking: '確認中…', qrisCheckFailed: 'EraPayに確認できませんでした。', qrisWaiting: '支払い待ち', qrisFailed: '支払い失敗', qrisCancelled: '支払いキャンセル', qrisExpired: 'QRの有効期限切れ', paid: '受領合計', change: '釣銭', net: '純支払い', fee: '手数料 {pct}%', feeFlat: '手数料', feeTotal: '決済手数料(店舗負担)', feeCustomer: '顧客に請求する手数料', surchargeTotal: '追加手数料(顧客)', charged: '請求合計', received: '手数料後の店舗受取額', empty: '支払いはありません。' },
     stock: {
       intro: 'この伝票が在庫に与えた影響を、各商品の基本単位で表示します。編集、取消、返品は新しい動きとしてここに表示されます。',
       time: '時刻',

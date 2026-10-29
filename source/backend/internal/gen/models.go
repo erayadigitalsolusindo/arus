@@ -260,6 +260,7 @@ type ErapayCharge struct {
 	CreatedBy       uuid.UUID
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+	Gateway         pgtype.Text
 }
 
 type ErapayMethod struct {
@@ -608,6 +609,25 @@ type PaymentMethod struct {
 	AccountID    pgtype.UUID
 	SmallTxLimit decimal.Decimal
 	SmallTxFlat  decimal.Decimal
+}
+
+type Plan struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	Description  string
+	Price        decimal.Decimal
+	DurationDays pgtype.Int4
+	MaxTxPerDay  pgtype.Int4
+	MaxUsers     pgtype.Int4
+	IsDefault    bool
+	SelfService  bool
+	Active       bool
+	SortOrder    int32
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Modules      []string
+	Highlights   []string
 }
 
 type PlatformAdmin struct {
@@ -1214,6 +1234,23 @@ type StockTransferLine struct {
 	UnitCost    decimal.Decimal
 }
 
+type SubscriptionPayment struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	PlanID          uuid.UUID
+	IdempotencyKey  string
+	Amount          decimal.Decimal
+	DurationDays    int32
+	Status          string
+	ErapayPaymentID pgtype.Text
+	QrValue         pgtype.Text
+	ExpiresAt       pgtype.Timestamptz
+	CreatedBy       pgtype.UUID
+	AppliedAt       pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type Supplier struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -1259,6 +1296,23 @@ type Tenant struct {
 	UpdatedAt             pgtype.Timestamptz
 	OnboardingCompletedAt pgtype.Timestamptz
 	SaleEditWindowDays    int32
+}
+
+type TenantDailyTx struct {
+	TenantID uuid.UUID
+	Day      pgtype.Date
+	TxCount  int32
+}
+
+type TenantSubscription struct {
+	TenantID            uuid.UUID
+	PlanID              uuid.UUID
+	ExpiresAt           pgtype.Timestamptz
+	OverrideMaxTxPerDay pgtype.Int4
+	OverrideMaxUsers    pgtype.Int4
+	Note                string
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
 }
 
 type Unit struct {
