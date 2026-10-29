@@ -105,6 +105,10 @@ var qaCatalog = []QAApp{
 		{Key: "tenant", Title: "Tenant & paket", Items: []QAItem{
 			{"platform.tenant.list", "Daftar dan pencarian tenant; detail menampilkan outlet/pengguna"},
 			{"platform.tenant.plan", "Set paket tenant dan override batas; berlaku ≤10 detik"},
+			{"platform.tenant.delete.schedule", "Jadwalkan hapus tenant: ditolak bila tenant masih aktif; masa tunggu (0-365 hari) diisi admin dan tercatat di audit platform"},
+			{"platform.tenant.delete.cancel", "Batalkan jadwal hapus, atau aktifkan tenant kembali: jadwal hilang dan data utuh"},
+			{"platform.tenant.delete.purge", "Hapus permanen: wajib ketik nama tenant, ditolak sebelum jatuh tempo; semua data dan berkas tenant hilang, tenant lain tidak terpengaruh, audit platform tetap ada"},
+			{"platform.tenant.delete.auto", "Tenant yang masa tunggunya habis terhapus otomatis oleh penjadwal API (±10 menit)"},
 			{"platform.plan.crud", "Buat/ubah paket, hak akses menu, poin keunggulan"},
 			{"platform.plan.modules", "Modul di luar paket terkunci walau role Owner"},
 		}},

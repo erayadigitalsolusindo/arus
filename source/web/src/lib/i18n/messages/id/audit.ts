@@ -121,6 +121,9 @@ export default {
     member_level_active: 'Mengubah status level member',
     platform_impersonate: 'Platform Admin masuk ke tenant (akses penuh)',
     platform_tenant_status: 'Platform Admin mengubah status tenant',
-    platform_tenant_edit_window: 'Platform Admin mengubah batas waktu edit nota'
+    platform_tenant_edit_window: 'Platform Admin mengubah batas waktu edit nota',
+    platform_tenant_delete_schedule: 'Platform Admin menjadwalkan hapus tenant',
+    platform_tenant_delete_cancel: 'Platform Admin membatalkan jadwal hapus tenant',
+    platform_tenant_purge: 'Platform Admin menghapus tenant permanen'
   }
 };

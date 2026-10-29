@@ -117,6 +117,18 @@ func (l *Local) Delete(_ context.Context, key string) error {
 	return nil
 }
 
+// DeleteTree menghapus seluruh folder satu awalan (mis. semua berkas satu tenant: "<tenant-uuid>"). Tidak error bila tidak ada.
+func (l *Local) DeleteTree(_ context.Context, prefix string) error {
+	if err := validKey(prefix); err != nil || strings.Contains(prefix, ".") {
+		return fmt.Errorf("storage: awalan tidak valid %q", prefix)
+	}
+	p, err := l.path(prefix)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(p)
+}
+
 // PutStream menulis isi r (streaming, tanpa menampung seluruhnya di memori) ke file sementara, menjalankan verify atas
 // file itu, lalu rename atomik ke key. Dipakai untuk berkas besar (APK). verify boleh nil. Mengembalikan jumlah byte.
 func (l *Local) PutStream(_ context.Context, key string, r io.Reader, verify func(path string, size int64) error) (int64, error) {

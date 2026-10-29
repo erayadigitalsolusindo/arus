@@ -177,6 +177,9 @@ func (s *Service) SetTenantActive(ctx context.Context, a Actor, tenantID uuid.UU
 	}
 	if err == nil {
 		s.Perms.InvalidateTenant(tenantID)
+		if active { // mengaktifkan kembali = membatalkan jadwal hapus (bila ada)
+			_, err = s.Pool.Exec(ctx, `SELECT platform_tenant_cancel_delete($1, $2)`, a.ID, tenantID)
+		}
 	}
 	return err
 }

@@ -88,6 +88,10 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
 			r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
 			r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
+			r.Get("/platform/tenants/{id}/deletion", h.GetDeleteSchedule)
+			r.Put("/platform/tenants/{id}/deletion", h.ScheduleDelete)
+			r.Delete("/platform/tenants/{id}/deletion", h.CancelDelete)
+			r.Post("/platform/tenants/{id}/purge", h.PurgeTenant)
 
 			r.Get("/platform/admins", h.ListAdmins)
 			r.Post("/platform/admins", h.CreateAdmin)
