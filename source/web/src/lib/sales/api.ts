@@ -47,7 +47,7 @@ export type Sale = {
   note: string;
   outlet_id: string;
   lines: { item_id: string; unit_id: string; sku: string; name: string; unit: string; qty: string; unit_price: string; list_price?: string; price_override?: boolean; discount: string; line_total: string }[];
-  payments: { method: PayMethod; method_id: string; method_name: string; amount: string; ref_no: string; gateway_ref?: string; fee_pct: string; fee: string; fee_bearer: 'store' | 'customer' }[];
+  payments: { method: PayMethod; method_id: string; method_name: string; amount: string; ref_no: string; gateway_ref?: string; gateway?: string; fee_pct: string; fee: string; fee_bearer: 'store' | 'customer' }[];
   /** Biaya metode yang ditagihkan ke pelanggan (di luar total). Ditagih = total + surcharge. */
   surcharge: string;
   /** Sisa yang belum dibayar saat nota dibuat (nota kredit); credit = keadaan piutangnya sekarang. */

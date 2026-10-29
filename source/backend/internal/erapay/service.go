@@ -320,10 +320,10 @@ func storeTx(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, p Payment) (c
 	}
 	// Status akhir (lunas/gagal/kedaluwarsa) tidak diturunkan lagi ke pending.
 	return scanCharge(tx.QueryRow(ctx, `UPDATE erapay_charges SET
-			erapay_payment_id = coalesce(erapay_payment_id, $3),
+			erapay_payment_id = coalesce(erapay_payment_id, $3), gateway = coalesce(nullif($7, ''), gateway),
 			status = CASE WHEN status IN ('succeeded','failed','expired','cancelled') THEN status ELSE $4 END,
 			qr_value = coalesce($5, qr_value), expires_at = coalesce($6, expires_at), updated_at = now()
-		WHERE id = $1 AND tenant_id = $2 RETURNING `+chargeCols, id, tenant, p.ID, normStatus(p.Status), qr, p.ExpiresAt))
+		WHERE id = $1 AND tenant_id = $2 RETURNING `+chargeCols, id, tenant, p.ID, normStatus(p.Status), qr, p.ExpiresAt, strings.ToLower(strings.TrimSpace(p.Gateway))))
 }
 
 func normStatus(s string) string {

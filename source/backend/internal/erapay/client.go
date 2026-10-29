@@ -31,9 +31,10 @@ func NewClient(baseURL, apiKey string) *Client {
 
 // Payment = subset respons EraPay yang dipakai ARUS.
 type Payment struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-	QRCode *struct {
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	Gateway string `json:"gateway"` // kode gateway di EraPay: "doku" | "ids"
+	QRCode  *struct {
 		Type  string `json:"type"`
 		Value string `json:"value"`
 	} `json:"qr_code"`

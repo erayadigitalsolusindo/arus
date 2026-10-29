@@ -407,7 +407,7 @@
                     {#if p.ref_no}<div class="font-mono text-[11.5px] text-[var(--text-tertiary)]">{t('sales.detail.payments.ref')}: {p.ref_no}</div>{/if}
                     {#if p.gateway_ref}
                       <div class="flex items-center gap-1.5 text-[11.5px] text-[var(--text-tertiary)]">
-                        <span class="shrink-0">{t('sales.detail.payments.gatewayRef')}:</span>
+                        <span class="shrink-0">{t('sales.detail.payments.gatewayRef')}{p.gateway ? ` · ${p.gateway.toUpperCase()}` : ''}:</span>
                         <span class="min-w-0 break-all font-mono select-all">{p.gateway_ref}</span>
                         <button type="button" class="shrink-0 rounded p-0.5 hover:text-[var(--color-primary-600)]" title={copiedRef === p.gateway_ref ? t('sales.detail.payments.gatewayRefCopied') : t('sales.detail.payments.gatewayRefCopy')} aria-label={t('sales.detail.payments.gatewayRefCopy')} onclick={() => copyRef(p.gateway_ref!)}>
                           <i class="{copiedRef === p.gateway_ref ? 'icon-check' : 'icon-copy'} text-[13px]"></i>
