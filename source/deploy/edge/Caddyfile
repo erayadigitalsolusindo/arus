@@ -1,0 +1,65 @@
+# Edge white label ARUS: satu Caddy melayani SEMUA domain kustom tenant (mis. arus.kotakcantik.com).
+# Klien cukup membuat DNS  CNAME arus.kotakcantik.com -> edge.erayadigital.co.id  (= CUSTOM_DOMAIN_TARGET di API),
+# lalu operator menambah + memverifikasi domainnya di Platform Admin > Domain. Tidak perlu mengedit berkas ini per klien.
+#
+# Sertifikat TLS diterbitkan otomatis saat domain pertama kali diakses, HANYA bila API menjawab 200 untuk
+# /public/domain-check (domain berstatus active milik tenant aktif).
+#
+# Satu host untuk web + API: browser hanya melihat satu origin, jadi cookie refresh tetap first-party dan CORS tidak terlibat.
+# Build web memakai VITE_PRIMARY_HOSTS=arus.erayadigital.co.id sehingga di domain lain API dipanggil lewat origin yang sama.
+#
+# Server ini harus punya IP/port 443 sendiri (jangan di mesin yang 443-nya dipakai aaPanel/nginx).
+
+{
+	email admin@erayadigital.co.id
+	on_demand_tls {
+		ask https://arus-api.erayadigital.co.id/public/domain-check
+	}
+}
+
+(web_upstream) {
+	reverse_proxy https://arus.erayadigital.co.id {
+		header_up Host {upstream_hostport}
+	}
+}
+
+(api_upstream) {
+	reverse_proxy https://arus-api.erayadigital.co.id {
+		header_up Host {upstream_hostport}
+		# Alamat klien asli untuk rate limit/lockout API (API butuh TRUST_PROXY=true).
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+
+	# Rute API yang tidak pernah berupa halaman SPA (dibuka juga lewat tautan langsung, mis. unduh APK, OAuth, MCP).
+	@api_only path /public/* /oauth/* /.well-known/* /mcp /mcp/* /healthz /ext/*
+	handle @api_only {
+		import api_upstream
+	}
+
+	# Berkas statis SPA.
+	@assets path /_app/* /landing/* /robots.txt /sitemap.xml *.svg
+	handle @assets {
+		import web_upstream
+	}
+
+	# Navigasi halaman (browser meminta text/html) -> SPA. Banyak path SPA sama dengan path API (/items, /sales, /platform/...),
+	# jadi pembedanya header Accept: panggilan fetch dari SPA memakai Accept */*, bukan text/html.
+	@page {
+		method GET HEAD
+		header Accept *text/html*
+	}
+	handle @page {
+		import web_upstream
+	}
+
+	# Selebihnya = panggilan API dari SPA.
+	handle {
+		import api_upstream
+	}
+}

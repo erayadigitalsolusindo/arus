@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"net"
 	"sync"
 	"time"
 
@@ -54,12 +55,15 @@ type Deps struct {
 	Perms    *authz.Resolver // dibuang cache-nya saat status tenant berubah
 	// SetupToken = rahasia dari lingkungan server untuk membuat Platform Admin pertama; kosong = setup mati.
 	SetupToken string
+	// DomainTarget = host aplikasi yang dituju CNAME domain kustom tenant (mis. arus.erayadigital.co.id); kosong = verifikasi domain mati.
+	DomainTarget string
 }
 
 type Service struct {
 	Deps
 	hashSem chan struct{}
 	now     func() time.Time
+	dns     dnsResolver
 
 	mu    sync.Mutex
 	cache map[uuid.UUID]cachedAdmin
@@ -72,7 +76,7 @@ type cachedAdmin struct {
 }
 
 func NewService(d Deps) *Service {
-	return &Service{Deps: d, hashSem: make(chan struct{}, maxConcurrentHashes), now: time.Now, cache: map[uuid.UUID]cachedAdmin{}}
+	return &Service{Deps: d, hashSem: make(chan struct{}, maxConcurrentHashes), now: time.Now, dns: net.DefaultResolver, cache: map[uuid.UUID]cachedAdmin{}}
 }
 
 // Admin memenuhi authz.PlatformChecker: status Platform Admin terkini (cache singkat; dibuang saat admin berubah).

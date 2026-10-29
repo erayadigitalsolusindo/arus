@@ -26,6 +26,7 @@
         { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' },
         { href: '/platform/mobile', key: 'platform.nav.mobile', icon: 'smartphone' },
         { href: '/platform/api-access', key: 'platform.nav.apiAccess', icon: 'plug' },
+        { href: '/platform/domains', key: 'platform.nav.domains', icon: 'globe' },
         { href: '/platform/languages', key: 'platform.nav.languages', icon: 'languages' },
         { href: '/platform/security', key: 'platform.nav.security', icon: 'key-round' }
       ]

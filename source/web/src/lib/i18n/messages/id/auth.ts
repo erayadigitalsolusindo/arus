@@ -1,5 +1,6 @@
 export default {
   login: {
+    brandedFor: 'Portal {name}',
     docTitle: 'Masuk | ACIRABA',
     titleLine1: 'Akses Back Office',
     titleLine2: 'ARUS (Aciraba Upgrade System)',

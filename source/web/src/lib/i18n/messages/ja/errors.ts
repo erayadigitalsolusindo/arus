@@ -203,6 +203,8 @@ const errors: Messages['errors'] = {
   PLAN_USER_LIMIT_REACHED: 'プランのユーザー数上限に達しました。サブスクリプションからアップグレードするか、他のユーザーを無効にしてください。',
   PAYMENTS_DISABLED: 'プランの支払いはまだ利用できません。ARUS管理者にお問い合わせください。',
   PLAN_NOT_FOUND: 'このプランは利用できません。',
+  DOMAIN_TAKEN: 'このドメインはすでに登録されています。',
+  NO_TARGET: 'CNAMEの宛先がサーバーに設定されていません。',
   PLAN_INVALID: 'プラン設定が無効です（デフォルトプランは販売できません）。',
   OWNER_REQUIRED: 'この操作は店舗のオーナーのみ可能です。',
 };

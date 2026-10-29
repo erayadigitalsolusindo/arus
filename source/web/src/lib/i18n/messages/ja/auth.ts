@@ -2,6 +2,7 @@ import type { Messages } from '../../types.ts';
 
 const auth: Messages['auth'] = {
   login: {
+    brandedFor: '{name} ポータル',
     docTitle: 'ログイン | ACIRABA',
     titleLine1: 'バックオフィスへアクセス',
     titleLine2: 'ARUS（Aciraba Upgrade System）',
