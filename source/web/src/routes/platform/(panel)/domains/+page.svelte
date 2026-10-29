@@ -217,35 +217,32 @@
   </div>
 
   <!-- Tujuan DNS + alur singkat -->
-  <section class="rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[#0d2b63] text-white p-4 lg:p-5">
-    <div class="flex flex-wrap items-start justify-between gap-5">
-      <div class="min-w-0">
-        <p class="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-sky-200"><i class="icon-terminal text-[13px]"></i>{t('platform.domains.targetTitle')}</p>
-        {#if target}
-          <div class="mt-2 flex flex-wrap items-center gap-3">
-            <code class="font-mono text-[18px] lg:text-[20px] font-semibold text-sky-100 [text-shadow:0_0_14px_rgb(125_211_252/0.45)] break-all"><span class="text-emerald-300">$</span> {target}</code>
-            {@render copyBtn(target, 'target')}
-          </div>
-          <p class="mt-1.5 text-[12px] text-sky-100/75">{t('platform.domains.targetHelp')} {t('platform.domains.cloudflareNote')}</p>
-        {:else if !loading}
-          <p class="mt-2 flex items-center gap-2 text-[14px] font-semibold text-amber-300"><i class="icon-circle-alert text-[16px]"></i>{t('platform.domains.noTarget')}</p>
-          <p class="mt-1 text-[12px] text-sky-100/75 max-w-xl">{t('platform.domains.noTargetHelp')}</p>
-        {/if}
-      </div>
-      <ol class="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11.5px]" aria-label={t('platform.domains.howTitle')}>
-        {#each [t('platform.domains.how1'), t('platform.domains.how2'), t('platform.domains.how3'), t('platform.domains.how4')] as step, i (i)}
-          {#if i > 0}<i class="icon-chevron-right text-[12px] text-sky-300/60" aria-hidden="true"></i>{/if}
-          <li class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1">
-            <span class="grid size-4 place-items-center rounded-full text-[10px] font-bold" style="background:#7dd3fc;color:#06122b">{i + 1}</span>{step}
-          </li>
-        {/each}
-      </ol>
+  <section class="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[#0d2b63] text-white">
+    <div class="p-5 lg:p-6">
+      <p class="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-sky-200"><i class="icon-terminal text-[13px]"></i>{t('platform.domains.targetTitle')}</p>
+      {#if target}
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+          <code class="rounded-lg border border-white/10 bg-black/25 px-3.5 py-2 font-mono text-[17px] lg:text-[19px] font-semibold text-sky-100 break-all"><span class="text-emerald-300">$</span> {target}</code>
+          {@render copyBtn(target, 'target')}
+        </div>
+        <p class="mt-3 max-w-3xl text-[12.5px] leading-relaxed text-sky-100/75">{t('platform.domains.targetHelp')} {t('platform.domains.cloudflareNote')}</p>
+      {:else if !loading}
+        <p class="mt-3 flex items-center gap-2 text-[14px] font-semibold text-amber-300"><i class="icon-circle-alert text-[16px]"></i>{t('platform.domains.noTarget')}</p>
+        <p class="mt-1 text-[12px] text-sky-100/75 max-w-xl">{t('platform.domains.noTargetHelp')}</p>
+      {/if}
     </div>
+    <ol class="grid gap-px border-t border-white/10 bg-white/10 sm:grid-cols-2 xl:grid-cols-4" aria-label={t('platform.domains.howTitle')}>
+      {#each [t('platform.domains.how1'), t('platform.domains.how2'), t('platform.domains.how3'), t('platform.domains.how4')] as step, i (i)}
+        <li class="flex items-center gap-2.5 bg-[#08193c] px-5 py-3 text-[12.5px] font-medium text-sky-50">
+          <span class="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold" style="background:#7dd3fc;color:#06122b">{i + 1}</span>{step}
+        </li>
+      {/each}
+    </ol>
   </section>
 
   <!-- Filter -->
-  <div class="flex flex-wrap items-center gap-3">
-    <div class="relative flex-1 min-w-60">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="relative w-full sm:max-w-sm">
       <i class="icon-search absolute top-1/2 -translate-y-1/2 start-3 text-[13px] text-[var(--text-tertiary)]"></i>
       <input type="search" bind:value={q} placeholder={t('platform.domains.search')} aria-label={t('platform.domains.search')} class="w-full field-control !ps-8" />
     </div>
@@ -271,10 +268,29 @@
       {#each [0, 1, 2] as i (i)}<div class="h-40 rounded-2xl bg-[var(--surface-sunken)] animate-pulse"></div>{/each}
     </div>
   {:else if rows.length === 0}
-    <div class="surface-card px-4 py-14 text-center">
-      <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><i class="icon-globe text-[22px]"></i></span>
-      <p class="font-semibold">{t('platform.domains.emptyTitle')}</p>
-      <p class="mt-1 text-[12.5px] text-[var(--text-tertiary)] max-w-md mx-auto">{t('platform.domains.emptyHint')}</p>
+    <div class="surface-card empty-hero relative overflow-hidden text-center">
+      <div class="empty-grid" aria-hidden="true"></div>
+
+      <!-- ilustrasi: domain klien → CNAME → server ARUS -->
+      <div class="relative mx-auto mb-8 flex max-w-xl items-center justify-center gap-0" aria-hidden="true">
+        <div class="node float-a">
+          <span class="node-icon"><i class="icon-globe text-[24px]"></i></span>
+          <span class="node-label">toko-klien.com</span>
+        </div>
+        <div class="link"><span class="packet"></span><span class="packet p2"></span></div>
+        <div class="node float-b">
+          <span class="node-icon node-core"><span class="ring"></span><span class="ring r2"></span><i class="icon-server text-[24px]"></i></span>
+          <span class="node-label">{target || 'ARUS'}</span>
+        </div>
+        <div class="link"><span class="packet p3"></span></div>
+        <div class="node float-a">
+          <span class="node-icon"><i class="icon-shield-check text-[24px]"></i></span>
+          <span class="node-label">HTTPS</span>
+        </div>
+      </div>
+
+      <h2 class="relative text-[18px] font-bold tracking-tight">{t('platform.domains.emptyTitle')}</h2>
+      <p class="relative mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[var(--text-tertiary)]">{t('platform.domains.emptyHint')}</p>
     </div>
   {:else if shown.length === 0}
     <div class="surface-card px-4 py-10 text-center text-[13px] text-[var(--text-tertiary)]">{t('platform.domains.noMatch')}</div>
@@ -425,3 +441,115 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .empty-hero {
+    padding: 44px 24px 48px !important;
+  }
+  @media (min-width: 1024px) {
+    .empty-hero {
+      padding: 56px 32px 60px !important;
+    }
+  }
+  .empty-grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, color-mix(in srgb, var(--color-primary-500) 22%, transparent) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(ellipse at center, #000 0%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 0%, transparent 70%);
+    opacity: 0.6;
+  }
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-width: 96px;
+  }
+  .node-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    background: var(--surface-card, #fff);
+    border: 1px solid var(--border-subtle);
+    color: var(--color-primary-600);
+    box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--color-primary-500) 55%, transparent);
+  }
+  .node-core {
+    background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800, var(--color-primary-700)));
+    color: #fff;
+    border: 0;
+  }
+  .node-label {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    border: 2px solid var(--color-primary-500);
+    animation: ring-out 2.6s ease-out infinite;
+  }
+  .ring.r2 {
+    animation-delay: 1.3s;
+  }
+  .link {
+    position: relative;
+    flex: 1;
+    min-width: 48px;
+    height: 2px;
+    margin: 0 4px 26px;
+    background-image: linear-gradient(90deg, var(--border-subtle) 50%, transparent 50%);
+    background-size: 10px 2px;
+  }
+  .packet {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 99px;
+    background: var(--color-primary-500);
+    box-shadow: 0 0 10px var(--color-primary-500);
+    animation: packet 2.2s linear infinite;
+  }
+  .packet.p2 {
+    animation-delay: 1.1s;
+  }
+  .packet.p3 {
+    animation-delay: 0.6s;
+  }
+  .float-a {
+    animation: float 4s ease-in-out infinite;
+  }
+  .float-b {
+    animation: float 4s ease-in-out infinite 1s;
+  }
+  @keyframes ring-out {
+    from { transform: scale(1); opacity: 0.55; }
+    to { transform: scale(1.7); opacity: 0; }
+  }
+  @keyframes packet {
+    from { left: 0; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    to { left: calc(100% - 8px); opacity: 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ring, .packet, .float-a, .float-b { animation: none; }
+  }
+</style>

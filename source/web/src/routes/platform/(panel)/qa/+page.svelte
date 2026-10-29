@@ -263,7 +263,7 @@
   {/if}
 
   <!-- ============ Hero ============ -->
-  <section class="relative isolate overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[#0d2b63] text-white shadow-[var(--shadow-sm)]">
+  <section class="qa-hero relative isolate overflow-hidden rounded-2xl border border-[var(--border-default)] bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[#0d2b63] text-white shadow-[var(--shadow-sm)]">
     <div class="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-sky-400/10 blur-3xl"></div>
     <div class="flex flex-wrap items-center justify-between gap-6 p-5 lg:p-7">
       <div class="min-w-0 flex-1 basis-[22rem]">
@@ -295,23 +295,23 @@
         <div class="mt-4 flex flex-wrap items-center gap-2">
           {#if runs.length}
             <label class="sr-only" for="qa-run">{t('platform.qa.run')}</label>
-            <select id="qa-run" class="rounded-lg border border-white/25 bg-[#0a1f4a] px-2.5 py-1.5 text-[12.5px] font-medium text-white w-60 max-w-full [color-scheme:dark]" value={runId} onchange={(e) => pick(e.currentTarget.value)}>
+            <select id="qa-run" class="rounded-lg border border-white/25 px-2.5 py-1.5 text-[12.5px] font-medium w-60 max-w-full [color-scheme:dark]" style="background-color:#0a1f4a !important;color:#fff;border-radius:8px !important" value={runId} onchange={(e) => pick(e.currentTarget.value)}>
               {#each runs as r (r.id)}
                 <option class="bg-[#0a1f4a] text-white" value={r.id}>{r.name}{r.closed_at ? ` · ${t('platform.qa.closedTag')}` : ''}</option>
               {/each}
             </select>
           {/if}
-          <button type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#0a1f4a] hover:bg-sky-50" onclick={() => (showNew = !showNew)}>
+          <button type="button" class="qa-btn qa-btn-solid" onclick={() => (showNew = !showNew)}>
             <i class="icon-plus text-[13px]"></i>{t('platform.qa.newRun')}
           </button>
           {#if run}
-            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[12.5px] font-semibold hover:bg-white/20" onclick={copyReport}>
+            <button type="button" class="qa-btn qa-btn-ghost" onclick={copyReport}>
               <i class="icon-{copied ? 'check' : 'copy'} text-[13px]"></i>{copied ? t('platform.qa.copied') : t('platform.qa.copyReport')}
             </button>
-            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[12.5px] font-semibold hover:bg-white/20" onclick={toggleClosed}>
+            <button type="button" class="qa-btn qa-btn-ghost" onclick={toggleClosed}>
               <i class="icon-{readonly ? 'rotate-ccw' : 'lock'} text-[13px]"></i>{readonly ? t('platform.qa.reopen') : t('platform.qa.closeRun')}
             </button>
-            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-rose-300/30 bg-rose-400/10 px-3 py-1.5 text-[12.5px] font-semibold text-rose-200 hover:bg-rose-400/20" onclick={removeRun}>
+            <button type="button" class="qa-btn qa-btn-danger" onclick={removeRun}>
               <i class="icon-trash-2 text-[13px]"></i>{t('platform.qa.delete')}
             </button>
           {/if}
@@ -360,7 +360,7 @@
     >
       <div class="flex-1 basis-72">
         <label class="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]" for="qa-new">{t('platform.qa.runName')}</label>
-        <input id="qa-new" class="input mt-1 w-full" maxlength="120" placeholder={t('platform.qa.runNamePh')} bind:value={newName} />
+        <input id="qa-new" class="field-control qa-field mt-1 w-full" maxlength="120" placeholder={t('platform.qa.runNamePh')} bind:value={newName} />
         <p class="mt-1 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.qa.runNameHelp', { n: total })}</p>
       </div>
       <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={creating || !newName.trim()}>
@@ -378,7 +378,7 @@
     </div>
   {:else if !run}
     {#if !showNew}
-      <div class="rounded-2xl border border-dashed border-[var(--border-subtle)] p-12 text-center">
+      <div class="rounded-2xl border border-dashed border-[var(--border-default)] p-12 text-center">
         <i class="icon-list-checks text-[30px] text-[var(--text-tertiary)]"></i>
         <p class="mt-2 text-[13px] text-[var(--text-tertiary)]">{t('platform.qa.noRuns')}</p>
       </div>
@@ -453,34 +453,51 @@
       <div class="min-w-0 space-y-4">
         {#if currentApp}
           {@const cs = appStats(currentApp)}
-          <div class="surface-card p-3 sm:p-4 flex flex-wrap items-center gap-3">
-            <div class="min-w-0 mr-auto">
-              <h2 class="font-display font-bold text-[17px] leading-tight truncate">{currentApp.title}</h2>
-              <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.qa.tested', { done: cs.pass + cs.fail + cs.skip, total: cs.total })} · {cs.pct}%</p>
+          <div class="surface-card overflow-hidden">
+            <div class="flex items-end justify-between gap-4 px-4 pt-4 pb-3">
+              <div class="min-w-0">
+                <h2 class="font-display font-bold text-[18px] leading-tight truncate">{currentApp.title}</h2>
+                <p class="mt-0.5 text-[12px] text-[var(--text-tertiary)]">{t('platform.qa.tested', { done: cs.pass + cs.fail + cs.skip, total: cs.total })}</p>
+              </div>
+              <p class="font-display font-bold text-[24px] leading-none tabular-nums shrink-0">{cs.pct}<span class="text-[13px] text-[var(--text-tertiary)]">%</span></p>
             </div>
-            <div class="inline-flex rounded-lg border border-[var(--border-subtle)] p-0.5" role="group" aria-label={t('platform.qa.filter')}>
-              {#each ['all', 'todo', 'fail'] as const as f (f)}
-                <button type="button" aria-pressed={filter === f} class="rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors {filter === f ? 'bg-[var(--color-primary-600)] text-white' : 'text-[var(--text-secondary,inherit)] hover:bg-[var(--bg-subtle,rgb(148_163_184/0.12))]'}" onclick={() => (filter = f)}>
-                  {t(`platform.qa.filter_${f}`)}
-                </button>
-              {/each}
+            <div class="mx-4 mb-3 flex h-1.5 overflow-hidden rounded-full bg-[rgb(148_163_184/0.25)]">
+              <span style="width:{(cs.pass / cs.total) * 100}%;background:var(--color-success-600)"></span>
+              <span style="width:{(cs.skip / cs.total) * 100}%;background:var(--color-info-600)"></span>
+              <span style="width:{(cs.fail / cs.total) * 100}%;background:var(--color-danger-600)"></span>
             </div>
-            <div class="relative w-full sm:w-56">
-              <i class="icon-search absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-[var(--text-tertiary)]"></i>
-              <input class="input !pl-8 !text-[12.5px] w-full" placeholder={t('platform.qa.search')} bind:value={query} aria-label={t('platform.qa.search')} />
+            <div class="flex flex-wrap items-center gap-3 border-t border-[var(--border-default)] bg-[var(--surface-sunken)] px-4 py-3">
+              <div class="inline-flex rounded-lg border border-[var(--border-strong)] bg-[var(--surface-base)] p-0.5" role="group" aria-label={t('platform.qa.filter')}>
+                {#each ['all', 'todo', 'fail'] as const as f (f)}
+                  <button type="button" aria-pressed={filter === f} class="rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors {filter === f ? 'bg-[var(--color-primary-600)] text-white shadow-sm' : 'hover:bg-[rgb(148_163_184/0.18)]'}" onclick={() => (filter = f)}>
+                    {t(`platform.qa.filter_${f}`)}
+                  </button>
+                {/each}
+              </div>
+              <label class="relative block flex-1 basis-56">
+                <i class="icon-search pointer-events-none absolute top-1/2 -translate-y-1/2 text-[14px] text-[var(--text-tertiary)]" style="inset-inline-start:0.8rem"></i>
+                <input
+                  type="search"
+                  class="field-control qa-field w-full"
+                  style="padding-inline-start:2.4rem"
+                  placeholder={t('platform.qa.search')}
+                  bind:value={query}
+                  aria-label={t('platform.qa.search')}
+                />
+              </label>
             </div>
           </div>
 
           {@const visible = currentApp.groups.map((g) => ({ g, items: g.items.filter((i) => matches(i.key, i.title)) })).filter((x) => x.items.length)}
           {#if visible.length === 0}
-            <div class="rounded-2xl border border-dashed border-[var(--border-subtle)] p-10 text-center text-[13px] text-[var(--text-tertiary)]">{t('platform.qa.emptyFilter')}</div>
+            <div class="rounded-2xl border border-dashed border-[var(--border-default)] p-10 text-center text-[13px] text-[var(--text-tertiary)]">{t('platform.qa.emptyFilter')}</div>
           {/if}
 
           {#each visible as { g, items } (g.key)}
             {@const done = g.items.filter((i) => results[i.key]).length}
             {@const open = !collapsed[`${currentApp.key}.${g.key}`]}
             <section class="surface-card overflow-hidden">
-              <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-subtle,rgb(148_163_184/0.08))]" aria-expanded={open} onclick={() => (collapsed = { ...collapsed, [`${currentApp.key}.${g.key}`]: open })}>
+              <button type="button" class="flex w-full items-center gap-3 bg-[var(--surface-sunken)] px-4 py-3 text-left hover:bg-[rgb(148_163_184/0.16)]" aria-expanded={open} onclick={() => (collapsed = { ...collapsed, [`${currentApp.key}.${g.key}`]: open })}>
                 <i class="icon-chevron-down text-[14px] text-[var(--text-tertiary)] transition-transform {open ? '' : '-rotate-90'}"></i>
                 <h3 class="text-[13px] font-bold">{g.title}</h3>
                 <span class="ml-auto flex items-center gap-2.5">
@@ -492,7 +509,7 @@
               </button>
 
               {#if open}
-                <ul class="divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                <ul class="divide-y divide-[var(--border-default)] border-t border-[var(--border-default)]">
                   {#each items as it (it.key)}
                     {@const r = results[it.key]}
                     <li class="relative px-4 py-3 pl-5">
@@ -512,12 +529,12 @@
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
-                          <div class="inline-flex overflow-hidden rounded-lg border border-[var(--border-subtle)]" role="group" aria-label={it.title}>
+                          <div class="inline-flex overflow-hidden rounded-lg border border-[var(--border-default)]" role="group" aria-label={it.title}>
                             {#each statuses as s (s)}
                               {@const on = r?.status === s}
                               <button
                                 type="button"
-                                class="inline-flex h-8 items-center gap-1.5 px-2.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 not-first:border-l not-first:border-[var(--border-subtle)] {on ? 'text-white' : 'hover:bg-[var(--bg-subtle,rgb(148_163_184/0.14))]'}"
+                                class="inline-flex h-8 items-center gap-1.5 px-2.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 not-first:border-l not-first:border-[var(--border-default)] {on ? 'text-white' : 'hover:bg-[var(--bg-subtle,rgb(148_163_184/0.14))]'}"
                                 style={on ? `background:var(--color-${statusTone[s]}-600)` : ''}
                                 disabled={readonly || busyKey === it.key}
                                 aria-pressed={on}
@@ -530,7 +547,7 @@
                           </div>
                           <button
                             type="button"
-                            class="inline-flex size-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] hover:bg-[var(--bg-subtle,rgb(148_163_184/0.14))]"
+                            class="inline-flex size-8 items-center justify-center rounded-lg border border-[var(--border-default)] hover:bg-[var(--bg-subtle,rgb(148_163_184/0.14))]"
                             style={r?.note ? 'color:var(--color-warning-600)' : ''}
                             title={t('platform.qa.note')}
                             aria-label={t('platform.qa.note')}
@@ -544,7 +561,7 @@
 
                       {#if openNote === it.key}
                         <div class="mt-2.5 flex flex-wrap gap-2">
-                          <textarea class="input !text-[12.5px] flex-1 basis-64" rows="2" maxlength="1000" placeholder={t('platform.qa.notePh')} bind:value={draft} disabled={readonly || !r}></textarea>
+                          <textarea class="field-control qa-field flex-1 basis-64" rows="2" maxlength="1000" placeholder={t('platform.qa.notePh')} bind:value={draft} disabled={readonly || !r}></textarea>
                           <div class="flex flex-col justify-between items-end gap-1">
                             <span class="font-mono text-[10.5px] text-[var(--text-tertiary)]">{draft.length}/1000</span>
                             <button type="button" class="btn btn-primary !text-[12.5px]" disabled={readonly || !r || busyKey === it.key} onclick={() => saveNote(it.key)}>{t('platform.qa.saveNote')}</button>
@@ -567,3 +584,58 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* CSS template memberi warna/latar sendiri pada h1, button, textarea (bahkan !important); aturan ini sengaja eksplisit. */
+  .qa-hero h1 {
+    color: #fff;
+  }
+  .qa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: background-color 0.15s;
+  }
+  .qa-btn i {
+    color: inherit;
+  }
+  .qa-btn-solid {
+    background: #fff;
+    color: #0a1f4a;
+  }
+  .qa-btn-solid:hover {
+    background: #e0f2fe;
+  }
+  .qa-btn-ghost {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+    border: 1px solid rgb(255 255 255 / 0.28);
+  }
+  .qa-btn-ghost:hover {
+    background: rgb(255 255 255 / 0.22);
+  }
+  .qa-btn-danger {
+    background: rgb(251 113 133 / 0.14);
+    color: #fecdd3;
+    border: 1px solid rgb(253 164 175 / 0.4);
+  }
+  .qa-btn-danger:hover {
+    background: rgb(251 113 133 / 0.26);
+  }
+  .qa-field {
+    color: var(--text-primary);
+    background-color: var(--surface-raised) !important;
+    border-color: var(--border-strong);
+  }
+  .qa-field::placeholder {
+    color: var(--text-tertiary);
+    opacity: 1;
+  }
+  .qa-field:focus {
+    border-color: var(--color-primary-600);
+  }
+</style>
