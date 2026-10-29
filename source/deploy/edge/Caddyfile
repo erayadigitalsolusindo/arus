@@ -26,8 +26,7 @@
 (api_upstream) {
 	reverse_proxy https://arus-api.erayadigital.co.id {
 		header_up Host {upstream_hostport}
-		# Alamat klien asli untuk rate limit/lockout API (API butuh TRUST_PROXY=true).
-		header_up X-Forwarded-For {remote_host}
+		# X-Forwarded-For (alamat klien asli untuk rate limit/lockout API; API butuh TRUST_PROXY=true) sudah diisi Caddy sendiri.
 	}
 }
 
