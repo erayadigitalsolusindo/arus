@@ -83,7 +83,7 @@
   const expiringSoon = $derived(daysLeft !== null && daysLeft <= 7);
 
   const limitLabel = (n: number | null, unit: 'tx' | 'users') =>
-    n === null ? t('subscription.unlimited') : t(unit === 'tx' ? 'subscription.txLimit' : 'subscription.userLimit', { count: formatNumber(n) });
+    n === null ? t(unit === 'tx' ? 'subscription.txUnlimited' : 'subscription.usersUnlimited') : t(unit === 'tx' ? 'subscription.txLimit' : 'subscription.userLimit', { count: formatNumber(n) });
   // Selisih batas paket dibanding paket aktif ("naik dari 100 jadi 300"), hanya untuk paket lain.
   function gain(p: PlanInfo, unit: 'tx' | 'users') {
     const from = unit === 'tx' ? cur?.max_tx_per_day : cur?.max_users;
