@@ -10,6 +10,8 @@ export default {
   txToday: 'Transaksi hari ini',
   activeUsers: 'Pengguna aktif',
   unlimited: 'Tanpa batas',
+  txUnlimited: 'Transaksi tanpa batas per hari',
+  usersUnlimited: 'Pengguna tanpa batas',
   usedOf: '{used} dari {limit}',
   txLimit: '{count} transaksi per hari',
   userLimit: '{count} pengguna (termasuk Owner)',

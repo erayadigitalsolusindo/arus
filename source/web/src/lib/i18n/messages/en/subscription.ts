@@ -12,6 +12,8 @@ const subscription: Messages['subscription'] = {
   txToday: 'Transactions today',
   activeUsers: 'Active users',
   unlimited: 'Unlimited',
+  txUnlimited: 'Unlimited transactions per day',
+  usersUnlimited: 'Unlimited users',
   usedOf: '{used} of {limit}',
   txLimit: '{count} transactions per day',
   userLimit: '{count} users (including Owner)',

@@ -12,6 +12,8 @@ const subscription: Messages['subscription'] = {
   txToday: '本日の取引数',
   activeUsers: '有効なユーザー',
   unlimited: '無制限',
+  txUnlimited: '1日の取引件数は無制限',
+  usersUnlimited: 'ユーザー数は無制限',
   usedOf: '{limit}中{used}',
   txLimit: '1日{count}件の取引',
   userLimit: '{count}ユーザー（オーナー含む）',
