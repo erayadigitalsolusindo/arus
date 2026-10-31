@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LegalLinks from '#lib/components/LegalLinks.svelte';
   import '#lib/developers/portal.css';
   import { onMount, tick } from 'svelte';
   import { page } from '$app/state';
@@ -283,6 +284,7 @@
               </p>
             {/if}
             {#if data.brand.sandbox_note}<p>{data.brand.sandbox_note}</p>{/if}
+            <p><LegalLinks newTab help /></p>
           </footer>
         </div>
       </main>
