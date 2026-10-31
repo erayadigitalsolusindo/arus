@@ -7,7 +7,7 @@
   // Satu komponen untuk Syarat Layanan dan Kebijakan Privasi; isi ada di kamus `legal.*` (id/en/ja).
   // Tampilan: jendela terminal di atas latar "hujan kode", dengan pencarian dan daftar isi yang menyorot bagian aktif.
   // Format badan teks: paragraf dipisah baris kosong; baris "- " = butir; baris "| a | b" = tabel (baris pertama = judul kolom).
-  let { doc, sections }: { doc: 'terms' | 'privacy' | 'help'; sections: readonly string[] } = $props();
+  let { doc, sections }: { doc: 'terms' | 'privacy' | 'help' | 'delete'; sections: readonly string[] } = $props();
   const key = (s: string, part: 'title' | 'body') => `legal.${doc}.${s}.${part}` as MessageKey;
 
   type Block = { kind: 'p'; text: string } | { kind: 'ul'; items: string[] } | { kind: 'table'; head: string[]; rows: string[][] };
@@ -219,7 +219,7 @@
           type="search"
           autocomplete="off"
           spellcheck="false"
-          placeholder={t(doc === 'terms' ? 'legal.search.placeholderTerms' : doc === 'help' ? 'legal.search.placeholderHelp' : 'legal.search.placeholder')}
+          placeholder={t(doc === 'terms' ? 'legal.search.placeholderTerms' : doc === 'help' ? 'legal.search.placeholderHelp' : doc === 'delete' ? 'legal.search.placeholderDelete' : 'legal.search.placeholder')}
           class="sb-input"
         />
         {#if searching}

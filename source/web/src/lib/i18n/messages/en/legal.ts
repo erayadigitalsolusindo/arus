@@ -8,6 +8,7 @@ const legal: Messages['legal'] = {
     placeholder: 'search this policy, e.g. cookie, camera, delete…',
     placeholderTerms: 'search these terms, e.g. payment, illegal, delete…',
     placeholderHelp: 'search help, e.g. shift, printer, stock, QRIS…',
+    placeholderDelete: 'search, e.g. email, data, backup, delete…',
     hint: 'Press / to search',
     count: '{count} matches in {sections} sections',
     none: '0 matches',
@@ -324,7 +325,7 @@ Permanent deletion cannot be undone from the app, and copies may remain in backu
 - receive your data in a reusable format (reports can be exported to Excel or PDF, and the audit log to NDJSON);
 - lodge an objection or complaint with us and with the competent authority.
 
-Send your request to info@erayadigital.co.id from your account's email address. We verify your identity first and reply within a reasonable time in line with regulations. For a store's customer data, contact that business owner as the data controller; we will help them fulfil your request.`
+Send your request to info@erayadigital.co.id from your account's email address. To delete your account and data, follow the steps at /delete-account. We verify your identity first and reply within a reasonable time in line with regulations. For a store's customer data, contact that business owner as the data controller; we will help them fulfil your request.`
     },
     s13: {
       title: '13. Children',
@@ -524,7 +525,7 @@ The full guide is in PC-KASIR.md in the repository.`
 - Can it be used without internet? Not yet. The web and Android POS have no offline mode.
 - Can data from the old application be moved over? There is no automatic migration. Stores start through onboarding: items, opening stock, and opening receivables or payables.
 - How do I export data? All reports can be exported to Excel and PDF, and the audit log to NDJSON.
-- How do I delete my business? Contact us. The tenant is deactivated first and then permanently deleted after the chosen waiting period.
+- How do I delete my account or business? Follow the steps at /delete-account. The tenant is deactivated first and then permanently deleted after the chosen waiting period.
 - Which languages are available? Indonesian, English, and Japanese. Switch with the language icon in the corner of the page.
 - May I use it for any kind of transaction? Only lawful ones. See Terms of Service section 7.`
     },
@@ -538,6 +539,75 @@ The full guide is in PC-KASIR.md in the repository.`
 - the device and version you use (web and browser, or ARUS Mobile).
 
 Developers who want to integrate through the API can read the documentation at /developers. The rules of use are in the Terms of Service (/terms) and data protection in the Privacy Policy (/privacy).`
+    }
+  },
+  delete: {
+    docTitle: 'Delete Account and Data | ARUS',
+    title: 'Delete Your ARUS Account and Data',
+    s1: {
+      title: '1. How to request account deletion',
+      body: `This page covers the ARUS and ARUS Mobile (ARUS Kasir) apps by Eraya Digital Solusindo. Follow these steps:
+
+- Email info@erayadigital.co.id from the email address registered to your ARUS account, with the subject "ARUS Account Deletion Request".
+- State your business name, account email, and the scope of the request: only my user account, or the whole business with all its data.
+- We reply to the account email to verify that you own the account. Deleting a whole business must be requested by the Owner.
+- We confirm the deletion schedule in writing, then carry it out.
+- You receive a written confirmation once deletion is complete.
+
+There is no charge for a deletion request.`
+    },
+    s2: {
+      title: '2. Two types of request',
+      body: `| Type | Who can request | Result
+| Delete a user account (staff or cashier) | The staff member or the business Owner | The account is deactivated and the account's personal data is deleted; business data remains
+| Delete the business and all data | The business Owner | The tenant is deactivated and then permanently deleted with all business data and every user in it
+
+An Owner can also deactivate staff accounts under Users without waiting for us. Deactivating stops access, but personal data is only deleted through the request above.`
+    },
+    s3: {
+      title: '3. Data that is deleted',
+      body: `| Data | Deleted when
+| Account profile: name, email, phone number, and role | User account or business deletion
+| Password (hash), approver PIN, 2FA secret, and login sessions | User account or business deletion
+| API credentials, MCP connector tokens, and AI API keys set up by the business | Business deletion
+| Business data: transactions, stock, purchases, members, receivables and payables, accounting journals, and reports | Business deletion
+| Item images and uploaded files | Business deletion
+| Business audit log | Business deletion
+
+Data stored in the Android app (session token, preferences, saved cart) is removed when you sign out or uninstall the app.`
+    },
+    s4: {
+      title: '4. Data that is kept and for how long',
+      body: `| Data | Reason | Kept for
+| Transaction records and business audit log entries that contain the user's name | Business bookkeeping; part of the business data | Until the business is deleted (when only a user account is deleted)
+| Database backups | Restoring the service | About 30 days, then deleted automatically
+| Platform administrator action records, including that the deletion was carried out | Accountability and security | Retained; contains no business transaction data
+| A copy of the deletion request email and our confirmation | Proof the request was fulfilled | As long as needed for legal obligations or disputes
+| Data we are required by law to keep | Legal, tax, or bookkeeping obligations | As long as the regulations require
+
+Otherwise, none of your personal data is kept after deletion completes and the backup period ends.`
+    },
+    s5: {
+      title: '5. Deletion timeline',
+      body: `- Identity verification: usually within a few business days of receiving your email.
+- Business deletion follows the waiting period you choose, from 0 to 365 days. With 0 days, deletion runs right after verification. During the waiting period the business is inactive and you can cancel the request.
+- After the waiting period ends, the data is permanently deleted and cannot be restored from the app.
+- Copies in backups are deleted automatically about 30 days later.
+- We aim to finish the whole process within 30 days of verifying your identity, not counting the waiting period you choose.`
+    },
+    s6: {
+      title: '6. Before you request',
+      body: `- Export the reports and data you need (Excel, PDF, or NDJSON for the audit log), including for bookkeeping and tax obligations. Once permanently deleted, data cannot be restored.
+- Subscription fees already paid are not refunded, unless required by law (see Terms of Service, section 5).
+- If the business still uses ARUS, tell your staff first because their access ends too.`
+    },
+    s7: {
+      title: '7. Mobile app',
+      body: `Uninstalling ARUS from your phone only removes the local data on that device. Your account and server data remain until you submit a deletion request as in section 1. To end just the session, choose Sign out in the app.`
+    },
+    s8: {
+      title: '8. Contact',
+      body: `Eraya Digital Solusindo, info@erayadigital.co.id. Full details of the data we process are in the Privacy Policy (/privacy), and the rules of use in the Terms of Service (/terms).`
     }
   }
 };
