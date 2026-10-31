@@ -6,6 +6,7 @@ export default {
     placeholder: 'cari di kebijakan ini, mis. cookie, kamera, hapus…',
     placeholderTerms: 'cari di syarat ini, mis. pembayaran, ilegal, hapus…',
     placeholderHelp: 'cari bantuan, mis. shift, printer, stok, QRIS…',
+    placeholderDelete: 'cari, mis. email, data, cadangan, hapus…',
     hint: 'Tekan / untuk mencari',
     count: '{count} kecocokan di {sections} bagian',
     none: '0 kecocokan',
@@ -322,7 +323,7 @@ Penghapusan permanen tidak dapat dibatalkan dari aplikasi, dan salinannya bisa t
 - memperoleh data Anda dalam format yang dapat dipakai ulang (laporan dapat diekspor ke Excel atau PDF, dan audit log ke NDJSON);
 - mengajukan keberatan atau pengaduan kepada kami dan kepada otoritas yang berwenang.
 
-Kirim permintaan ke info@erayadigital.co.id dari alamat email akun Anda. Kami memverifikasi identitas Anda lebih dulu dan menjawab dalam waktu yang wajar sesuai peraturan. Untuk data pelanggan sebuah toko, hubungi pemilik usaha tersebut sebagai pengendali datanya; kami akan membantu mereka memenuhi permintaan Anda.`
+Kirim permintaan ke info@erayadigital.co.id dari alamat email akun Anda. Untuk penghapusan akun dan data, ikuti langkah di /delete-account. Kami memverifikasi identitas Anda lebih dulu dan menjawab dalam waktu yang wajar sesuai peraturan. Untuk data pelanggan sebuah toko, hubungi pemilik usaha tersebut sebagai pengendali datanya; kami akan membantu mereka memenuhi permintaan Anda.`
     },
     s13: {
       title: '13. Anak-anak',
@@ -522,7 +523,7 @@ Panduan lengkapnya ada di berkas PC-KASIR.md di repositori.`
 - Apakah bisa dipakai tanpa internet? Belum. Aplikasi kasir web dan Android belum punya mode offline.
 - Apakah data dari aplikasi lama bisa dipindahkan? Tidak ada migrasi otomatis. Toko mulai lewat onboarding: barang, saldo awal stok, dan saldo awal piutang atau hutang.
 - Bagaimana mengekspor data? Semua laporan bisa diekspor ke Excel dan PDF, dan audit log ke NDJSON.
-- Bagaimana menghapus usaha saya? Hubungi kami. Tenant dinonaktifkan lebih dulu lalu dihapus permanen setelah masa tunggu yang ditentukan.
+- Bagaimana menghapus akun atau usaha saya? Ikuti langkah di /delete-account. Tenant dinonaktifkan lebih dulu lalu dihapus permanen setelah masa tunggu yang ditentukan.
 - Bahasa apa saja yang tersedia? Indonesia, English, dan 日本語. Ganti lewat ikon bahasa di pojok halaman.
 - Bolehkah dipakai untuk transaksi apa saja? Hanya yang sah menurut hukum. Lihat Syarat Layanan bagian 7.`
     },
@@ -536,6 +537,75 @@ Panduan lengkapnya ada di berkas PC-KASIR.md di repositori.`
 - perangkat dan versi yang dipakai (web dan browser, atau ARUS Mobile).
 
 Developer yang ingin mengintegrasikan sistem lewat API dapat membaca dokumentasi di /developers. Aturan penggunaan ada di Syarat Layanan (/terms) dan perlindungan data di Kebijakan Privasi (/privacy).`
+    }
+  },
+  delete: {
+    docTitle: 'Hapus Akun dan Data | ARUS',
+    title: 'Hapus Akun dan Data ARUS',
+    s1: {
+      title: '1. Cara meminta penghapusan akun',
+      body: `Halaman ini untuk aplikasi ARUS dan ARUS Mobile (ARUS Kasir) oleh Eraya Digital Solusindo. Ikuti langkah berikut:
+
+- Kirim email ke info@erayadigital.co.id dari alamat email yang terdaftar di akun ARUS Anda, dengan subjek "Permintaan Hapus Akun ARUS".
+- Tulis nama usaha, email akun, dan cakupan permintaan: hanya akun pengguna saya, atau seluruh usaha beserta semua datanya.
+- Kami membalas ke email akun untuk memverifikasi bahwa Anda pemilik akun. Untuk penghapusan seluruh usaha, permintaan harus datang dari Owner.
+- Kami mengonfirmasi jadwal penghapusan secara tertulis, lalu menjalankannya.
+- Anda menerima konfirmasi tertulis setelah penghapusan selesai.
+
+Tidak ada tarif untuk permintaan penghapusan.`
+    },
+    s2: {
+      title: '2. Dua jenis permintaan',
+      body: `| Jenis | Siapa yang meminta | Hasilnya
+| Hapus akun pengguna (pegawai atau kasir) | Pegawai itu sendiri atau Owner usaha | Akun dinonaktifkan dan data pribadi akun dihapus; data usaha tetap ada
+| Hapus usaha dan semua data | Owner usaha | Tenant dinonaktifkan lalu dihapus permanen beserta seluruh data usaha dan semua pengguna di dalamnya
+
+Owner juga dapat menonaktifkan pegawai sendiri di menu Pengguna tanpa menunggu kami. Menonaktifkan akun menghentikan akses, tetapi data pribadinya baru dihapus lewat permintaan di atas.`
+    },
+    s3: {
+      title: '3. Data yang dihapus',
+      body: `| Data | Dihapus pada
+| Profil akun: nama, email, nomor HP, dan peran | Penghapusan akun pengguna atau usaha
+| Password (hash), PIN penyetuju, kode 2FA, dan sesi login | Penghapusan akun pengguna atau usaha
+| Kredensial API, token connector MCP, dan API key AI yang dipasang usaha | Penghapusan usaha
+| Data usaha: transaksi, stok, pembelian, member, piutang dan hutang, jurnal akuntansi, dan laporan | Penghapusan usaha
+| Gambar barang dan berkas yang diunggah | Penghapusan usaha
+| Audit log usaha | Penghapusan usaha
+
+Data yang tersimpan di aplikasi Android (token sesi, preferensi, keranjang tersimpan) dihapus saat Anda keluar atau mencopot aplikasi.`
+    },
+    s4: {
+      title: '4. Data yang disimpan dan masa retensinya',
+      body: `| Data | Alasan | Disimpan selama
+| Catatan transaksi dan audit log usaha yang memuat nama pengguna | Pembukuan usaha; bagian dari data usaha | Sampai usaha dihapus (pada penghapusan akun pengguna saja)
+| Cadangan database | Pemulihan layanan | Sekitar 30 hari, lalu terhapus otomatis
+| Catatan tindakan administrator platform, termasuk bahwa penghapusan itu dilakukan | Akuntabilitas dan keamanan | Dipertahankan; tidak memuat data transaksi usaha
+| Salinan email permintaan penghapusan dan konfirmasinya | Bukti pemenuhan permintaan | Selama diperlukan untuk kewajiban hukum atau sengketa
+| Data yang wajib kami simpan menurut hukum | Kewajiban hukum, pajak, atau pembukuan | Sesuai batas yang ditentukan peraturan
+
+Selain itu, tidak ada data pribadi Anda yang kami simpan setelah penghapusan selesai dan masa cadangan berakhir.`
+    },
+    s5: {
+      title: '5. Jadwal penghapusan',
+      body: `- Verifikasi identitas: biasanya dalam beberapa hari kerja setelah email Anda kami terima.
+- Penghapusan usaha mengikuti masa tunggu yang Anda pilih, dari 0 sampai 365 hari. Pada 0 hari, penghapusan dijalankan segera setelah terverifikasi. Selama masa tunggu, usaha nonaktif dan Anda dapat membatalkan permintaan.
+- Setelah masa tunggu berakhir, data dihapus permanen dan tidak dapat dipulihkan dari aplikasi.
+- Salinan di cadangan terhapus otomatis sekitar 30 hari kemudian.
+- Kami berupaya menyelesaikan seluruh proses paling lama 30 hari sejak identitas Anda terverifikasi, di luar masa tunggu yang Anda pilih.`
+    },
+    s6: {
+      title: '6. Sebelum Anda meminta',
+      body: `- Ekspor laporan dan data yang Anda perlukan (Excel, PDF, atau NDJSON untuk audit log), termasuk untuk kewajiban pembukuan dan pajak. Setelah dihapus permanen, data tidak dapat dipulihkan.
+- Biaya langganan yang sudah dibayar tidak dikembalikan, kecuali diwajibkan hukum (lihat Syarat Layanan, bagian 5).
+- Bila usaha masih memakai ARUS, beri tahu pegawai lebih dulu karena akses mereka ikut berhenti.`
+    },
+    s7: {
+      title: '7. Aplikasi seluler',
+      body: `Mencopot aplikasi ARUS dari HP hanya menghapus data lokal di perangkat itu. Akun dan data di server tetap ada sampai Anda mengajukan permintaan penghapusan seperti di bagian 1. Untuk mengakhiri sesi saja, pilih Keluar di aplikasi.`
+    },
+    s8: {
+      title: '8. Kontak',
+      body: `Eraya Digital Solusindo, info@erayadigital.co.id. Penjelasan lengkap tentang data yang kami proses ada di Kebijakan Privasi (/privacy), dan aturan penggunaan di Syarat Layanan (/terms).`
     }
   }
 };
