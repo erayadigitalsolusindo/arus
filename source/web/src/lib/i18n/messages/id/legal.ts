@@ -3,11 +3,11 @@ export default {
   updated: 'Berlaku sejak Oktober 2026',
   back: 'Kembali',
   terms: {
-    docTitle: 'Syarat Layanan | ACIRABA',
+    docTitle: 'Syarat Layanan | ARUS',
     title: 'Syarat Layanan',
     s1: {
       title: '1. Layanan',
-      body: 'ACIRABA adalah aplikasi kasir, stok, dan pembukuan berbasis web untuk usaha ritel dan makanan-minuman. Dengan mendaftar, Anda menyatakan berwenang mewakili usaha yang didaftarkan.'
+      body: 'ARUS adalah aplikasi kasir, stok, dan pembukuan berbasis web untuk usaha ritel dan makanan-minuman. Dengan mendaftar, Anda menyatakan berwenang mewakili usaha yang didaftarkan.'
     },
     s2: {
       title: '2. Akun dan keamanan',
@@ -39,7 +39,7 @@ export default {
     }
   },
   privacy: {
-    docTitle: 'Kebijakan Privasi | ACIRABA',
+    docTitle: 'Kebijakan Privasi | ARUS',
     title: 'Kebijakan Privasi',
     s1: {
       title: '1. Data yang kami kumpulkan',
@@ -66,8 +66,12 @@ export default {
       body: 'Data disimpan selama akun aktif dan selama diperlukan untuk kewajiban hukum, pembukuan, atau penyelesaian sengketa. Setelah itu data dihapus atau dianonimkan.'
     },
     s7: {
-      title: '7. Kontak dan perubahan',
-      body: 'Pertanyaan tentang privasi dapat disampaikan kepada administrator layanan. Perubahan kebijakan akan diumumkan melalui aplikasi atau email.'
+      title: '7. Aplikasi seluler (ARUS Mobile)',
+      body: 'Aplikasi Android meminta izin Kamera hanya untuk memindai barcode barang, dan izin Perangkat di sekitar (Bluetooth) hanya untuk menyambung ke printer struk yang sudah dipasangkan. Gambar kamera tidak direkam, disimpan, atau dikirim. Di perangkat disimpan token sesi (di penyimpanan aman Android), pengaturan tampilan dan printer, serta keranjang dan nota tertunda; data ini terhapus saat Anda keluar atau mencopot aplikasi. Pembayaran QRIS diproses oleh penyedia pembayaran yang Anda hubungkan; kami tidak menyimpan data kartu. Kami tidak memakai iklan dan tidak melacak Anda lintas aplikasi.'
+    },
+    s8: {
+      title: '8. Kontak dan perubahan',
+      body: 'Pertanyaan tentang privasi dapat dikirim ke info@erayadigital.co.id. Perubahan kebijakan akan diumumkan melalui aplikasi atau email.'
     }
   }
 };

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show appFlavor;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -63,7 +64,8 @@ class ArusApp extends ConsumerWidget {
         final user = ref.watch(textScaleProvider);
         return MediaQuery(
           data: mq.copyWith(textScaler: _ScaledBy(mq.textScaler, user)),
-          child: UpdateGate(child: child!),
+          // Play Store melarang aplikasi memperbarui diri di luar Play → flavor 'play' tanpa UpdateGate.
+          child: appFlavor == 'play' ? child! : UpdateGate(child: child!),
         );
       },
       localizationsDelegates: const [

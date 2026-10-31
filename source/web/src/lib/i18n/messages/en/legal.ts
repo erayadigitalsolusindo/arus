@@ -5,11 +5,11 @@ const legal: Messages['legal'] = {
   updated: 'Effective October 2026',
   back: 'Back',
   terms: {
-    docTitle: 'Terms of Service | ACIRABA',
+    docTitle: 'Terms of Service | ARUS',
     title: 'Terms of Service',
     s1: {
       title: '1. The service',
-      body: 'ACIRABA is a web-based point-of-sale, inventory, and bookkeeping application for retail and food-and-beverage businesses. By registering, you confirm you are authorised to act for the business being registered.'
+      body: 'ARUS is a web-based point-of-sale, inventory, and bookkeeping application for retail and food-and-beverage businesses. By registering, you confirm you are authorised to act for the business being registered.'
     },
     s2: {
       title: '2. Accounts and security',
@@ -41,7 +41,7 @@ const legal: Messages['legal'] = {
     }
   },
   privacy: {
-    docTitle: 'Privacy Policy | ACIRABA',
+    docTitle: 'Privacy Policy | ARUS',
     title: 'Privacy Policy',
     s1: {
       title: '1. Data we collect',
@@ -68,8 +68,12 @@ const legal: Messages['legal'] = {
       body: 'Data is kept while your account is active and as long as needed for legal, accounting, or dispute purposes. Afterwards it is deleted or anonymised.'
     },
     s7: {
-      title: '7. Contact and changes',
-      body: 'Privacy questions can be sent to the service administrator. Policy changes will be announced in the app or by email.'
+      title: '7. Mobile app (ARUS Mobile)',
+      body: 'The Android app requests the Camera permission only to scan item barcodes, and the Nearby devices (Bluetooth) permission only to connect to a receipt printer you have already paired. Camera images are never recorded, stored, or sent. The device stores the session token (in Android secure storage), display and printer settings, and the saved cart and held receipts; this is removed when you sign out or uninstall the app. QRIS payments are processed by the payment provider you connect; we do not store card data. We show no ads and do not track you across apps.'
+    },
+    s8: {
+      title: '8. Contact and changes',
+      body: 'Privacy questions can be sent to info@erayadigital.co.id. Policy changes will be announced in the app or by email.'
     }
   }
 };
