@@ -37,6 +37,13 @@ android {
         versionName = flutter.versionName
     }
 
+    // sideload = APK via Platform Admin (pemasang sistem + UpdateGate); play = AAB Play Store (tanpa izin pemasang).
+    flavorDimensions += "dist"
+    productFlavors {
+        create("sideload") { dimension = "dist" }
+        create("play") { dimension = "dist" }
+    }
+
     signingConfigs {
         if (keyProps.isNotEmpty()) {
             create("release") {
