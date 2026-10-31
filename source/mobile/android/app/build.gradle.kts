@@ -41,7 +41,11 @@ android {
     flavorDimensions += "dist"
     productFlavors {
         create("sideload") { dimension = "dist" }
-        create("play") { dimension = "dist" }
+        // Nama paket di Play Console sudah terdaftar sebagai id.co.erayadigital.arus (tidak bisa diubah); `namespace` kode tetap arus_mobile.
+        create("play") {
+            dimension = "dist"
+            applicationId = "id.co.erayadigital.arus"
+        }
     }
 
     signingConfigs {
