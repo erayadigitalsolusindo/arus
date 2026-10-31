@@ -3,6 +3,7 @@
   import { API_URL } from '#lib/api/client.ts';
   import { t } from '#lib/i18n/index.ts';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
+  import LegalLinks from '#lib/components/LegalLinks.svelte';
 
   type Status = 'checking' | 'online' | 'degraded' | 'offline';
   let status = $state<Status>('checking');
@@ -42,18 +43,19 @@
 </script>
 
 <footer class="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-6 text-[11.5px] text-tertiary">
-  <span>© {new Date().getFullYear()} ARUS</span>
+  <LegalLinks />
 
-  <div class="flex items-center gap-4">
-    <span class="inline-flex items-center gap-1.5" role="status" aria-live="polite">
-      <span class="size-1.5 rounded-full {dot[status]} {status === 'online' ? 'status-pulse' : ''}"></span>{t(`shell.server.${status}`)}
+  <div class="flex items-center gap-3.5">
+    <span class="inline-flex items-center" role="status" aria-live="polite" title={t(`shell.server.${status}`)}>
+      <span class="size-2 rounded-full {dot[status]} {status === 'online' ? 'status-pulse' : ''}"></span>
+      <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">{t(`shell.server.${status}`)}</span>
     </span>
     <LanguageSwitcher placement="up" />
-    <button type="button" class="inline-flex items-center gap-1 hover:text-[var(--color-primary-600)]" onclick={toggleTheme} aria-label={theme === 'dark' ? t('common.theme.light') : t('common.theme.dark')}>
-      <i class={theme === 'dark' ? 'icon-sun-medium text-[13px]' : 'icon-moon text-[13px]'}></i>
+    <button type="button" class="inline-flex items-center hover:text-[var(--color-primary-600)]" onclick={toggleTheme} title={theme === 'dark' ? t('common.theme.light') : t('common.theme.dark')} aria-label={theme === 'dark' ? t('common.theme.light') : t('common.theme.dark')}>
+      <i class={theme === 'dark' ? 'icon-sun-medium text-[14px]' : 'icon-moon text-[14px]'}></i>
     </button>
-    <a href="#bantuan" class="inline-flex items-center gap-1 font-semibold hover:text-[var(--color-primary-600)]">
-      <i class="icon-life-buoy text-[13px]"></i>{t('common.help')}
+    <a href="/help" class="inline-flex items-center hover:text-[var(--color-primary-600)]" title={t('common.help')} aria-label={t('common.help')}>
+      <i class="icon-life-buoy text-[15px]"></i>
     </a>
   </div>
 </footer>

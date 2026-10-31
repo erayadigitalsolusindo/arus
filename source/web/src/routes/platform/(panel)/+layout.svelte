@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LegalLinks from '#lib/components/LegalLinks.svelte';
   import type { Snippet } from 'svelte';
   import { page } from '$app/state';
   import { afterNavigate, goto } from '$app/navigation';
@@ -127,6 +128,9 @@
         <button type="button" onclick={platformLogout} class="workspace-text header-icon-btn !text-white/60 hover:!text-white hover:!bg-white/10 !size-7 shrink-0" title={t('platform.nav.signOut')} aria-label={t('platform.nav.signOut')}>
           <i class="icon-log-out text-[14px]"></i>
         </button>
+      </div>
+      <div class="workspace-text mt-2 px-1 text-[10.5px] text-[var(--sidebar-text)]">
+        <LegalLinks newTab help />
       </div>
     </div>
   </aside>
