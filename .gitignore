@@ -28,3 +28,6 @@ dump.rdb
 # hasil build print-agent
 source/print-agent/dist/
 source/apk-uploader/dist/
+
+# hasil tangkapan tutorial (dibuat ulang oleh tools/tutorial)
+tutorial_out/

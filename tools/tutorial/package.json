@@ -1,0 +1,12 @@
+{
+  "name": "arus-tutorial-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}
