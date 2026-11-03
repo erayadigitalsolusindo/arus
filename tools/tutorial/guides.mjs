@@ -14,8 +14,9 @@ import './guide-defs-master.mjs';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'tutorial_out');
 const BASE = process.env.BASE_URL ?? 'http://localhost:5200';
-const EMAIL = process.env.TUT_EMAIL ?? 'aciraba.id@gmail.com';
-const PASSWORD = process.env.TUT_PASSWORD ?? 'Salam1jiwa';
+const EMAIL = process.env.TUT_EMAIL;
+const PASSWORD = process.env.TUT_PASSWORD;
+if (!EMAIL || !PASSWORD) throw new Error('Isi TUT_EMAIL dan TUT_PASSWORD (akun dev lokal) di lingkungan sebelum menjalankan.');
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
 
 const settle = async (page) => {

@@ -10,8 +10,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const OUT = join(here, '..', '..', 'tutorial_out');
 const BASE = process.env.BASE_URL ?? 'http://localhost:5200';
-const EMAIL = process.env.TUT_EMAIL ?? 'aciraba.id@gmail.com';
-const PASSWORD = process.env.TUT_PASSWORD ?? 'Salam1jiwa';
+const EMAIL = process.env.TUT_EMAIL;
+const PASSWORD = process.env.TUT_PASSWORD;
+if (!EMAIL || !PASSWORD) throw new Error('Isi TUT_EMAIL dan TUT_PASSWORD (akun dev lokal) di lingkungan sebelum menjalankan.');
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7).replace(/^\/?/, '/'); // tanpa garis miring awal juga boleh (Git Bash mengubah path)
 
 // --- daftar halaman dari menu sidebar (nav.ts) + label Indonesia (messages/id/nav.ts) ---

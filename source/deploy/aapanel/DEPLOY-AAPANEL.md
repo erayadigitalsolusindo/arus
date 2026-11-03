@@ -144,6 +144,7 @@ Service hidup lagi sendiri saat mati (`Restart=always`) dan saat boot. Unit ini 
    RewriteEngine On
    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d
+   RewriteCond %{REQUEST_URI} !^/_app/
    RewriteRule . /index.html [L]
    ```
    Pakai `%{DOCUMENT_ROOT}%{REQUEST_URI}` persis seperti itu, **bukan** `%{REQUEST_FILENAME}`: di konteks vhost, `REQUEST_FILENAME` membuat semua berkas (termasuk `/_app/…`) dianggap tidak ada, sehingga CSS/JS diganti `index.html` dan halaman putih.
