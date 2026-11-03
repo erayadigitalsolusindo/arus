@@ -9064,7 +9064,7 @@ LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 WHERE s.tenant_id = $1 AND s.outlet_id = $2
   AND s.status <> 'superseded'
   AND ($3::bool OR s.cashier_id = $4)
-  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN $5::date AND $6::date
+  AND s.created_at >= $5::timestamptz AND s.created_at < $6::timestamptz
   AND ($7::text = '' OR s.doc_no ILIKE '%' || $7::text || '%')
 ORDER BY s.created_at DESC, s.doc_no DESC
 LIMIT 500
@@ -9075,8 +9075,8 @@ type SalesListParams struct {
 	OutletID    uuid.UUID
 	AllCashiers bool
 	CashierID   pgtype.UUID
-	FromDay     pgtype.Date
-	ToDay       pgtype.Date
+	FromAt      pgtype.Timestamptz
+	ToAt        pgtype.Timestamptz
 	Q           string
 }
 
@@ -9101,8 +9101,8 @@ func (q *Queries) SalesList(ctx context.Context, arg SalesListParams) ([]SalesLi
 		arg.OutletID,
 		arg.AllCashiers,
 		arg.CashierID,
-		arg.FromDay,
-		arg.ToDay,
+		arg.FromAt,
+		arg.ToAt,
 		arg.Q,
 	)
 	if err != nil {
@@ -9651,7 +9651,7 @@ func (q *Queries) SalesNextNo(ctx context.Context, arg SalesNextNoParams) (int64
 }
 
 const salesOutletInfo = `-- name: SalesOutletInfo :one
-SELECT code, name, tax_store_pct, tax_gov_pct, active,
+SELECT code, name, tax_store_pct, tax_gov_pct, active, timezone,
        (now() AT TIME ZONE timezone)::date AS local_day
 FROM outlets WHERE tenant_id = $1 AND id = $2
 `
@@ -9667,6 +9667,7 @@ type SalesOutletInfoRow struct {
 	TaxStorePct decimal.Decimal
 	TaxGovPct   decimal.Decimal
 	Active      bool
+	Timezone    string
 	LocalDay    pgtype.Date
 }
 
@@ -9679,6 +9680,7 @@ func (q *Queries) SalesOutletInfo(ctx context.Context, arg SalesOutletInfoParams
 		&i.TaxStorePct,
 		&i.TaxGovPct,
 		&i.Active,
+		&i.Timezone,
 		&i.LocalDay,
 	)
 	return i, err

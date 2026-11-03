@@ -112,23 +112,22 @@ func returnedBySale(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, ids []uuid
 }
 
 // cashierReturns = retur aktif yang dibuat petugas (atau semua petugas untuk Platform Admin) pada outlet & rentang hari.
-func cashierReturns(ctx context.Context, tx pgx.Tx, a authz.Actor, fd, td time.Time) (ListReturns, error) {
+func cashierReturns(ctx context.Context, tx pgx.Tx, a authz.Actor, t0, t1 time.Time) (ListReturns, error) {
 	var count int
 	var total decimal.Decimal
 	err := tx.QueryRow(ctx, `SELECT count(*), coalesce(sum(r.total), 0)
-		FROM sales_returns r JOIN outlets o ON o.tenant_id = r.tenant_id AND o.id = r.outlet_id
+		FROM sales_returns r
 		WHERE r.tenant_id = $1 AND r.outlet_id = $2 AND r.status = 'completed' AND ($3::bool OR r.created_by = $4)
-		  AND r.created_at >= ($5::date)::timestamp AT TIME ZONE o.timezone AND r.created_at < ($6::date + 1)::timestamp AT TIME ZONE o.timezone`,
-		a.TenantID, a.OutletID, a.Impersonator != uuid.Nil, a.UserID, pgtype.Date{Time: fd, Valid: true}, pgtype.Date{Time: td, Valid: true}).Scan(&count, &total)
+		  AND r.created_at >= $5::timestamptz AND r.created_at < $6::timestamptz`,
+		a.TenantID, a.OutletID, a.Impersonator != uuid.Nil, a.UserID, t0, t1).Scan(&count, &total)
 	return ListReturns{Count: count, Total: total.StringFixed(2)}, err
 }
 
-// flowsSQL: $1 tenant, $2 outlet, $3 semua petugas?, $4 petugas, $5..$6 rentang hari (zona waktu outlet). Metode saldo titipan
+// flowsSQL: $1 tenant, $2 outlet, $3 semua petugas?, $4 petugas, $5..$6 rentang waktu [awal, akhir). Metode saldo titipan
 // (deposit/kredit pemasok) tidak dihitung karena bukan uang di laci.
 const flowsSQL = `
 WITH b AS (
-  SELECT ($5::date)::timestamp AT TIME ZONE o.timezone AS t0, ($6::date + 1)::timestamp AT TIME ZONE o.timezone AS t1
-  FROM outlets o WHERE o.tenant_id = $1 AND o.id = $2
+  SELECT $5::timestamptz AS t0, $6::timestamptz AS t1
 ), x AS (
   SELECT 'receivable_payment' AS src, rp.method_id, rp.method AS kind,
          rp.amount + CASE WHEN rp.fee_bearer = 'customer' THEN rp.fee_amount ELSE 0 END AS amt
@@ -169,9 +168,9 @@ GROUP BY x.src, x.method_id, pm.name, x.kind
 ORDER BY x.src, (x.kind <> 'cash'), pm.name`
 
 // cashierFlows menghitung Flows dan Drawer (penjualan per metode + arus lain).
-func cashierFlows(ctx context.Context, tx pgx.Tx, a authz.Actor, fd, td time.Time, byMethod []MethodAmount) ([]Flow, []MethodAmount, error) {
+func cashierFlows(ctx context.Context, tx pgx.Tx, a authz.Actor, t0, t1 time.Time, byMethod []MethodAmount) ([]Flow, []MethodAmount, error) {
 	rows, err := tx.Query(ctx, flowsSQL, a.TenantID, a.OutletID, a.Impersonator != uuid.Nil, a.UserID,
-		pgtype.Date{Time: fd, Valid: true}, pgtype.Date{Time: td, Valid: true})
+		t0, t1)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -224,6 +223,70 @@ func cashierFlows(ctx context.Context, tx pgx.Tx, a authz.Actor, fd, td time.Tim
 	return flows, out, nil
 }
 
+
+const (
+	dayLayout      = "2006-01-02"
+	dayTimeLayout  = "2006-01-02T15:04"
+	dayTimeLayout2 = "2006-01-02 15:04"
+)
+
+// parseBound membaca batas rentang: "YYYY-MM-DD" (hari penuh) atau "YYYY-MM-DDTHH:MM" (jam & menit, waktu setempat outlet).
+// Sebagai batas akhir, hari/menit itu ikut dihitung (rentang berupa [awal, akhir) di server).
+func parseBound(s string, loc *time.Location, end bool) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	for _, layout := range []string{dayTimeLayout, dayTimeLayout2} {
+		if v, err := time.ParseInLocation(layout, s, loc); err == nil {
+			if end {
+				v = v.Add(time.Minute)
+			}
+			return v, true
+		}
+	}
+	v, err := time.ParseInLocation(dayLayout, s, loc)
+	if err != nil {
+		return time.Time{}, false
+	}
+	if end {
+		v = v.AddDate(0, 0, 1)
+	}
+	return v, true
+}
+
+// echoBound mengembalikan batas seperti diminta (atau hari ini bila kosong) agar klien menampilkan rentang yang dipakai.
+func echoBound(raw string, today time.Time) string {
+	if raw = strings.TrimSpace(raw); raw != "" {
+		return strings.Replace(raw, " ", "T", 1)
+	}
+	return today.Format(dayLayout)
+}
+
+// listRange menghitung [t0, t1) dari from/to (kosong = hari ini menurut zona waktu outlet).
+func listRange(today time.Time, tz, from, to string) (t0, t1 time.Time, fe FieldErrors) {
+	fe = FieldErrors{}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		loc = time.UTC
+	}
+	day := today.Format(dayLayout)
+	if strings.TrimSpace(from) == "" {
+		from = day
+	}
+	if strings.TrimSpace(to) == "" {
+		to = day
+	}
+	var ok bool
+	if t0, ok = parseBound(from, loc, false); !ok {
+		fe["from"] = "INVALID"
+	}
+	if t1, ok = parseBound(to, loc, true); !ok {
+		fe["to"] = "INVALID"
+	}
+	if len(fe) == 0 && (!t1.After(t0) || t1.Sub(t0) > (maxListDays+1)*24*time.Hour) {
+		fe["to"] = "INVALID"
+	}
+	return t0, t1, fe
+}
+
 // List = nota outlet aktif milik KASIR YANG SEDANG LOGIN (untuk mencocokkan uang fisik di lacinya; kasir lain tak terlihat) pada rentang tanggal (zona waktu outlet; kosong = hari ini), terbaru dulu, opsional cari no. nota.
 func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (ListResult, error) {
 	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}, ByMethod: []MethodAmount{}, Flows: []Flow{}, Drawer: []MethodAmount{}}
@@ -236,22 +299,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		if err != nil {
 			return err
 		}
-		today := o.LocalDay.Time
-		fd, td := today, today
-		fe := FieldErrors{}
-		if from != "" {
-			if fd, err = time.Parse("2006-01-02", from); err != nil {
-				fe["from"] = "INVALID"
-			}
-		}
-		if to != "" {
-			if td, err = time.Parse("2006-01-02", to); err != nil {
-				fe["to"] = "INVALID"
-			}
-		}
-		if len(fe) == 0 && (td.Before(fd) || td.Sub(fd) > maxListDays*24*time.Hour) {
-			fe["to"] = "INVALID"
-		}
+		t0, t1, fe := listRange(o.LocalDay.Time, o.Timezone, from, to)
 		if len(fe) > 0 {
 			return fe
 		}
@@ -259,12 +307,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		if len(q) > 60 {
 			q = q[:60]
 		}
-		rows, err := qr.SalesList(ctx, gen.SalesListParams{TenantID: a.TenantID, OutletID: a.OutletID, CashierID: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}, AllCashiers: a.Impersonator != uuid.Nil, FromDay: pgtype.Date{Time: fd, Valid: true},
-			ToDay: pgtype.Date{Time: td, Valid: true}, Q: q})
+		rows, err := qr.SalesList(ctx, gen.SalesListParams{TenantID: a.TenantID, OutletID: a.OutletID, CashierID: pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}, AllCashiers: a.Impersonator != uuid.Nil, FromAt: pgtype.Timestamptz{Time: t0, Valid: true},
+			ToAt: pgtype.Timestamptz{Time: t1, Valid: true}, Q: q})
 		if err != nil {
 			return err
 		}
-		res.From, res.To = fd.Format("2006-01-02"), td.Format("2006-01-02")
+		res.From, res.To = echoBound(from, o.LocalDay.Time), echoBound(to, o.LocalDay.Time)
 		res.Truncated = len(rows) >= listLimit
 		sums := map[string]decimal.Decimal{}
 		perMethod := map[uuid.UUID]*MethodAmount{}
@@ -336,14 +384,14 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		}
 		// Arus uang lain hanya relevan untuk laci, jadi tidak dihitung saat mencari nomor nota tertentu.
 		if q == "" {
-			rs, err := cashierReturns(ctx, tx, a, fd, td)
+			rs, err := cashierReturns(ctx, tx, a, t0, t1)
 			if err != nil {
 				return err
 			}
 			res.Returns = &rs
 			rt, _ := decimal.NewFromString(rs.Total)
 			res.NetTotal = all.Sub(rt).StringFixed(2)
-			res.Flows, res.Drawer, err = cashierFlows(ctx, tx, a, fd, td, res.ByMethod)
+			res.Flows, res.Drawer, err = cashierFlows(ctx, tx, a, t0, t1, res.ByMethod)
 			return err
 		}
 		res.Drawer = res.ByMethod
@@ -352,7 +400,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 	return res, err
 }
 
-// List: GET /sales/?from=YYYY-MM-DD&to=YYYY-MM-DD&q=<no. nota>.
+// List: GET /sales/?from=&to=&q=<no. nota>; from/to = YYYY-MM-DD atau YYYY-MM-DDTHH:MM (waktu outlet, menit akhir ikut).
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	res, err := h.svc.List(r.Context(), actor(r), qs.Get("from"), qs.Get("to"), qs.Get("q"))

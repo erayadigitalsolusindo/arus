@@ -671,6 +671,23 @@ type PlatformLanguage struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type PlatformQaResult struct {
+	RunID     uuid.UUID
+	ItemKey   string
+	Status    string
+	Note      string
+	UpdatedBy uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
+type PlatformQaRun struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedBy uuid.UUID
+	CreatedAt pgtype.Timestamptz
+	ClosedAt  pgtype.Timestamptz
+}
+
 type PlatformRecoveryCode struct {
 	AdminID  uuid.UUID
 	CodeHash string
@@ -1296,12 +1313,26 @@ type Tenant struct {
 	UpdatedAt             pgtype.Timestamptz
 	OnboardingCompletedAt pgtype.Timestamptz
 	SaleEditWindowDays    int32
+	DeleteAt              pgtype.Timestamptz
+	DeleteRequestedAt     pgtype.Timestamptz
 }
 
 type TenantDailyTx struct {
 	TenantID uuid.UUID
 	Day      pgtype.Date
 	TxCount  int32
+}
+
+type TenantDomain struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	Host           string
+	Status         string
+	VerifiedAt     pgtype.Timestamptz
+	LastCheckAt    pgtype.Timestamptz
+	LastCheckError string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type TenantSubscription struct {

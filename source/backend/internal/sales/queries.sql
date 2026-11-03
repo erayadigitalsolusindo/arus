@@ -1,5 +1,5 @@
 -- name: SalesOutletInfo :one
-SELECT code, name, tax_store_pct, tax_gov_pct, active,
+SELECT code, name, tax_store_pct, tax_gov_pct, active, timezone,
        (now() AT TIME ZONE timezone)::date AS local_day
 FROM outlets WHERE tenant_id = $1 AND id = $2;
 
@@ -116,7 +116,7 @@ LEFT JOIN members mb ON mb.tenant_id = s.tenant_id AND mb.id = s.member_id
 WHERE s.tenant_id = @tenant_id AND s.outlet_id = @outlet_id
   AND s.status <> 'superseded'
   AND (@all_cashiers::bool OR s.cashier_id = @cashier_id)
-  AND (s.created_at AT TIME ZONE o.timezone)::date BETWEEN @from_day::date AND @to_day::date
+  AND s.created_at >= @from_at::timestamptz AND s.created_at < @to_at::timestamptz
   AND (@q::text = '' OR s.doc_no ILIKE '%' || @q::text || '%')
 ORDER BY s.created_at DESC, s.doc_no DESC
 LIMIT 500;

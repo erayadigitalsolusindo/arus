@@ -41,6 +41,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(sale).Get("/config", h.config)
 		r.With(sale).Post("/charges", h.create)
 		r.With(sale).Get("/charges/{id}", h.get)
+		r.With(authz.Require("sales_reports", authz.ActView)).Get("/settlement", h.settlement)
 		pm := authz.Require("payment_methods", authz.ActUpdate)
 		r.With(pm).Put("/key", h.saveKey)
 		r.With(pm).Delete("/key", h.removeKey)
