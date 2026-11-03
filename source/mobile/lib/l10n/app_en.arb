@@ -53,9 +53,15 @@
   "posTaxLine": "Tax",
   "posOtherCost": "Other costs",
   "posTotal": "Total",
+  "posConfirm": "Confirm",
   "posPay": "Pay",
   "posTaxToggle": "Apply tax",
   "posClearCart": "Clear cart",
+  "posClearCartAsk": "Clear the cart?",
+  "posClearCartAskBody": "Everything in the cart will be removed and can't be restored.",
+  "posClearCartYes": "Yes, clear",
+  "posClearCartNo": "Keep",
+  "posAddedToCart": "Added",
   "posRemoveLine": "Remove",
   "posStock": "Stock {qty}",
   "posStockShort": "Not enough stock ({qty} available)",
@@ -102,7 +108,8 @@
   "payPaid": "Paid",
   "payChange": "Change",
   "payShortBy": "Short by {amount}",
-  "paySubmit": "Complete payment",
+  "payItemsTitle": "Items purchased",
+  "paySubmit": "Process Payment",
   "payProcessing": "Processing...",
   "paySuccessTitle": "Sale completed",
   "paySuccessDoc": "Receipt no. {docNo}",
@@ -151,7 +158,7 @@
   "errorInvalidPin": "Wrong approver or PIN.",
   "errorPinLocked": "PIN is temporarily locked after too many attempts. Try again later.",
   "posShiftCloseTooltip": "Close shift",
-  "posSalesTodayTooltip": "Today's sales",
+  "posSalesTodayTooltip": "Sales",
   "shiftCloseTitle": "Close shift {doc}",
   "@shiftCloseTitle": {
     "placeholders": {
@@ -224,7 +231,7 @@
   "errorShiftDiffNote": "A difference requires a note and approval.",
   "errorShiftClosed": "This shift is already closed.",
   "errorShiftAlreadyOpen": "Your shift at this outlet is already open.",
-  "salesTodayTitle": "Today's sales",
+  "salesTodayTitle": "Sales",
   "salesTodaySummary": "{count} sales, {total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -680,6 +687,19 @@
   },
   "updateBody": "Update ARUS to the latest version to continue.",
   "updateNow": "Update now",
+  "updCheckTitle": "Check for updates",
+  "updChecking": "Checking for updates…",
+  "updUpToDate": "You are up to date",
+  "updUpToDateBody": "You are using the latest version of ARUS.",
+  "updFailedTitle": "Could not check",
+  "updPlayUnavailable": "Could not reach Google Play. Check your connection and try again.",
+  "updPlayBody": "A new version of ARUS is on Google Play. Update to get fixes and new features.",
+  "updForcedBody": "This update is required to keep using ARUS.",
+  "updLater": "Later",
+  "updReadyTitle": "Update ready to install",
+  "updReadyBody": "The update has been downloaded. Restart the app to install it.",
+  "updRestart": "Restart & install",
+  "updAvailableBadge": "New version available",
   "updateRetry": "Try again",
   "updateDownloading": "Downloading update…",
   "updateInstalling": "Opening installer…",
@@ -785,5 +805,319 @@
   "receiptChange": "Change",
   "receiptSaved": "You saved",
   "receiptPointsEarned": "Points earned",
-  "receiptTestTitle": "Printer test page"
+  "receiptTestTitle": "Printer test page",
+  "salesFrom": "From",
+  "salesTo": "To",
+  "salesPresetToday": "Today",
+  "salesRangeInvalid": "The end time must be after the start time.",
+  "salesRangeTooLong": "The range can be at most 62 days.",
+  "salesPrintRecap": "Print recap",
+  "salesMethodsTitle": "Report by payment method",
+  "salesMethodNotes": "{count} sales",
+  "@salesMethodNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesDrawerTitle": "Should be on hand (physical check)",
+  "salesFlowsTitle": "Other money through this cashier",
+  "salesReturnsRow": "Returns ({count})",
+  "@salesReturnsRow": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesNetTotal": "Net sales after returns",
+  "salesCreditRow": "Receivable",
+  "salesSurchargeRow": "Method fee (customer)",
+  "flowReceivablePayment": "Receivable payment",
+  "flowDepositTopup": "Deposit top-up",
+  "flowDepositWithdraw": "Deposit withdrawal",
+  "flowSaleReturn": "Sales return refund",
+  "flowPayablePayment": "Supplier payment",
+  "flowPurchaseReturn": "Purchase return refund",
+  "flowSupplierCashout": "Supplier credit cash-out",
+  "flowPettyIn": "Petty cash in",
+  "flowPettyOut": "Petty cash out",
+  "recapTitle": "SALES RECAP",
+  "recapCashier": "Cashier",
+  "recapPeriod": "Period",
+  "recapCount": "Sales count",
+  "recapVoided": "Voided",
+  "recapRevenue": "REVENUE",
+  "recapByMethod": "Sales by method",
+  "itemAddTooltip": "Add item",
+  "itemAddTitle": "Add a new item",
+  "itemName": "Item name",
+  "itemSellPrice": "Selling price",
+  "itemCost": "Cost price",
+  "itemUnit": "Unit",
+  "itemCategory": "Category (optional)",
+  "itemCategoryNone": "No category",
+  "itemBarcode": "Barcode (optional)",
+  "itemKind": "Type",
+  "itemKindGoods": "Goods",
+  "itemKindService": "Service",
+  "itemInitialStock": "Opening stock (optional)",
+  "itemAllowNegative": "Allow negative stock",
+  "itemAllowNegativeHint": "The item can be sold even before stock is entered; stock goes negative until a purchase is recorded.",
+  "itemStockHint": "Without opening stock or negative stock, the item cannot be sold until stock is added.",
+  "itemServiceHint": "Services do not use stock.",
+  "itemSave": "Save",
+  "itemSaveAndSell": "Save & sell",
+  "itemSaved": "{name} added",
+  "@itemSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRequired": "Required",
+  "itemInvalidNumber": "Invalid number",
+  "itemNoUnits": "No units yet. Add a unit on the web first.",
+  "itemScanBarcode": "Scan barcode",
+  "itemScanned": "Barcode read",
+  "itemLoadFailed": "Could not load units/categories.",
+  "reportTitle": "Sales report",
+  "reportHint": "Revenue, payment methods, by day",
+  "reportToday": "Today",
+  "report7Days": "7 days",
+  "reportThisMonth": "This month",
+  "reportLastMonth": "Last month",
+  "reportCustom": "Pick dates",
+  "reportAllOutlets": "All branches",
+  "reportRevenue": "Revenue",
+  "reportNotes": "Sales",
+  "reportVoid": "Voided",
+  "reportReturns": "Returns",
+  "reportNet": "Net after returns",
+  "reportReceivable": "Receivable",
+  "reportByMethod": "By payment method",
+  "reportByDay": "By day",
+  "reportEmpty": "No sales in this range.",
+  "reportDayNotes": "{count} sales",
+  "@reportDayNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "menuItems": "Items",
+  "menuPurchases": "Purchases",
+  "itemsTitle": "Items",
+  "itemsSearch": "Search name, code, or barcode",
+  "itemsEmpty": "No items yet.",
+  "itemsTabActive": "Active",
+  "itemsTabArchived": "Archived",
+  "itemsEdit": "Edit item",
+  "itemsArchive": "Archive",
+  "itemsRestore": "Restore",
+  "itemsArchiveAsk": "Archive {name}? It will not appear at the register; transaction history stays intact.",
+  "@itemsArchiveAsk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsArchived": "{name} archived",
+  "@itemsArchived": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsRestored": "{name} restored",
+  "@itemsRestored": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsUpdated": "{name} updated",
+  "@itemsUpdated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsStock": "Stock {qty}",
+  "@itemsStock": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsEditTitle": "Edit item",
+  "itemsCostNote": "Cost price changes through purchases, not here.",
+  "itemsArchivedHint": "Showing at most 30 archived items; narrow down with search.",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonRetry": "Retry",
+  "purTitle": "Purchases",
+  "purAdd": "New purchase",
+  "purCashNote": "Purchases from the phone are always cash and add stock right away.",
+  "purSupplier": "Supplier",
+  "purPickSupplier": "Choose supplier",
+  "purSearchSupplier": "Search suppliers",
+  "purNoSupplier": "No supplier found.",
+  "purDate": "Date",
+  "purInvoiceNo": "Supplier invoice no. (optional)",
+  "purNote": "Note (optional)",
+  "purLines": "Items purchased",
+  "purAddItem": "Add item",
+  "purSearchItem": "Search items",
+  "purQty": "Qty",
+  "purPrice": "Buy price",
+  "purSubtotal": "Subtotal",
+  "purTax": "Tax",
+  "purOtherCost": "Other costs",
+  "purTotal": "Cash total",
+  "purSave": "Save purchase",
+  "purSaved": "Purchase {doc} saved, stock increased",
+  "@purSaved": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purNoLines": "Add at least one item.",
+  "purNeedSupplier": "Choose a supplier first.",
+  "purBadLine": "Quantity must be above 0 and price cannot be empty.",
+  "purEmpty": "No purchases in this range.",
+  "purSummary": "{count} purchases, {total}",
+  "@purSummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "purRange30": "30 days",
+  "purDetailTitle": "Purchase detail",
+  "purEdit": "Edit",
+  "purEditTitle": "Edit purchase",
+  "purVoid": "Void",
+  "purVoidAsk": "Void purchase {doc}? Stock will be reduced again.",
+  "@purVoidAsk": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purReason": "Reason (at least 3 characters)",
+  "purVoided": "Purchase voided",
+  "purEdited": "Purchase updated",
+  "purStatusVoid": "VOID",
+  "purStatusRevised": "REVISED",
+  "purVoidReason": "Void reason: {reason}",
+  "@purVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "purBy": "Recorded by {name}",
+  "@purBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errorPurchaseNotEditable": "This purchase can no longer be changed (voided or replaced by a revision).",
+  "errorPurchaseHasReturns": "This purchase has returns; cancel the return first.",
+  "errorItemUnavailable": "The item is not available for purchase.",
+  "errorCodeTaken": "The item code is already used.",
+  "errorEditWindowClosed": "The edit window has closed.",
+  "errorStockReverse": "Not enough stock to reverse this purchase (part of it has been sold).",
+  "menuSettlement": "Settlement",
+  "setTitle": "EraPay settlement",
+  "setCheck": "Check with EraPay",
+  "setChecking": "Checking with EraPay...",
+  "setArus": "ARUS MONEY",
+  "setEra": "ERAPAY MONEY",
+  "setArusHint": "QRIS on active sales",
+  "setEraHint": "Invoices paid at EraPay",
+  "setMatchedAll": "Matched: ARUS money equals EraPay money.",
+  "setDiffMore": "Difference {amount}: money paid at EraPay is not recorded in an active sale.",
+  "@setDiffMore": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setDiffLess": "Difference {amount}: some QRIS sales are not paid at EraPay.",
+  "@setDiffLess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setCount": "{count} transactions",
+  "@setCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setFilterAll": "All",
+  "setFilterAttention": "Needs attention",
+  "setFilterWaiting": "Waiting",
+  "setFilterMatched": "Matched",
+  "setColArus": "ARUS",
+  "setColEra": "ERAPAY",
+  "setStatusLabel": "Status",
+  "setIdLabel": "EraPay ID",
+  "setIdCopied": "ID copied",
+  "setNoId": "No ID yet",
+  "setStateMatched": "Matched",
+  "setStateMatchedSub": "Paid at EraPay and recorded in a sale",
+  "setStateWaiting": "Waiting",
+  "setStateWaitingSub": "EraPay has not decided yet (QR not paid)",
+  "setStateOrphan": "Not recorded",
+  "setStateOrphanSub": "Paid at EraPay but no sale was saved",
+  "setStateRefund": "Needs refund",
+  "setStateRefundSub": "Sale voided, money is still at EraPay",
+  "setStateUnpaid": "Unpaid",
+  "setStateUnpaidSub": "Sale exists but EraPay failed or expired",
+  "setStateClosed": "Not paid",
+  "setStateClosedSub": "Invoice failed or expired, no money moved",
+  "setEraSucceeded": "Paid",
+  "setEraPending": "Pending",
+  "setEraFailed": "Failed",
+  "setEraExpired": "Expired",
+  "setEraCancelled": "Cancelled",
+  "setEraUnknown": "Unknown",
+  "setNotConfigured": "EraPay is not set up for this store. Add the API key under Payment Methods (web).",
+  "setEmpty": "No EraPay QRIS transactions in this range.",
+  "setRefreshed": "Statuses updated from EraPay: {count}",
+  "@setRefreshed": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setTruncated": "List cut to the latest 300 transactions; narrow the date range.",
+  "setNote": "EraPay money = invoices marked paid at EraPay. Payout to your bank follows EraPay schedule and is not available here yet."
 }

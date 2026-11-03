@@ -189,6 +189,18 @@ final cartProvider = NotifierProvider<CartController, CartState>(
   CartController.new,
 );
 
+/// Naik setiap kali stok berubah di server (mis. setelah bayar); kisi barang & pintasan memuat ulang.
+final catalogVersionProvider = NotifierProvider<CatalogVersion, int>(
+  CatalogVersion.new,
+);
+
+class CatalogVersion extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
 /// Keranjang kasir. Total TIDAK dihitung di sini: setiap perubahan memanggil `POST /sales/quote` (debounce) dan hanya
 /// hasil terbaru yang dipakai (nomor urut mencegah respons lama menimpa yang baru).
 class CartController extends Notifier<CartState> {

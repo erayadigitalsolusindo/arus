@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../../core/update/app_update.dart';
+import '../../core/update/update_check.dart';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -30,6 +33,7 @@ import 'pending_sheet.dart';
 import 'pos_controller.dart';
 import 'pos_models.dart';
 import 'pos_repository.dart';
+import 'add_item_sheet.dart';
 import 'sales_today_page.dart';
 import 'salesperson_picker.dart';
 import 'shortcuts_strip.dart';
@@ -113,6 +117,8 @@ class _PosPageState extends ConsumerState<PosPage> {
   Future<void> _pay() async {
     final result = await showPaySheet(context);
     if (result == null || !mounted) return;
+    // Stok berubah di server: muat ulang katalog supaya angka stok di kisi tidak basi.
+    ref.read(catalogVersionProvider.notifier).bump();
     unawaited(_autoPrint(result));
     await _showSuccess(result);
   }
@@ -198,10 +204,7 @@ class _PosPageState extends ConsumerState<PosPage> {
               const SizedBox(height: 4),
               Text(
                 l.payEraPendingNotice,
-                style: TextStyle(
-                  color: context.pal.textTertiary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: context.pal.textTertiary, fontSize: 12),
               ),
             ],
           ],
@@ -340,7 +343,7 @@ class _PosPageState extends ConsumerState<PosPage> {
                     child: OutletPanel(
                       onClose: () => setState(() => _panelOpen = false),
                       onSalesToday: () => showSalesTodayPage(context),
-                  onPrinter: () => showPrinterSheet(context),
+                      onPrinter: () => showPrinterSheet(context),
                       onCloseShift: _closeShift,
                       onPettyCash: _pettyCash,
                       onSwitchOutlet: _switchOutlet,
@@ -513,6 +516,16 @@ class OutletPanel extends ConsumerWidget {
           child: Divider(height: 1),
         ),
         _PanelAction(
+          icon: Icons.system_update_alt,
+          label: ref.watch(updateAvailableProvider)
+              ? l.updAvailableBadge
+              : l.updCheckTitle,
+          onTap: () {
+            onClose();
+            checkForUpdates(context, ref);
+          },
+        ),
+        _PanelAction(
           icon: Icons.swap_horiz,
           label: l.outletSwitch,
           onTap: () {
@@ -563,16 +576,70 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
   bool _loading = true;
   ApiError? _error;
 
+  // Halaman berikutnya (keyset): dimuat saat gulir mendekati dasar kisi.
+  final _scroll = ScrollController();
+  String _cursor = '';
+  bool _loadingMore = false;
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     _load('');
     _loadCategories();
+  }
+
+  void _onScroll() {
+    if (_scroll.hasClients &&
+        _scroll.position.extentAfter < 600 &&
+        _cursor.isNotEmpty &&
+        !_loadingMore &&
+        !_loading) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final my = _seq;
+    final cursor = _cursor;
+    setState(() => _loadingMore = true);
+    try {
+      final r = await ref
+          .read(posRepositoryProvider)
+          .searchPage(
+            _search.text.trim(),
+            categoryId: _categoryId,
+            cursor: cursor,
+          );
+      if (my != _seq || !mounted) return;
+      // Barang bisa bergeser antar-halaman; buang duplikat berdasarkan id.
+      final seen = {for (final i in _items) i.id};
+      setState(() {
+        _items = [
+          ..._items,
+          for (final i in r.items)
+            if (seen.add(i.id)) i,
+        ];
+        _cursor = r.nextCursor;
+      });
+    } on ApiError {
+      // Gagal memuat lanjutan: kisi tetap utuh; gulir lagi untuk mencoba ulang.
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  /// Tarik-untuk-muat-ulang: katalog (stok/harga terbaru), kategori, dan pintasan.
+  Future<void> _refresh() async {
+    ref.invalidate(shortcutsProvider);
+    _loadCategories();
+    await _load(_search.text.trim());
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _scroll.dispose();
     _search.dispose();
     _focus.dispose();
     super.dispose();
@@ -594,14 +661,18 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
     final my = ++_seq;
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _error = null;
     });
     try {
       final r = await ref
           .read(posRepositoryProvider)
-          .search(q, categoryId: _categoryId);
+          .searchPage(q, categoryId: _categoryId);
       if (my != _seq || !mounted) return;
-      setState(() => _items = r);
+      setState(() {
+        _items = r.items;
+        _cursor = r.nextCursor;
+      });
     } on ApiError catch (e) {
       if (my == _seq && mounted) setState(() => _error = e);
     } finally {
@@ -660,38 +731,75 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
     if (mounted) _focus.requestFocus();
   }
 
+  /// Tambah barang sederhana; "Simpan & jual" langsung memasukkannya ke keranjang. Katalog dimuat ulang setelahnya.
+  Future<void> _addItem() async {
+    final l = AppLocalizations.of(context);
+    final r = await showAddItemSheet(context, name: _search.text.trim());
+    if (r == null || !mounted) return;
+    ref.read(catalogVersionProvider.notifier).bump();
+    if (r.sellNow) ref.read(cartProvider.notifier).add(r.item);
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(l.itemSaved(r.item.name))));
+  }
+
+  Widget _searchField(AppLocalizations l, AppPalette pal) => TextField(
+    controller: _search,
+    focusNode: _focus,
+    textInputAction: TextInputAction.search,
+    onChanged: _onChanged,
+    onSubmitted: _onSubmit,
+    decoration: InputDecoration(
+      hintText: l.posSearchHint,
+      prefixIcon: Icon(Icons.search, color: pal.textTertiary),
+      suffixIcon: _search.text.isEmpty
+          ? IconButton(
+              tooltip: l.posScanTooltip,
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: _scan,
+            )
+          : IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () {
+                _search.clear();
+                _load('');
+                setState(() {});
+              },
+            ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
+    ref.listen(catalogVersionProvider, (_, _) => _load(_search.text.trim()));
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-          child: TextField(
-            controller: _search,
-            focusNode: _focus,
-            textInputAction: TextInputAction.search,
-            onChanged: _onChanged,
-            onSubmitted: _onSubmit,
-            decoration: InputDecoration(
-              hintText: l.posSearchHint,
-              prefixIcon: Icon(Icons.search, color: pal.textTertiary),
-              suffixIcon: _search.text.isEmpty
-                  ? IconButton(
-                      tooltip: l.posScanTooltip,
-                      icon: const Icon(Icons.qr_code_scanner),
-                      onPressed: _scan,
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () {
-                        _search.clear();
-                        _load('');
-                        setState(() {});
-                      },
-                    ),
-            ),
+          child: Row(
+            children: [
+              Expanded(child: _searchField(l, pal)),
+              if (ref.watch(
+                sessionProvider.select(
+                  (s) =>
+                      s is SessionSignedIn &&
+                      s.profile.permissions.can('items', 'create'),
+                ),
+              ))
+                IconButton(
+                  tooltip: l.itemAddTooltip,
+                  icon: const Icon(Icons.add_box_outlined),
+                  onPressed: _addItem,
+                ),
+              if (!ref.watch(cartProvider.select((c) => c.isEmpty)))
+                IconButton(
+                  tooltip: l.posClearCart,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  onPressed: () => _confirmClearCart(context, ref),
+                ),
+            ],
           ),
         ),
         if (_categories.isNotEmpty)
@@ -717,105 +825,218 @@ class _ProductPaneState extends ConsumerState<ProductPane> {
           ),
         if (_search.text.isEmpty && _categoryId == null) const ShortcutsStrip(),
         Expanded(
-          child: _error != null
-              ? Center(
-                  child: Text(
-                    _error!.message(l),
-                    style: TextStyle(color: pal.danger),
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: _error != null
+                ? _scrollableMessage(
+                    Text(
+                      _error!.message(l),
+                      style: TextStyle(color: pal.danger),
+                    ),
+                  )
+                : _loading && _items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _items.isEmpty
+                ? _scrollableMessage(
+                    Text(
+                      l.posSearchEmpty,
+                      style: TextStyle(color: pal.textTertiary),
+                    ),
+                  )
+                : GridView.builder(
+                    controller: _scroll,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 190,
+                          mainAxisExtent: 196,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemCount: _items.length,
+                    itemBuilder: (_, i) => _ProductCard(item: _items[i]),
                   ),
-                )
-              : _loading && _items.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _items.isEmpty
-              ? Center(
-                  child: Text(
-                    l.posSearchEmpty,
-                    style: TextStyle(color: pal.textTertiary),
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 190,
-                    mainAxisExtent: 196,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: _items.length,
-                  itemBuilder: (_, i) => _ProductCard(item: _items[i]),
-                ),
+          ),
         ),
+        if (_loadingMore) const LinearProgressIndicator(minHeight: 2),
       ],
     );
   }
+
+  /// Pesan di tengah yang tetap bisa ditarik (RefreshIndicator butuh isi yang bisa digulir).
+  Widget _scrollableMessage(Widget child) => LayoutBuilder(
+    builder: (_, c) => ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: c.maxHeight,
+          child: Center(child: child),
+        ),
+      ],
+    ),
+  );
 }
 
-class _ProductCard extends ConsumerWidget {
+class _ProductCard extends ConsumerStatefulWidget {
   const _ProductCard({required this.item});
 
   final PosItem item;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends ConsumerState<_ProductCard>
+    with SingleTickerProviderStateMixin {
+  // Umpan balik saat ditambahkan: kartu "membal" sebentar dan lencana centang muncul lalu memudar.
+  late final AnimationController _fx = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  );
+
+  PosItem get item => widget.item;
+
+  @override
+  void dispose() {
+    _fx.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    HapticFeedback.lightImpact();
+    ref.read(cartProvider.notifier).add(item);
+    _fx.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
     final out = item.isGoods && item.stockDisplay <= Decimal.zero;
-    return Material(
-      color: pal.surface,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => ref.read(cartProvider.notifier).add(item),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: pal.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return AnimatedBuilder(
+      animation: _fx,
+      builder: (context, child) {
+        final t = _fx.value;
+        // Membal 1 -> 1.06 -> 1 pada 30% pertama, lalu centang memudar di sisa durasi.
+        final bump = t < 0.3
+            ? 1 + 0.06 * Curves.easeOut.transform(t / 0.3)
+            : 1 + 0.06 * (1 - Curves.easeIn.transform((t - 0.3) / 0.7));
+        final badge = t == 0 || t == 1
+            ? 0.0
+            : t < 0.15
+            ? t / 0.15
+            : t > 0.7
+            ? (1 - t) / 0.3
+            : 1.0;
+        return Transform.scale(
+          scale: bump,
+          child: Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(9),
-                child: SizedBox(
-                  height: 84,
-                  width: double.infinity,
-                  child: ItemThumb(itemId: item.id, imageId: item.mainImageId),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Text(
-                  item.name,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    height: 1.25,
+              child!,
+              if (badge > 0)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: badge,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: pal.success,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              l.posAddedToCart,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                formatMoney(item.price),
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: pal.accent,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                item.isGoods
-                    ? l.posStock(formatQty(item.stockDisplay))
-                    : item.unit,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: out ? pal.danger : pal.textTertiary,
-                  fontWeight: out ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
             ],
+          ),
+        );
+      },
+      child: Material(
+        color: pal.surface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _add,
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: pal.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: SizedBox(
+                    height: 84,
+                    width: double.infinity,
+                    child: ItemThumb(
+                      itemId: item.id,
+                      imageId: item.mainImageId,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Text(
+                    item.name,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formatMoney(item.price),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: pal.accent,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.isGoods
+                      ? l.posStock(formatQty(item.stockDisplay))
+                      : item.unit,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: out ? pal.danger : pal.textTertiary,
+                    fontWeight: out ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -824,6 +1045,137 @@ class _ProductCard extends ConsumerWidget {
 }
 
 // ------------------------------------------------------------------ keranjang
+
+/// Kosongkan keranjang setelah kasir mengonfirmasi (hindari hilang karena salah ketuk).
+Future<void> _confirmClearCart(BuildContext context, WidgetRef ref) async {
+  HapticFeedback.mediumImpact();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => const _ClearCartDialog(),
+  );
+  if (ok != true) return;
+  HapticFeedback.mediumImpact();
+  ref.read(cartProvider.notifier).clear();
+}
+
+/// Dialog konfirmasi: ikon tong sampah bergoyang, ringkasan isi yang akan dihapus, dua tombol sejajar.
+class _ClearCartDialog extends ConsumerWidget {
+  const _ClearCartDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final cart = ref.watch(cartProvider);
+    final count = int.tryParse(formatQty(cart.itemCount)) ?? cart.lines.length;
+    final total = cart.quote?.total;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Tutup tong sampah membuka dan bergoyang saat dialog muncul.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 700),
+              builder: (_, t, child) {
+                final shake = math.sin(t * math.pi * 6) * (1 - t) * 0.35;
+                final pop = Curves.elasticOut.transform(t.clamp(0.0, 1.0));
+                return Transform.scale(
+                  scale: 0.5 + 0.5 * pop,
+                  child: Transform.rotate(angle: shake, child: child),
+                );
+              },
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: pal.danger.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.delete_sweep_rounded,
+                  size: 38,
+                  color: pal.danger,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l.posClearCartAsk,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: pal.sunken,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 20,
+                    color: pal.textTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l.posItemsCount(count),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (total != null)
+                    Text(
+                      formatMoney(total),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l.posClearCartAskBody,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pal.textTertiary, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(l.posClearCartNo),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                      backgroundColor: pal.danger,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(l.posClearCartYes),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _CartBar extends ConsumerWidget {
   const _CartBar({required this.onOpen, required this.onPay});
@@ -853,12 +1205,21 @@ class _CartBar extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        Badge(
-                          isLabelVisible: !cart.isEmpty,
-                          label: Text(formatQty(cart.itemCount)),
-                          child: const Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 28,
+                        // Kunci per jumlah: tiap perubahan memutar ulang animasi membal.
+                        TweenAnimationBuilder<double>(
+                          key: ValueKey(cart.itemCount),
+                          tween: Tween(begin: 1.35, end: 1),
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeOutBack,
+                          builder: (_, v, child) =>
+                              Transform.scale(scale: v, child: child),
+                          child: Badge(
+                            isLabelVisible: !cart.isEmpty,
+                            label: Text(formatQty(cart.itemCount)),
+                            child: const Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 28,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -893,12 +1254,12 @@ class _CartBar extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 4),
               SizedBox(
                 width: 120,
                 child: FilledButton(
                   onPressed: cart.canPay ? onPay : null,
-                  child: Text(l.posPay),
+                  child: Text(l.posConfirm),
                 ),
               ),
             ],
@@ -987,12 +1348,6 @@ class CartPane extends ConsumerWidget {
                   }
                 },
               ),
-              if (!cart.isEmpty)
-                IconButton(
-                  tooltip: l.posClearCart,
-                  icon: const Icon(Icons.delete_sweep_outlined),
-                  onPressed: ctrl.clear,
-                ),
             ],
           ),
         ),
@@ -1130,7 +1485,7 @@ class CartPane extends ConsumerWidget {
                   const SizedBox(height: 10),
                   FilledButton(
                     onPressed: cart.canPay ? onPay : null,
-                    child: Text(l.posPay),
+                    child: Text(l.posConfirm),
                   ),
                 ],
               ),

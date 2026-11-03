@@ -7,13 +7,17 @@ import 'package:intl/intl.dart';
 
 import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
+import '../../core/printing/printer_service.dart';
+import '../../core/printing/printer_sheet.dart';
+import '../../core/printing/recap_layout.dart';
+import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
-import '../../core/printing/printer_sheet.dart';
 import 'pos_repository.dart';
 import 'sales_models.dart';
 
-/// Penjualan kasir ini hari ini: daftar nota, total per metode, dan detail nota (hanya baca; edit/batal tetap di web).
+/// Penjualan kasir ini pada rentang tanggal + jam + menit (default hari ini): daftar nota, laporan per metode bayar, cetak rekap
+/// untuk cek fisik, dan detail nota (hanya baca; edit/batal tetap di web).
 Future<void> showSalesTodayPage(BuildContext context) =>
     Navigator.of(context)
         .push<void>(MaterialPageRoute(builder: (_) => const _SalesTodayPage()));
@@ -25,6 +29,16 @@ class _SalesTodayPage extends ConsumerStatefulWidget {
   ConsumerState<_SalesTodayPage> createState() => _SalesTodayPageState();
 }
 
+const _kApiFmt = 'yyyy-MM-dd\'T\'HH:mm';
+
+/// Batas dari server (`YYYY-MM-DD` = seharian, `YYYY-MM-DDTHH:MM`) menjadi waktu lokal untuk ditampilkan/diubah.
+DateTime? _parseBound(String raw, {required bool end}) {
+  final dt = DateTime.tryParse(raw);
+  if (dt == null) return null;
+  if (raw.contains('T')) return dt;
+  return end ? DateTime(dt.year, dt.month, dt.day, 23, 59) : dt;
+}
+
 class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
   final _search = TextEditingController();
   Timer? _debounce;
@@ -32,6 +46,13 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
   SalesToday? _data;
   bool _loading = true;
   ApiError? _error;
+
+  /// null = default server (hari ini, zona waktu outlet). Terisi bila kasir memilih rentang sendiri.
+  DateTime? _from;
+  DateTime? _to;
+  String? _rangeError;
+  bool _printing = false;
+  String? _actionError;
 
   @override
   void initState() {
@@ -46,6 +67,8 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
     super.dispose();
   }
 
+  String _fmt(DateTime d) => DateFormat(_kApiFmt).format(d);
+
   Future<void> _load() async {
     final my = ++_seq;
     setState(() {
@@ -55,13 +78,125 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
     try {
       final r = await ref
           .read(posRepositoryProvider)
-          .salesToday(q: _search.text.trim());
+          .salesToday(
+            q: _search.text.trim(),
+            from: _from == null ? '' : _fmt(_from!),
+            to: _to == null ? '' : _fmt(_to!),
+          );
       if (my != _seq || !mounted) return;
       setState(() => _data = r);
     } on ApiError catch (e) {
       if (my == _seq && mounted) setState(() => _error = e);
     } finally {
       if (my == _seq && mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Rentang yang sedang ditampilkan (dari jawaban server, atau pilihan kasir).
+  DateTime get _shownFrom =>
+      _from ??
+      _parseBound(_data?.from ?? '', end: false) ??
+      DateTime.now().copyWith(hour: 0, minute: 0, second: 0, millisecond: 0);
+  DateTime get _shownTo =>
+      _to ??
+      _parseBound(_data?.to ?? '', end: true) ??
+      DateTime.now().copyWith(hour: 23, minute: 59, second: 0, millisecond: 0);
+
+  Future<DateTime?> _pick(DateTime initial) async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 3)),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (d == null || !mounted) return null;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (t == null) return null;
+    return DateTime(d.year, d.month, d.day, t.hour, t.minute);
+  }
+
+  Future<void> _setRange({DateTime? from, DateTime? to}) async {
+    final l = AppLocalizations.of(context);
+    final f = from ?? _shownFrom;
+    final t = to ?? _shownTo;
+    String? err;
+    if (!t.isAfter(f)) {
+      err = l.salesRangeInvalid;
+    } else if (t.difference(f).inDays > 62) {
+      err = l.salesRangeTooLong;
+    }
+    setState(() => _rangeError = err);
+    if (err != null) return;
+    setState(() {
+      _from = f;
+      _to = t;
+    });
+    await _load();
+  }
+
+  void _resetRange() {
+    setState(() {
+      _from = null;
+      _to = null;
+      _rangeError = null;
+    });
+    _load();
+  }
+
+  Future<void> _printRecap() async {
+    final l = AppLocalizations.of(context);
+    final d = _data;
+    if (d == null) return;
+    var settings = await ref.read(printerSettingsProvider.future);
+    if (!settings.hasPrinter) {
+      if (!mounted) return;
+      await showPrinterSheet(context);
+      settings = await ref.read(printerSettingsProvider.future);
+      if (!settings.hasPrinter) return;
+    }
+    final session = ref.read(sessionProvider);
+    final profile = session is SessionSignedIn ? session.profile : null;
+    setState(() {
+      _printing = true;
+      _actionError = null;
+    });
+    try {
+      // Rekap selalu seluruh rentang, walau daftar sedang disaring dengan nomor nota.
+      final full = _search.text.trim().isEmpty
+          ? d
+          : await ref
+                .read(posRepositoryProvider)
+                .salesToday(from: d.from, to: d.to);
+      await ref
+          .read(receiptPrinterProvider)
+          .printLines(
+            recapLines(
+              full,
+              settings.paper,
+              l,
+              tenant: profile?.tenant.name ?? '',
+              outlet: profile?.outlet.name ?? '',
+              cashier: profile?.user.name ?? '',
+            ),
+            settings,
+          );
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => _actionError = e is ApiError
+              ? e.message(l)
+              : printErrorMessage(l, e),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
     }
   }
 
@@ -91,8 +226,23 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
       body: SafeArea(
         child: Column(
           children: [
+            _RangeBar(
+              from: _shownFrom,
+              to: _shownTo,
+              custom: _from != null,
+              error: _rangeError,
+              onPickFrom: () async {
+                final v = await _pick(_shownFrom);
+                if (v != null) _setRange(from: v);
+              },
+              onPickTo: () async {
+                final v = await _pick(_shownTo);
+                if (v != null) _setRange(to: v);
+              },
+              onToday: _resetRange,
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: TextField(
                 controller: _search,
                 onChanged: _onChanged,
@@ -114,6 +264,12 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
               ),
             ),
             if (d != null) _Summary(data: d),
+            if (d != null)
+              _Actions(
+                printing: _printing,
+                onPrint: _printRecap,
+                error: _actionError,
+              ),
             if (_loading && d != null)
               const LinearProgressIndicator(minHeight: 2),
             Expanded(
@@ -135,6 +291,7 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
                     )
                   : ListView(
                       children: [
+                        _MethodReport(data: d),
                         for (final r in d.rows)
                           _SaleTile(key: ValueKey(r.id), row: r),
                         if (d.truncated)
@@ -164,7 +321,6 @@ class _Summary extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
-    final active = data.rows.where((r) => !r.isVoid).length;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -177,24 +333,255 @@ class _Summary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l.salesTodaySummary('$active', formatMoney(data.total)),
+            l.salesTodaySummary('${data.activeCount}', formatMoney(data.total)),
             style: TextStyle(fontWeight: FontWeight.w800, color: pal.primary),
           ),
-          if (data.byMethod.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 14,
-              runSpacing: 2,
-              children: [
-                for (final m in data.byMethod)
-                  Text(
-                    '${m.name}: ${formatMoney(m.amount)}',
-                    style: const TextStyle(fontSize: 12.5),
-                  ),
-              ],
+          if (data.returnsCount > 0 && data.returnsTotal != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${l.salesReturnsRow('${data.returnsCount}')}: -${formatMoney(data.returnsTotal!)}'
+              '  ·  ${l.salesNetTotal}: ${formatMoney(data.netTotal ?? data.total)}',
+              style: const TextStyle(fontSize: 12.5),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Filter rentang: tanggal + jam + menit awal dan akhir (shift sering tidak beraturan), plus pintasan "Hari ini".
+class _RangeBar extends StatelessWidget {
+  const _RangeBar({
+    required this.from,
+    required this.to,
+    required this.custom,
+    required this.error,
+    required this.onPickFrom,
+    required this.onPickTo,
+    required this.onToday,
+  });
+
+  final DateTime from;
+  final DateTime to;
+  final bool custom;
+  final String? error;
+  final VoidCallback onPickFrom;
+  final VoidCallback onPickTo;
+  final VoidCallback onToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final f = DateFormat('dd/MM/yy HH:mm');
+    Widget field(String label, DateTime v, VoidCallback onTap) => Expanded(
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          alignment: Alignment.centerLeft,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: pal.textTertiary),
+            ),
+            Text(
+              f.format(v),
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              field(l.salesFrom, from, onPickFrom),
+              const SizedBox(width: 8),
+              field(l.salesTo, to, onPickTo),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text(l.salesPresetToday),
+                selected: !custom,
+                onSelected: (_) => onToday(),
+              ),
+            ],
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                error!,
+                style: TextStyle(color: pal.danger, fontSize: 12.5),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Actions extends StatelessWidget {
+  const _Actions({
+    required this.printing,
+    required this.onPrint,
+    required this.error,
+  });
+
+  final bool printing;
+  final VoidCallback onPrint;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    Widget spin() => const SizedBox(
+      width: 16,
+      height: 16,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: printing ? null : onPrint,
+                  icon: printing ? spin() : const Icon(Icons.print_outlined),
+                  label: Text(l.salesPrintRecap),
+                ),
+              ),
+            ],
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                error!,
+                style: TextStyle(color: pal.danger, fontSize: 12.5),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Laporan penjualan per metode bayar (tunai, QRIS, ...) + isi laci yang seharusnya ada (cek fisik) + uang lain.
+class _MethodReport extends StatelessWidget {
+  const _MethodReport({required this.data});
+
+  final SalesToday data;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    if (data.byMethod.isEmpty && data.drawer.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    Widget line(String k, String v, {bool bold = false, String? sub}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      k,
+                      style: TextStyle(
+                        fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+                      ),
+                    ),
+                    if (sub != null)
+                      Text(
+                        sub,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: pal.textTertiary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Text(
+                v,
+                style: TextStyle(
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+    Widget title(String t) => Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 2),
+      child: Text(
+        t,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: pal.textTertiary,
+        ),
+      ),
+    );
+    String signed(Decimal v) =>
+        '${v > Decimal.zero ? '+' : ''}${formatMoney(v)}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          leading: const Icon(Icons.account_balance_wallet_outlined),
+          title: Text(
+            l.salesMethodsTitle,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final m in data.byMethod)
+              line(
+                m.name,
+                formatMoney(m.amount),
+                sub: l.salesMethodNotes('${data.notesFor(m.name)}'),
+              ),
+            if (data.credit != null && data.credit! > Decimal.zero)
+              line(l.salesCreditRow, formatMoney(data.credit!)),
+            if (data.surcharge != null && data.surcharge! > Decimal.zero)
+              line(l.salesSurchargeRow, formatMoney(data.surcharge!)),
+            if (data.flows.isNotEmpty) ...[
+              title(l.salesFlowsTitle),
+              for (final f in data.flows)
+                line('${flowLabel(l, f.source)} · ${f.name}', signed(f.amount)),
+            ],
+            if (data.drawer.isNotEmpty) ...[
+              title(l.salesDrawerTitle),
+              for (final m in data.drawer)
+                line(m.name, formatMoney(m.amount), bold: m.kind == 'cash'),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -255,7 +642,7 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
         spacing: 8,
         children: [
           Text(
-            DateFormat('HH:mm').format(r.createdAt),
+            DateFormat('dd/MM HH:mm').format(r.createdAt),
             style: TextStyle(color: pal.textTertiary, fontSize: 12),
           ),
           if (pays.isNotEmpty)

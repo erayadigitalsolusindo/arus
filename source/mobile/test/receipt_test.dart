@@ -58,11 +58,7 @@ void main() {
   final l = AppLocalizationsId();
 
   test('struk 58 mm: lebar 32 kolom, total & kembalian benar', () {
-    final lines = receiptLines(
-      ReceiptData.fromJson(_receipt()),
-      Paper.mm58,
-      l,
-    );
+    final lines = receiptLines(ReceiptData.fromJson(_receipt()), Paper.mm58, l);
     for (final ln in lines) {
       expect(ln.text.length, lessThanOrEqualTo(32), reason: ln.text);
     }
@@ -70,11 +66,26 @@ void main() {
     expect(texts.first, 'Toko Maju');
     expect(lines.first.title, isTrue);
     expect(texts, contains('Cabang Satu'));
-    expect(texts.any((t) => t.startsWith('TOTAL') && t.endsWith('29.000')), isTrue);
-    expect(texts.any((t) => t.contains('2 pcs x 15.000') && t.endsWith('29.000')), isTrue);
-    expect(texts.any((t) => t.startsWith('Potongan') && t.endsWith('-1.000')), isTrue);
-    expect(texts.any((t) => t.startsWith('Kembali') && t.endsWith('21.000')), isTrue);
-    expect(texts.any((t) => t.startsWith('Anda hemat') && t.endsWith('1.000')), isTrue);
+    expect(
+      texts.any((t) => t.startsWith('TOTAL') && t.endsWith('29.000')),
+      isTrue,
+    );
+    expect(
+      texts.any((t) => t.contains('2 pcs x 15.000') && t.endsWith('29.000')),
+      isTrue,
+    );
+    expect(
+      texts.any((t) => t.startsWith('Potongan') && t.endsWith('-1.000')),
+      isTrue,
+    );
+    expect(
+      texts.any((t) => t.startsWith('Kembali') && t.endsWith('21.000')),
+      isTrue,
+    );
+    expect(
+      texts.any((t) => t.startsWith('Anda hemat') && t.endsWith('1.000')),
+      isTrue,
+    );
     expect(texts.last, 'Terima kasih');
   });
 
@@ -104,10 +115,7 @@ void main() {
     );
     expect(bytes.sublist(0, 2), [0x1b, 0x40]);
     // Judul: ESC a 1, ESC E 1, GS ! 0x11 lalu "Cafe".
-    expect(
-      String.fromCharCodes(bytes),
-      contains('Cafe'),
-    );
+    expect(String.fromCharCodes(bytes), contains('Cafe'));
     expect(bytes.sublist(bytes.length - 4), [0x1d, 0x56, 0x42, 0]);
     expect(toPrinterAscii('Rp 1.000 – “ok” ñ'), 'Rp 1.000 - "ok" n');
   });

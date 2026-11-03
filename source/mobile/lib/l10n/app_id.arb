@@ -74,9 +74,15 @@
   "posTaxLine": "Pajak",
   "posOtherCost": "Biaya lain",
   "posTotal": "Total",
+  "posConfirm": "Konfirmasi",
   "posPay": "Bayar",
   "posTaxToggle": "Hitung pajak",
   "posClearCart": "Kosongkan keranjang",
+  "posClearCartAsk": "Kosongkan keranjang?",
+  "posClearCartAskBody": "Semua barang di keranjang akan dihapus dan tidak bisa dikembalikan.",
+  "posClearCartYes": "Ya, kosongkan",
+  "posClearCartNo": "Batal",
+  "posAddedToCart": "Ditambahkan",
   "posRemoveLine": "Hapus",
   "posStock": "Stok {qty}",
   "posStockShort": "Stok kurang (tersedia {qty})",
@@ -123,7 +129,8 @@
   "payPaid": "Dibayar",
   "payChange": "Kembalian",
   "payShortBy": "Kurang {amount}",
-  "paySubmit": "Selesaikan pembayaran",
+  "payItemsTitle": "Barang yang dibeli",
+  "paySubmit": "Transaksi Pembayaran",
   "payProcessing": "Memproses...",
   "paySuccessTitle": "Transaksi berhasil",
   "paySuccessDoc": "Nomor nota {docNo}",
@@ -235,7 +242,7 @@
   "errorInvalidPin": "Penyetuju atau PIN salah.",
   "errorPinLocked": "PIN terkunci sementara karena terlalu banyak percobaan. Coba lagi nanti.",
   "posShiftCloseTooltip": "Tutup shift",
-  "posSalesTodayTooltip": "Penjualan hari ini",
+  "posSalesTodayTooltip": "Penjualan",
   "shiftCloseTitle": "Tutup shift {doc}",
   "@shiftCloseTitle": {
     "placeholders": {
@@ -308,7 +315,7 @@
   "errorShiftDiffNote": "Selisih wajib disertai catatan dan persetujuan.",
   "errorShiftClosed": "Shift ini sudah ditutup.",
   "errorShiftAlreadyOpen": "Shift Anda di cabang ini sudah terbuka.",
-  "salesTodayTitle": "Penjualan hari ini",
+  "salesTodayTitle": "Penjualan",
   "salesTodaySummary": "{count} nota, {total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -768,6 +775,19 @@
   },
   "updateBody": "Perbarui ARUS ke versi terbaru untuk melanjutkan.",
   "updateNow": "Perbarui sekarang",
+  "updCheckTitle": "Cek pembaruan",
+  "updChecking": "Memeriksa pembaruan…",
+  "updUpToDate": "Sudah versi terbaru",
+  "updUpToDateBody": "ARUS yang Anda pakai sudah versi paling baru.",
+  "updFailedTitle": "Tidak bisa memeriksa",
+  "updPlayUnavailable": "Tidak bisa terhubung ke Google Play. Periksa koneksi lalu coba lagi.",
+  "updPlayBody": "Versi terbaru ARUS tersedia di Google Play. Perbarui untuk mendapat perbaikan dan fitur baru.",
+  "updForcedBody": "Pembaruan ini wajib dipasang untuk melanjutkan memakai ARUS.",
+  "updLater": "Nanti",
+  "updReadyTitle": "Pembaruan siap dipasang",
+  "updReadyBody": "Pembaruan sudah diunduh. Mulai ulang aplikasi untuk memasangnya.",
+  "updRestart": "Mulai ulang & pasang",
+  "updAvailableBadge": "Versi baru tersedia",
   "updateRetry": "Coba lagi",
   "updateDownloading": "Mengunduh pembaruan…",
   "updateInstalling": "Membuka pemasang…",
@@ -873,5 +893,319 @@
   "receiptChange": "Kembali",
   "receiptSaved": "Anda hemat",
   "receiptPointsEarned": "Poin didapat",
-  "receiptTestTitle": "Halaman uji printer"
+  "receiptTestTitle": "Halaman uji printer",
+  "salesFrom": "Dari",
+  "salesTo": "Sampai",
+  "salesPresetToday": "Hari ini",
+  "salesRangeInvalid": "Waktu akhir harus setelah waktu awal.",
+  "salesRangeTooLong": "Rentang maksimal 62 hari.",
+  "salesPrintRecap": "Cetak rekap",
+  "salesMethodsTitle": "Laporan per metode bayar",
+  "salesMethodNotes": "{count} nota",
+  "@salesMethodNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesDrawerTitle": "Seharusnya ada (cek fisik)",
+  "salesFlowsTitle": "Uang lain lewat kasir ini",
+  "salesReturnsRow": "Retur ({count})",
+  "@salesReturnsRow": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesNetTotal": "Penjualan bersih setelah retur",
+  "salesCreditRow": "Piutang",
+  "salesSurchargeRow": "Biaya metode (pelanggan)",
+  "flowReceivablePayment": "Bayar piutang",
+  "flowDepositTopup": "Top-up deposit",
+  "flowDepositWithdraw": "Tarik deposit",
+  "flowSaleReturn": "Dana kembali retur jual",
+  "flowPayablePayment": "Bayar hutang pemasok",
+  "flowPurchaseReturn": "Dana kembali retur beli",
+  "flowSupplierCashout": "Pencairan kredit pemasok",
+  "flowPettyIn": "Kas kecil masuk",
+  "flowPettyOut": "Kas kecil keluar",
+  "recapTitle": "REKAP PENJUALAN",
+  "recapCashier": "Kasir",
+  "recapPeriod": "Periode",
+  "recapCount": "Jumlah nota",
+  "recapVoided": "Nota batal",
+  "recapRevenue": "OMZET",
+  "recapByMethod": "Penjualan per metode",
+  "itemAddTooltip": "Tambah barang",
+  "itemAddTitle": "Tambah barang baru",
+  "itemName": "Nama barang",
+  "itemSellPrice": "Harga jual",
+  "itemCost": "Harga modal",
+  "itemUnit": "Satuan",
+  "itemCategory": "Kategori (opsional)",
+  "itemCategoryNone": "Tanpa kategori",
+  "itemBarcode": "Barcode (opsional)",
+  "itemKind": "Jenis",
+  "itemKindGoods": "Barang",
+  "itemKindService": "Jasa",
+  "itemInitialStock": "Stok awal (opsional)",
+  "itemAllowNegative": "Boleh stok minus",
+  "itemAllowNegativeHint": "Barang tetap bisa dijual walau stok belum diisi; stok jadi minus sampai ada pembelian.",
+  "itemStockHint": "Tanpa stok awal dan tanpa stok minus, barang belum bisa dijual sampai stok diisi.",
+  "itemServiceHint": "Jasa tidak memakai stok.",
+  "itemSave": "Simpan",
+  "itemSaveAndSell": "Simpan & jual",
+  "itemSaved": "{name} ditambahkan",
+  "@itemSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRequired": "Wajib diisi",
+  "itemInvalidNumber": "Angka tidak valid",
+  "itemNoUnits": "Belum ada satuan. Tambahkan satuan di web terlebih dulu.",
+  "itemScanBarcode": "Pindai barcode",
+  "itemScanned": "Barcode terbaca",
+  "itemLoadFailed": "Gagal memuat satuan/kategori.",
+  "reportTitle": "Laporan penjualan",
+  "reportHint": "Omzet, metode bayar, per hari",
+  "reportToday": "Hari ini",
+  "report7Days": "7 hari",
+  "reportThisMonth": "Bulan ini",
+  "reportLastMonth": "Bulan lalu",
+  "reportCustom": "Pilih tanggal",
+  "reportAllOutlets": "Semua cabang",
+  "reportRevenue": "Omzet",
+  "reportNotes": "Nota",
+  "reportVoid": "Batal",
+  "reportReturns": "Retur",
+  "reportNet": "Bersih setelah retur",
+  "reportReceivable": "Piutang",
+  "reportByMethod": "Per metode bayar",
+  "reportByDay": "Per hari",
+  "reportEmpty": "Tidak ada penjualan pada rentang ini.",
+  "reportDayNotes": "{count} nota",
+  "@reportDayNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "menuItems": "Barang",
+  "menuPurchases": "Pembelian",
+  "itemsTitle": "Barang",
+  "itemsSearch": "Cari nama, kode, atau barcode",
+  "itemsEmpty": "Belum ada barang.",
+  "itemsTabActive": "Aktif",
+  "itemsTabArchived": "Diarsipkan",
+  "itemsEdit": "Ubah barang",
+  "itemsArchive": "Arsipkan",
+  "itemsRestore": "Aktifkan kembali",
+  "itemsArchiveAsk": "Arsipkan {name}? Barang tidak muncul di kasir, riwayat transaksi tetap aman.",
+  "@itemsArchiveAsk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsArchived": "{name} diarsipkan",
+  "@itemsArchived": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsRestored": "{name} diaktifkan kembali",
+  "@itemsRestored": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsUpdated": "{name} diperbarui",
+  "@itemsUpdated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsStock": "Stok {qty}",
+  "@itemsStock": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsEditTitle": "Ubah barang",
+  "itemsCostNote": "Harga modal berubah lewat pembelian, bukan dari sini.",
+  "itemsArchivedHint": "Menampilkan maksimal 30 barang diarsipkan; persempit dengan pencarian.",
+  "commonCancel": "Batal",
+  "commonSave": "Simpan",
+  "commonRetry": "Coba lagi",
+  "purTitle": "Pembelian",
+  "purAdd": "Pembelian baru",
+  "purCashNote": "Pembelian dari HP selalu tunai dan langsung menambah stok.",
+  "purSupplier": "Pemasok",
+  "purPickSupplier": "Pilih pemasok",
+  "purSearchSupplier": "Cari pemasok",
+  "purNoSupplier": "Pemasok tidak ditemukan.",
+  "purDate": "Tanggal",
+  "purInvoiceNo": "No. faktur pemasok (opsional)",
+  "purNote": "Catatan (opsional)",
+  "purLines": "Barang dibeli",
+  "purAddItem": "Tambah barang",
+  "purSearchItem": "Cari barang",
+  "purQty": "Qty",
+  "purPrice": "Harga beli",
+  "purSubtotal": "Subtotal",
+  "purTax": "PPN",
+  "purOtherCost": "Biaya lain",
+  "purTotal": "Total tunai",
+  "purSave": "Simpan pembelian",
+  "purSaved": "Pembelian {doc} tersimpan, stok bertambah",
+  "@purSaved": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purNoLines": "Tambah minimal satu barang.",
+  "purNeedSupplier": "Pilih pemasok dulu.",
+  "purBadLine": "Qty harus lebih dari 0 dan harga tidak boleh kosong.",
+  "purEmpty": "Belum ada pembelian pada rentang ini.",
+  "purSummary": "{count} pembelian, {total}",
+  "@purSummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "purRange30": "30 hari",
+  "purDetailTitle": "Detail pembelian",
+  "purEdit": "Ubah",
+  "purEditTitle": "Ubah pembelian",
+  "purVoid": "Batalkan",
+  "purVoidAsk": "Batalkan pembelian {doc}? Stok akan dikurangi lagi.",
+  "@purVoidAsk": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purReason": "Alasan (minimal 3 huruf)",
+  "purVoided": "Pembelian dibatalkan",
+  "purEdited": "Pembelian diperbarui",
+  "purStatusVoid": "BATAL",
+  "purStatusRevised": "DIREVISI",
+  "purVoidReason": "Alasan batal: {reason}",
+  "@purVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "purBy": "Dicatat oleh {name}",
+  "@purBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errorPurchaseNotEditable": "Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).",
+  "errorPurchaseHasReturns": "Nota ini sudah diretur; batalkan returnya dulu.",
+  "errorItemUnavailable": "Barang tidak tersedia untuk pembelian.",
+  "errorCodeTaken": "Kode barang sudah dipakai.",
+  "errorEditWindowClosed": "Batas waktu edit sudah lewat.",
+  "errorStockReverse": "Stok tidak cukup untuk membalik nota ini (sebagian sudah terjual).",
+  "menuSettlement": "Settlement",
+  "setTitle": "Settlement EraPay",
+  "setCheck": "Cek ke EraPay",
+  "setChecking": "Mengecek ke EraPay...",
+  "setArus": "UANG ARUS",
+  "setEra": "UANG ERAPAY",
+  "setArusHint": "QRIS pada nota aktif",
+  "setEraHint": "Tagihan lunas di EraPay",
+  "setMatchedAll": "Cocok: uang ARUS sama dengan uang EraPay.",
+  "setDiffMore": "Selisih {amount}: ada uang lunas di EraPay yang belum tercatat sebagai nota aktif.",
+  "@setDiffMore": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setDiffLess": "Selisih {amount}: ada nota QRIS yang belum lunas di EraPay.",
+  "@setDiffLess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setCount": "{count} transaksi",
+  "@setCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setFilterAll": "Semua",
+  "setFilterAttention": "Perlu dicek",
+  "setFilterWaiting": "Menunggu",
+  "setFilterMatched": "Cocok",
+  "setColArus": "ARUS",
+  "setColEra": "ERAPAY",
+  "setStatusLabel": "Status",
+  "setIdLabel": "ID EraPay",
+  "setIdCopied": "ID disalin",
+  "setNoId": "Belum ada ID",
+  "setStateMatched": "Cocok",
+  "setStateMatchedSub": "Lunas di EraPay dan tercatat di nota",
+  "setStateWaiting": "Menunggu",
+  "setStateWaitingSub": "EraPay belum memutuskan (QR belum dibayar)",
+  "setStateOrphan": "Belum tercatat",
+  "setStateOrphanSub": "Lunas di EraPay tetapi belum jadi nota",
+  "setStateRefund": "Perlu refund",
+  "setStateRefundSub": "Nota dibatalkan, uang masih di EraPay",
+  "setStateUnpaid": "Tidak lunas",
+  "setStateUnpaidSub": "Nota ada tetapi EraPay gagal atau kedaluwarsa",
+  "setStateClosed": "Tidak dibayar",
+  "setStateClosedSub": "Tagihan gagal atau kedaluwarsa, tidak ada uang",
+  "setEraSucceeded": "Lunas",
+  "setEraPending": "Menunggu",
+  "setEraFailed": "Gagal",
+  "setEraExpired": "Kedaluwarsa",
+  "setEraCancelled": "Dibatalkan",
+  "setEraUnknown": "Belum pasti",
+  "setNotConfigured": "EraPay belum dipasang untuk toko ini. Pasang API key di Metode Pembayaran (web).",
+  "setEmpty": "Tidak ada transaksi QRIS EraPay pada rentang ini.",
+  "setRefreshed": "Status diperbarui dari EraPay: {count} transaksi",
+  "@setRefreshed": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setTruncated": "Daftar dipotong 300 transaksi terbaru; persempit rentang tanggal.",
+  "setNote": "Uang EraPay = tagihan berstatus lunas di EraPay. Pencairan ke rekening bank mengikuti jadwal EraPay dan belum tersedia di sini."
 }

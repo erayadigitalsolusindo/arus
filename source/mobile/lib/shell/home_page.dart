@@ -10,6 +10,7 @@ import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/text_scale_controller.dart';
 import '../core/theme/theme_controller.dart';
+import '../core/update/update_check.dart';
 import '../core/widgets/beach_background.dart';
 import '../core/widgets/ocean_background.dart';
 import '../features/pos/pos_controller.dart';
@@ -17,11 +18,20 @@ import '../features/pos/petty_cash_page.dart';
 import '../features/pos/pos_repository.dart';
 import '../features/pos/sales_models.dart';
 import '../features/pos/shift_dialog.dart';
+import '../features/manage/item_manage_page.dart';
+import '../features/manage/purchase_pages.dart';
+import '../features/reports/erapay_settlement_page.dart';
+import '../features/reports/sales_report_page.dart';
 import '../l10n/gen/app_localizations.dart';
 
 /// Penjualan kasir ini hari ini untuk ringkasan beranda. Dimuat ulang tiap beranda dibuka.
 final homeTodayProvider = FutureProvider.autoDispose<SalesToday>(
   (ref) => ref.read(posRepositoryProvider).salesToday(),
+);
+
+/// EraPay terpasang di toko ini? (menu Settlement hanya tampil bila ya; galat dianggap tidak).
+final eraConfiguredProvider = FutureProvider.autoDispose<bool>(
+  (ref) async => (await ref.read(posRepositoryProvider).eraPayConfig()).enabled,
 );
 
 /// Beranda bertema pantai & pasar: ringkasan hari ini (huruf besar agar terbaca dari jauh) dan lapak modul
@@ -64,6 +74,7 @@ class HomePage extends ConsumerWidget {
           ),
         ),
         actions: [
+          const UpdateCheckButton(),
           const LanguageButton(),
           const TextScaleButton(),
           const ThemeToggleButton(),
@@ -107,46 +118,68 @@ class HomePage extends ConsumerWidget {
                       Column(
                         children: [
                           const _TodayBoard(),
-                          if (p.permissions.can('sales_orders', 'create')) ...[
-                            const SizedBox(height: 12),
-                            IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(
-                                    child: _Stall(
-                                      icon: Icons.point_of_sale,
-                                      title: l.posTitle,
-                                      hint: l.homeStallHint,
-                                      onTap: () => context.go('/kasir'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _Stall(
-                                      icon: Icons.payments_outlined,
-                                      title: l.pettyMenu,
-                                      hint: l.homePettyHint,
-                                      onTap: () async {
-                                        final shift = await ref.read(
-                                          shiftProvider.future,
-                                        );
-                                        if (!context.mounted) return;
-                                        if (shift == null) {
-                                          await showOpenShiftDialog(context);
-                                          return;
-                                        }
-                                        await showPettyCashPage(
-                                          context,
-                                          shift.id,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          const SizedBox(height: 12),
+                          _MenuGrid(
+                            entries: [
+                              if (p.permissions.can('sales_orders', 'create'))
+                                _MenuEntry(
+                                  Icons.point_of_sale,
+                                  l.posTitle,
+                                  () => context.go('/kasir'),
+                                ),
+                              if (p.permissions.can('sales_orders', 'create'))
+                                _MenuEntry(
+                                  Icons.payments_outlined,
+                                  l.pettyMenu,
+                                  () async {
+                                    final shift = await ref.read(
+                                      shiftProvider.future,
+                                    );
+                                    if (!context.mounted) return;
+                                    if (shift == null) {
+                                      await showOpenShiftDialog(context);
+                                      return;
+                                    }
+                                    await showPettyCashPage(context, shift.id);
+                                  },
+                                ),
+                              if (p.permissions.can('items', 'view'))
+                                _MenuEntry(
+                                  Icons.inventory_2_outlined,
+                                  l.menuItems,
+                                  () => showItemManagePage(context),
+                                ),
+                              if (p.permissions.can(
+                                    'purchase_invoices',
+                                    'view',
+                                  ) ||
+                                  p.permissions.can('purchase_list', 'view'))
+                                _MenuEntry(
+                                  Icons.local_shipping_outlined,
+                                  l.menuPurchases,
+                                  () => showPurchasesPage(context),
+                                ),
+                              // Settlement hanya untuk admin dan hanya bila EraPay terpasang di toko ini.
+                              if (p.permissions.can('sales_reports', 'view') &&
+                                  (ref
+                                          .watch(eraConfiguredProvider)
+                                          .asData
+                                          ?.value ??
+                                      false))
+                                _MenuEntry(
+                                  Icons.account_balance_wallet_outlined,
+                                  l.menuSettlement,
+                                  () => showEraSettlementPage(context),
+                                ),
+                              // Laporan hanya untuk akun berizin laporan penjualan (admin/pemilik).
+                              if (p.permissions.can('sales_reports', 'view'))
+                                _MenuEntry(
+                                  Icons.bar_chart_rounded,
+                                  l.reportTitle,
+                                  () => showSalesReportPage(context),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ],
@@ -401,66 +434,82 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// Kartu modul (lapak) di beranda.
-class _Stall extends StatelessWidget {
-  const _Stall({
-    required this.icon,
-    required this.title,
-    required this.hint,
-    required this.onTap,
-  });
+class _MenuEntry {
+  const _MenuEntry(this.icon, this.label, this.onTap);
 
   final IconData icon;
-  final String title;
-  final String hint;
+  final String label;
   final VoidCallback onTap;
+}
+
+/// Menu modul yang ringkas: ubin kecil (ikon + label) tiga per baris, hanya modul yang diizinkan untuk akun ini.
+class _MenuGrid extends StatelessWidget {
+  const _MenuGrid({required this.entries});
+
+  final List<_MenuEntry> entries;
 
   @override
   Widget build(BuildContext context) {
+    if (entries.isEmpty) return const SizedBox.shrink();
     final pal = context.pal;
-    // Dua kartu per baris: tata letak tegak (ikon di atas, teks di bawah) agar muat di setengah lebar layar.
-    return Material(
-      color: pal.surface.withValues(alpha: 0.95),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: pal.border),
-      ),
-      child: InkWell(
-        customBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: pal.primarySoft,
-                  shape: BoxShape.circle,
+    const gap = 8.0;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = (box.maxWidth - gap * 2) / 3;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final e in entries)
+              SizedBox(
+                width: w,
+                child: Material(
+                  color: pal.surface.withValues(alpha: 0.95),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: pal.border),
+                  ),
+                  child: InkWell(
+                    customBorder: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onTap: e.onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 6,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: pal.primarySoft,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(e.icon, size: 26, color: pal.primary),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            e.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                child: Icon(icon, size: 32, color: pal.primary),
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                hint,
-                style: TextStyle(fontSize: 14, color: pal.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
   }
 }

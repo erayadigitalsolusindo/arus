@@ -418,6 +418,12 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get posTotal;
 
+  /// No description provided for @posConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Konfirmasi'**
+  String get posConfirm;
+
   /// No description provided for @posPay.
   ///
   /// In id, this message translates to:
@@ -435,6 +441,36 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Kosongkan keranjang'**
   String get posClearCart;
+
+  /// No description provided for @posClearCartAsk.
+  ///
+  /// In id, this message translates to:
+  /// **'Kosongkan keranjang?'**
+  String get posClearCartAsk;
+
+  /// No description provided for @posClearCartAskBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua barang di keranjang akan dihapus dan tidak bisa dikembalikan.'**
+  String get posClearCartAskBody;
+
+  /// No description provided for @posClearCartYes.
+  ///
+  /// In id, this message translates to:
+  /// **'Ya, kosongkan'**
+  String get posClearCartYes;
+
+  /// No description provided for @posClearCartNo.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get posClearCartNo;
+
+  /// No description provided for @posAddedToCart.
+  ///
+  /// In id, this message translates to:
+  /// **'Ditambahkan'**
+  String get posAddedToCart;
 
   /// No description provided for @posRemoveLine.
   ///
@@ -712,10 +748,16 @@ abstract class AppLocalizations {
   /// **'Kurang {amount}'**
   String payShortBy(String amount);
 
+  /// No description provided for @payItemsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang yang dibeli'**
+  String get payItemsTitle;
+
   /// No description provided for @paySubmit.
   ///
   /// In id, this message translates to:
-  /// **'Selesaikan pembayaran'**
+  /// **'Transaksi Pembayaran'**
   String get paySubmit;
 
   /// No description provided for @payProcessing.
@@ -925,7 +967,7 @@ abstract class AppLocalizations {
   /// No description provided for @posSalesTodayTooltip.
   ///
   /// In id, this message translates to:
-  /// **'Penjualan hari ini'**
+  /// **'Penjualan'**
   String get posSalesTodayTooltip;
 
   /// No description provided for @shiftCloseTitle.
@@ -1093,7 +1135,7 @@ abstract class AppLocalizations {
   /// No description provided for @salesTodayTitle.
   ///
   /// In id, this message translates to:
-  /// **'Penjualan hari ini'**
+  /// **'Penjualan'**
   String get salesTodayTitle;
 
   /// No description provided for @salesTodaySummary.
@@ -2134,6 +2176,84 @@ abstract class AppLocalizations {
   /// **'Perbarui sekarang'**
   String get updateNow;
 
+  /// No description provided for @updCheckTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Cek pembaruan'**
+  String get updCheckTitle;
+
+  /// No description provided for @updChecking.
+  ///
+  /// In id, this message translates to:
+  /// **'Memeriksa pembaruan…'**
+  String get updChecking;
+
+  /// No description provided for @updUpToDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Sudah versi terbaru'**
+  String get updUpToDate;
+
+  /// No description provided for @updUpToDateBody.
+  ///
+  /// In id, this message translates to:
+  /// **'ARUS yang Anda pakai sudah versi paling baru.'**
+  String get updUpToDateBody;
+
+  /// No description provided for @updFailedTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak bisa memeriksa'**
+  String get updFailedTitle;
+
+  /// No description provided for @updPlayUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak bisa terhubung ke Google Play. Periksa koneksi lalu coba lagi.'**
+  String get updPlayUnavailable;
+
+  /// No description provided for @updPlayBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi terbaru ARUS tersedia di Google Play. Perbarui untuk mendapat perbaikan dan fitur baru.'**
+  String get updPlayBody;
+
+  /// No description provided for @updForcedBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembaruan ini wajib dipasang untuk melanjutkan memakai ARUS.'**
+  String get updForcedBody;
+
+  /// No description provided for @updLater.
+  ///
+  /// In id, this message translates to:
+  /// **'Nanti'**
+  String get updLater;
+
+  /// No description provided for @updReadyTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembaruan siap dipasang'**
+  String get updReadyTitle;
+
+  /// No description provided for @updReadyBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembaruan sudah diunduh. Mulai ulang aplikasi untuk memasangnya.'**
+  String get updReadyBody;
+
+  /// No description provided for @updRestart.
+  ///
+  /// In id, this message translates to:
+  /// **'Mulai ulang & pasang'**
+  String get updRestart;
+
+  /// No description provided for @updAvailableBadge.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi baru tersedia'**
+  String get updAvailableBadge;
+
   /// No description provided for @updateRetry.
   ///
   /// In id, this message translates to:
@@ -2475,6 +2595,1116 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Halaman uji printer'**
   String get receiptTestTitle;
+
+  /// No description provided for @salesFrom.
+  ///
+  /// In id, this message translates to:
+  /// **'Dari'**
+  String get salesFrom;
+
+  /// No description provided for @salesTo.
+  ///
+  /// In id, this message translates to:
+  /// **'Sampai'**
+  String get salesTo;
+
+  /// No description provided for @salesPresetToday.
+  ///
+  /// In id, this message translates to:
+  /// **'Hari ini'**
+  String get salesPresetToday;
+
+  /// No description provided for @salesRangeInvalid.
+  ///
+  /// In id, this message translates to:
+  /// **'Waktu akhir harus setelah waktu awal.'**
+  String get salesRangeInvalid;
+
+  /// No description provided for @salesRangeTooLong.
+  ///
+  /// In id, this message translates to:
+  /// **'Rentang maksimal 62 hari.'**
+  String get salesRangeTooLong;
+
+  /// No description provided for @salesPrintRecap.
+  ///
+  /// In id, this message translates to:
+  /// **'Cetak rekap'**
+  String get salesPrintRecap;
+
+  /// No description provided for @salesMethodsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Laporan per metode bayar'**
+  String get salesMethodsTitle;
+
+  /// No description provided for @salesMethodNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} nota'**
+  String salesMethodNotes(String count);
+
+  /// No description provided for @salesDrawerTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Seharusnya ada (cek fisik)'**
+  String get salesDrawerTitle;
+
+  /// No description provided for @salesFlowsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang lain lewat kasir ini'**
+  String get salesFlowsTitle;
+
+  /// No description provided for @salesReturnsRow.
+  ///
+  /// In id, this message translates to:
+  /// **'Retur ({count})'**
+  String salesReturnsRow(String count);
+
+  /// No description provided for @salesNetTotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjualan bersih setelah retur'**
+  String get salesNetTotal;
+
+  /// No description provided for @salesCreditRow.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang'**
+  String get salesCreditRow;
+
+  /// No description provided for @salesSurchargeRow.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya metode (pelanggan)'**
+  String get salesSurchargeRow;
+
+  /// No description provided for @flowReceivablePayment.
+  ///
+  /// In id, this message translates to:
+  /// **'Bayar piutang'**
+  String get flowReceivablePayment;
+
+  /// No description provided for @flowDepositTopup.
+  ///
+  /// In id, this message translates to:
+  /// **'Top-up deposit'**
+  String get flowDepositTopup;
+
+  /// No description provided for @flowDepositWithdraw.
+  ///
+  /// In id, this message translates to:
+  /// **'Tarik deposit'**
+  String get flowDepositWithdraw;
+
+  /// No description provided for @flowSaleReturn.
+  ///
+  /// In id, this message translates to:
+  /// **'Dana kembali retur jual'**
+  String get flowSaleReturn;
+
+  /// No description provided for @flowPayablePayment.
+  ///
+  /// In id, this message translates to:
+  /// **'Bayar hutang pemasok'**
+  String get flowPayablePayment;
+
+  /// No description provided for @flowPurchaseReturn.
+  ///
+  /// In id, this message translates to:
+  /// **'Dana kembali retur beli'**
+  String get flowPurchaseReturn;
+
+  /// No description provided for @flowSupplierCashout.
+  ///
+  /// In id, this message translates to:
+  /// **'Pencairan kredit pemasok'**
+  String get flowSupplierCashout;
+
+  /// No description provided for @flowPettyIn.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas kecil masuk'**
+  String get flowPettyIn;
+
+  /// No description provided for @flowPettyOut.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas kecil keluar'**
+  String get flowPettyOut;
+
+  /// No description provided for @recapTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'REKAP PENJUALAN'**
+  String get recapTitle;
+
+  /// No description provided for @recapCashier.
+  ///
+  /// In id, this message translates to:
+  /// **'Kasir'**
+  String get recapCashier;
+
+  /// No description provided for @recapPeriod.
+  ///
+  /// In id, this message translates to:
+  /// **'Periode'**
+  String get recapPeriod;
+
+  /// No description provided for @recapCount.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah nota'**
+  String get recapCount;
+
+  /// No description provided for @recapVoided.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota batal'**
+  String get recapVoided;
+
+  /// No description provided for @recapRevenue.
+  ///
+  /// In id, this message translates to:
+  /// **'OMZET'**
+  String get recapRevenue;
+
+  /// No description provided for @recapByMethod.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjualan per metode'**
+  String get recapByMethod;
+
+  /// No description provided for @itemAddTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah barang'**
+  String get itemAddTooltip;
+
+  /// No description provided for @itemAddTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah barang baru'**
+  String get itemAddTitle;
+
+  /// No description provided for @itemName.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama barang'**
+  String get itemName;
+
+  /// No description provided for @itemSellPrice.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga jual'**
+  String get itemSellPrice;
+
+  /// No description provided for @itemCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga modal'**
+  String get itemCost;
+
+  /// No description provided for @itemUnit.
+  ///
+  /// In id, this message translates to:
+  /// **'Satuan'**
+  String get itemUnit;
+
+  /// No description provided for @itemCategory.
+  ///
+  /// In id, this message translates to:
+  /// **'Kategori (opsional)'**
+  String get itemCategory;
+
+  /// No description provided for @itemCategoryNone.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanpa kategori'**
+  String get itemCategoryNone;
+
+  /// No description provided for @itemBarcode.
+  ///
+  /// In id, this message translates to:
+  /// **'Barcode (opsional)'**
+  String get itemBarcode;
+
+  /// No description provided for @itemKind.
+  ///
+  /// In id, this message translates to:
+  /// **'Jenis'**
+  String get itemKind;
+
+  /// No description provided for @itemKindGoods.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang'**
+  String get itemKindGoods;
+
+  /// No description provided for @itemKindService.
+  ///
+  /// In id, this message translates to:
+  /// **'Jasa'**
+  String get itemKindService;
+
+  /// No description provided for @itemInitialStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok awal (opsional)'**
+  String get itemInitialStock;
+
+  /// No description provided for @itemAllowNegative.
+  ///
+  /// In id, this message translates to:
+  /// **'Boleh stok minus'**
+  String get itemAllowNegative;
+
+  /// No description provided for @itemAllowNegativeHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang tetap bisa dijual walau stok belum diisi; stok jadi minus sampai ada pembelian.'**
+  String get itemAllowNegativeHint;
+
+  /// No description provided for @itemStockHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanpa stok awal dan tanpa stok minus, barang belum bisa dijual sampai stok diisi.'**
+  String get itemStockHint;
+
+  /// No description provided for @itemServiceHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Jasa tidak memakai stok.'**
+  String get itemServiceHint;
+
+  /// No description provided for @itemSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan'**
+  String get itemSave;
+
+  /// No description provided for @itemSaveAndSell.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan & jual'**
+  String get itemSaveAndSell;
+
+  /// No description provided for @itemSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'{name} ditambahkan'**
+  String itemSaved(String name);
+
+  /// No description provided for @itemRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Wajib diisi'**
+  String get itemRequired;
+
+  /// No description provided for @itemInvalidNumber.
+  ///
+  /// In id, this message translates to:
+  /// **'Angka tidak valid'**
+  String get itemInvalidNumber;
+
+  /// No description provided for @itemNoUnits.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada satuan. Tambahkan satuan di web terlebih dulu.'**
+  String get itemNoUnits;
+
+  /// No description provided for @itemScanBarcode.
+  ///
+  /// In id, this message translates to:
+  /// **'Pindai barcode'**
+  String get itemScanBarcode;
+
+  /// No description provided for @itemScanned.
+  ///
+  /// In id, this message translates to:
+  /// **'Barcode terbaca'**
+  String get itemScanned;
+
+  /// No description provided for @itemLoadFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal memuat satuan/kategori.'**
+  String get itemLoadFailed;
+
+  /// No description provided for @reportTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Laporan penjualan'**
+  String get reportTitle;
+
+  /// No description provided for @reportHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Omzet, metode bayar, per hari'**
+  String get reportHint;
+
+  /// No description provided for @reportToday.
+  ///
+  /// In id, this message translates to:
+  /// **'Hari ini'**
+  String get reportToday;
+
+  /// No description provided for @report7Days.
+  ///
+  /// In id, this message translates to:
+  /// **'7 hari'**
+  String get report7Days;
+
+  /// No description provided for @reportThisMonth.
+  ///
+  /// In id, this message translates to:
+  /// **'Bulan ini'**
+  String get reportThisMonth;
+
+  /// No description provided for @reportLastMonth.
+  ///
+  /// In id, this message translates to:
+  /// **'Bulan lalu'**
+  String get reportLastMonth;
+
+  /// No description provided for @reportCustom.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih tanggal'**
+  String get reportCustom;
+
+  /// No description provided for @reportAllOutlets.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua cabang'**
+  String get reportAllOutlets;
+
+  /// No description provided for @reportRevenue.
+  ///
+  /// In id, this message translates to:
+  /// **'Omzet'**
+  String get reportRevenue;
+
+  /// No description provided for @reportNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota'**
+  String get reportNotes;
+
+  /// No description provided for @reportVoid.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get reportVoid;
+
+  /// No description provided for @reportReturns.
+  ///
+  /// In id, this message translates to:
+  /// **'Retur'**
+  String get reportReturns;
+
+  /// No description provided for @reportNet.
+  ///
+  /// In id, this message translates to:
+  /// **'Bersih setelah retur'**
+  String get reportNet;
+
+  /// No description provided for @reportReceivable.
+  ///
+  /// In id, this message translates to:
+  /// **'Piutang'**
+  String get reportReceivable;
+
+  /// No description provided for @reportByMethod.
+  ///
+  /// In id, this message translates to:
+  /// **'Per metode bayar'**
+  String get reportByMethod;
+
+  /// No description provided for @reportByDay.
+  ///
+  /// In id, this message translates to:
+  /// **'Per hari'**
+  String get reportByDay;
+
+  /// No description provided for @reportEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak ada penjualan pada rentang ini.'**
+  String get reportEmpty;
+
+  /// No description provided for @reportDayNotes.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} nota'**
+  String reportDayNotes(String count);
+
+  /// No description provided for @menuItems.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang'**
+  String get menuItems;
+
+  /// No description provided for @menuPurchases.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian'**
+  String get menuPurchases;
+
+  /// No description provided for @itemsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang'**
+  String get itemsTitle;
+
+  /// No description provided for @itemsSearch.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari nama, kode, atau barcode'**
+  String get itemsSearch;
+
+  /// No description provided for @itemsEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada barang.'**
+  String get itemsEmpty;
+
+  /// No description provided for @itemsTabActive.
+  ///
+  /// In id, this message translates to:
+  /// **'Aktif'**
+  String get itemsTabActive;
+
+  /// No description provided for @itemsTabArchived.
+  ///
+  /// In id, this message translates to:
+  /// **'Diarsipkan'**
+  String get itemsTabArchived;
+
+  /// No description provided for @itemsEdit.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah barang'**
+  String get itemsEdit;
+
+  /// No description provided for @itemsArchive.
+  ///
+  /// In id, this message translates to:
+  /// **'Arsipkan'**
+  String get itemsArchive;
+
+  /// No description provided for @itemsRestore.
+  ///
+  /// In id, this message translates to:
+  /// **'Aktifkan kembali'**
+  String get itemsRestore;
+
+  /// No description provided for @itemsArchiveAsk.
+  ///
+  /// In id, this message translates to:
+  /// **'Arsipkan {name}? Barang tidak muncul di kasir, riwayat transaksi tetap aman.'**
+  String itemsArchiveAsk(String name);
+
+  /// No description provided for @itemsArchived.
+  ///
+  /// In id, this message translates to:
+  /// **'{name} diarsipkan'**
+  String itemsArchived(String name);
+
+  /// No description provided for @itemsRestored.
+  ///
+  /// In id, this message translates to:
+  /// **'{name} diaktifkan kembali'**
+  String itemsRestored(String name);
+
+  /// No description provided for @itemsUpdated.
+  ///
+  /// In id, this message translates to:
+  /// **'{name} diperbarui'**
+  String itemsUpdated(String name);
+
+  /// No description provided for @itemsStock.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok {qty}'**
+  String itemsStock(String qty);
+
+  /// No description provided for @itemsEditTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah barang'**
+  String get itemsEditTitle;
+
+  /// No description provided for @itemsCostNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga modal berubah lewat pembelian, bukan dari sini.'**
+  String get itemsCostNote;
+
+  /// No description provided for @itemsArchivedHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Menampilkan maksimal 30 barang diarsipkan; persempit dengan pencarian.'**
+  String get itemsArchivedHint;
+
+  /// No description provided for @commonCancel.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get commonCancel;
+
+  /// No description provided for @commonSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan'**
+  String get commonSave;
+
+  /// No description provided for @commonRetry.
+  ///
+  /// In id, this message translates to:
+  /// **'Coba lagi'**
+  String get commonRetry;
+
+  /// No description provided for @purTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian'**
+  String get purTitle;
+
+  /// No description provided for @purAdd.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian baru'**
+  String get purAdd;
+
+  /// No description provided for @purCashNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian dari HP selalu tunai dan langsung menambah stok.'**
+  String get purCashNote;
+
+  /// No description provided for @purSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Pemasok'**
+  String get purSupplier;
+
+  /// No description provided for @purPickSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih pemasok'**
+  String get purPickSupplier;
+
+  /// No description provided for @purSearchSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari pemasok'**
+  String get purSearchSupplier;
+
+  /// No description provided for @purNoSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Pemasok tidak ditemukan.'**
+  String get purNoSupplier;
+
+  /// No description provided for @purDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanggal'**
+  String get purDate;
+
+  /// No description provided for @purInvoiceNo.
+  ///
+  /// In id, this message translates to:
+  /// **'No. faktur pemasok (opsional)'**
+  String get purInvoiceNo;
+
+  /// No description provided for @purNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan (opsional)'**
+  String get purNote;
+
+  /// No description provided for @purLines.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang dibeli'**
+  String get purLines;
+
+  /// No description provided for @purAddItem.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah barang'**
+  String get purAddItem;
+
+  /// No description provided for @purSearchItem.
+  ///
+  /// In id, this message translates to:
+  /// **'Cari barang'**
+  String get purSearchItem;
+
+  /// No description provided for @purQty.
+  ///
+  /// In id, this message translates to:
+  /// **'Qty'**
+  String get purQty;
+
+  /// No description provided for @purPrice.
+  ///
+  /// In id, this message translates to:
+  /// **'Harga beli'**
+  String get purPrice;
+
+  /// No description provided for @purSubtotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Subtotal'**
+  String get purSubtotal;
+
+  /// No description provided for @purTax.
+  ///
+  /// In id, this message translates to:
+  /// **'PPN'**
+  String get purTax;
+
+  /// No description provided for @purOtherCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Biaya lain'**
+  String get purOtherCost;
+
+  /// No description provided for @purTotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Total tunai'**
+  String get purTotal;
+
+  /// No description provided for @purSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan pembelian'**
+  String get purSave;
+
+  /// No description provided for @purSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian {doc} tersimpan, stok bertambah'**
+  String purSaved(String doc);
+
+  /// No description provided for @purNoLines.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah minimal satu barang.'**
+  String get purNoLines;
+
+  /// No description provided for @purNeedSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih pemasok dulu.'**
+  String get purNeedSupplier;
+
+  /// No description provided for @purBadLine.
+  ///
+  /// In id, this message translates to:
+  /// **'Qty harus lebih dari 0 dan harga tidak boleh kosong.'**
+  String get purBadLine;
+
+  /// No description provided for @purEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada pembelian pada rentang ini.'**
+  String get purEmpty;
+
+  /// No description provided for @purSummary.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} pembelian, {total}'**
+  String purSummary(String count, String total);
+
+  /// No description provided for @purRange30.
+  ///
+  /// In id, this message translates to:
+  /// **'30 hari'**
+  String get purRange30;
+
+  /// No description provided for @purDetailTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Detail pembelian'**
+  String get purDetailTitle;
+
+  /// No description provided for @purEdit.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah'**
+  String get purEdit;
+
+  /// No description provided for @purEditTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah pembelian'**
+  String get purEditTitle;
+
+  /// No description provided for @purVoid.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan'**
+  String get purVoid;
+
+  /// No description provided for @purVoidAsk.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan pembelian {doc}? Stok akan dikurangi lagi.'**
+  String purVoidAsk(String doc);
+
+  /// No description provided for @purReason.
+  ///
+  /// In id, this message translates to:
+  /// **'Alasan (minimal 3 huruf)'**
+  String get purReason;
+
+  /// No description provided for @purVoided.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian dibatalkan'**
+  String get purVoided;
+
+  /// No description provided for @purEdited.
+  ///
+  /// In id, this message translates to:
+  /// **'Pembelian diperbarui'**
+  String get purEdited;
+
+  /// No description provided for @purStatusVoid.
+  ///
+  /// In id, this message translates to:
+  /// **'BATAL'**
+  String get purStatusVoid;
+
+  /// No description provided for @purStatusRevised.
+  ///
+  /// In id, this message translates to:
+  /// **'DIREVISI'**
+  String get purStatusRevised;
+
+  /// No description provided for @purVoidReason.
+  ///
+  /// In id, this message translates to:
+  /// **'Alasan batal: {reason}'**
+  String purVoidReason(String reason);
+
+  /// No description provided for @purBy.
+  ///
+  /// In id, this message translates to:
+  /// **'Dicatat oleh {name}'**
+  String purBy(String name);
+
+  /// No description provided for @errorPurchaseNotEditable.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).'**
+  String get errorPurchaseNotEditable;
+
+  /// No description provided for @errorPurchaseHasReturns.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota ini sudah diretur; batalkan returnya dulu.'**
+  String get errorPurchaseHasReturns;
+
+  /// No description provided for @errorItemUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'Barang tidak tersedia untuk pembelian.'**
+  String get errorItemUnavailable;
+
+  /// No description provided for @errorCodeTaken.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode barang sudah dipakai.'**
+  String get errorCodeTaken;
+
+  /// No description provided for @errorEditWindowClosed.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas waktu edit sudah lewat.'**
+  String get errorEditWindowClosed;
+
+  /// No description provided for @errorStockReverse.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok tidak cukup untuk membalik nota ini (sebagian sudah terjual).'**
+  String get errorStockReverse;
+
+  /// No description provided for @menuSettlement.
+  ///
+  /// In id, this message translates to:
+  /// **'Settlement'**
+  String get menuSettlement;
+
+  /// No description provided for @setTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Settlement EraPay'**
+  String get setTitle;
+
+  /// No description provided for @setCheck.
+  ///
+  /// In id, this message translates to:
+  /// **'Cek ke EraPay'**
+  String get setCheck;
+
+  /// No description provided for @setChecking.
+  ///
+  /// In id, this message translates to:
+  /// **'Mengecek ke EraPay...'**
+  String get setChecking;
+
+  /// No description provided for @setArus.
+  ///
+  /// In id, this message translates to:
+  /// **'UANG ARUS'**
+  String get setArus;
+
+  /// No description provided for @setEra.
+  ///
+  /// In id, this message translates to:
+  /// **'UANG ERAPAY'**
+  String get setEra;
+
+  /// No description provided for @setArusHint.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS pada nota aktif'**
+  String get setArusHint;
+
+  /// No description provided for @setEraHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Tagihan lunas di EraPay'**
+  String get setEraHint;
+
+  /// No description provided for @setMatchedAll.
+  ///
+  /// In id, this message translates to:
+  /// **'Cocok: uang ARUS sama dengan uang EraPay.'**
+  String get setMatchedAll;
+
+  /// No description provided for @setDiffMore.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih {amount}: ada uang lunas di EraPay yang belum tercatat sebagai nota aktif.'**
+  String setDiffMore(String amount);
+
+  /// No description provided for @setDiffLess.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih {amount}: ada nota QRIS yang belum lunas di EraPay.'**
+  String setDiffLess(String amount);
+
+  /// No description provided for @setCount.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} transaksi'**
+  String setCount(String count);
+
+  /// No description provided for @setFilterAll.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua'**
+  String get setFilterAll;
+
+  /// No description provided for @setFilterAttention.
+  ///
+  /// In id, this message translates to:
+  /// **'Perlu dicek'**
+  String get setFilterAttention;
+
+  /// No description provided for @setFilterWaiting.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunggu'**
+  String get setFilterWaiting;
+
+  /// No description provided for @setFilterMatched.
+  ///
+  /// In id, this message translates to:
+  /// **'Cocok'**
+  String get setFilterMatched;
+
+  /// No description provided for @setColArus.
+  ///
+  /// In id, this message translates to:
+  /// **'ARUS'**
+  String get setColArus;
+
+  /// No description provided for @setColEra.
+  ///
+  /// In id, this message translates to:
+  /// **'ERAPAY'**
+  String get setColEra;
+
+  /// No description provided for @setStatusLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Status'**
+  String get setStatusLabel;
+
+  /// No description provided for @setIdLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'ID EraPay'**
+  String get setIdLabel;
+
+  /// No description provided for @setIdCopied.
+  ///
+  /// In id, this message translates to:
+  /// **'ID disalin'**
+  String get setIdCopied;
+
+  /// No description provided for @setNoId.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada ID'**
+  String get setNoId;
+
+  /// No description provided for @setStateMatched.
+  ///
+  /// In id, this message translates to:
+  /// **'Cocok'**
+  String get setStateMatched;
+
+  /// No description provided for @setStateMatchedSub.
+  ///
+  /// In id, this message translates to:
+  /// **'Lunas di EraPay dan tercatat di nota'**
+  String get setStateMatchedSub;
+
+  /// No description provided for @setStateWaiting.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunggu'**
+  String get setStateWaiting;
+
+  /// No description provided for @setStateWaitingSub.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay belum memutuskan (QR belum dibayar)'**
+  String get setStateWaitingSub;
+
+  /// No description provided for @setStateOrphan.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum tercatat'**
+  String get setStateOrphan;
+
+  /// No description provided for @setStateOrphanSub.
+  ///
+  /// In id, this message translates to:
+  /// **'Lunas di EraPay tetapi belum jadi nota'**
+  String get setStateOrphanSub;
+
+  /// No description provided for @setStateRefund.
+  ///
+  /// In id, this message translates to:
+  /// **'Perlu refund'**
+  String get setStateRefund;
+
+  /// No description provided for @setStateRefundSub.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota dibatalkan, uang masih di EraPay'**
+  String get setStateRefundSub;
+
+  /// No description provided for @setStateUnpaid.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak lunas'**
+  String get setStateUnpaid;
+
+  /// No description provided for @setStateUnpaidSub.
+  ///
+  /// In id, this message translates to:
+  /// **'Nota ada tetapi EraPay gagal atau kedaluwarsa'**
+  String get setStateUnpaidSub;
+
+  /// No description provided for @setStateClosed.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak dibayar'**
+  String get setStateClosed;
+
+  /// No description provided for @setStateClosedSub.
+  ///
+  /// In id, this message translates to:
+  /// **'Tagihan gagal atau kedaluwarsa, tidak ada uang'**
+  String get setStateClosedSub;
+
+  /// No description provided for @setEraSucceeded.
+  ///
+  /// In id, this message translates to:
+  /// **'Lunas'**
+  String get setEraSucceeded;
+
+  /// No description provided for @setEraPending.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunggu'**
+  String get setEraPending;
+
+  /// No description provided for @setEraFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal'**
+  String get setEraFailed;
+
+  /// No description provided for @setEraExpired.
+  ///
+  /// In id, this message translates to:
+  /// **'Kedaluwarsa'**
+  String get setEraExpired;
+
+  /// No description provided for @setEraCancelled.
+  ///
+  /// In id, this message translates to:
+  /// **'Dibatalkan'**
+  String get setEraCancelled;
+
+  /// No description provided for @setEraUnknown.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum pasti'**
+  String get setEraUnknown;
+
+  /// No description provided for @setNotConfigured.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay belum dipasang untuk toko ini. Pasang API key di Metode Pembayaran (web).'**
+  String get setNotConfigured;
+
+  /// No description provided for @setEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak ada transaksi QRIS EraPay pada rentang ini.'**
+  String get setEmpty;
+
+  /// No description provided for @setRefreshed.
+  ///
+  /// In id, this message translates to:
+  /// **'Status diperbarui dari EraPay: {count} transaksi'**
+  String setRefreshed(String count);
+
+  /// No description provided for @setTruncated.
+  ///
+  /// In id, this message translates to:
+  /// **'Daftar dipotong 300 transaksi terbaru; persempit rentang tanggal.'**
+  String get setTruncated;
+
+  /// No description provided for @setNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang EraPay = tagihan berstatus lunas di EraPay. Pencairan ke rekening bank mengikuti jadwal EraPay dan belum tersedia di sini.'**
+  String get setNote;
 }
 
 class _AppLocalizationsDelegate

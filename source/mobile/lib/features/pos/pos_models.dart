@@ -355,8 +355,7 @@ class PayMethodInfo {
 
   bool get hasSmallRule => (smallTxLimit ?? Decimal.zero) > Decimal.zero;
 
-  bool _smallApplies(Decimal amount) =>
-      hasSmallRule && amount <= smallTxLimit!;
+  bool _smallApplies(Decimal amount) => hasSmallRule && amount <= smallTxLimit!;
 
   String get _baseLabel => [
     if ((feePct ?? Decimal.zero) > Decimal.zero) '${formatQty(feePct!)}%',
@@ -561,17 +560,17 @@ class SaleDraft {
 
   /// Simpan paksa: charge QRIS masih menunggu, [approval] = penyetuju berizin qris_force.
   SaleDraft asForceEraPay(ApprovalGrant approval) => SaleDraft(
-        lines: lines,
-        applyTax: applyTax,
-        member: member,
-        redeemPoints: redeemPoints,
-        costs: costs,
-        approval: approval,
-        credit: credit,
-        salesperson: salesperson,
-        note: note,
-        forceEraPay: true,
-      );
+    lines: lines,
+    applyTax: applyTax,
+    member: member,
+    redeemPoints: redeemPoints,
+    costs: costs,
+    approval: approval,
+    credit: credit,
+    salesperson: salesperson,
+    note: note,
+    forceEraPay: true,
+  );
 }
 
 /// Status integrasi QRIS EraPay untuk toko ini (`GET /payments/erapay/config`).

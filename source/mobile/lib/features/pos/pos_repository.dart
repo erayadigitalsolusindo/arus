@@ -8,6 +8,8 @@ import '../../core/api/api_client.dart';
 import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/session/session_controller.dart';
+import '../reports/erapay_settlement_models.dart';
+import '../reports/sales_report_models.dart';
 import 'pos_models.dart';
 import 'sales_models.dart';
 import 'shift_models.dart';
@@ -37,6 +39,14 @@ class PosRepository {
     String q, {
     int limit = 30,
     String? categoryId,
+  }) async => (await searchPage(q, limit: limit, categoryId: categoryId)).items;
+
+  /// Satu halaman katalog (keyset): `nextCursor` kosong = sudah habis. Tanpa total/OFFSET, aman untuk katalog besar.
+  Future<({List<PosItem> items, String nextCursor})> searchPage(
+    String q, {
+    int limit = 30,
+    String? categoryId,
+    String? cursor,
   }) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/items/search',
@@ -44,11 +54,13 @@ class PosRepository {
         if (q.isNotEmpty) 'q': q,
         'limit': limit,
         'category_id': ?categoryId,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
       },
     );
-    return (r.data!['data'] as List? ?? const [])
+    final items = (r.data!['data'] as List? ?? const [])
         .map((e) => PosItem.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
+    return (items: items, nextCursor: '${r.data!['next_cursor'] ?? ''}');
   });
 
   /// Kode/barcode persis (halaman pertama pencarian membawa `exact`).
@@ -315,13 +327,131 @@ class PosRepository {
         .toList();
   });
 
-  /// Penjualan kasir ini hari ini (tanpa rentang = hari ini menurut zona waktu outlet).
-  Future<SalesToday> salesToday({String q = ''}) => _guard(() async {
+  /// Penjualan kasir ini pada rentang waktu. [from]/[to] = `YYYY-MM-DDTHH:MM` (waktu outlet; menit akhir ikut);
+  /// kosong = hari ini menurut zona waktu outlet.
+  Future<SalesToday> salesToday({
+    String q = '',
+    String from = '',
+    String to = '',
+  }) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/sales/',
-      queryParameters: {if (q.isNotEmpty) 'q': q},
+      queryParameters: {
+        if (q.isNotEmpty) 'q': q,
+        if (from.isNotEmpty) 'from': from,
+        if (to.isNotEmpty) 'to': to,
+      },
     );
     return SalesToday.fromJson(r.data!);
+  });
+
+  /// Laporan penjualan per tanggal (izin `sales_reports.view`). [from]/[to] = `YYYY-MM-DD`; [allOutlets] menjumlah
+  /// semua cabang yang boleh diakses akun ini, bila tidak hanya cabang aktif.
+  Future<SalesReport> salesReport({
+    required String from,
+    required String to,
+    bool allOutlets = false,
+  }) => _guard(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/reports/sales/by-date',
+      queryParameters: {
+        'from': from,
+        'to': to,
+        'hide_empty': true,
+        if (allOutlets) 'all_outlets': true,
+      },
+    );
+    return SalesReport.fromJson(r.data!);
+  });
+
+  /// Settlement EraPay (izin `sales_reports.view`): tagihan QRIS pada rentang tanggal, uang ARUS vs uang EraPay.
+  /// [refresh] = tagihan yang masih menunggu ditanyakan ulang ke EraPay dulu.
+  Future<EraSettlementReport> eraSettlement({
+    required String from,
+    required String to,
+    bool allOutlets = false,
+    bool refresh = false,
+  }) => _guard(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/payments/erapay/settlement',
+      queryParameters: {
+        'from': from,
+        'to': to,
+        if (allOutlets) 'all_outlets': true,
+        if (refresh) 'refresh': true,
+      },
+      options: Options(receiveTimeout: const Duration(seconds: 90)),
+    );
+    return EraSettlementReport.fromJson(r.data!);
+  });
+
+  /// Satuan aktif untuk form barang (id + nama).
+  Future<List<Salesperson>> units() => _guard(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/catalog/lookup/units/',
+      queryParameters: {'active': true, 'limit': 100},
+    );
+    return (r.data!['data'] as List? ?? const [])
+        .map((e) => Salesperson.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  });
+
+  /// Saldo awal stok outlet aktif masih boleh diisi (belum dikunci)?
+  Future<bool> openingOpen() async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>('/stock/opening/status');
+      return r.data!['locked'] != true;
+    } on DioException {
+      return false;
+    }
+  }
+
+  /// Barang sederhana: harga jual + modal diisi, SKU otomatis dari server. Bila [openingQty] > 0 dan saldo awal masih
+  /// terbuka, stok awal ikut dicatat (movement OPENING) lewat endpoint saldo awal yang sama dengan web.
+  Future<PosItem> createItem({
+    required String name,
+    required Decimal sellPrice,
+    required Decimal cost,
+    required String unitId,
+    String? categoryId,
+    String barcode = '',
+    bool isGoods = true,
+    bool allowNegativeStock = false,
+    Decimal? openingQty,
+  }) => _guard(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/items/',
+      data: {
+        'name': name,
+        'sell_price': decToApi(sellPrice, scale: 2),
+        'cost': decToApi(cost, scale: 2),
+        'unit_id': unitId,
+        'category_id': ?categoryId,
+        if (barcode.isNotEmpty) 'barcode': barcode,
+        'kind': isGoods ? 'goods' : 'service',
+        'allow_negative_stock': isGoods && allowNegativeStock,
+      },
+    );
+    final j = r.data!;
+    final id = '${j['id']}';
+    var stock = Decimal.zero;
+    if (isGoods && openingQty != null && openingQty > Decimal.zero) {
+      await _dio.put<Map<String, dynamic>>(
+        '/stock/opening/items/$id',
+        data: {'bucket': 'display', 'qty': decToApi(openingQty)},
+      );
+      stock = openingQty;
+    }
+    return PosItem(
+      id: id,
+      sku: '${j['sku'] ?? ''}',
+      barcode: '${j['barcode'] ?? ''}',
+      name: '${j['name'] ?? name}',
+      unit: '${(j['unit'] as Map?)?['name'] ?? ''}',
+      price: dec(j['sell_price']),
+      stockDisplay: stock,
+      isGoods: isGoods,
+    );
   });
 
   Future<SaleDetailInfo> saleDetail(String id) => _guard(() async {

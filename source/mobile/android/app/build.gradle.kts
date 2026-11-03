@@ -23,8 +23,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "id.co.erayadigital.arus_mobile"
+        // Sama dengan Play Console (tidak bisa diubah); `namespace` kode tetap arus_mobile. Berlaku untuk kedua flavor.
+        applicationId = "id.co.erayadigital.arus"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -41,11 +41,7 @@ android {
     flavorDimensions += "dist"
     productFlavors {
         create("sideload") { dimension = "dist" }
-        // Nama paket di Play Console sudah terdaftar sebagai id.co.erayadigital.arus (tidak bisa diubah); `namespace` kode tetap arus_mobile.
-        create("play") {
-            dimension = "dist"
-            applicationId = "id.co.erayadigital.arus"
-        }
+        create("play") { dimension = "dist" }
     }
 
     signingConfigs {

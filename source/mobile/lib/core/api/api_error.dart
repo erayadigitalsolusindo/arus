@@ -122,6 +122,16 @@ class ApiError implements Exception {
         return l.errorPettyVoided;
       case 'NO_CASH_METHOD':
         return l.errorNoCashMethod;
+      case 'PURCHASE_NOT_EDITABLE':
+        return l.errorPurchaseNotEditable;
+      case 'PURCHASE_HAS_RETURNS':
+        return l.errorPurchaseHasReturns;
+      case 'ITEM_UNAVAILABLE':
+        return l.errorItemUnavailable;
+      case 'CODE_TAKEN':
+        return l.errorCodeTaken;
+      case 'EDIT_WINDOW_CLOSED':
+        return l.errorEditWindowClosed;
       case 'INTERNAL':
         return l.errorInternal;
       default:

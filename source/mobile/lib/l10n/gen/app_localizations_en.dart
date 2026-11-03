@@ -183,6 +183,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get posTotal => 'Total';
 
   @override
+  String get posConfirm => 'Confirm';
+
+  @override
   String get posPay => 'Pay';
 
   @override
@@ -190,6 +193,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get posClearCart => 'Clear cart';
+
+  @override
+  String get posClearCartAsk => 'Clear the cart?';
+
+  @override
+  String get posClearCartAskBody =>
+      'Everything in the cart will be removed and can\'t be restored.';
+
+  @override
+  String get posClearCartYes => 'Yes, clear';
+
+  @override
+  String get posClearCartNo => 'Keep';
+
+  @override
+  String get posAddedToCart => 'Added';
 
   @override
   String get posRemoveLine => 'Remove';
@@ -347,7 +366,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get paySubmit => 'Complete payment';
+  String get payItemsTitle => 'Items purchased';
+
+  @override
+  String get paySubmit => 'Process Payment';
 
   @override
   String get payProcessing => 'Processing...';
@@ -464,7 +486,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get posShiftCloseTooltip => 'Close shift';
 
   @override
-  String get posSalesTodayTooltip => 'Today\'s sales';
+  String get posSalesTodayTooltip => 'Sales';
 
   @override
   String shiftCloseTitle(String doc) {
@@ -565,7 +587,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your shift at this outlet is already open.';
 
   @override
-  String get salesTodayTitle => 'Today\'s sales';
+  String get salesTodayTitle => 'Sales';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1182,6 +1204,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateNow => 'Update now';
 
   @override
+  String get updCheckTitle => 'Check for updates';
+
+  @override
+  String get updChecking => 'Checking for updates…';
+
+  @override
+  String get updUpToDate => 'You are up to date';
+
+  @override
+  String get updUpToDateBody => 'You are using the latest version of ARUS.';
+
+  @override
+  String get updFailedTitle => 'Could not check';
+
+  @override
+  String get updPlayUnavailable =>
+      'Could not reach Google Play. Check your connection and try again.';
+
+  @override
+  String get updPlayBody =>
+      'A new version of ARUS is on Google Play. Update to get fixes and new features.';
+
+  @override
+  String get updForcedBody => 'This update is required to keep using ARUS.';
+
+  @override
+  String get updLater => 'Later';
+
+  @override
+  String get updReadyTitle => 'Update ready to install';
+
+  @override
+  String get updReadyBody =>
+      'The update has been downloaded. Restart the app to install it.';
+
+  @override
+  String get updRestart => 'Restart & install';
+
+  @override
+  String get updAvailableBadge => 'New version available';
+
+  @override
   String get updateRetry => 'Try again';
 
   @override
@@ -1374,4 +1438,606 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiptTestTitle => 'Printer test page';
+
+  @override
+  String get salesFrom => 'From';
+
+  @override
+  String get salesTo => 'To';
+
+  @override
+  String get salesPresetToday => 'Today';
+
+  @override
+  String get salesRangeInvalid => 'The end time must be after the start time.';
+
+  @override
+  String get salesRangeTooLong => 'The range can be at most 62 days.';
+
+  @override
+  String get salesPrintRecap => 'Print recap';
+
+  @override
+  String get salesMethodsTitle => 'Report by payment method';
+
+  @override
+  String salesMethodNotes(String count) {
+    return '$count sales';
+  }
+
+  @override
+  String get salesDrawerTitle => 'Should be on hand (physical check)';
+
+  @override
+  String get salesFlowsTitle => 'Other money through this cashier';
+
+  @override
+  String salesReturnsRow(String count) {
+    return 'Returns ($count)';
+  }
+
+  @override
+  String get salesNetTotal => 'Net sales after returns';
+
+  @override
+  String get salesCreditRow => 'Receivable';
+
+  @override
+  String get salesSurchargeRow => 'Method fee (customer)';
+
+  @override
+  String get flowReceivablePayment => 'Receivable payment';
+
+  @override
+  String get flowDepositTopup => 'Deposit top-up';
+
+  @override
+  String get flowDepositWithdraw => 'Deposit withdrawal';
+
+  @override
+  String get flowSaleReturn => 'Sales return refund';
+
+  @override
+  String get flowPayablePayment => 'Supplier payment';
+
+  @override
+  String get flowPurchaseReturn => 'Purchase return refund';
+
+  @override
+  String get flowSupplierCashout => 'Supplier credit cash-out';
+
+  @override
+  String get flowPettyIn => 'Petty cash in';
+
+  @override
+  String get flowPettyOut => 'Petty cash out';
+
+  @override
+  String get recapTitle => 'SALES RECAP';
+
+  @override
+  String get recapCashier => 'Cashier';
+
+  @override
+  String get recapPeriod => 'Period';
+
+  @override
+  String get recapCount => 'Sales count';
+
+  @override
+  String get recapVoided => 'Voided';
+
+  @override
+  String get recapRevenue => 'REVENUE';
+
+  @override
+  String get recapByMethod => 'Sales by method';
+
+  @override
+  String get itemAddTooltip => 'Add item';
+
+  @override
+  String get itemAddTitle => 'Add a new item';
+
+  @override
+  String get itemName => 'Item name';
+
+  @override
+  String get itemSellPrice => 'Selling price';
+
+  @override
+  String get itemCost => 'Cost price';
+
+  @override
+  String get itemUnit => 'Unit';
+
+  @override
+  String get itemCategory => 'Category (optional)';
+
+  @override
+  String get itemCategoryNone => 'No category';
+
+  @override
+  String get itemBarcode => 'Barcode (optional)';
+
+  @override
+  String get itemKind => 'Type';
+
+  @override
+  String get itemKindGoods => 'Goods';
+
+  @override
+  String get itemKindService => 'Service';
+
+  @override
+  String get itemInitialStock => 'Opening stock (optional)';
+
+  @override
+  String get itemAllowNegative => 'Allow negative stock';
+
+  @override
+  String get itemAllowNegativeHint =>
+      'The item can be sold even before stock is entered; stock goes negative until a purchase is recorded.';
+
+  @override
+  String get itemStockHint =>
+      'Without opening stock or negative stock, the item cannot be sold until stock is added.';
+
+  @override
+  String get itemServiceHint => 'Services do not use stock.';
+
+  @override
+  String get itemSave => 'Save';
+
+  @override
+  String get itemSaveAndSell => 'Save & sell';
+
+  @override
+  String itemSaved(String name) {
+    return '$name added';
+  }
+
+  @override
+  String get itemRequired => 'Required';
+
+  @override
+  String get itemInvalidNumber => 'Invalid number';
+
+  @override
+  String get itemNoUnits => 'No units yet. Add a unit on the web first.';
+
+  @override
+  String get itemScanBarcode => 'Scan barcode';
+
+  @override
+  String get itemScanned => 'Barcode read';
+
+  @override
+  String get itemLoadFailed => 'Could not load units/categories.';
+
+  @override
+  String get reportTitle => 'Sales report';
+
+  @override
+  String get reportHint => 'Revenue, payment methods, by day';
+
+  @override
+  String get reportToday => 'Today';
+
+  @override
+  String get report7Days => '7 days';
+
+  @override
+  String get reportThisMonth => 'This month';
+
+  @override
+  String get reportLastMonth => 'Last month';
+
+  @override
+  String get reportCustom => 'Pick dates';
+
+  @override
+  String get reportAllOutlets => 'All branches';
+
+  @override
+  String get reportRevenue => 'Revenue';
+
+  @override
+  String get reportNotes => 'Sales';
+
+  @override
+  String get reportVoid => 'Voided';
+
+  @override
+  String get reportReturns => 'Returns';
+
+  @override
+  String get reportNet => 'Net after returns';
+
+  @override
+  String get reportReceivable => 'Receivable';
+
+  @override
+  String get reportByMethod => 'By payment method';
+
+  @override
+  String get reportByDay => 'By day';
+
+  @override
+  String get reportEmpty => 'No sales in this range.';
+
+  @override
+  String reportDayNotes(String count) {
+    return '$count sales';
+  }
+
+  @override
+  String get menuItems => 'Items';
+
+  @override
+  String get menuPurchases => 'Purchases';
+
+  @override
+  String get itemsTitle => 'Items';
+
+  @override
+  String get itemsSearch => 'Search name, code, or barcode';
+
+  @override
+  String get itemsEmpty => 'No items yet.';
+
+  @override
+  String get itemsTabActive => 'Active';
+
+  @override
+  String get itemsTabArchived => 'Archived';
+
+  @override
+  String get itemsEdit => 'Edit item';
+
+  @override
+  String get itemsArchive => 'Archive';
+
+  @override
+  String get itemsRestore => 'Restore';
+
+  @override
+  String itemsArchiveAsk(String name) {
+    return 'Archive $name? It will not appear at the register; transaction history stays intact.';
+  }
+
+  @override
+  String itemsArchived(String name) {
+    return '$name archived';
+  }
+
+  @override
+  String itemsRestored(String name) {
+    return '$name restored';
+  }
+
+  @override
+  String itemsUpdated(String name) {
+    return '$name updated';
+  }
+
+  @override
+  String itemsStock(String qty) {
+    return 'Stock $qty';
+  }
+
+  @override
+  String get itemsEditTitle => 'Edit item';
+
+  @override
+  String get itemsCostNote => 'Cost price changes through purchases, not here.';
+
+  @override
+  String get itemsArchivedHint =>
+      'Showing at most 30 archived items; narrow down with search.';
+
+  @override
+  String get commonCancel => 'Cancel';
+
+  @override
+  String get commonSave => 'Save';
+
+  @override
+  String get commonRetry => 'Retry';
+
+  @override
+  String get purTitle => 'Purchases';
+
+  @override
+  String get purAdd => 'New purchase';
+
+  @override
+  String get purCashNote =>
+      'Purchases from the phone are always cash and add stock right away.';
+
+  @override
+  String get purSupplier => 'Supplier';
+
+  @override
+  String get purPickSupplier => 'Choose supplier';
+
+  @override
+  String get purSearchSupplier => 'Search suppliers';
+
+  @override
+  String get purNoSupplier => 'No supplier found.';
+
+  @override
+  String get purDate => 'Date';
+
+  @override
+  String get purInvoiceNo => 'Supplier invoice no. (optional)';
+
+  @override
+  String get purNote => 'Note (optional)';
+
+  @override
+  String get purLines => 'Items purchased';
+
+  @override
+  String get purAddItem => 'Add item';
+
+  @override
+  String get purSearchItem => 'Search items';
+
+  @override
+  String get purQty => 'Qty';
+
+  @override
+  String get purPrice => 'Buy price';
+
+  @override
+  String get purSubtotal => 'Subtotal';
+
+  @override
+  String get purTax => 'Tax';
+
+  @override
+  String get purOtherCost => 'Other costs';
+
+  @override
+  String get purTotal => 'Cash total';
+
+  @override
+  String get purSave => 'Save purchase';
+
+  @override
+  String purSaved(String doc) {
+    return 'Purchase $doc saved, stock increased';
+  }
+
+  @override
+  String get purNoLines => 'Add at least one item.';
+
+  @override
+  String get purNeedSupplier => 'Choose a supplier first.';
+
+  @override
+  String get purBadLine =>
+      'Quantity must be above 0 and price cannot be empty.';
+
+  @override
+  String get purEmpty => 'No purchases in this range.';
+
+  @override
+  String purSummary(String count, String total) {
+    return '$count purchases, $total';
+  }
+
+  @override
+  String get purRange30 => '30 days';
+
+  @override
+  String get purDetailTitle => 'Purchase detail';
+
+  @override
+  String get purEdit => 'Edit';
+
+  @override
+  String get purEditTitle => 'Edit purchase';
+
+  @override
+  String get purVoid => 'Void';
+
+  @override
+  String purVoidAsk(String doc) {
+    return 'Void purchase $doc? Stock will be reduced again.';
+  }
+
+  @override
+  String get purReason => 'Reason (at least 3 characters)';
+
+  @override
+  String get purVoided => 'Purchase voided';
+
+  @override
+  String get purEdited => 'Purchase updated';
+
+  @override
+  String get purStatusVoid => 'VOID';
+
+  @override
+  String get purStatusRevised => 'REVISED';
+
+  @override
+  String purVoidReason(String reason) {
+    return 'Void reason: $reason';
+  }
+
+  @override
+  String purBy(String name) {
+    return 'Recorded by $name';
+  }
+
+  @override
+  String get errorPurchaseNotEditable =>
+      'This purchase can no longer be changed (voided or replaced by a revision).';
+
+  @override
+  String get errorPurchaseHasReturns =>
+      'This purchase has returns; cancel the return first.';
+
+  @override
+  String get errorItemUnavailable => 'The item is not available for purchase.';
+
+  @override
+  String get errorCodeTaken => 'The item code is already used.';
+
+  @override
+  String get errorEditWindowClosed => 'The edit window has closed.';
+
+  @override
+  String get errorStockReverse =>
+      'Not enough stock to reverse this purchase (part of it has been sold).';
+
+  @override
+  String get menuSettlement => 'Settlement';
+
+  @override
+  String get setTitle => 'EraPay settlement';
+
+  @override
+  String get setCheck => 'Check with EraPay';
+
+  @override
+  String get setChecking => 'Checking with EraPay...';
+
+  @override
+  String get setArus => 'ARUS MONEY';
+
+  @override
+  String get setEra => 'ERAPAY MONEY';
+
+  @override
+  String get setArusHint => 'QRIS on active sales';
+
+  @override
+  String get setEraHint => 'Invoices paid at EraPay';
+
+  @override
+  String get setMatchedAll => 'Matched: ARUS money equals EraPay money.';
+
+  @override
+  String setDiffMore(String amount) {
+    return 'Difference $amount: money paid at EraPay is not recorded in an active sale.';
+  }
+
+  @override
+  String setDiffLess(String amount) {
+    return 'Difference $amount: some QRIS sales are not paid at EraPay.';
+  }
+
+  @override
+  String setCount(String count) {
+    return '$count transactions';
+  }
+
+  @override
+  String get setFilterAll => 'All';
+
+  @override
+  String get setFilterAttention => 'Needs attention';
+
+  @override
+  String get setFilterWaiting => 'Waiting';
+
+  @override
+  String get setFilterMatched => 'Matched';
+
+  @override
+  String get setColArus => 'ARUS';
+
+  @override
+  String get setColEra => 'ERAPAY';
+
+  @override
+  String get setStatusLabel => 'Status';
+
+  @override
+  String get setIdLabel => 'EraPay ID';
+
+  @override
+  String get setIdCopied => 'ID copied';
+
+  @override
+  String get setNoId => 'No ID yet';
+
+  @override
+  String get setStateMatched => 'Matched';
+
+  @override
+  String get setStateMatchedSub => 'Paid at EraPay and recorded in a sale';
+
+  @override
+  String get setStateWaiting => 'Waiting';
+
+  @override
+  String get setStateWaitingSub => 'EraPay has not decided yet (QR not paid)';
+
+  @override
+  String get setStateOrphan => 'Not recorded';
+
+  @override
+  String get setStateOrphanSub => 'Paid at EraPay but no sale was saved';
+
+  @override
+  String get setStateRefund => 'Needs refund';
+
+  @override
+  String get setStateRefundSub => 'Sale voided, money is still at EraPay';
+
+  @override
+  String get setStateUnpaid => 'Unpaid';
+
+  @override
+  String get setStateUnpaidSub => 'Sale exists but EraPay failed or expired';
+
+  @override
+  String get setStateClosed => 'Not paid';
+
+  @override
+  String get setStateClosedSub => 'Invoice failed or expired, no money moved';
+
+  @override
+  String get setEraSucceeded => 'Paid';
+
+  @override
+  String get setEraPending => 'Pending';
+
+  @override
+  String get setEraFailed => 'Failed';
+
+  @override
+  String get setEraExpired => 'Expired';
+
+  @override
+  String get setEraCancelled => 'Cancelled';
+
+  @override
+  String get setEraUnknown => 'Unknown';
+
+  @override
+  String get setNotConfigured =>
+      'EraPay is not set up for this store. Add the API key under Payment Methods (web).';
+
+  @override
+  String get setEmpty => 'No EraPay QRIS transactions in this range.';
+
+  @override
+  String setRefreshed(String count) {
+    return 'Statuses updated from EraPay: $count';
+  }
+
+  @override
+  String get setTruncated =>
+      'List cut to the latest 300 transactions; narrow the date range.';
+
+  @override
+  String get setNote =>
+      'EraPay money = invoices marked paid at EraPay. Payout to your bank follows EraPay schedule and is not available here yet.';
 }

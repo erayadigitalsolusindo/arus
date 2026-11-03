@@ -9,6 +9,7 @@ import 'core/session/session_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/text_scale_controller.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/update/play_update_gate.dart';
 import 'core/update/update_gate.dart';
 import 'features/auth/login_page.dart';
 import 'features/pos/pos_page.dart';
@@ -64,8 +65,10 @@ class ArusApp extends ConsumerWidget {
         final user = ref.watch(textScaleProvider);
         return MediaQuery(
           data: mq.copyWith(textScaler: _ScaledBy(mq.textScaler, user)),
-          // Play Store melarang aplikasi memperbarui diri di luar Play → flavor 'play' tanpa UpdateGate.
-          child: appFlavor == 'play' ? child! : UpdateGate(child: child!),
+          // Play Store melarang aplikasi memperbarui diri di luar Play → flavor 'play' memakai In-App Update Play (bukan UpdateGate).
+          child: appFlavor == 'play'
+              ? PlayUpdateGate(child: child!)
+              : UpdateGate(child: child!),
         );
       },
       localizationsDelegates: const [

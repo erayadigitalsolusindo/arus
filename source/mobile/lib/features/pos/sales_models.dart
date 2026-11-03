@@ -46,19 +46,57 @@ class SaleRow {
 }
 
 class MethodTotal {
-  const MethodTotal({required this.name, required this.amount});
+  const MethodTotal({required this.name, required this.amount, this.kind = ''});
 
   final String name;
   final Decimal amount;
+  final String kind;
+
+  factory MethodTotal.fromJson(Map<String, dynamic> j) => MethodTotal(
+    name: '${j['name'] ?? ''}',
+    amount: dec(j['amount']),
+    kind: '${j['kind'] ?? ''}',
+  );
 }
 
-/// Daftar penjualan satu kasir pada satu hari (zona waktu outlet ditentukan server).
+/// Uang lain yang lewat kasir ini pada rentang (bayar piutang, retur, kas kecil, ...); [amount] bertanda (+ masuk).
+class FlowLine {
+  const FlowLine({
+    required this.source,
+    required this.name,
+    required this.amount,
+    required this.count,
+  });
+
+  final String source;
+  final String name;
+  final Decimal amount;
+  final int count;
+
+  factory FlowLine.fromJson(Map<String, dynamic> j) => FlowLine(
+    source: '${j['source'] ?? ''}',
+    name: '${j['name'] ?? ''}',
+    amount: dec(j['amount']),
+    count: (j['count'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// Daftar penjualan satu kasir pada satu rentang waktu (zona waktu outlet ditentukan server).
 class SalesToday {
   const SalesToday({
     required this.rows,
     required this.total,
     required this.byMethod,
     required this.truncated,
+    this.from = '',
+    this.to = '',
+    this.surcharge,
+    this.credit,
+    this.drawer = const [],
+    this.flows = const [],
+    this.returnsCount = 0,
+    this.returnsTotal,
+    this.netTotal,
   });
 
   final List<SaleRow> rows;
@@ -66,21 +104,56 @@ class SalesToday {
   final List<MethodTotal> byMethod;
   final bool truncated;
 
-  factory SalesToday.fromJson(Map<String, dynamic> j) => SalesToday(
-    rows: (j['data'] as List? ?? const [])
-        .map((e) => SaleRow.fromJson((e as Map).cast<String, dynamic>()))
-        .toList(),
-    total: dec(j['total']),
-    byMethod: (j['by_method'] as List? ?? const [])
-        .map(
-          (e) => MethodTotal(
-            name: '${(e as Map)['name'] ?? ''}',
-            amount: dec(e['amount']),
-          ),
-        )
-        .toList(),
-    truncated: j['truncated'] == true,
-  );
+  /// Batas rentang seperti dipakai server: `YYYY-MM-DD` atau `YYYY-MM-DDTHH:MM`.
+  final String from;
+  final String to;
+  final Decimal? surcharge;
+  final Decimal? credit;
+
+  /// Uang yang seharusnya ada per metode (penjualan + uang lain): bahan cek fisik.
+  final List<MethodTotal> drawer;
+  final List<FlowLine> flows;
+  final int returnsCount;
+  final Decimal? returnsTotal;
+  final Decimal? netTotal;
+
+  int get activeCount => rows.where((r) => !r.isVoid).length;
+  int get voidCount => rows.length - activeCount;
+
+  /// Jumlah nota aktif yang memakai metode bernama [name].
+  int notesFor(String name) =>
+      rows.where((r) => !r.isVoid && r.payNames.contains(name)).length;
+
+  factory SalesToday.fromJson(Map<String, dynamic> j) {
+    List<MethodTotal> methods(Object? v) => (v as List? ?? const [])
+        .map((e) => MethodTotal.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+    final returns = j['returns'] is Map
+        ? (j['returns'] as Map).cast<String, dynamic>()
+        : null;
+    final totals = j['totals'] is Map
+        ? (j['totals'] as Map).cast<String, dynamic>()
+        : const <String, dynamic>{};
+    return SalesToday(
+      rows: (j['data'] as List? ?? const [])
+          .map((e) => SaleRow.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      total: dec(j['total']),
+      byMethod: methods(j['by_method']),
+      truncated: j['truncated'] == true,
+      from: '${j['from'] ?? ''}',
+      to: '${j['to'] ?? ''}',
+      surcharge: j['surcharge'] == null ? null : dec(j['surcharge']),
+      credit: totals['credit'] == null ? null : dec(totals['credit']),
+      drawer: methods(j['drawer']),
+      flows: (j['flows'] as List? ?? const [])
+          .map((e) => FlowLine.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      returnsCount: (returns?['count'] as num?)?.toInt() ?? 0,
+      returnsTotal: returns == null ? null : dec(returns['total']),
+      netTotal: j['net_total'] == null ? null : dec(j['net_total']),
+    );
+  }
 }
 
 class SaleDetailLine {

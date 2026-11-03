@@ -10,19 +10,56 @@ const _gs = 0x1d;
 const _lf = 0x0a;
 
 const _punct = <String, String>{
-  '‘': "'", '’': "'", '‚': "'", '“': '"', '”': '"', '„': '"',
-  '–': '-', '—': '-', '−': '-', '•': '*', '·': '*', '…': '...',
-  ' ': ' ', ' ': ' ', ' ': ' ', '×': 'x', '°': 'o', '€': 'EUR',
+  '‘': "'",
+  '’': "'",
+  '‚': "'",
+  '“': '"',
+  '”': '"',
+  '„': '"',
+  '–': '-',
+  '—': '-',
+  '−': '-',
+  '•': '*',
+  '·': '*',
+  '…': '...',
+  ' ': ' ',
+  ' ': ' ',
+  ' ': ' ',
+  '×': 'x',
+  '°': 'o',
+  '€': 'EUR',
 };
 
 // Huruf beraksen → huruf dasar (Dart tidak punya normalisasi Unicode bawaan).
 const _accents = <String, String>{
-  'a': 'àáâãäåāăą', 'c': 'çćĉċč', 'd': 'ďđ', 'e': 'èéêëēĕėęě', 'g': 'ĝğġģ',
-  'i': 'ìíîïĩīĭįı', 'l': 'ĺļľŀł', 'n': 'ñńņňŉ', 'o': 'òóôõöøōŏő',
-  's': 'śŝşš', 't': 'ţťŧ', 'u': 'ùúûüũūŭůűų', 'y': 'ýÿŷ', 'z': 'źżž',
-  'A': 'ÀÁÂÃÄÅĀĂĄ', 'C': 'ÇĆĈĊČ', 'D': 'ĎĐ', 'E': 'ÈÉÊËĒĔĖĘĚ', 'G': 'ĜĞĠĢ',
-  'I': 'ÌÍÎÏĨĪĬĮİ', 'L': 'ĹĻĽĿŁ', 'N': 'ÑŃŅŇ', 'O': 'ÒÓÔÕÖØŌŎŐ',
-  'S': 'ŚŜŞŠ', 'T': 'ŢŤŦ', 'U': 'ÙÚÛÜŨŪŬŮŰŲ', 'Y': 'ÝŸŶ', 'Z': 'ŹŻŽ',
+  'a': 'àáâãäåāăą',
+  'c': 'çćĉċč',
+  'd': 'ďđ',
+  'e': 'èéêëēĕėęě',
+  'g': 'ĝğġģ',
+  'i': 'ìíîïĩīĭįı',
+  'l': 'ĺļľŀł',
+  'n': 'ñńņňŉ',
+  'o': 'òóôõöøōŏő',
+  's': 'śŝşš',
+  't': 'ţťŧ',
+  'u': 'ùúûüũūŭůűų',
+  'y': 'ýÿŷ',
+  'z': 'źżž',
+  'A': 'ÀÁÂÃÄÅĀĂĄ',
+  'C': 'ÇĆĈĊČ',
+  'D': 'ĎĐ',
+  'E': 'ÈÉÊËĒĔĖĘĚ',
+  'G': 'ĜĞĠĢ',
+  'I': 'ÌÍÎÏĨĪĬĮİ',
+  'L': 'ĹĻĽĿŁ',
+  'N': 'ÑŃŅŇ',
+  'O': 'ÒÓÔÕÖØŌŎŐ',
+  'S': 'ŚŜŞŠ',
+  'T': 'ŢŤŦ',
+  'U': 'ÙÚÛÜŨŪŬŮŰŲ',
+  'Y': 'ÝŸŶ',
+  'Z': 'ŹŻŽ',
 };
 
 final Map<String, String> _fold = {
@@ -70,13 +107,26 @@ Uint8List escposReceipt(
       continue;
     }
     if (l.bold) bytes([_esc, 0x45, 1]);
-    if (l.big) bytes([_gs, 0x21, 0x01]); // tinggi ganda, lebar tetap → kolom tidak bergeser
+    if (l.big)
+      bytes([
+        _gs,
+        0x21,
+        0x01,
+      ]); // tinggi ganda, lebar tetap → kolom tidak bergeser
     text(l.text.replaceFirst(RegExp(r'\s+$'), ''));
     bytes([_lf]);
     if (l.big) bytes([_gs, 0x21, 0]);
     if (l.bold) bytes([_esc, 0x45, 0]);
   }
-  bytes([_esc, 0x64, 4]); // ESC d 4 : dorong 4 baris agar tulisan terakhir melewati pisau/tepi sobek
-  if (cut) bytes([_gs, 0x56, 0x42, 0]); // GS V 66 0 : potong sebagian (tanpa pisau diabaikan)
+  bytes(
+    [_esc, 0x64, 4],
+  ); // ESC d 4 : dorong 4 baris agar tulisan terakhir melewati pisau/tepi sobek
+  if (cut)
+    bytes([
+      _gs,
+      0x56,
+      0x42,
+      0,
+    ]); // GS V 66 0 : potong sebagian (tanpa pisau diabaikan)
   return b.toBytes();
 }

@@ -158,13 +158,7 @@ List<ReceiptLine> receiptLines(
     push(lr(l.receiptVoucher(v.code), '-${amt(v.amount)}', w));
   }
   if (rc.redeemAmount > Decimal.zero) {
-    push(
-      lr(
-        l.receiptRedeem(rc.pointsRedeemed),
-        '-${amt(rc.redeemAmount)}',
-        w,
-      ),
-    );
+    push(lr(l.receiptRedeem(rc.pointsRedeemed), '-${amt(rc.redeemAmount)}', w));
   }
   if (rc.taxStore > Decimal.zero) {
     push(lr(l.receiptTaxStore(qty(rc.taxStorePct)), amt(rc.taxStore), w));
@@ -232,7 +226,10 @@ List<ReceiptLine> testLines(Paper paper, AppLocalizations l) {
     ReceiptLine(lr(l.receiptTotal, '123.456', w), bold: true, big: true),
     ReceiptLine('-' * w),
     ReceiptLine(
-      center(DateFormat('d MMM yyyy HH:mm', l.localeName).format(DateTime.now()), w),
+      center(
+        DateFormat('d MMM yyyy HH:mm', l.localeName).format(DateTime.now()),
+        w,
+      ),
     ),
   ];
 }

@@ -8,10 +8,10 @@ String get moneyLocale => _moneyLocale;
 
 /// Simbol mata uang untuk bahasa aktif (id → "Rp ", en → "$ ", ja → "¥ ").
 String currencySymbolFor(String locale) => switch (locale) {
-      'en' => '\$ ',
-      'ja' => '¥ ',
-      _ => 'Rp ',
-    };
+  'en' => '\$ ',
+  'ja' => '¥ ',
+  _ => 'Rp ',
+};
 
 /// Normalisasi bahasa untuk simbol uang; bahasa tak dikenal jatuh ke 'id'.
 String moneyLocaleName(String? localeName) {
@@ -20,7 +20,8 @@ String moneyLocaleName(String? localeName) {
 }
 
 /// Dipanggil controller bahasa pada `_apply`.
-void setMoneyLocale(String? localeName) => _moneyLocale = moneyLocaleName(localeName);
+void setMoneyLocale(String? localeName) =>
+    _moneyLocale = moneyLocaleName(localeName);
 
 Decimal dec(Object? v) {
   if (v == null) return Decimal.zero;

@@ -43,12 +43,81 @@ FakeAdapter posServer({
   List<RequestOptions>? quotes,
   List<RequestOptions>? shortcuts,
   List<RequestOptions>? searches,
+  List<RequestOptions>? salesLists,
+  List<RequestOptions>? reports,
+  List<RequestOptions>? newItems,
+  Map<String, dynamic>? permissions,
+  bool era = false,
 }) {
   return FakeAdapter((o) {
     final key = '${o.method} ${o.path}';
     switch (key) {
       case 'POST /auth/refresh':
-        return json(200, sessionBody(refresh: 'r2', access: 'a2'));
+        return json(
+          200,
+          sessionBody(refresh: 'r2', access: 'a2', permissions: permissions),
+        );
+      case 'GET /payments/erapay/config':
+        return json(200, {'enabled': era, 'method_id': era ? 'mq' : null});
+      case 'GET /reports/sales/by-date':
+        reports?.add(o);
+        return json(200, {
+          'from': '2026-10-10',
+          'to': '2026-10-10',
+          'outlet_name': 'Pusat',
+          'data': [
+            {
+              'date': '2026-10-09',
+              'sale_count': 2,
+              'void_count': 0,
+              'total': '30000.00',
+              'receivable': '0.00',
+              'return_count': 0,
+              'return_total': '0.00',
+              'net_total': '30000.00',
+              'methods': [
+                {'name': 'Tunai', 'kind': 'cash', 'amount': '30000.00'},
+              ],
+            },
+            {
+              'date': '2026-10-10',
+              'sale_count': 1,
+              'void_count': 1,
+              'total': '12000.00',
+              'receivable': '2000.00',
+              'return_count': 1,
+              'return_total': '1000.00',
+              'net_total': '11000.00',
+              'methods': [
+                {'name': 'Tunai', 'kind': 'cash', 'amount': '5000.00'},
+                {'name': 'QRIS', 'kind': 'ewallet', 'amount': '5000.00'},
+              ],
+            },
+          ],
+        });
+      case 'GET /catalog/lookup/units/':
+        return json(200, {
+          'data': [
+            {'id': 'un1', 'name': 'PCS'},
+            {'id': 'un2', 'name': 'KG'},
+          ],
+          'total': 2,
+        });
+      case 'GET /stock/opening/status':
+        return json(200, {'locked': false});
+      case 'POST /items/':
+        newItems?.add(o);
+        return json(201, {
+          'id': 'inew',
+          'sku': 'AUTO-1',
+          'barcode': '',
+          'name': (o.data as Map)['name'],
+          'sell_price': (o.data as Map)['sell_price'],
+          'unit': {'id': 'un1', 'name': 'PCS'},
+        });
+      case 'PUT /stock/opening/items/inew':
+        newItems?.add(o);
+        return json(200, {'bucket': 'display', 'qty': '5'});
       case 'GET /shifts/current':
         return json(200, {
           'shift': shiftOpen
@@ -190,7 +259,22 @@ FakeAdapter posServer({
           'counts': [],
         });
       case 'GET /sales/':
+        salesLists?.add(o);
         return json(200, {
+          'from': '2026-10-10',
+          'to': '2026-10-10',
+          'drawer': [
+            {'name': 'Tunai', 'kind': 'cash', 'amount': '12000.00'},
+          ],
+          'flows': [
+            {
+              'source': 'petty_cash_in',
+              'name': 'Tunai',
+              'kind': 'cash',
+              'amount': '5000.00',
+              'count': 1,
+            },
+          ],
           'data': [
             {
               'id': 'sale1',
@@ -416,6 +500,17 @@ Future<void> boot(
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+/// Tombol "Transaksi Pembayaran": aktif/tidak, dan ketuk (aksi bayar).
+final payButton = find.widgetWithText(FilledButton, 'Transaksi Pembayaran');
+
+bool payEnabled(WidgetTester tester) =>
+    tester.widget<FilledButton>(payButton).onPressed != null;
+
+Future<void> slidePay(WidgetTester tester) async {
+  await tester.tap(payButton);
+  await tester.pump();
+}
+
 Future<void> settle(WidgetTester tester, [int ms = 600]) async {
   await tester.pump(Duration(milliseconds: ms));
   await tester.pump(const Duration(milliseconds: 50));
@@ -441,10 +536,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Terapkan'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Titip Bu Ani'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
     await settle(tester, 400);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Selesaikan pembayaran'));
+    await slidePay(tester);
     await tester.pumpAndSettle();
     expect((sales.single.data as Map)['note'], 'Titip Bu Ani');
   });
@@ -519,7 +614,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
       await settle(tester, 400);
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
 
@@ -529,14 +624,7 @@ void main() {
       await tester.tap(find.text('EraPay QRIS').last);
       await tester.pumpAndSettle();
       expect(find.text('Buat QR QRIS'), findsOneWidget);
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-            )
-            .onPressed,
-        isNull,
-      );
+      expect(payEnabled(tester), isFalse);
 
       await tester.tap(find.text('Buat QR QRIS'));
       await tester.pump();
@@ -618,7 +706,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
       await settle(tester, 400);
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
 
@@ -635,14 +723,7 @@ void main() {
         find.text('EraPay tidak dapat dihubungi? Simpan paksa'),
         findsOneWidget,
       );
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-            )
-            .onPressed,
-        isNull,
-      );
+      expect(payEnabled(tester), isFalse);
 
       // Buka panel persetujuan: penyetuju tunggal terpilih otomatis → isi PIN.
       // (polling 3 dtk terus rebuild → hindari pumpAndSettle, pakai pump bertahap.)
@@ -659,18 +740,9 @@ void main() {
         '123456',
       );
       await settle(tester, 200);
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-            )
-            .onPressed,
-        isNotNull,
-      );
+      expect(payEnabled(tester), isTrue);
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-      );
+      await slidePay(tester);
       await settle(tester, 800);
 
       // Nota dikirim paksa dengan persetujuan qris_force; ref tetap id charge.
@@ -752,7 +824,7 @@ void main() {
     expect(quotes.last.data['salesperson_id'], 'sp1');
     expect(find.text('Dewi'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
     await settle(tester, 400);
     await tester.pumpAndSettle();
     // Tombol nominal cepat tunai: pecahan di atas total.
@@ -761,7 +833,7 @@ void main() {
     await tester.tap(find.text('20.000'));
     await tester.pump();
     expect(find.text('Rp 8.000'), findsWidgets); // kembalian dari 20.000
-    await tester.tap(find.text('Selesaikan pembayaran'));
+    await slidePay(tester);
     await tester.pumpAndSettle();
     expect((sales.single.data as Map)['salesperson_id'], 'sp1');
   });
@@ -890,7 +962,7 @@ void main() {
       await settle(tester);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Kredit'));
@@ -904,12 +976,11 @@ void main() {
       expect(find.textContaining('Melewati limit kredit'), findsOneWidget);
 
       // Tanpa PIN penyetuju belum bisa disimpan.
-      FilledButton submit() => tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-      );
-      expect(submit().onPressed, isNull);
+      bool submit() => payEnabled(tester);
+      expect(submit(), isFalse);
 
       // DP 5.000 tunai → sisa piutang 7.000.
+      await tester.ensureVisible(find.text('Tambah uang muka (DP)'));
       await tester.tap(find.text('Tambah uang muka (DP)'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -924,13 +995,9 @@ void main() {
         '123456',
       );
       await tester.pump();
-      await tester.ensureVisible(
-        find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-      );
-      expect(submit().onPressed, isNotNull);
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Selesaikan pembayaran'),
-      );
+      await tester.ensureVisible(payButton);
+      expect(submit(), isTrue);
+      await slidePay(tester);
       await tester.pumpAndSettle();
 
       final body = sales.single.data as Map;
@@ -950,7 +1017,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Kopi Bubuk'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
     await settle(tester, 400);
     await tester.pumpAndSettle();
     expect(find.textContaining('Kredit hanya untuk member'), findsOneWidget);
@@ -1013,10 +1080,10 @@ void main() {
       expect(find.textContaining('disetujui Sari Owner'), findsOneWidget);
       expect(find.text('Rp 10.000'), findsWidgets);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Selesaikan pembayaran'));
+      await slidePay(tester);
       await tester.pumpAndSettle();
       final body = sales.single.data as Map;
       expect((body['lines'] as List).single['unit_price'], '10000');
@@ -1067,7 +1134,7 @@ void main() {
       await settle(tester);
       await tester.tap(find.text('Kopi Bubuk'));
       await settle(tester);
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Tunai').last);
@@ -1127,11 +1194,11 @@ void main() {
       expect(quotes.last.data['redeem_points'], 100);
       expect(find.text('Rp 2.000'), findsWidgets);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
       expect(find.textContaining('Ani Member · 500 poin'), findsOneWidget);
-      await tester.tap(find.text('Selesaikan pembayaran'));
+      await slidePay(tester);
       await tester.pumpAndSettle();
 
       final body = sales.single.data as Map;
@@ -1149,7 +1216,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Kopi Bubuk'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
     await settle(tester, 400);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Tunai').last);
@@ -1235,21 +1302,172 @@ void main() {
     expect(find.text('Kasir'), findsOneWidget);
   });
 
+  testWidgets('beranda: laporan penjualan hanya untuk izin sales_reports', (
+    tester,
+  ) async {
+    await boot(tester, posServer());
+    await settle(tester);
+    expect(find.text('Laporan penjualan'), findsNothing);
+  });
+
+  testWidgets(
+    'beranda admin: laporan penjualan ringkas per metode dan per hari',
+    (tester) async {
+      final reports = <RequestOptions>[];
+      await boot(
+        tester,
+        posServer(
+          reports: reports,
+          permissions: {
+            'sales_orders': ['view', 'create'],
+            'sales_reports': ['view'],
+          },
+        ),
+      );
+      await settle(tester);
+      await tester.ensureVisible(find.text('Laporan penjualan'));
+      await tester.tap(find.text('Laporan penjualan'));
+      await tester.pumpAndSettle();
+      expect(reports.last.queryParameters['hide_empty'], true);
+      expect(reports.last.queryParameters.containsKey('all_outlets'), isFalse);
+      // Omzet dijumlah dari baris harian: 30.000 + 12.000.
+      expect(find.text('Rp 42.000'), findsWidgets);
+      expect(find.text('Per metode bayar'), findsOneWidget);
+      expect(find.text('Rp 35.000'), findsOneWidget); // Tunai 30.000 + 5.000
+      expect(find.text('Per hari'), findsOneWidget);
+      // Semua cabang → permintaan ulang dengan all_outlets.
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(reports.last.queryParameters['all_outlets'], true);
+    },
+  );
+
   testWidgets('penjualan hari ini: daftar nota dan detail', (tester) async {
     await boot(tester, posServer());
     await tester.tap(find.text('Kasir'));
     await settle(tester);
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Penjualan hari ini'));
+    await tester.tap(find.text('Penjualan'));
     await tester.pumpAndSettle();
     expect(find.text('MAIN-261010-0001'), findsOneWidget);
     expect(find.text('1 nota, Rp 12.000'), findsOneWidget);
+    // Laporan per metode bayar + isi laci yang seharusnya ada (cek fisik) + uang lain.
+    expect(find.text('Laporan per metode bayar'), findsOneWidget);
+    expect(find.text('1 nota'), findsOneWidget);
+    expect(find.text('Seharusnya ada (cek fisik)'), findsOneWidget);
+    expect(find.text('Kas kecil masuk · Tunai'), findsOneWidget);
+    // Tanpa EraPay aktif: tidak ada tombol settlement.
+    expect(find.text('Settlement QRIS'), findsNothing);
     await tester.tap(find.text('MAIN-261010-0001'));
     await tester.pumpAndSettle();
     expect(find.text('Kopi Bubuk'), findsWidgets);
     expect(find.text('Kasir Budi'), findsOneWidget);
   });
+
+  testWidgets('penjualan: filter tanggal + jam + menit dikirim ke server', (
+    tester,
+  ) async {
+    final lists = <RequestOptions>[];
+    await boot(tester, posServer(salesLists: lists));
+    await tester.tap(find.text('Kasir'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Penjualan'));
+    await tester.pumpAndSettle();
+    // Awal: hari ini menurut server (tanpa from/to).
+    expect(lists.last.queryParameters.containsKey('from'), isFalse);
+    expect(find.text('10/10/26 00:00'), findsOneWidget);
+    expect(find.text('10/10/26 23:59'), findsOneWidget);
+
+    // Pilih awal: tanggal lalu jam & menit (OK = nilai awal), lalu daftar dimuat ulang dengan rentang berjam-menit.
+    await tester.tap(find.text('10/10/26 00:00'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OKE'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OKE'));
+    await tester.pumpAndSettle();
+    expect(lists.last.queryParameters['from'], '2026-10-10T00:00');
+    expect(lists.last.queryParameters['to'], '2026-10-10T23:59');
+    // Kembali ke "Hari ini" menghapus rentang manual.
+    await tester.tap(find.text('Hari ini'));
+    await tester.pumpAndSettle();
+    expect(lists.last.queryParameters.containsKey('from'), isFalse);
+  });
+
+  testWidgets('kasir: tambah barang sederhana lalu langsung dijual', (
+    tester,
+  ) async {
+    final created = <RequestOptions>[];
+    await boot(
+      tester,
+      posServer(
+        newItems: created,
+        permissions: {
+          'sales_orders': ['view', 'create'],
+          'items': ['create'],
+        },
+      ),
+    );
+    await tester.tap(find.text('Kasir'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.add_box_outlined));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+    expect(find.text('Tambah barang baru'), findsOneWidget);
+
+    // Kosong → ditolak di klien, tidak ada permintaan.
+    await tester.tap(find.text('Simpan & jual'));
+    await tester.pump();
+    expect(find.text('Wajib diisi'), findsWidgets);
+    expect(created, isEmpty);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nama barang'),
+      'Gula 1kg',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Harga jual'),
+      '16.000',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Harga modal'),
+      '14000',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Stok awal (opsional)'),
+      '5',
+    );
+    await tester.tap(find.text('Simpan & jual'));
+    await settle(tester, 400);
+    await tester.pumpAndSettle();
+
+    final post = created.firstWhere((o) => o.method == 'POST');
+    final body = post.data as Map;
+    expect(body['name'], 'Gula 1kg');
+    expect(body['sell_price'], '16000');
+    expect(body['cost'], '14000');
+    expect(body['unit_id'], 'un1');
+    expect(body['kind'], 'goods');
+    expect(body.containsKey('tenant_id'), isFalse);
+    // Stok awal dicatat lewat saldo awal (ledger), bukan field di barang.
+    final opening = created.firstWhere((o) => o.method == 'PUT');
+    expect((opening.data as Map)['qty'], '5');
+    // Barang baru masuk keranjang.
+    expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isTrue);
+  });
+
+  testWidgets(
+    'kasir tanpa izin items.create tidak melihat tombol tambah barang',
+    (tester) async {
+      await boot(tester, posServer());
+      await tester.tap(find.text('Kasir'));
+      await settle(tester);
+      expect(find.byIcon(Icons.add_box_outlined), findsNothing);
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'kasir: panel outlet tertutup, tambah barang, total dari server, bayar tunai',
@@ -1293,11 +1511,11 @@ void main() {
       // Kembali ke 1 lalu bayar.
       await tester.tap(find.byIcon(Icons.remove).last);
       await settle(tester);
-      await tester.tap(find.widgetWithText(FilledButton, 'Bayar').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Konfirmasi').last);
       await settle(tester, 400);
       await tester.pumpAndSettle();
       expect(find.text('Pembayaran'), findsOneWidget);
-      await tester.tap(find.text('Selesaikan pembayaran'));
+      await slidePay(tester);
       await tester.pumpAndSettle();
 
       expect(find.text('Transaksi berhasil'), findsOneWidget);

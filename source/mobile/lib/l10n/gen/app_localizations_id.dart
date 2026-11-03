@@ -183,6 +183,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get posTotal => 'Total';
 
   @override
+  String get posConfirm => 'Konfirmasi';
+
+  @override
   String get posPay => 'Bayar';
 
   @override
@@ -190,6 +193,22 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get posClearCart => 'Kosongkan keranjang';
+
+  @override
+  String get posClearCartAsk => 'Kosongkan keranjang?';
+
+  @override
+  String get posClearCartAskBody =>
+      'Semua barang di keranjang akan dihapus dan tidak bisa dikembalikan.';
+
+  @override
+  String get posClearCartYes => 'Ya, kosongkan';
+
+  @override
+  String get posClearCartNo => 'Batal';
+
+  @override
+  String get posAddedToCart => 'Ditambahkan';
 
   @override
   String get posRemoveLine => 'Hapus';
@@ -346,7 +365,10 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get paySubmit => 'Selesaikan pembayaran';
+  String get payItemsTitle => 'Barang yang dibeli';
+
+  @override
+  String get paySubmit => 'Transaksi Pembayaran';
 
   @override
   String get payProcessing => 'Memproses...';
@@ -465,7 +487,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get posShiftCloseTooltip => 'Tutup shift';
 
   @override
-  String get posSalesTodayTooltip => 'Penjualan hari ini';
+  String get posSalesTodayTooltip => 'Penjualan';
 
   @override
   String shiftCloseTitle(String doc) {
@@ -566,7 +588,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorShiftAlreadyOpen => 'Shift Anda di cabang ini sudah terbuka.';
 
   @override
-  String get salesTodayTitle => 'Penjualan hari ini';
+  String get salesTodayTitle => 'Penjualan';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1184,6 +1206,49 @@ class AppLocalizationsId extends AppLocalizations {
   String get updateNow => 'Perbarui sekarang';
 
   @override
+  String get updCheckTitle => 'Cek pembaruan';
+
+  @override
+  String get updChecking => 'Memeriksa pembaruan…';
+
+  @override
+  String get updUpToDate => 'Sudah versi terbaru';
+
+  @override
+  String get updUpToDateBody => 'ARUS yang Anda pakai sudah versi paling baru.';
+
+  @override
+  String get updFailedTitle => 'Tidak bisa memeriksa';
+
+  @override
+  String get updPlayUnavailable =>
+      'Tidak bisa terhubung ke Google Play. Periksa koneksi lalu coba lagi.';
+
+  @override
+  String get updPlayBody =>
+      'Versi terbaru ARUS tersedia di Google Play. Perbarui untuk mendapat perbaikan dan fitur baru.';
+
+  @override
+  String get updForcedBody =>
+      'Pembaruan ini wajib dipasang untuk melanjutkan memakai ARUS.';
+
+  @override
+  String get updLater => 'Nanti';
+
+  @override
+  String get updReadyTitle => 'Pembaruan siap dipasang';
+
+  @override
+  String get updReadyBody =>
+      'Pembaruan sudah diunduh. Mulai ulang aplikasi untuk memasangnya.';
+
+  @override
+  String get updRestart => 'Mulai ulang & pasang';
+
+  @override
+  String get updAvailableBadge => 'Versi baru tersedia';
+
+  @override
   String get updateRetry => 'Coba lagi';
 
   @override
@@ -1376,4 +1441,610 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get receiptTestTitle => 'Halaman uji printer';
+
+  @override
+  String get salesFrom => 'Dari';
+
+  @override
+  String get salesTo => 'Sampai';
+
+  @override
+  String get salesPresetToday => 'Hari ini';
+
+  @override
+  String get salesRangeInvalid => 'Waktu akhir harus setelah waktu awal.';
+
+  @override
+  String get salesRangeTooLong => 'Rentang maksimal 62 hari.';
+
+  @override
+  String get salesPrintRecap => 'Cetak rekap';
+
+  @override
+  String get salesMethodsTitle => 'Laporan per metode bayar';
+
+  @override
+  String salesMethodNotes(String count) {
+    return '$count nota';
+  }
+
+  @override
+  String get salesDrawerTitle => 'Seharusnya ada (cek fisik)';
+
+  @override
+  String get salesFlowsTitle => 'Uang lain lewat kasir ini';
+
+  @override
+  String salesReturnsRow(String count) {
+    return 'Retur ($count)';
+  }
+
+  @override
+  String get salesNetTotal => 'Penjualan bersih setelah retur';
+
+  @override
+  String get salesCreditRow => 'Piutang';
+
+  @override
+  String get salesSurchargeRow => 'Biaya metode (pelanggan)';
+
+  @override
+  String get flowReceivablePayment => 'Bayar piutang';
+
+  @override
+  String get flowDepositTopup => 'Top-up deposit';
+
+  @override
+  String get flowDepositWithdraw => 'Tarik deposit';
+
+  @override
+  String get flowSaleReturn => 'Dana kembali retur jual';
+
+  @override
+  String get flowPayablePayment => 'Bayar hutang pemasok';
+
+  @override
+  String get flowPurchaseReturn => 'Dana kembali retur beli';
+
+  @override
+  String get flowSupplierCashout => 'Pencairan kredit pemasok';
+
+  @override
+  String get flowPettyIn => 'Kas kecil masuk';
+
+  @override
+  String get flowPettyOut => 'Kas kecil keluar';
+
+  @override
+  String get recapTitle => 'REKAP PENJUALAN';
+
+  @override
+  String get recapCashier => 'Kasir';
+
+  @override
+  String get recapPeriod => 'Periode';
+
+  @override
+  String get recapCount => 'Jumlah nota';
+
+  @override
+  String get recapVoided => 'Nota batal';
+
+  @override
+  String get recapRevenue => 'OMZET';
+
+  @override
+  String get recapByMethod => 'Penjualan per metode';
+
+  @override
+  String get itemAddTooltip => 'Tambah barang';
+
+  @override
+  String get itemAddTitle => 'Tambah barang baru';
+
+  @override
+  String get itemName => 'Nama barang';
+
+  @override
+  String get itemSellPrice => 'Harga jual';
+
+  @override
+  String get itemCost => 'Harga modal';
+
+  @override
+  String get itemUnit => 'Satuan';
+
+  @override
+  String get itemCategory => 'Kategori (opsional)';
+
+  @override
+  String get itemCategoryNone => 'Tanpa kategori';
+
+  @override
+  String get itemBarcode => 'Barcode (opsional)';
+
+  @override
+  String get itemKind => 'Jenis';
+
+  @override
+  String get itemKindGoods => 'Barang';
+
+  @override
+  String get itemKindService => 'Jasa';
+
+  @override
+  String get itemInitialStock => 'Stok awal (opsional)';
+
+  @override
+  String get itemAllowNegative => 'Boleh stok minus';
+
+  @override
+  String get itemAllowNegativeHint =>
+      'Barang tetap bisa dijual walau stok belum diisi; stok jadi minus sampai ada pembelian.';
+
+  @override
+  String get itemStockHint =>
+      'Tanpa stok awal dan tanpa stok minus, barang belum bisa dijual sampai stok diisi.';
+
+  @override
+  String get itemServiceHint => 'Jasa tidak memakai stok.';
+
+  @override
+  String get itemSave => 'Simpan';
+
+  @override
+  String get itemSaveAndSell => 'Simpan & jual';
+
+  @override
+  String itemSaved(String name) {
+    return '$name ditambahkan';
+  }
+
+  @override
+  String get itemRequired => 'Wajib diisi';
+
+  @override
+  String get itemInvalidNumber => 'Angka tidak valid';
+
+  @override
+  String get itemNoUnits =>
+      'Belum ada satuan. Tambahkan satuan di web terlebih dulu.';
+
+  @override
+  String get itemScanBarcode => 'Pindai barcode';
+
+  @override
+  String get itemScanned => 'Barcode terbaca';
+
+  @override
+  String get itemLoadFailed => 'Gagal memuat satuan/kategori.';
+
+  @override
+  String get reportTitle => 'Laporan penjualan';
+
+  @override
+  String get reportHint => 'Omzet, metode bayar, per hari';
+
+  @override
+  String get reportToday => 'Hari ini';
+
+  @override
+  String get report7Days => '7 hari';
+
+  @override
+  String get reportThisMonth => 'Bulan ini';
+
+  @override
+  String get reportLastMonth => 'Bulan lalu';
+
+  @override
+  String get reportCustom => 'Pilih tanggal';
+
+  @override
+  String get reportAllOutlets => 'Semua cabang';
+
+  @override
+  String get reportRevenue => 'Omzet';
+
+  @override
+  String get reportNotes => 'Nota';
+
+  @override
+  String get reportVoid => 'Batal';
+
+  @override
+  String get reportReturns => 'Retur';
+
+  @override
+  String get reportNet => 'Bersih setelah retur';
+
+  @override
+  String get reportReceivable => 'Piutang';
+
+  @override
+  String get reportByMethod => 'Per metode bayar';
+
+  @override
+  String get reportByDay => 'Per hari';
+
+  @override
+  String get reportEmpty => 'Tidak ada penjualan pada rentang ini.';
+
+  @override
+  String reportDayNotes(String count) {
+    return '$count nota';
+  }
+
+  @override
+  String get menuItems => 'Barang';
+
+  @override
+  String get menuPurchases => 'Pembelian';
+
+  @override
+  String get itemsTitle => 'Barang';
+
+  @override
+  String get itemsSearch => 'Cari nama, kode, atau barcode';
+
+  @override
+  String get itemsEmpty => 'Belum ada barang.';
+
+  @override
+  String get itemsTabActive => 'Aktif';
+
+  @override
+  String get itemsTabArchived => 'Diarsipkan';
+
+  @override
+  String get itemsEdit => 'Ubah barang';
+
+  @override
+  String get itemsArchive => 'Arsipkan';
+
+  @override
+  String get itemsRestore => 'Aktifkan kembali';
+
+  @override
+  String itemsArchiveAsk(String name) {
+    return 'Arsipkan $name? Barang tidak muncul di kasir, riwayat transaksi tetap aman.';
+  }
+
+  @override
+  String itemsArchived(String name) {
+    return '$name diarsipkan';
+  }
+
+  @override
+  String itemsRestored(String name) {
+    return '$name diaktifkan kembali';
+  }
+
+  @override
+  String itemsUpdated(String name) {
+    return '$name diperbarui';
+  }
+
+  @override
+  String itemsStock(String qty) {
+    return 'Stok $qty';
+  }
+
+  @override
+  String get itemsEditTitle => 'Ubah barang';
+
+  @override
+  String get itemsCostNote =>
+      'Harga modal berubah lewat pembelian, bukan dari sini.';
+
+  @override
+  String get itemsArchivedHint =>
+      'Menampilkan maksimal 30 barang diarsipkan; persempit dengan pencarian.';
+
+  @override
+  String get commonCancel => 'Batal';
+
+  @override
+  String get commonSave => 'Simpan';
+
+  @override
+  String get commonRetry => 'Coba lagi';
+
+  @override
+  String get purTitle => 'Pembelian';
+
+  @override
+  String get purAdd => 'Pembelian baru';
+
+  @override
+  String get purCashNote =>
+      'Pembelian dari HP selalu tunai dan langsung menambah stok.';
+
+  @override
+  String get purSupplier => 'Pemasok';
+
+  @override
+  String get purPickSupplier => 'Pilih pemasok';
+
+  @override
+  String get purSearchSupplier => 'Cari pemasok';
+
+  @override
+  String get purNoSupplier => 'Pemasok tidak ditemukan.';
+
+  @override
+  String get purDate => 'Tanggal';
+
+  @override
+  String get purInvoiceNo => 'No. faktur pemasok (opsional)';
+
+  @override
+  String get purNote => 'Catatan (opsional)';
+
+  @override
+  String get purLines => 'Barang dibeli';
+
+  @override
+  String get purAddItem => 'Tambah barang';
+
+  @override
+  String get purSearchItem => 'Cari barang';
+
+  @override
+  String get purQty => 'Qty';
+
+  @override
+  String get purPrice => 'Harga beli';
+
+  @override
+  String get purSubtotal => 'Subtotal';
+
+  @override
+  String get purTax => 'PPN';
+
+  @override
+  String get purOtherCost => 'Biaya lain';
+
+  @override
+  String get purTotal => 'Total tunai';
+
+  @override
+  String get purSave => 'Simpan pembelian';
+
+  @override
+  String purSaved(String doc) {
+    return 'Pembelian $doc tersimpan, stok bertambah';
+  }
+
+  @override
+  String get purNoLines => 'Tambah minimal satu barang.';
+
+  @override
+  String get purNeedSupplier => 'Pilih pemasok dulu.';
+
+  @override
+  String get purBadLine =>
+      'Qty harus lebih dari 0 dan harga tidak boleh kosong.';
+
+  @override
+  String get purEmpty => 'Belum ada pembelian pada rentang ini.';
+
+  @override
+  String purSummary(String count, String total) {
+    return '$count pembelian, $total';
+  }
+
+  @override
+  String get purRange30 => '30 hari';
+
+  @override
+  String get purDetailTitle => 'Detail pembelian';
+
+  @override
+  String get purEdit => 'Ubah';
+
+  @override
+  String get purEditTitle => 'Ubah pembelian';
+
+  @override
+  String get purVoid => 'Batalkan';
+
+  @override
+  String purVoidAsk(String doc) {
+    return 'Batalkan pembelian $doc? Stok akan dikurangi lagi.';
+  }
+
+  @override
+  String get purReason => 'Alasan (minimal 3 huruf)';
+
+  @override
+  String get purVoided => 'Pembelian dibatalkan';
+
+  @override
+  String get purEdited => 'Pembelian diperbarui';
+
+  @override
+  String get purStatusVoid => 'BATAL';
+
+  @override
+  String get purStatusRevised => 'DIREVISI';
+
+  @override
+  String purVoidReason(String reason) {
+    return 'Alasan batal: $reason';
+  }
+
+  @override
+  String purBy(String name) {
+    return 'Dicatat oleh $name';
+  }
+
+  @override
+  String get errorPurchaseNotEditable =>
+      'Nota ini tidak dapat diubah lagi (sudah dibatalkan atau digantikan revisi).';
+
+  @override
+  String get errorPurchaseHasReturns =>
+      'Nota ini sudah diretur; batalkan returnya dulu.';
+
+  @override
+  String get errorItemUnavailable => 'Barang tidak tersedia untuk pembelian.';
+
+  @override
+  String get errorCodeTaken => 'Kode barang sudah dipakai.';
+
+  @override
+  String get errorEditWindowClosed => 'Batas waktu edit sudah lewat.';
+
+  @override
+  String get errorStockReverse =>
+      'Stok tidak cukup untuk membalik nota ini (sebagian sudah terjual).';
+
+  @override
+  String get menuSettlement => 'Settlement';
+
+  @override
+  String get setTitle => 'Settlement EraPay';
+
+  @override
+  String get setCheck => 'Cek ke EraPay';
+
+  @override
+  String get setChecking => 'Mengecek ke EraPay...';
+
+  @override
+  String get setArus => 'UANG ARUS';
+
+  @override
+  String get setEra => 'UANG ERAPAY';
+
+  @override
+  String get setArusHint => 'QRIS pada nota aktif';
+
+  @override
+  String get setEraHint => 'Tagihan lunas di EraPay';
+
+  @override
+  String get setMatchedAll => 'Cocok: uang ARUS sama dengan uang EraPay.';
+
+  @override
+  String setDiffMore(String amount) {
+    return 'Selisih $amount: ada uang lunas di EraPay yang belum tercatat sebagai nota aktif.';
+  }
+
+  @override
+  String setDiffLess(String amount) {
+    return 'Selisih $amount: ada nota QRIS yang belum lunas di EraPay.';
+  }
+
+  @override
+  String setCount(String count) {
+    return '$count transaksi';
+  }
+
+  @override
+  String get setFilterAll => 'Semua';
+
+  @override
+  String get setFilterAttention => 'Perlu dicek';
+
+  @override
+  String get setFilterWaiting => 'Menunggu';
+
+  @override
+  String get setFilterMatched => 'Cocok';
+
+  @override
+  String get setColArus => 'ARUS';
+
+  @override
+  String get setColEra => 'ERAPAY';
+
+  @override
+  String get setStatusLabel => 'Status';
+
+  @override
+  String get setIdLabel => 'ID EraPay';
+
+  @override
+  String get setIdCopied => 'ID disalin';
+
+  @override
+  String get setNoId => 'Belum ada ID';
+
+  @override
+  String get setStateMatched => 'Cocok';
+
+  @override
+  String get setStateMatchedSub => 'Lunas di EraPay dan tercatat di nota';
+
+  @override
+  String get setStateWaiting => 'Menunggu';
+
+  @override
+  String get setStateWaitingSub => 'EraPay belum memutuskan (QR belum dibayar)';
+
+  @override
+  String get setStateOrphan => 'Belum tercatat';
+
+  @override
+  String get setStateOrphanSub => 'Lunas di EraPay tetapi belum jadi nota';
+
+  @override
+  String get setStateRefund => 'Perlu refund';
+
+  @override
+  String get setStateRefundSub => 'Nota dibatalkan, uang masih di EraPay';
+
+  @override
+  String get setStateUnpaid => 'Tidak lunas';
+
+  @override
+  String get setStateUnpaidSub =>
+      'Nota ada tetapi EraPay gagal atau kedaluwarsa';
+
+  @override
+  String get setStateClosed => 'Tidak dibayar';
+
+  @override
+  String get setStateClosedSub =>
+      'Tagihan gagal atau kedaluwarsa, tidak ada uang';
+
+  @override
+  String get setEraSucceeded => 'Lunas';
+
+  @override
+  String get setEraPending => 'Menunggu';
+
+  @override
+  String get setEraFailed => 'Gagal';
+
+  @override
+  String get setEraExpired => 'Kedaluwarsa';
+
+  @override
+  String get setEraCancelled => 'Dibatalkan';
+
+  @override
+  String get setEraUnknown => 'Belum pasti';
+
+  @override
+  String get setNotConfigured =>
+      'EraPay belum dipasang untuk toko ini. Pasang API key di Metode Pembayaran (web).';
+
+  @override
+  String get setEmpty => 'Tidak ada transaksi QRIS EraPay pada rentang ini.';
+
+  @override
+  String setRefreshed(String count) {
+    return 'Status diperbarui dari EraPay: $count transaksi';
+  }
+
+  @override
+  String get setTruncated =>
+      'Daftar dipotong 300 transaksi terbaru; persempit rentang tanggal.';
+
+  @override
+  String get setNote =>
+      'Uang EraPay = tagihan berstatus lunas di EraPay. Pencairan ke rekening bank mengikuti jadwal EraPay dan belum tersedia di sini.';
 }

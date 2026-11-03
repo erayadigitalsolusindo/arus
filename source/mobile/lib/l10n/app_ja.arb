@@ -74,9 +74,15 @@
   "posTaxLine": "消費税",
   "posOtherCost": "その他の費用",
   "posTotal": "合計",
+  "posConfirm": "確認",
   "posPay": "支払い",
   "posTaxToggle": "消費税を計算",
   "posClearCart": "カートを空にする",
+  "posClearCartAsk": "カートを空にしますか？",
+  "posClearCartAskBody": "カート内のすべての商品が削除され、元に戻せません。",
+  "posClearCartYes": "はい、空にする",
+  "posClearCartNo": "戻る",
+  "posAddedToCart": "追加しました",
   "posRemoveLine": "削除",
   "posStock": "在庫 {qty}",
   "posStockShort": "在庫不足（在庫 {qty}）",
@@ -123,7 +129,8 @@
   "payPaid": "支払い済み",
   "payChange": "お釣り",
   "payShortBy": "{amount} 不足",
-  "paySubmit": "支払いを完了する",
+  "payItemsTitle": "購入する商品",
+  "paySubmit": "支払いを実行する",
   "payProcessing": "処理中…",
   "paySuccessTitle": "取引が完了しました",
   "paySuccessDoc": "ノート番号 {docNo}",
@@ -235,7 +242,7 @@
   "errorInvalidPin": "承認者またはPINが正しくありません。",
   "errorPinLocked": "試行回数が多すぎたためPINが一時的にロックされています。後でもう一度お試しください。",
   "posShiftCloseTooltip": "シフトを閉じる",
-  "posSalesTodayTooltip": "本日の売上",
+  "posSalesTodayTooltip": "売上",
   "shiftCloseTitle": "シフト {doc} を閉じる",
   "@shiftCloseTitle": {
     "placeholders": {
@@ -308,7 +315,7 @@
   "errorShiftDiffNote": "差額にはメモと承認が必要です。",
   "errorShiftClosed": "このシフトはすでに閉じています。",
   "errorShiftAlreadyOpen": "この店舗のシフトはすでに開いています。",
-  "salesTodayTitle": "本日の売上",
+  "salesTodayTitle": "売上",
   "salesTodaySummary": "{count} ノート、{total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -792,6 +799,19 @@
   },
   "updateBody": "ARUSを最新バージョンに更新して続行してください。",
   "updateNow": "今すぐ更新",
+  "updCheckTitle": "アップデートを確認",
+  "updChecking": "アップデートを確認中…",
+  "updUpToDate": "最新バージョンです",
+  "updUpToDateBody": "ARUS は最新バージョンです。",
+  "updFailedTitle": "確認できませんでした",
+  "updPlayUnavailable": "Google Play に接続できません。接続を確認して再試行してください。",
+  "updPlayBody": "ARUS の新しいバージョンが Google Play にあります。修正と新機能のために更新してください。",
+  "updForcedBody": "ARUS を引き続き使うには、このアップデートが必要です。",
+  "updLater": "あとで",
+  "updReadyTitle": "インストールの準備ができました",
+  "updReadyBody": "アップデートをダウンロードしました。アプリを再起動してインストールします。",
+  "updRestart": "再起動してインストール",
+  "updAvailableBadge": "新しいバージョンがあります",
   "updateRetry": "再試行",
   "updateDownloading": "アップデートをダウンロード中…",
   "updateInstalling": "インストーラーを開いています…",
@@ -897,5 +917,319 @@
   "receiptChange": "お釣り",
   "receiptSaved": "お得額",
   "receiptPointsEarned": "獲得ポイント",
-  "receiptTestTitle": "プリンターのテストページ"
+  "receiptTestTitle": "プリンターのテストページ",
+  "salesFrom": "開始",
+  "salesTo": "終了",
+  "salesPresetToday": "今日",
+  "salesRangeInvalid": "終了時刻は開始時刻より後にしてください。",
+  "salesRangeTooLong": "期間は最大62日です。",
+  "salesPrintRecap": "集計を印刷",
+  "salesMethodsTitle": "支払方法別レポート",
+  "salesMethodNotes": "{count} 件",
+  "@salesMethodNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesDrawerTitle": "手元にあるべき金額（現物確認）",
+  "salesFlowsTitle": "このレジ経由のその他の入出金",
+  "salesReturnsRow": "返品 ({count})",
+  "@salesReturnsRow": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesNetTotal": "返品後の純売上",
+  "salesCreditRow": "売掛",
+  "salesSurchargeRow": "決済手数料（顧客負担）",
+  "flowReceivablePayment": "売掛金の入金",
+  "flowDepositTopup": "デポジット入金",
+  "flowDepositWithdraw": "デポジット引出",
+  "flowSaleReturn": "販売返品の返金",
+  "flowPayablePayment": "仕入先への支払",
+  "flowPurchaseReturn": "仕入返品の返金",
+  "flowSupplierCashout": "仕入先クレジット払出",
+  "flowPettyIn": "小口現金（入）",
+  "flowPettyOut": "小口現金（出）",
+  "recapTitle": "売上集計",
+  "recapCashier": "レジ担当",
+  "recapPeriod": "期間",
+  "recapCount": "伝票数",
+  "recapVoided": "取消伝票",
+  "recapRevenue": "売上高",
+  "recapByMethod": "支払方法別売上",
+  "itemAddTooltip": "商品を追加",
+  "itemAddTitle": "新しい商品を追加",
+  "itemName": "商品名",
+  "itemSellPrice": "販売価格",
+  "itemCost": "仕入原価",
+  "itemUnit": "単位",
+  "itemCategory": "カテゴリ（任意）",
+  "itemCategoryNone": "カテゴリなし",
+  "itemBarcode": "バーコード（任意）",
+  "itemKind": "種類",
+  "itemKindGoods": "商品",
+  "itemKindService": "サービス",
+  "itemInitialStock": "開始在庫（任意）",
+  "itemAllowNegative": "マイナス在庫を許可",
+  "itemAllowNegativeHint": "在庫未入力でも販売できます。仕入を登録するまで在庫はマイナスになります。",
+  "itemStockHint": "開始在庫もマイナス在庫もない場合、在庫を追加するまで販売できません。",
+  "itemServiceHint": "サービスは在庫を使いません。",
+  "itemSave": "保存",
+  "itemSaveAndSell": "保存して販売",
+  "itemSaved": "{name} を追加しました",
+  "@itemSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRequired": "必須項目です",
+  "itemInvalidNumber": "数値が正しくありません",
+  "itemNoUnits": "単位がありません。先にWebで単位を追加してください。",
+  "itemScanBarcode": "バーコードをスキャン",
+  "itemScanned": "バーコードを読み取りました",
+  "itemLoadFailed": "単位/カテゴリを読み込めませんでした。",
+  "reportTitle": "売上レポート",
+  "reportHint": "売上・支払方法・日別",
+  "reportToday": "今日",
+  "report7Days": "7日間",
+  "reportThisMonth": "今月",
+  "reportLastMonth": "先月",
+  "reportCustom": "日付を選択",
+  "reportAllOutlets": "全店舗",
+  "reportRevenue": "売上高",
+  "reportNotes": "伝票",
+  "reportVoid": "取消",
+  "reportReturns": "返品",
+  "reportNet": "返品後の純売上",
+  "reportReceivable": "売掛",
+  "reportByMethod": "支払方法別",
+  "reportByDay": "日別",
+  "reportEmpty": "この期間の売上はありません。",
+  "reportDayNotes": "{count} 件",
+  "@reportDayNotes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "menuItems": "商品",
+  "menuPurchases": "仕入",
+  "itemsTitle": "商品",
+  "itemsSearch": "名前・コード・バーコードで検索",
+  "itemsEmpty": "商品がありません。",
+  "itemsTabActive": "有効",
+  "itemsTabArchived": "アーカイブ",
+  "itemsEdit": "商品を編集",
+  "itemsArchive": "アーカイブ",
+  "itemsRestore": "再有効化",
+  "itemsArchiveAsk": "{name} をアーカイブしますか？レジには表示されなくなりますが、取引履歴は保持されます。",
+  "@itemsArchiveAsk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsArchived": "{name} をアーカイブしました",
+  "@itemsArchived": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsRestored": "{name} を再有効化しました",
+  "@itemsRestored": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsUpdated": "{name} を更新しました",
+  "@itemsUpdated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsStock": "在庫 {qty}",
+  "@itemsStock": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "itemsEditTitle": "商品を編集",
+  "itemsCostNote": "原価は仕入で更新されます。ここでは変更できません。",
+  "itemsArchivedHint": "アーカイブは最大30件まで表示します。検索で絞り込んでください。",
+  "commonCancel": "キャンセル",
+  "commonSave": "保存",
+  "commonRetry": "再試行",
+  "purTitle": "仕入",
+  "purAdd": "新規仕入",
+  "purCashNote": "スマホからの仕入は常に現金払いで、すぐに在庫が増えます。",
+  "purSupplier": "仕入先",
+  "purPickSupplier": "仕入先を選択",
+  "purSearchSupplier": "仕入先を検索",
+  "purNoSupplier": "仕入先が見つかりません。",
+  "purDate": "日付",
+  "purInvoiceNo": "仕入先伝票番号（任意）",
+  "purNote": "メモ（任意）",
+  "purLines": "仕入商品",
+  "purAddItem": "商品を追加",
+  "purSearchItem": "商品を検索",
+  "purQty": "数量",
+  "purPrice": "仕入単価",
+  "purSubtotal": "小計",
+  "purTax": "税",
+  "purOtherCost": "その他費用",
+  "purTotal": "現金合計",
+  "purSave": "仕入を保存",
+  "purSaved": "仕入 {doc} を保存しました。在庫が増えました",
+  "@purSaved": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purNoLines": "商品を1つ以上追加してください。",
+  "purNeedSupplier": "先に仕入先を選択してください。",
+  "purBadLine": "数量は0より大きく、単価は必須です。",
+  "purEmpty": "この期間の仕入はありません。",
+  "purSummary": "{count} 件、{total}",
+  "@purSummary": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "purRange30": "30日間",
+  "purDetailTitle": "仕入の詳細",
+  "purEdit": "編集",
+  "purEditTitle": "仕入を編集",
+  "purVoid": "取消",
+  "purVoidAsk": "仕入 {doc} を取り消しますか？在庫が再び減ります。",
+  "@purVoidAsk": {
+    "placeholders": {
+      "doc": {
+        "type": "String"
+      }
+    }
+  },
+  "purReason": "理由（3文字以上）",
+  "purVoided": "仕入を取り消しました",
+  "purEdited": "仕入を更新しました",
+  "purStatusVoid": "取消",
+  "purStatusRevised": "改訂済み",
+  "purVoidReason": "取消理由: {reason}",
+  "@purVoidReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "purBy": "記録者: {name}",
+  "@purBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errorPurchaseNotEditable": "この仕入はこれ以上変更できません（取消済みまたは改訂済み）。",
+  "errorPurchaseHasReturns": "この仕入には返品があります。先に返品を取り消してください。",
+  "errorItemUnavailable": "この商品は仕入できません。",
+  "errorCodeTaken": "商品コードは既に使われています。",
+  "errorEditWindowClosed": "編集可能な期間が過ぎました。",
+  "errorStockReverse": "この仕入を戻すには在庫が不足しています（一部は販売済み）。",
+  "menuSettlement": "精算",
+  "setTitle": "EraPay 精算",
+  "setCheck": "EraPay に確認",
+  "setChecking": "EraPay に確認中...",
+  "setArus": "ARUS の金額",
+  "setEra": "EraPay の金額",
+  "setArusHint": "有効な伝票の QRIS",
+  "setEraHint": "EraPay で入金済み",
+  "setMatchedAll": "一致: ARUS と EraPay の金額が同じです。",
+  "setDiffMore": "差額 {amount}: EraPay で入金済みだが有効な伝票にない金額があります。",
+  "@setDiffMore": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setDiffLess": "差額 {amount}: EraPay で未入金の QRIS 伝票があります。",
+  "@setDiffLess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setCount": "{count} 件",
+  "@setCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setFilterAll": "すべて",
+  "setFilterAttention": "要確認",
+  "setFilterWaiting": "保留",
+  "setFilterMatched": "一致",
+  "setColArus": "ARUS",
+  "setColEra": "ERAPAY",
+  "setStatusLabel": "ステータス",
+  "setIdLabel": "EraPay ID",
+  "setIdCopied": "ID をコピーしました",
+  "setNoId": "ID なし",
+  "setStateMatched": "一致",
+  "setStateMatchedSub": "EraPay で入金済みで、伝票にも記録済み",
+  "setStateWaiting": "保留",
+  "setStateWaitingSub": "EraPay が未確定（QR 未払い）",
+  "setStateOrphan": "未記録",
+  "setStateOrphanSub": "EraPay で入金済みだが伝票がありません",
+  "setStateRefund": "返金が必要",
+  "setStateRefundSub": "伝票は取消済み、金額は EraPay に残っています",
+  "setStateUnpaid": "未入金",
+  "setStateUnpaidSub": "伝票はあるが EraPay は失敗/期限切れ",
+  "setStateClosed": "未払い",
+  "setStateClosedSub": "請求は失敗/期限切れで、入金はありません",
+  "setEraSucceeded": "入金済み",
+  "setEraPending": "保留",
+  "setEraFailed": "失敗",
+  "setEraExpired": "期限切れ",
+  "setEraCancelled": "キャンセル",
+  "setEraUnknown": "不明",
+  "setNotConfigured": "この店舗では EraPay が未設定です。Web の支払方法で API キーを設定してください。",
+  "setEmpty": "この期間に EraPay QRIS の取引はありません。",
+  "setRefreshed": "EraPay から状態を更新: {count} 件",
+  "@setRefreshed": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "setTruncated": "最新300件に制限されています。期間を絞ってください。",
+  "setNote": "EraPay の金額 = EraPay で入金済みの請求です。銀行口座への振込は EraPay のスケジュールに従い、ここではまだ確認できません。"
 }

@@ -39,13 +39,16 @@ ResponseBody json(int status, Map<String, dynamic> body) =>
 Map<String, dynamic> sessionBody({
   String refresh = 'r1',
   String access = 'a1',
+  Map<String, dynamic>? permissions,
 }) => {
   'access_token': access,
   'expires_in': 900,
   if (refresh.isNotEmpty) 'refresh_token': refresh,
-  'permissions': {
-    'sales_orders': ['view', 'create'],
-  },
+  'permissions':
+      permissions ??
+      {
+        'sales_orders': ['view', 'create'],
+      },
   'email_verified': true,
   'user': {'id': 'u1', 'name': 'Budi', 'email': 'budi@toko.test'},
   'tenant': {'id': 't1', 'name': 'Toko Maju', 'code': 'maju'},

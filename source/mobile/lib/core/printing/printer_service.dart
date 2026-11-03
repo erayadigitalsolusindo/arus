@@ -201,7 +201,10 @@ class ReceiptPrinter {
   Future<void> printLines(List<ReceiptLine> lines, PrinterSettings s) =>
       sendBytes(s, escposReceipt(lines, cols: s.paper.cols, cut: s.cut));
 
-  Future<void> printTest(AppLocalizations l, {PrinterSettings? settings}) async {
+  Future<void> printTest(
+    AppLocalizations l, {
+    PrinterSettings? settings,
+  }) async {
     final s = settings ?? await _settings();
     await printLines(testLines(s.paper, l), s);
   }

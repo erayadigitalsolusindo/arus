@@ -86,7 +86,8 @@ class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
-    final s = ref.watch(printerSettingsProvider).value ?? const PrinterSettings();
+    final s =
+        ref.watch(printerSettingsProvider).value ?? const PrinterSettings();
     final paired = _paired;
 
     return SafeArea(

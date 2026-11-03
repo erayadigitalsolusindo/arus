@@ -179,6 +179,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get posTotal => '合計';
 
   @override
+  String get posConfirm => '確認';
+
+  @override
   String get posPay => '支払い';
 
   @override
@@ -186,6 +189,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get posClearCart => 'カートを空にする';
+
+  @override
+  String get posClearCartAsk => 'カートを空にしますか？';
+
+  @override
+  String get posClearCartAskBody => 'カート内のすべての商品が削除され、元に戻せません。';
+
+  @override
+  String get posClearCartYes => 'はい、空にする';
+
+  @override
+  String get posClearCartNo => '戻る';
+
+  @override
+  String get posAddedToCart => '追加しました';
 
   @override
   String get posRemoveLine => '削除';
@@ -339,7 +357,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get paySubmit => '支払いを完了する';
+  String get payItemsTitle => '購入する商品';
+
+  @override
+  String get paySubmit => '支払いを実行する';
 
   @override
   String get payProcessing => '処理中…';
@@ -453,7 +474,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get posShiftCloseTooltip => 'シフトを閉じる';
 
   @override
-  String get posSalesTodayTooltip => '本日の売上';
+  String get posSalesTodayTooltip => '売上';
 
   @override
   String shiftCloseTitle(String doc) {
@@ -552,7 +573,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorShiftAlreadyOpen => 'この店舗のシフトはすでに開いています。';
 
   @override
-  String get salesTodayTitle => '本日の売上';
+  String get salesTodayTitle => '売上';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1156,6 +1177,46 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateNow => '今すぐ更新';
 
   @override
+  String get updCheckTitle => 'アップデートを確認';
+
+  @override
+  String get updChecking => 'アップデートを確認中…';
+
+  @override
+  String get updUpToDate => '最新バージョンです';
+
+  @override
+  String get updUpToDateBody => 'ARUS は最新バージョンです。';
+
+  @override
+  String get updFailedTitle => '確認できませんでした';
+
+  @override
+  String get updPlayUnavailable => 'Google Play に接続できません。接続を確認して再試行してください。';
+
+  @override
+  String get updPlayBody =>
+      'ARUS の新しいバージョンが Google Play にあります。修正と新機能のために更新してください。';
+
+  @override
+  String get updForcedBody => 'ARUS を引き続き使うには、このアップデートが必要です。';
+
+  @override
+  String get updLater => 'あとで';
+
+  @override
+  String get updReadyTitle => 'インストールの準備ができました';
+
+  @override
+  String get updReadyBody => 'アップデートをダウンロードしました。アプリを再起動してインストールします。';
+
+  @override
+  String get updRestart => '再起動してインストール';
+
+  @override
+  String get updAvailableBadge => '新しいバージョンがあります';
+
+  @override
   String get updateRetry => '再試行';
 
   @override
@@ -1345,4 +1406,597 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get receiptTestTitle => 'プリンターのテストページ';
+
+  @override
+  String get salesFrom => '開始';
+
+  @override
+  String get salesTo => '終了';
+
+  @override
+  String get salesPresetToday => '今日';
+
+  @override
+  String get salesRangeInvalid => '終了時刻は開始時刻より後にしてください。';
+
+  @override
+  String get salesRangeTooLong => '期間は最大62日です。';
+
+  @override
+  String get salesPrintRecap => '集計を印刷';
+
+  @override
+  String get salesMethodsTitle => '支払方法別レポート';
+
+  @override
+  String salesMethodNotes(String count) {
+    return '$count 件';
+  }
+
+  @override
+  String get salesDrawerTitle => '手元にあるべき金額（現物確認）';
+
+  @override
+  String get salesFlowsTitle => 'このレジ経由のその他の入出金';
+
+  @override
+  String salesReturnsRow(String count) {
+    return '返品 ($count)';
+  }
+
+  @override
+  String get salesNetTotal => '返品後の純売上';
+
+  @override
+  String get salesCreditRow => '売掛';
+
+  @override
+  String get salesSurchargeRow => '決済手数料（顧客負担）';
+
+  @override
+  String get flowReceivablePayment => '売掛金の入金';
+
+  @override
+  String get flowDepositTopup => 'デポジット入金';
+
+  @override
+  String get flowDepositWithdraw => 'デポジット引出';
+
+  @override
+  String get flowSaleReturn => '販売返品の返金';
+
+  @override
+  String get flowPayablePayment => '仕入先への支払';
+
+  @override
+  String get flowPurchaseReturn => '仕入返品の返金';
+
+  @override
+  String get flowSupplierCashout => '仕入先クレジット払出';
+
+  @override
+  String get flowPettyIn => '小口現金（入）';
+
+  @override
+  String get flowPettyOut => '小口現金（出）';
+
+  @override
+  String get recapTitle => '売上集計';
+
+  @override
+  String get recapCashier => 'レジ担当';
+
+  @override
+  String get recapPeriod => '期間';
+
+  @override
+  String get recapCount => '伝票数';
+
+  @override
+  String get recapVoided => '取消伝票';
+
+  @override
+  String get recapRevenue => '売上高';
+
+  @override
+  String get recapByMethod => '支払方法別売上';
+
+  @override
+  String get itemAddTooltip => '商品を追加';
+
+  @override
+  String get itemAddTitle => '新しい商品を追加';
+
+  @override
+  String get itemName => '商品名';
+
+  @override
+  String get itemSellPrice => '販売価格';
+
+  @override
+  String get itemCost => '仕入原価';
+
+  @override
+  String get itemUnit => '単位';
+
+  @override
+  String get itemCategory => 'カテゴリ（任意）';
+
+  @override
+  String get itemCategoryNone => 'カテゴリなし';
+
+  @override
+  String get itemBarcode => 'バーコード（任意）';
+
+  @override
+  String get itemKind => '種類';
+
+  @override
+  String get itemKindGoods => '商品';
+
+  @override
+  String get itemKindService => 'サービス';
+
+  @override
+  String get itemInitialStock => '開始在庫（任意）';
+
+  @override
+  String get itemAllowNegative => 'マイナス在庫を許可';
+
+  @override
+  String get itemAllowNegativeHint => '在庫未入力でも販売できます。仕入を登録するまで在庫はマイナスになります。';
+
+  @override
+  String get itemStockHint => '開始在庫もマイナス在庫もない場合、在庫を追加するまで販売できません。';
+
+  @override
+  String get itemServiceHint => 'サービスは在庫を使いません。';
+
+  @override
+  String get itemSave => '保存';
+
+  @override
+  String get itemSaveAndSell => '保存して販売';
+
+  @override
+  String itemSaved(String name) {
+    return '$name を追加しました';
+  }
+
+  @override
+  String get itemRequired => '必須項目です';
+
+  @override
+  String get itemInvalidNumber => '数値が正しくありません';
+
+  @override
+  String get itemNoUnits => '単位がありません。先にWebで単位を追加してください。';
+
+  @override
+  String get itemScanBarcode => 'バーコードをスキャン';
+
+  @override
+  String get itemScanned => 'バーコードを読み取りました';
+
+  @override
+  String get itemLoadFailed => '単位/カテゴリを読み込めませんでした。';
+
+  @override
+  String get reportTitle => '売上レポート';
+
+  @override
+  String get reportHint => '売上・支払方法・日別';
+
+  @override
+  String get reportToday => '今日';
+
+  @override
+  String get report7Days => '7日間';
+
+  @override
+  String get reportThisMonth => '今月';
+
+  @override
+  String get reportLastMonth => '先月';
+
+  @override
+  String get reportCustom => '日付を選択';
+
+  @override
+  String get reportAllOutlets => '全店舗';
+
+  @override
+  String get reportRevenue => '売上高';
+
+  @override
+  String get reportNotes => '伝票';
+
+  @override
+  String get reportVoid => '取消';
+
+  @override
+  String get reportReturns => '返品';
+
+  @override
+  String get reportNet => '返品後の純売上';
+
+  @override
+  String get reportReceivable => '売掛';
+
+  @override
+  String get reportByMethod => '支払方法別';
+
+  @override
+  String get reportByDay => '日別';
+
+  @override
+  String get reportEmpty => 'この期間の売上はありません。';
+
+  @override
+  String reportDayNotes(String count) {
+    return '$count 件';
+  }
+
+  @override
+  String get menuItems => '商品';
+
+  @override
+  String get menuPurchases => '仕入';
+
+  @override
+  String get itemsTitle => '商品';
+
+  @override
+  String get itemsSearch => '名前・コード・バーコードで検索';
+
+  @override
+  String get itemsEmpty => '商品がありません。';
+
+  @override
+  String get itemsTabActive => '有効';
+
+  @override
+  String get itemsTabArchived => 'アーカイブ';
+
+  @override
+  String get itemsEdit => '商品を編集';
+
+  @override
+  String get itemsArchive => 'アーカイブ';
+
+  @override
+  String get itemsRestore => '再有効化';
+
+  @override
+  String itemsArchiveAsk(String name) {
+    return '$name をアーカイブしますか？レジには表示されなくなりますが、取引履歴は保持されます。';
+  }
+
+  @override
+  String itemsArchived(String name) {
+    return '$name をアーカイブしました';
+  }
+
+  @override
+  String itemsRestored(String name) {
+    return '$name を再有効化しました';
+  }
+
+  @override
+  String itemsUpdated(String name) {
+    return '$name を更新しました';
+  }
+
+  @override
+  String itemsStock(String qty) {
+    return '在庫 $qty';
+  }
+
+  @override
+  String get itemsEditTitle => '商品を編集';
+
+  @override
+  String get itemsCostNote => '原価は仕入で更新されます。ここでは変更できません。';
+
+  @override
+  String get itemsArchivedHint => 'アーカイブは最大30件まで表示します。検索で絞り込んでください。';
+
+  @override
+  String get commonCancel => 'キャンセル';
+
+  @override
+  String get commonSave => '保存';
+
+  @override
+  String get commonRetry => '再試行';
+
+  @override
+  String get purTitle => '仕入';
+
+  @override
+  String get purAdd => '新規仕入';
+
+  @override
+  String get purCashNote => 'スマホからの仕入は常に現金払いで、すぐに在庫が増えます。';
+
+  @override
+  String get purSupplier => '仕入先';
+
+  @override
+  String get purPickSupplier => '仕入先を選択';
+
+  @override
+  String get purSearchSupplier => '仕入先を検索';
+
+  @override
+  String get purNoSupplier => '仕入先が見つかりません。';
+
+  @override
+  String get purDate => '日付';
+
+  @override
+  String get purInvoiceNo => '仕入先伝票番号（任意）';
+
+  @override
+  String get purNote => 'メモ（任意）';
+
+  @override
+  String get purLines => '仕入商品';
+
+  @override
+  String get purAddItem => '商品を追加';
+
+  @override
+  String get purSearchItem => '商品を検索';
+
+  @override
+  String get purQty => '数量';
+
+  @override
+  String get purPrice => '仕入単価';
+
+  @override
+  String get purSubtotal => '小計';
+
+  @override
+  String get purTax => '税';
+
+  @override
+  String get purOtherCost => 'その他費用';
+
+  @override
+  String get purTotal => '現金合計';
+
+  @override
+  String get purSave => '仕入を保存';
+
+  @override
+  String purSaved(String doc) {
+    return '仕入 $doc を保存しました。在庫が増えました';
+  }
+
+  @override
+  String get purNoLines => '商品を1つ以上追加してください。';
+
+  @override
+  String get purNeedSupplier => '先に仕入先を選択してください。';
+
+  @override
+  String get purBadLine => '数量は0より大きく、単価は必須です。';
+
+  @override
+  String get purEmpty => 'この期間の仕入はありません。';
+
+  @override
+  String purSummary(String count, String total) {
+    return '$count 件、$total';
+  }
+
+  @override
+  String get purRange30 => '30日間';
+
+  @override
+  String get purDetailTitle => '仕入の詳細';
+
+  @override
+  String get purEdit => '編集';
+
+  @override
+  String get purEditTitle => '仕入を編集';
+
+  @override
+  String get purVoid => '取消';
+
+  @override
+  String purVoidAsk(String doc) {
+    return '仕入 $doc を取り消しますか？在庫が再び減ります。';
+  }
+
+  @override
+  String get purReason => '理由（3文字以上）';
+
+  @override
+  String get purVoided => '仕入を取り消しました';
+
+  @override
+  String get purEdited => '仕入を更新しました';
+
+  @override
+  String get purStatusVoid => '取消';
+
+  @override
+  String get purStatusRevised => '改訂済み';
+
+  @override
+  String purVoidReason(String reason) {
+    return '取消理由: $reason';
+  }
+
+  @override
+  String purBy(String name) {
+    return '記録者: $name';
+  }
+
+  @override
+  String get errorPurchaseNotEditable => 'この仕入はこれ以上変更できません（取消済みまたは改訂済み）。';
+
+  @override
+  String get errorPurchaseHasReturns => 'この仕入には返品があります。先に返品を取り消してください。';
+
+  @override
+  String get errorItemUnavailable => 'この商品は仕入できません。';
+
+  @override
+  String get errorCodeTaken => '商品コードは既に使われています。';
+
+  @override
+  String get errorEditWindowClosed => '編集可能な期間が過ぎました。';
+
+  @override
+  String get errorStockReverse => 'この仕入を戻すには在庫が不足しています（一部は販売済み）。';
+
+  @override
+  String get menuSettlement => '精算';
+
+  @override
+  String get setTitle => 'EraPay 精算';
+
+  @override
+  String get setCheck => 'EraPay に確認';
+
+  @override
+  String get setChecking => 'EraPay に確認中...';
+
+  @override
+  String get setArus => 'ARUS の金額';
+
+  @override
+  String get setEra => 'EraPay の金額';
+
+  @override
+  String get setArusHint => '有効な伝票の QRIS';
+
+  @override
+  String get setEraHint => 'EraPay で入金済み';
+
+  @override
+  String get setMatchedAll => '一致: ARUS と EraPay の金額が同じです。';
+
+  @override
+  String setDiffMore(String amount) {
+    return '差額 $amount: EraPay で入金済みだが有効な伝票にない金額があります。';
+  }
+
+  @override
+  String setDiffLess(String amount) {
+    return '差額 $amount: EraPay で未入金の QRIS 伝票があります。';
+  }
+
+  @override
+  String setCount(String count) {
+    return '$count 件';
+  }
+
+  @override
+  String get setFilterAll => 'すべて';
+
+  @override
+  String get setFilterAttention => '要確認';
+
+  @override
+  String get setFilterWaiting => '保留';
+
+  @override
+  String get setFilterMatched => '一致';
+
+  @override
+  String get setColArus => 'ARUS';
+
+  @override
+  String get setColEra => 'ERAPAY';
+
+  @override
+  String get setStatusLabel => 'ステータス';
+
+  @override
+  String get setIdLabel => 'EraPay ID';
+
+  @override
+  String get setIdCopied => 'ID をコピーしました';
+
+  @override
+  String get setNoId => 'ID なし';
+
+  @override
+  String get setStateMatched => '一致';
+
+  @override
+  String get setStateMatchedSub => 'EraPay で入金済みで、伝票にも記録済み';
+
+  @override
+  String get setStateWaiting => '保留';
+
+  @override
+  String get setStateWaitingSub => 'EraPay が未確定（QR 未払い）';
+
+  @override
+  String get setStateOrphan => '未記録';
+
+  @override
+  String get setStateOrphanSub => 'EraPay で入金済みだが伝票がありません';
+
+  @override
+  String get setStateRefund => '返金が必要';
+
+  @override
+  String get setStateRefundSub => '伝票は取消済み、金額は EraPay に残っています';
+
+  @override
+  String get setStateUnpaid => '未入金';
+
+  @override
+  String get setStateUnpaidSub => '伝票はあるが EraPay は失敗/期限切れ';
+
+  @override
+  String get setStateClosed => '未払い';
+
+  @override
+  String get setStateClosedSub => '請求は失敗/期限切れで、入金はありません';
+
+  @override
+  String get setEraSucceeded => '入金済み';
+
+  @override
+  String get setEraPending => '保留';
+
+  @override
+  String get setEraFailed => '失敗';
+
+  @override
+  String get setEraExpired => '期限切れ';
+
+  @override
+  String get setEraCancelled => 'キャンセル';
+
+  @override
+  String get setEraUnknown => '不明';
+
+  @override
+  String get setNotConfigured =>
+      'この店舗では EraPay が未設定です。Web の支払方法で API キーを設定してください。';
+
+  @override
+  String get setEmpty => 'この期間に EraPay QRIS の取引はありません。';
+
+  @override
+  String setRefreshed(String count) {
+    return 'EraPay から状態を更新: $count 件';
+  }
+
+  @override
+  String get setTruncated => '最新300件に制限されています。期間を絞ってください。';
+
+  @override
+  String get setNote =>
+      'EraPay の金額 = EraPay で入金済みの請求です。銀行口座への振込は EraPay のスケジュールに従い、ここではまだ確認できません。';
 }

@@ -272,23 +272,26 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     _key ??= const Uuid().v4();
     // Force-save QRIS: kirim force_erapay + persetujuan qris_force (menggantikan persetujuan lain).
     final forceEra =
-        _eraForceOn && _eraForceOk && _eraForceApprover != null && _rows.any(_eraCanForce);
+        _eraForceOn &&
+        _eraForceOk &&
+        _eraForceApprover != null &&
+        _rows.any(_eraCanForce);
     try {
       SaleResult? result;
       for (var attempt = 0; attempt < 2 && result == null; attempt++) {
         try {
           final base = _credit
               ? cart
-                  .draft(forPay: true)
-                  .asCredit(
-                    _needCreditApproval
-                        ? ApprovalGrant(
-                            userId: _creditApprover!.id,
-                            name: _creditApprover!.name,
-                            pin: _creditPin,
-                          )
-                        : cart.draft(forPay: true).approval,
-                  )
+                    .draft(forPay: true)
+                    .asCredit(
+                      _needCreditApproval
+                          ? ApprovalGrant(
+                              userId: _creditApprover!.id,
+                              name: _creditApprover!.name,
+                              pin: _creditPin,
+                            )
+                          : cart.draft(forPay: true).approval,
+                    )
               : cart.draft(forPay: true);
           result = await ref
               .read(posRepositoryProvider)
@@ -377,7 +380,9 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
           final depositOver = depositUsed > deposit;
           final eraOk = _rows.every(
-            (r) => _eraSettled(r) || (_eraForceOn && _eraForceOk && _eraCanForce(r)),
+            (r) =>
+                _eraSettled(r) ||
+                (_eraForceOn && _eraForceOk && _eraCanForce(r)),
           );
           final enough =
               eraOk &&
@@ -439,6 +444,11 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 10),
+                      _ItemsSummary(
+                        lines: ref.watch(cartProvider.select((c) => c.lines)),
+                        quote: quote,
                       ),
                       if (quote?.member != null) ...[
                         const SizedBox(height: 8),
@@ -884,11 +894,13 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                 onPressed: _busy
                     ? null
                     : () => setState(() {
-                          _eraForceOn = false;
-                          _eraForceApprover = null;
-                          _eraForcePin = '';
-                        }),
-                child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+                        _eraForceOn = false;
+                        _eraForceApprover = null;
+                        _eraForcePin = '';
+                      }),
+                child: Text(
+                  MaterialLocalizations.of(context).cancelButtonLabel,
+                ),
               ),
             ),
           ],
@@ -1078,4 +1090,77 @@ List<Decimal> quickCashAmounts(Decimal need) {
   }
   final sorted = out.toList()..sort();
   return sorted.take(4).toList();
+}
+
+/// Daftar barang yang akan dibeli (qty x nama + total baris) supaya kasir dan pelanggan memastikan sebelum membayar.
+class _ItemsSummary extends StatelessWidget {
+  const _ItemsSummary({required this.lines, required this.quote});
+
+  final List<CartLine> lines;
+  final Quote? quote;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    final ql = quote != null && quote!.lines.length == lines.length
+        ? quote!.lines
+        : null;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: pal.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.payItemsTitle,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: pal.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: lines.length,
+              itemBuilder: (_, i) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${formatQty(lines[i].qty)}x',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        lines[i].item.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (ql != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        formatMoney(ql[i].lineTotal),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
