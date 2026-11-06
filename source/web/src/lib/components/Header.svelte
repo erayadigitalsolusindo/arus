@@ -4,6 +4,7 @@
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { session, logout } from '#lib/auth/session.svelte.ts';
   import { initials } from '#lib/auth/initials.ts';
+  import { me } from '#lib/profile/me.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
   import { api } from '#lib/api/client.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -13,6 +14,13 @@
   type Theme = 'light' | 'dark';
   let theme = $state<Theme>(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   let menu = $state<'' | 'notif' | 'user'>('');
+
+  // Foto profil di tombol pengguna; ganti akun → buang cache profil lama.
+  $effect(() => {
+    const id = session.user?.id;
+    if (me.profile && me.profile.id !== id) me.reset();
+    void me.ensure();
+  });
   type EcosystemStatus = { active: boolean; merchant_status?: string; owner_role?: string };
   let ecosystemOpen = $state(false);
   let ecosystemLoading = $state(false);
@@ -165,7 +173,9 @@
             toggle('user');
           }}
         >
-          <span class="grid place-items-center size-8 rounded-full bg-[var(--color-primary-600)] text-white text-[12px] font-bold">{initials(session.user?.name)}</span>
+          <span class="grid place-items-center size-8 rounded-full overflow-hidden bg-[var(--color-primary-600)] text-white text-[12px] font-bold">
+            {#if me.avatarSrc}<img src={me.avatarSrc} alt="" class="size-full object-cover" />{:else}{initials(session.user?.name)}{/if}
+          </span>
           <span class="hidden md:block text-start leading-tight">
             <span class="block text-[12.5px] font-semibold max-w-40 truncate">{session.user?.name}</span>
             <span class="block text-[10.5px] max-w-40 truncate text-[var(--text-tertiary)]">{session.tenant?.name}</span>
@@ -174,7 +184,7 @@
         </button>
         {#if menu === 'user'}
           <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
-            <a href="#top" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
+            <a href="/profile"  class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
             <button type="button" onclick={(e) => { e.stopPropagation(); openEcosystem(); }} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</button>
             <button type="button" onclick={logout} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</button>
           </div>

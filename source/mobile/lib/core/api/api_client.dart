@@ -82,6 +82,59 @@ class ApiClient {
     return s;
   }
 
+  /// Langkah kedua login untuk akun ber-2FA: [token] dari [MfaRequired], [code] = kode TOTP 6 digit atau kode pemulihan.
+  Future<AuthSession> loginMfa({
+    required String token,
+    required String code,
+  }) async {
+    final s = await _call(
+      () => _raw.post<Map<String, dynamic>>(
+        '/auth/login/mfa',
+        data: {'mfa_token': token, 'code': code},
+      ),
+    );
+    await _adopt(s);
+    return s;
+  }
+
+  /// Masuk dengan ID token Google. 404 `GOOGLE_NOT_REGISTERED` = akun belum terdaftar (lanjut [googleRegister]).
+  Future<AuthSession> googleLogin({
+    required String idToken,
+    required bool remember,
+  }) async {
+    final s = await _call(
+      () => _raw.post<Map<String, dynamic>>(
+        '/auth/google/login',
+        data: {'id_token': idToken, 'remember': remember},
+      ),
+    );
+    await _adopt(s);
+    return s;
+  }
+
+  /// Mendaftar tenant baru dengan akun Google (nama pemilik + email diambil server dari token).
+  Future<AuthSession> googleRegister({
+    required String idToken,
+    required String businessName,
+    required String outletName,
+    required String phone,
+  }) async {
+    final s = await _call(
+      () => _raw.post<Map<String, dynamic>>(
+        '/auth/google/register',
+        data: {
+          'id_token': idToken,
+          'business_name': businessName,
+          'outlet_name': outletName,
+          'phone': phone,
+          'accept_terms': true,
+        },
+      ),
+    );
+    await _adopt(s);
+    return s;
+  }
+
   /// Memulihkan sesi dari refresh token tersimpan. Null bila tidak ada / ditolak server; galat jaringan dilempar.
   Future<AuthSession?> restore() async {
     final token = await tokens.readRefreshToken();
@@ -216,9 +269,19 @@ class ApiClient {
   ) async {
     try {
       final r = await fn();
+      // Kredensial benar tetapi akun memakai 2FA: belum ada sesi, minta kode (lihat loginMfa).
+      if (r.data!['mfa_required'] == true) {
+        throw MfaRequired(r.data!['mfa_token'] as String);
+      }
       return AuthSession.fromJson(r.data!);
     } on DioException catch (e) {
       throw ApiError.fromDio(e);
     }
   }
+}
+
+/// Login tertahan tantangan 2FA: tampilkan input kode lalu panggil [ApiClient.loginMfa] dengan [token] ini.
+class MfaRequired implements Exception {
+  MfaRequired(this.token);
+  final String token;
 }

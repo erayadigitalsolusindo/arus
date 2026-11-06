@@ -20,6 +20,7 @@ for (const g of [...nav, ...siakNav]) {
 export function tabMeta(path: string): TabMeta | null {
   const hit = menu.get(path);
   if (hit) return hit;
+  if (path === '/profile') return { titleKey: 'profile.title' };
   if (path === '/items/new') return { titleKey: 'items.newTitle', module: 'items' };
   if (/^\/items\/[^/]+$/.test(path)) return { titleKey: 'items.editTitle', module: 'items' };
   if (path === '/members/new') return { titleKey: 'members.newTitle', module: 'members' };

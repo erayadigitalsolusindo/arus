@@ -52,9 +52,18 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*Session, error) {
 	if !acc.UserActive || !acc.TenantActive {
 		return nil, ErrAccountDisabled
 	}
+	return s.gate(ctx, acc, in.Remember)
+}
+
+// startSession menerbitkan sesi untuk akun yang kredensialnya sudah terbukti (password atau identitas Google).
+func (s *Service) startSession(ctx context.Context, acc account, remember bool) (*Session, error) {
+	if !acc.UserActive || !acc.TenantActive {
+		return nil, ErrAccountDisabled
+	}
 	if acc.OutletID == uuid.Nil {
 		return nil, ErrNoOutlet
 	}
+	in := LoginInput{Remember: remember}
 
 	access, err := s.issueAccess(acc, s.now())
 	if err != nil {

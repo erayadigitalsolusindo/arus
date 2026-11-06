@@ -39,6 +39,8 @@ type RegisterInput struct {
 // CleanRegister = input yang sudah divalidasi dan dinormalkan.
 type CleanRegister struct {
 	BusinessName, OwnerName, Email, Phone, OutletName, Password string
+	// GoogleSub != "" = pendaftaran lewat Google: email sudah terverifikasi Google dan identitas ditautkan.
+	GoogleSub string
 }
 
 // ValidateRegister menormalkan semua field dan mengumpulkan kode galat per field.
@@ -75,6 +77,14 @@ func ValidateRegister(in RegisterInput) (CleanRegister, map[string]string) {
 // Register membuat tenant + outlet pertama + role Owner + user Owner dalam satu transaksi, lalu menerbitkan sesi dan
 // (setelah commit) mengirim email verifikasi. Input harus sudah lolos ValidateRegister. lang = bahasa email.
 func (s *Service) Register(ctx context.Context, in CleanRegister, lang string) (*Session, error) {
+	if in.GoogleSub != "" && in.Password == "" {
+		// Akun Google tidak punya password yang diketahui siapa pun; "lupa password" tetap bisa membuatkannya.
+		b := make([]byte, 32)
+		if _, err := rand.Read(b); err != nil {
+			return nil, fmt.Errorf("acak: %w", err)
+		}
+		in.Password = hex.EncodeToString(b)
+	}
 	hash, err := s.hash(ctx, in.Password)
 	if err != nil {
 		return nil, err
@@ -87,7 +97,9 @@ func (s *Service) Register(ctx context.Context, in CleanRegister, lang string) (
 		}
 		sess, err := s.registerTx(ctx, in, code, hash)
 		if err == nil {
-			s.queueVerification(sess.User.ID, in.Email, in.OwnerName, lang)
+			if in.GoogleSub == "" {
+				s.queueVerification(sess.User.ID, in.Email, in.OwnerName, lang)
+			}
 			return sess, nil
 		}
 		var pgErr *pgconn.PgError
@@ -131,6 +143,14 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		if err != nil {
 			return err
 		}
+		if in.GoogleSub != "" {
+			if err := linkGoogle(ctx, tx, in.GoogleSub, tenant.ID, user.ID); err != nil {
+				return err
+			}
+			if _, err := q.AuthMarkEmailVerified(ctx, gen.AuthMarkEmailVerifiedParams{TenantID: tenant.ID, ID: user.ID}); err != nil {
+				return err
+			}
+		}
 		if err := member.SeedDefaultLevels(ctx, tx, tenant.ID); err != nil { // level member bawaan
 			return err
 		}
@@ -139,7 +159,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		}
 		return audit.Record(ctx, tx, audit.Actor{TenantID: tenant.ID, UserID: user.ID, OutletID: outlet.ID, Name: user.Name}, audit.Entry{
 			Action: audit.ActionRegister, Entity: audit.EntityUser, EntityID: user.ID.String(),
-			Details: map[string]any{"tenant": tenant.Code, "terms_version": TermsVersion},
+			Details: map[string]any{"tenant": tenant.Code, "terms_version": TermsVersion, "google": in.GoogleSub != ""},
 		})
 	})
 	if err != nil {
@@ -148,6 +168,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 
 	acc := account{
 		UserID: user.ID, UserName: user.Name, Email: user.Email, RoleName: role.Name, UserActive: true,
+		EmailVerified: in.GoogleSub != "",
 		TenantID: tenant.ID, TenantCode: tenant.Code, TenantName: tenant.Name, TenantActive: true,
 		OutletID: outlet.ID, OutletCode: outlet.Code, OutletName: outlet.Name,
 	}

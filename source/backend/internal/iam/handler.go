@@ -10,9 +10,10 @@ import (
 	"github.com/google/uuid"
 
 	"aciraba/internal/authz"
-	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/plan"
+	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
+	"aciraba/internal/usermfa"
 )
 
 type Handler struct {
@@ -20,6 +21,13 @@ type Handler struct {
 	resolver *authz.Resolver
 	tokens   *pauth.TokenIssuer
 	log      *slog.Logger
+	mfa      *usermfa.Service // nil = reset 2FA oleh admin tidak tersedia
+}
+
+// WithMFA mengaktifkan DELETE /iam/users/{id}/2fa (admin mereset 2FA pengguna yang kehilangan perangkat).
+func (h *Handler) WithMFA(m *usermfa.Service) *Handler {
+	h.mfa = m
+	return h
 }
 
 func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssuer, log *slog.Logger) *Handler {
@@ -43,6 +51,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}", h.UpdateUser)
 		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}/password", h.ResetPassword)
 		r.With(authz.Require("users", authz.ActUpdate)).Put("/users/{id}/verify-email", h.VerifyEmail)
+		if h.mfa != nil {
+			r.With(authz.Require("users", authz.ActUpdate)).Delete("/users/{id}/2fa", h.ResetMFA)
+		}
 	})
 }
 
@@ -108,5 +119,21 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		h.log.Error("iam gagal", "err", err, "req_id", middleware.GetReqID(r.Context()))
 		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
+	}
+}
+
+// ResetMFA menghapus 2FA pengguna lain (perangkat hilang + kode pemulihan habis) dan mencabut semua sesinya.
+func (h *Handler) ResetMFA(w http.ResponseWriter, r *http.Request) {
+	err := h.mfa.Reset(r.Context(), actor(r), parseUUID(chi.URLParam(r, "id")))
+	switch {
+	case errors.Is(err, usermfa.ErrForbidden):
+		httpx.Error(w, http.StatusForbidden, "FORBIDDEN", "Anda tidak memiliki izin untuk tindakan ini.")
+	case errors.Is(err, usermfa.ErrUserNotFound):
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+	case err != nil:
+		h.log.Error("reset 2fa gagal", "err", err)
+		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan pada server.")
+	default:
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

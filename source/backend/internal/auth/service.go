@@ -15,6 +15,7 @@ import (
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/mailer"
+	"aciraba/internal/usermfa"
 )
 
 var (
@@ -47,6 +48,10 @@ type Deps struct {
 	Jobs     *background.Runner
 	// Approvals memverifikasi PIN penyetuju untuk pindah outlet dari kasir; nil = pindah dari kasir selalu ditolak.
 	Approvals *approval.Service
+	// Google memverifikasi ID token login/daftar Google; nil = fitur mati (GOOGLE_DISABLED).
+	Google GoogleVerifier
+	// MFA memeriksa 2FA TOTP pengguna saat login; nil = 2FA tidak dipakai.
+	MFA *usermfa.Service
 	// BaseURL = alamat SPA untuk tautan di email, tanpa slash akhir (mis. https://app.contoh.id).
 	BaseURL string
 }

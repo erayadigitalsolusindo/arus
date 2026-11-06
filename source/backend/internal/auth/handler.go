@@ -51,6 +51,9 @@ func (h *Handler) Routes(r chi.Router) {
 
 	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/register", h.Register)
 	r.With(httpx.RateLimit(h.Redis, "login", loginIPLimit, loginWindow)).Post("/auth/login", h.Login)
+	r.With(httpx.RateLimit(h.Redis, "login-mfa", 30, 15*time.Minute)).Post("/auth/login/mfa", h.LoginMFA)
+	r.With(httpx.RateLimit(h.Redis, "login-google", loginIPLimit, loginWindow)).Post("/auth/google/login", h.GoogleLogin)
+	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/google/register", h.GoogleRegister)
 	r.With(csrf, httpx.RateLimit(h.Redis, "refresh", 600, time.Hour)).Post("/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/auth/logout", h.Logout)
 	r.With(authed...).Get("/auth/me", h.Me)

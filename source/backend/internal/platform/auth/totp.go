@@ -118,9 +118,14 @@ func RecoveryHash(normalized string) string {
 // TOTPBox mengenkripsi rahasia TOTP di DB (AES-256-GCM). Kunci diturunkan dari JWT_SECRET dengan label khusus.
 type TOTPBox struct{ aead cipher.AEAD }
 
-func NewTOTPBox(secret string) (*TOTPBox, error) {
+func NewTOTPBox(secret string) (*TOTPBox, error) { return newTOTPBox(secret, "aciraba-platform-totp-v1") }
+
+// NewUserTOTPBox = kotak untuk 2FA pengguna tenant (kunci berbeda dari Platform Admin).
+func NewUserTOTPBox(secret string) (*TOTPBox, error) { return newTOTPBox(secret, "aciraba-user-totp-v1") }
+
+func newTOTPBox(secret, label string) (*TOTPBox, error) {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte("aciraba-platform-totp-v1"))
+	mac.Write([]byte(label))
 	block, err := aes.NewCipher(mac.Sum(nil))
 	if err != nil {
 		return nil, err

@@ -96,6 +96,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrNoOutlet):
 		httpx.Error(w, http.StatusForbidden, "NO_OUTLET", "Akun belum memiliki outlet aktif. Hubungi administrator.")
 		return
+	case writeMFARequired(w, err):
+		// Password benar tetapi 2FA aktif: tantangan terkirim, sesi baru terbit di POST /auth/login/mfa.
+		if rerr := h.Lockout.Reset(r.Context(), ip, emailHash); rerr != nil {
+			h.Log.Error("reset kunci login", "err", rerr)
+		}
+		return
 	case err != nil:
 		h.internal(w, r, "login gagal", err)
 		return
@@ -158,4 +164,98 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, p)
+}
+
+// googleClaims memverifikasi token dari badan permintaan dan menulis galat bila gagal (ok=false).
+func (h *Handler) googleClaims(w http.ResponseWriter, r *http.Request, idToken string) (GoogleClaims, bool) {
+	if h.svc.Google == nil {
+		httpx.Error(w, http.StatusServiceUnavailable, "GOOGLE_DISABLED", "Login dengan Google belum diaktifkan.")
+		return GoogleClaims{}, false
+	}
+	c, err := h.svc.Google.Verify(r.Context(), idToken)
+	switch {
+	case errors.Is(err, ErrGoogleEmailUnverified):
+		httpx.Error(w, http.StatusForbidden, "GOOGLE_EMAIL_UNVERIFIED", "Email akun Google belum terverifikasi.")
+		return GoogleClaims{}, false
+	case errors.Is(err, ErrGoogleInvalidToken):
+		httpx.Error(w, http.StatusUnauthorized, "GOOGLE_INVALID_TOKEN", "Token Google tidak valid atau kedaluwarsa. Coba lagi.")
+		return GoogleClaims{}, false
+	case err != nil:
+		h.internal(w, r, "verifikasi token google gagal", err)
+		return GoogleClaims{}, false
+	}
+	return c, true
+}
+
+type googleLoginRequest struct {
+	IDToken  string `json:"id_token"`
+	Remember bool   `json:"remember"`
+}
+
+func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	var req googleLoginRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	c, ok := h.googleClaims(w, r, req.IDToken)
+	if !ok {
+		return
+	}
+	sess, err := h.svc.GoogleLogin(r.Context(), c, req.Remember)
+	switch {
+	case errors.Is(err, ErrGoogleNotRegistered):
+		httpx.Error(w, http.StatusNotFound, "GOOGLE_NOT_REGISTERED", "Akun Google ini belum terdaftar. Silakan daftar terlebih dahulu.")
+		return
+	case errors.Is(err, ErrGoogleLinked):
+		httpx.Error(w, http.StatusConflict, "GOOGLE_LINKED", "Akun ini sudah tertaut ke akun Google lain.")
+		return
+	case errors.Is(err, ErrAccountDisabled):
+		httpx.Error(w, http.StatusForbidden, "ACCOUNT_DISABLED", "Akun dinonaktifkan. Hubungi administrator.")
+		return
+	case errors.Is(err, ErrNoOutlet):
+		httpx.Error(w, http.StatusForbidden, "NO_OUTLET", "Akun belum memiliki outlet aktif. Hubungi administrator.")
+		return
+	case writeMFARequired(w, err):
+		return
+	case err != nil:
+		h.internal(w, r, "login google gagal", err)
+		return
+	}
+	h.writeSession(w, r, http.StatusOK, sess)
+}
+
+type googleRegisterRequest struct {
+	IDToken      string `json:"id_token"`
+	BusinessName string `json:"business_name"`
+	OutletName   string `json:"outlet_name"`
+	Phone        string `json:"phone"`
+	AcceptTerms  bool   `json:"accept_terms"`
+}
+
+func (h *Handler) GoogleRegister(w http.ResponseWriter, r *http.Request) {
+	var req googleRegisterRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	c, ok := h.googleClaims(w, r, req.IDToken)
+	if !ok {
+		return
+	}
+	clean, fields := ValidateGoogleRegister(GoogleRegisterInput{
+		BusinessName: req.BusinessName, OutletName: req.OutletName, Phone: req.Phone, AcceptTerms: req.AcceptTerms,
+	}, c)
+	if fields != nil {
+		httpx.ValidationError(w, fields)
+		return
+	}
+	sess, err := h.svc.GoogleRegister(r.Context(), clean, lang(r))
+	switch {
+	case errors.Is(err, ErrEmailTaken):
+		httpx.Error(w, http.StatusConflict, "EMAIL_TAKEN", "Email sudah terdaftar.")
+		return
+	case err != nil:
+		h.internal(w, r, "register google gagal", err)
+		return
+	}
+	h.writeSession(w, r, http.StatusCreated, sess)
 }

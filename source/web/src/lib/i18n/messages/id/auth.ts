@@ -60,5 +60,20 @@ export default {
     scanTagline: 'Scan & jual dalam sekejap',
     salesToday: 'Penjualan hari ini',
     transactions: { one: '{count} transaksi', other: '{count} transaksi' }
+  },
+  mfa: {
+    title: 'Verifikasi dua langkah',
+    subtitle: 'Masukkan kode 6 digit dari aplikasi autentikator Anda.',
+    code: 'Kode verifikasi',
+    hint: 'Kehilangan perangkat? Pakai salah satu kode pemulihan Anda.',
+    submit: 'Verifikasi',
+    back: 'Kembali ke halaman masuk'
+  },
+  google: {
+    signupHint: 'Mendaftar dengan Google sebagai {email}. Lengkapi data usaha di bawah.',
+    useEmail: 'Pakai email & kata sandi',
+    orManual: 'atau daftar dengan email',
+    notRegistered: 'Akun Google ini belum terdaftar. Lengkapi data usaha untuk mendaftar.',
+    loadFailed: 'Tombol Google gagal dimuat. Periksa koneksi lalu muat ulang halaman.'
   }
 };

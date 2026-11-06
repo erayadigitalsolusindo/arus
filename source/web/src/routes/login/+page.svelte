@@ -10,6 +10,16 @@
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
+  import GoogleButton from '#lib/components/GoogleButton.svelte';
+  import { googleEnabled, PENDING_KEY } from '#lib/auth/google.ts';
+
+  // Respons login: sesi penuh, atau tantangan 2FA bila akun memakai TOTP (belum ada sesi).
+  type LoginResponse = AuthResponse | { mfa_required: true; mfa_token: string };
+  const isMfa = (r: LoginResponse): r is { mfa_required: true; mfa_token: string } => 'mfa_required' in r;
+
+  let mfaToken = $state('');
+  let mfaCode = $state('');
+  let mfaError = $state('');
 
   // APK Kasir yang diunggah Platform Admin; tombol hanya tampil bila sudah ada.
   const APK_URL = `${API_URL}/public/mobile/apk`;
@@ -65,6 +75,66 @@
     return () => clearInterval(id);
   });
 
+  async function googleLogin(credential: string) {
+    formError = '';
+    loading = true;
+    try {
+      const res = await api<LoginResponse>('/auth/google/login', { method: 'POST', body: JSON.stringify({ id_token: credential, remember }) });
+      if (isMfa(res)) {
+        mfaToken = res.mfa_token;
+        return;
+      }
+      startSession(res);
+      await goto(safeNext(new URL(location.href).searchParams.get('next')) ?? homePath());
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'GOOGLE_NOT_REGISTERED') {
+        // Belum terdaftar: lanjutkan ke pendaftaran dengan kredensial yang sama.
+        try {
+          sessionStorage.setItem(PENDING_KEY, credential);
+        } catch {
+          /* sessionStorage diblokir: pengguna login ulang dari halaman daftar */
+        }
+        await goto('/register?google=1');
+        return;
+      }
+      formError = errorMessage(err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function submitMfa(e: SubmitEvent) {
+    e.preventDefault();
+    mfaError = '';
+    if (lockedSeconds > 0 || !mfaCode.trim()) return;
+    loading = true;
+    try {
+      const res = await api<AuthResponse>('/auth/login/mfa', { method: 'POST', body: JSON.stringify({ mfa_token: mfaToken, code: mfaCode.trim() }) });
+      startSession(res);
+      await goto(safeNext(new URL(location.href).searchParams.get('next')) ?? homePath());
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
+        now = Date.now();
+        lockedUntil = now + err.retryAfter * 1000;
+        return;
+      }
+      if (err instanceof ApiError && err.code === 'MFA_TOKEN_INVALID') {
+        // Tantangan kedaluwarsa: kembali ke langkah password.
+        backToLogin();
+        formError = errorMessage(err);
+        return;
+      }
+      mfaError = err instanceof ApiError && err.code === 'MFA_CODE_INVALID' && err.attemptsLeft > 0 ? t('errors.MFA_CODE_INVALID_LEFT', { count: err.attemptsLeft }) : errorMessage(err);
+      mfaCode = '';
+    } finally {
+      loading = false;
+    }
+  }
+
+  function backToLogin() {
+    mfaToken = mfaCode = mfaError = '';
+  }
+
   async function submit(e: SubmitEvent) {
     e.preventDefault();
     formError = '';
@@ -83,7 +153,12 @@
 
     loading = true;
     try {
-      const res = await api<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
+      const res = await api<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
+      if (isMfa(res)) {
+        password = '';
+        mfaToken = res.mfa_token;
+        return;
+      }
       startSession(res);
       password = '';
       await goto(safeNext(new URL(location.href).searchParams.get('next')) ?? homePath());
@@ -121,9 +196,35 @@
       <p class="flex justify-center items-center text-[12.5px] mt-1.5 text-tertiary">{t('auth.login.subtitle')}</p>
       {#if brand}<p class="flex justify-center items-center text-[13px] mt-1 font-semibold">{t('auth.login.brandedFor', { name: brand })}</p>{/if}
 
-      <div class="grid grid-cols-2 gap-3 mt-6">
-        <button type="button" class="btn btn-outline !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
-        <button type="button" class="btn btn-outline !text-[12.5px] justify-center"><i class="fa-brands fa-github text-[14px]"></i>GitHub</button>
+      {#if mfaToken}
+        <form class="mt-8 space-y-4" onsubmit={submitMfa} novalidate>
+          <div class="text-center space-y-1.5">
+            <span class="inline-grid place-items-center size-12 rounded-full bg-[color-mix(in_oklab,var(--color-primary-600)_14%,transparent)] text-[var(--color-primary-600)]"><i class="icon-shield-check text-[22px]"></i></span>
+            <h2 class="font-display font-bold text-[18px]">{t('auth.mfa.title')}</h2>
+            <p class="text-[12.5px] text-tertiary">{t('auth.mfa.subtitle')}</p>
+          </div>
+          {#if lockedText || mfaError}
+            <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
+              <i class="icon-circle-alert text-[14px] mt-px shrink-0"></i><span>{lockedText || mfaError}</span>
+            </div>
+          {/if}
+          <div>
+            <label for="mfa-code" class="text-[11.5px] font-semibold uppercase tracking-wide text-tertiary">{t('auth.mfa.code')}</label>
+            <input id="mfa-code" bind:value={mfaCode} inputmode="text" autocomplete="one-time-code" maxlength="14" placeholder="123456" class="mt-1.5 w-full px-3 py-3 rounded-lg text-[18px] text-center tracking-[0.3em] font-mono outline-none bg-sunken-bordered" />
+            <p class="text-[11.5px] mt-1.5 text-tertiary">{t('auth.mfa.hint')}</p>
+          </div>
+          <button type="submit" disabled={loading || lockedSeconds > 0 || !mfaCode.trim()} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+            {t('auth.mfa.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
+          </button>
+          <button type="button" class="w-full text-center text-[12.5px] font-semibold text-primary-600" onclick={backToLogin}>{t('auth.mfa.back')}</button>
+        </form>
+      {:else}
+      <div class="mt-6">
+        {#if googleEnabled}
+          <GoogleButton onCredential={googleLogin} />
+        {:else}
+          <button type="button" class="btn btn-outline w-full !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
+        {/if}
       </div>
 
       <div class="flex items-center gap-3 my-6">
@@ -189,6 +290,7 @@
           {t('auth.login.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
         </button>
       </form>
+      {/if}
 
       <p class="text-center text-[12.5px] mt-6 text-tertiary">
         {t('auth.login.noAccount')} <a href="/register" class="font-semibold text-primary-600">{t('auth.login.createOne')}</a>

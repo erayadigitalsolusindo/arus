@@ -15,6 +15,17 @@ class AppConfig {
     defaultValue: productionUrl,
   );
 
+  /// OAuth client ID bertipe **Web** (sama dengan salah satu GOOGLE_CLIENT_IDS di server): menjadi `aud` ID token Google.
+  /// Bukan rahasia (client ID itu publik), jadi boleh ditulis di sini. Isi [googleClientIdDefault] dengan ID dari
+  /// Google Cloud Console; kosong = tombol Google disembunyikan. Bisa diganti lewat `--dart-define=GOOGLE_SERVER_CLIENT_ID=...`.
+  static const String googleClientIdDefault =
+      '452740845962-ilhsknjm9viukk3vmbo70qoqc0vql11e.apps.googleusercontent.com'; // contoh: 1234567890-xxxx.apps.googleusercontent.com
+
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: googleClientIdDefault,
+  );
+
   /// Penanda klien native: server mengirim/menerima refresh token lewat badan JSON, bukan cookie.
   static const String clientHeader = 'X-Client';
   static const String clientValue = 'mobile';

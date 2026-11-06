@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/api/api_error.dart';
+import '../../core/auth/google_auth.dart';
 import '../../core/config/server_url.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
@@ -16,6 +18,8 @@ import '../../core/theme/text_scale_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/ocean_background.dart';
 import '../../l10n/gen/app_localizations.dart';
+import 'google_register_sheet.dart';
+import 'mfa_dialog.dart';
 
 /// Layar masuk. Isi form disamakan dengan halaman login web (judul + logo, email, kata sandi tampil/sembunyi,
 /// "Tetap masuk", tombol Masuk, kotak galat merah, sisa percobaan, hitung mundur kunci akun), di atas latar lautan.
@@ -36,6 +40,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _showPassword = false;
   bool _loading = false;
   ApiError? _error;
+  String? _googleMessage;
   DateTime? _lockedUntil;
   Timer? _tick;
 
@@ -84,6 +89,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             remember: _remember,
           );
       // Router mengalihkan ke beranda begitu sesi terbentuk.
+    } on MfaRequired catch (m) {
+      if (!mounted) return;
+      _password.clear();
+      setState(() => _loading = false);
+      await showMfaDialog(context, m.token);
     } on ApiError catch (e) {
       if (!mounted) return;
       if (e.code == 'ACCOUNT_LOCKED' && e.retryAfter > 0) {
@@ -92,6 +102,43 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
       setState(() => _error = e);
       if (e.code == 'INVALID_CREDENTIALS') _password.clear();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _google() async {
+    if (_loading) return;
+    final l = AppLocalizations.of(context);
+    setState(() {
+      _error = null;
+      _googleMessage = null;
+      _loading = true;
+    });
+    String? token;
+    try {
+      token = await ref.read(googleAuthProvider).idToken();
+      if (token == null) {
+        if (mounted) setState(() => _googleMessage = l.googleCancelled);
+        return;
+      }
+      await ref
+          .read(sessionProvider.notifier)
+          .googleLogin(idToken: token, remember: _remember);
+    } on GoogleAuthFailure {
+      if (mounted) setState(() => _googleMessage = l.googleFailed);
+    } on MfaRequired catch (m) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      await showMfaDialog(context, m.token);
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      if (e.code == 'GOOGLE_NOT_REGISTERED' && token != null) {
+        setState(() => _loading = false);
+        await showGoogleRegisterSheet(context, token);
+        return;
+      }
+      setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -120,7 +167,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ).message(l)
         : expired && _error == null
         ? ApiError(code: 'SESSION_INVALID').message(l)
-        : _error?.message(l);
+        : _error?.message(l) ?? _googleMessage;
 
     return Scaffold(
       body: OceanBackground(
@@ -186,6 +233,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                             ),
                             const SizedBox(height: 24),
+                            if (ref.watch(googleAuthProvider).enabled) ...[
+                              OutlinedButton.icon(
+                                onPressed: _loading || locked ? null : _google,
+                                icon: const Icon(Icons.g_mobiledata, size: 28),
+                                label: Text(l.loginGoogle),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  const Expanded(child: Divider()),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    child: Text(
+                                      l.loginOrEmail,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: pal.textTertiary,
+                                      ),
+                                    ),
+                                  ),
+                                  const Expanded(child: Divider()),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                             if (errorText != null) ...[
                               _AlertBox(
                                 text: errorText,

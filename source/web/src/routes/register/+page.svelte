@@ -7,6 +7,9 @@
   import { checkName, checkEmail, checkPhone, checkPassword, passwordStrength } from '#lib/validation.ts';
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
+  import GoogleButton from '#lib/components/GoogleButton.svelte';
+  import { onMount } from 'svelte';
+  import { decodeCredential, googleEnabled, PENDING_KEY, type GoogleProfile } from '#lib/auth/google.ts';
 
   type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm' | 'accept_terms';
 
@@ -25,6 +28,47 @@
   let formError = $state('');
   let errors = $state<Partial<Record<Field, string>>>({});
 
+  // Mode Google: nama & email dari akun Google (diverifikasi server), tanpa kata sandi.
+  let googleToken = $state('');
+  let googleProfile = $state<GoogleProfile | null>(null);
+  let fromLogin = $state(false);
+
+  function useGoogle(credential: string) {
+    const p = decodeCredential(credential);
+    if (!p) {
+      formError = errorMessage(new ApiError(401, 'GOOGLE_INVALID_TOKEN', ''));
+      return;
+    }
+    googleToken = credential;
+    googleProfile = p;
+    errors = {};
+    formError = '';
+  }
+
+  function leaveGoogle() {
+    googleToken = '';
+    googleProfile = null;
+    fromLogin = false;
+    try {
+      sessionStorage.removeItem(PENDING_KEY);
+    } catch {
+      /* abaikan */
+    }
+  }
+
+  onMount(() => {
+    if (!googleEnabled) return;
+    try {
+      const pending = sessionStorage.getItem(PENDING_KEY);
+      if (pending) {
+        useGoogle(pending);
+        fromLogin = googleProfile !== null;
+      }
+    } catch {
+      /* sessionStorage diblokir */
+    }
+  });
+
   const strength = $derived(passwordStrength(password));
   const strengthLabel = $derived(
     password === '' ? '' : t(`auth.register.strength.${(['weak', 'fair', 'strong'] as const)[strength]}`)
@@ -32,11 +76,49 @@
 
   const inputClass = 'w-full px-3 py-2.5 rounded-lg text-[12.5px] outline-none bg-sunken-bordered';
 
+  async function submitGoogle() {
+    const biz = checkName(businessName);
+    const outlet = checkName(outletName);
+    const tel = checkPhone(phone);
+    const next: Partial<Record<Field, string>> = {};
+    if (biz.code) next.business_name = fieldMessage(biz.code);
+    if (outlet.code) next.outlet_name = fieldMessage(outlet.code);
+    if (tel.code) next.phone = fieldMessage(tel.code);
+    if (!acceptTerms) next.accept_terms = t('account.terms.required');
+    if (Object.keys(next).length) {
+      errors = next;
+      return;
+    }
+    loading = true;
+    try {
+      const res = await api<AuthResponse>('/auth/google/register', {
+        method: 'POST',
+        body: JSON.stringify({ id_token: googleToken, business_name: biz.value, outlet_name: outlet.value, phone: tel.value, accept_terms: acceptTerms })
+      });
+      leaveGoogle();
+      startSession(res);
+      await goto('/dashboard');
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
+        formError = errorMessage(err);
+      } else if (err instanceof ApiError && err.code === 'VALIDATION') {
+        for (const [k, code] of Object.entries(err.fields)) errors[k as Field] = fieldMessage(code);
+        if (!Object.keys(errors).length) formError = errorMessage(err);
+      } else {
+        if (err instanceof ApiError && err.code === 'GOOGLE_INVALID_TOKEN') leaveGoogle();
+        formError = errorMessage(err);
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
   async function submit(e: SubmitEvent) {
     e.preventDefault();
     formError = '';
     errors = {};
 
+    if (googleToken) return submitGoogle();
     const biz = checkName(businessName);
     const owner = checkName(ownerName);
     const outlet = checkName(outletName);
@@ -139,6 +221,27 @@
       <h1 class="font-display font-bold text-[22px]">{t('auth.register.title')}</h1>
       <p class="text-[12.5px] mt-1.5 text-tertiary">{t('auth.register.subtitle')}</p>
 
+      {#if googleEnabled && !googleToken}
+        <div class="mt-6">
+          <GoogleButton text="signup_with" onCredential={useGoogle} />
+        </div>
+        <div class="flex items-center gap-3 mt-6">
+          <span class="flex-1 h-px bg-border-subtle"></span>
+          <span class="text-[11px] font-medium text-tertiary">{t('auth.google.orManual')}</span>
+          <span class="flex-1 h-px bg-border-subtle"></span>
+        </div>
+      {/if}
+
+      {#if googleProfile}
+        <div class="mt-6 flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] bg-sunken-bordered">
+          <i class="fa-brands fa-google text-[14px] mt-px shrink-0"></i>
+          <div class="flex-1">
+            <p>{fromLogin ? t('auth.google.notRegistered') : t('auth.google.signupHint', { email: googleProfile.email })}</p>
+            <button type="button" class="font-semibold text-primary-600 mt-1" onclick={leaveGoogle}>{t('auth.google.useEmail')}</button>
+          </div>
+        </div>
+      {/if}
+
       <form class="space-y-4 mt-6" onsubmit={submit} novalidate>
         {#if formError}
           <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger">
@@ -149,12 +252,18 @@
 
         {@render textField('business_name', t('auth.register.businessName'), businessName, (v) => (businessName = v), { placeholder: t('auth.register.businessNamePlaceholder'), autocomplete: 'organization', icon: 'icon-store', max: 100 })}
         {@render textField('outlet_name', t('auth.register.outletName'), outletName, (v) => (outletName = v), { placeholder: t('auth.register.outletNamePlaceholder'), autocomplete: 'off', icon: 'icon-map-pin', max: 100 })}
+        {#if !googleToken}
         {@render textField('owner_name', t('auth.register.ownerName'), ownerName, (v) => (ownerName = v), { placeholder: t('auth.register.ownerNamePlaceholder'), autocomplete: 'name', icon: 'icon-user', max: 100 })}
+        {/if}
 
         <div class="grid sm:grid-cols-2 gap-3">
+          {#if !googleToken}
           {@render textField('email', t('auth.register.email'), email, (v) => (email = v), { type: 'email', placeholder: t('auth.login.emailPlaceholder'), autocomplete: 'email', icon: 'icon-mail', max: 254 })}
+          {/if}
           {@render textField('phone', t('auth.register.phone'), phone, (v) => (phone = v), { type: 'tel', placeholder: t('auth.register.phonePlaceholder'), autocomplete: 'tel', icon: 'icon-phone', max: 24 })}
         </div>
+
+        {#if !googleToken}
 
         <div>
           <label for="password" class="text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 text-tertiary">{t('auth.register.password')}</label>
@@ -200,6 +309,7 @@
           </div>
           {#if errors.confirm}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{errors.confirm}</p>{/if}
         </div>
+        {/if}
 
         <div>
           <label class="flex items-start gap-2 text-[12px]">

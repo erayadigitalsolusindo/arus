@@ -62,6 +62,21 @@ const auth: Messages['auth'] = {
     scanTagline: 'スキャンして即販売',
     salesToday: '今日の売上',
     transactions: { one: '{count} 件の取引', other: '{count} 件の取引' }
+  },
+  mfa: {
+    title: '2 段階認証',
+    subtitle: '認証アプリに表示される 6 桁のコードを入力してください。',
+    code: '認証コード',
+    hint: '端末を紛失した場合は、リカバリーコードを使用してください。',
+    submit: '認証',
+    back: 'ログインに戻る'
+  },
+  google: {
+    signupHint: 'Googleアカウント {email} で登録します。以下の事業情報を入力してください。',
+    useEmail: 'メールとパスワードを使う',
+    orManual: 'またはメールで登録',
+    notRegistered: 'このGoogleアカウントは未登録です。事業情報を入力して登録してください。',
+    loadFailed: 'Googleボタンを読み込めませんでした。接続を確認してページを再読み込みしてください。'
   }
 };
 

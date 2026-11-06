@@ -75,6 +75,24 @@ class ApiError implements Exception {
         return l.errorNoOutlet;
       case 'ACCOUNT_LOCKED':
         return l.errorAccountLocked((retryAfter / 60).ceil().clamp(1, 1 << 30));
+      case 'MFA_CODE_INVALID':
+        return attemptsLeft > 0
+            ? l.errorMfaCodeInvalidLeft(attemptsLeft)
+            : l.errorMfaCodeInvalid;
+      case 'MFA_TOKEN_INVALID':
+        return l.errorMfaTokenInvalid;
+      case 'GOOGLE_NOT_REGISTERED':
+        return l.errorGoogleNotRegistered;
+      case 'GOOGLE_INVALID_TOKEN':
+        return l.errorGoogleInvalidToken;
+      case 'GOOGLE_EMAIL_UNVERIFIED':
+        return l.errorGoogleEmailUnverified;
+      case 'GOOGLE_LINKED':
+        return l.errorGoogleLinked;
+      case 'GOOGLE_DISABLED':
+        return l.errorGoogleDisabled;
+      case 'EMAIL_TAKEN':
+        return l.errorEmailTaken;
       case 'RATE_LIMITED':
         return l.errorRateLimited;
       case 'UNAVAILABLE':

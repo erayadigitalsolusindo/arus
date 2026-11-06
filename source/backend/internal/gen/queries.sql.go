@@ -5095,6 +5095,201 @@ func (q *Queries) MemberUpdate(ctx context.Context, arg MemberUpdateParams) erro
 	return err
 }
 
+const mfaBegin = `-- name: MfaBegin :execrows
+UPDATE users SET totp_secret_enc = $1, totp_last_step = 0
+WHERE tenant_id = $2 AND id = $3 AND totp_enabled_at IS NULL
+`
+
+type MfaBeginParams struct {
+	SecretEnc pgtype.Text
+	TenantID  uuid.UUID
+	ID        uuid.UUID
+}
+
+func (q *Queries) MfaBegin(ctx context.Context, arg MfaBeginParams) (int64, error) {
+	result, err := q.db.Exec(ctx, mfaBegin, arg.SecretEnc, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const mfaEnable = `-- name: MfaEnable :execrows
+UPDATE users SET totp_enabled_at = now(), totp_last_step = $1
+WHERE tenant_id = $2 AND id = $3 AND totp_secret_enc IS NOT NULL AND totp_enabled_at IS NULL
+`
+
+type MfaEnableParams struct {
+	Step     int64
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) MfaEnable(ctx context.Context, arg MfaEnableParams) (int64, error) {
+	result, err := q.db.Exec(ctx, mfaEnable, arg.Step, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const mfaEnabled = `-- name: MfaEnabled :one
+SELECT (totp_enabled_at IS NOT NULL)::boolean FROM users WHERE tenant_id = $1 AND id = $2
+`
+
+type MfaEnabledParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) MfaEnabled(ctx context.Context, arg MfaEnabledParams) (bool, error) {
+	row := q.db.QueryRow(ctx, mfaEnabled, arg.TenantID, arg.ID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const mfaGet = `-- name: MfaGet :one
+SELECT email, password_hash, totp_secret_enc, totp_enabled_at, totp_last_step
+FROM users WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type MfaGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type MfaGetRow struct {
+	Email         string
+	PasswordHash  string
+	TotpSecretEnc pgtype.Text
+	TotpEnabledAt pgtype.Timestamptz
+	TotpLastStep  int64
+}
+
+func (q *Queries) MfaGet(ctx context.Context, arg MfaGetParams) (MfaGetRow, error) {
+	row := q.db.QueryRow(ctx, mfaGet, arg.TenantID, arg.ID)
+	var i MfaGetRow
+	err := row.Scan(
+		&i.Email,
+		&i.PasswordHash,
+		&i.TotpSecretEnc,
+		&i.TotpEnabledAt,
+		&i.TotpLastStep,
+	)
+	return i, err
+}
+
+const mfaRecoveryDelete = `-- name: MfaRecoveryDelete :exec
+DELETE FROM user_recovery_codes WHERE tenant_id = $1 AND user_id = $2
+`
+
+type MfaRecoveryDeleteParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) MfaRecoveryDelete(ctx context.Context, arg MfaRecoveryDeleteParams) error {
+	_, err := q.db.Exec(ctx, mfaRecoveryDelete, arg.TenantID, arg.UserID)
+	return err
+}
+
+const mfaRecoveryInsert = `-- name: MfaRecoveryInsert :exec
+INSERT INTO user_recovery_codes (tenant_id, user_id, code_hash)
+SELECT $1, $2, unnest($3::text[])
+`
+
+type MfaRecoveryInsertParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	Hashes   []string
+}
+
+func (q *Queries) MfaRecoveryInsert(ctx context.Context, arg MfaRecoveryInsertParams) error {
+	_, err := q.db.Exec(ctx, mfaRecoveryInsert, arg.TenantID, arg.UserID, arg.Hashes)
+	return err
+}
+
+const mfaRecoveryRemaining = `-- name: MfaRecoveryRemaining :one
+SELECT count(*)::int FROM user_recovery_codes WHERE tenant_id = $1 AND user_id = $2 AND used_at IS NULL
+`
+
+type MfaRecoveryRemainingParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) MfaRecoveryRemaining(ctx context.Context, arg MfaRecoveryRemainingParams) (int32, error) {
+	row := q.db.QueryRow(ctx, mfaRecoveryRemaining, arg.TenantID, arg.UserID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const mfaRecoveryUse = `-- name: MfaRecoveryUse :execrows
+UPDATE user_recovery_codes SET used_at = now()
+WHERE tenant_id = $1 AND user_id = $2 AND code_hash = $3 AND used_at IS NULL
+`
+
+type MfaRecoveryUseParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	CodeHash string
+}
+
+func (q *Queries) MfaRecoveryUse(ctx context.Context, arg MfaRecoveryUseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, mfaRecoveryUse, arg.TenantID, arg.UserID, arg.CodeHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const mfaReset = `-- name: MfaReset :execrows
+UPDATE users SET totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = 0,
+       tokens_valid_after = CASE WHEN $1::boolean THEN $2::timestamptz ELSE tokens_valid_after END
+WHERE tenant_id = $3 AND id = $4
+`
+
+type MfaResetParams struct {
+	Revoke     bool
+	ValidAfter pgtype.Timestamptz
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+}
+
+func (q *Queries) MfaReset(ctx context.Context, arg MfaResetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, mfaReset,
+		arg.Revoke,
+		arg.ValidAfter,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const mfaUseStep = `-- name: MfaUseStep :execrows
+UPDATE users SET totp_last_step = $1
+WHERE tenant_id = $2 AND id = $3 AND totp_enabled_at IS NOT NULL AND totp_last_step < $1
+`
+
+type MfaUseStepParams struct {
+	Step     int64
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) MfaUseStep(ctx context.Context, arg MfaUseStepParams) (int64, error) {
+	result, err := q.db.Exec(ctx, mfaUseStep, arg.Step, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const outletAssignUser = `-- name: OutletAssignUser :exec
 INSERT INTO user_outlets (tenant_id, user_id, outlet_id) VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING
@@ -6561,6 +6756,276 @@ func (q *Queries) PosShortcutSet(ctx context.Context, arg PosShortcutSetParams) 
 		arg.ItemID,
 	)
 	return err
+}
+
+const profileActivity = `-- name: ProfileActivity :many
+SELECT id, action, entity, entity_id, ip, created_at FROM audit_log
+WHERE tenant_id = $1 AND actor_id = $2
+  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::bigint))
+ORDER BY created_at DESC, id DESC
+LIMIT $5
+`
+
+type ProfileActivityParams struct {
+	TenantID uuid.UUID
+	ActorID  pgtype.UUID
+	BeforeAt pgtype.Timestamptz
+	BeforeID int64
+	Lim      int32
+}
+
+type ProfileActivityRow struct {
+	ID        int64
+	Action    string
+	Entity    string
+	EntityID  string
+	Ip        string
+	CreatedAt pgtype.Timestamptz
+}
+
+// Jejak aktivitas pengguna sendiri dari audit log (keyset created_at,id; indeks audit_log_tenant_actor_idx).
+func (q *Queries) ProfileActivity(ctx context.Context, arg ProfileActivityParams) ([]ProfileActivityRow, error) {
+	rows, err := q.db.Query(ctx, profileActivity,
+		arg.TenantID,
+		arg.ActorID,
+		arg.BeforeAt,
+		arg.BeforeID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProfileActivityRow
+	for rows.Next() {
+		var i ProfileActivityRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Action,
+			&i.Entity,
+			&i.EntityID,
+			&i.Ip,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const profileCredentials = `-- name: ProfileCredentials :one
+SELECT password_hash FROM users WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type ProfileCredentialsParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ProfileCredentials(ctx context.Context, arg ProfileCredentialsParams) (string, error) {
+	row := q.db.QueryRow(ctx, profileCredentials, arg.TenantID, arg.ID)
+	var password_hash string
+	err := row.Scan(&password_hash)
+	return password_hash, err
+}
+
+const profileGet = `-- name: ProfileGet :one
+SELECT u.id, u.name, u.email, u.phone, u.job_title, u.bio, u.location, u.avatar_image_id, u.banner_image_id,
+       u.last_login_at, u.created_at, (u.email_verified_at IS NOT NULL)::boolean AS email_verified,
+       (u.totp_enabled_at IS NOT NULL)::boolean AS mfa_enabled,
+       r.name AS role_name, t.name AS tenant_name, t.code AS tenant_code,
+       (SELECT count(*) FROM outlets o WHERE o.tenant_id = u.tenant_id AND o.active
+          AND (r.is_system OR EXISTS (SELECT 1 FROM user_outlets uo WHERE uo.tenant_id = u.tenant_id AND uo.user_id = u.id AND uo.outlet_id = o.id)))::int AS outlet_count
+FROM users u
+JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+JOIN tenants t ON t.id = u.tenant_id
+WHERE u.tenant_id = $1 AND u.id = $2
+`
+
+type ProfileGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ProfileGetRow struct {
+	ID            uuid.UUID
+	Name          string
+	Email         string
+	Phone         pgtype.Text
+	JobTitle      pgtype.Text
+	Bio           pgtype.Text
+	Location      pgtype.Text
+	AvatarImageID pgtype.UUID
+	BannerImageID pgtype.UUID
+	LastLoginAt   pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	EmailVerified bool
+	MfaEnabled    bool
+	RoleName      string
+	TenantName    string
+	TenantCode    string
+	OutletCount   int32
+}
+
+func (q *Queries) ProfileGet(ctx context.Context, arg ProfileGetParams) (ProfileGetRow, error) {
+	row := q.db.QueryRow(ctx, profileGet, arg.TenantID, arg.ID)
+	var i ProfileGetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.JobTitle,
+		&i.Bio,
+		&i.Location,
+		&i.AvatarImageID,
+		&i.BannerImageID,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.EmailVerified,
+		&i.MfaEnabled,
+		&i.RoleName,
+		&i.TenantName,
+		&i.TenantCode,
+		&i.OutletCount,
+	)
+	return i, err
+}
+
+const profileImages = `-- name: ProfileImages :one
+SELECT avatar_image_id, banner_image_id FROM users WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+`
+
+type ProfileImagesParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type ProfileImagesRow struct {
+	AvatarImageID pgtype.UUID
+	BannerImageID pgtype.UUID
+}
+
+func (q *Queries) ProfileImages(ctx context.Context, arg ProfileImagesParams) (ProfileImagesRow, error) {
+	row := q.db.QueryRow(ctx, profileImages, arg.TenantID, arg.ID)
+	var i ProfileImagesRow
+	err := row.Scan(&i.AvatarImageID, &i.BannerImageID)
+	return i, err
+}
+
+const profileSetAvatar = `-- name: ProfileSetAvatar :exec
+UPDATE users SET avatar_image_id = $1 WHERE tenant_id = $2 AND id = $3
+`
+
+type ProfileSetAvatarParams struct {
+	ImageID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ProfileSetAvatar(ctx context.Context, arg ProfileSetAvatarParams) error {
+	_, err := q.db.Exec(ctx, profileSetAvatar, arg.ImageID, arg.TenantID, arg.ID)
+	return err
+}
+
+const profileSetBanner = `-- name: ProfileSetBanner :exec
+UPDATE users SET banner_image_id = $1 WHERE tenant_id = $2 AND id = $3
+`
+
+type ProfileSetBannerParams struct {
+	ImageID  pgtype.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ProfileSetBanner(ctx context.Context, arg ProfileSetBannerParams) error {
+	_, err := q.db.Exec(ctx, profileSetBanner, arg.ImageID, arg.TenantID, arg.ID)
+	return err
+}
+
+const profileSetPassword = `-- name: ProfileSetPassword :execrows
+UPDATE users SET password_hash = $1, tokens_valid_after = $2::timestamptz
+WHERE tenant_id = $3 AND id = $4
+`
+
+type ProfileSetPasswordParams struct {
+	PasswordHash string
+	ValidAfter   pgtype.Timestamptz
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+}
+
+func (q *Queries) ProfileSetPassword(ctx context.Context, arg ProfileSetPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, profileSetPassword,
+		arg.PasswordHash,
+		arg.ValidAfter,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const profileStats = `-- name: ProfileStats :one
+SELECT count(*)::int AS actions, (count(*) FILTER (WHERE action = 'auth.login'))::int AS logins
+FROM audit_log
+WHERE tenant_id = $1 AND actor_id = $2 AND created_at >= $3
+`
+
+type ProfileStatsParams struct {
+	TenantID uuid.UUID
+	ActorID  pgtype.UUID
+	Since    pgtype.Timestamptz
+}
+
+type ProfileStatsRow struct {
+	Actions int32
+	Logins  int32
+}
+
+func (q *Queries) ProfileStats(ctx context.Context, arg ProfileStatsParams) (ProfileStatsRow, error) {
+	row := q.db.QueryRow(ctx, profileStats, arg.TenantID, arg.ActorID, arg.Since)
+	var i ProfileStatsRow
+	err := row.Scan(&i.Actions, &i.Logins)
+	return i, err
+}
+
+const profileUpdate = `-- name: ProfileUpdate :execrows
+UPDATE users SET name = $1, phone = $2, job_title = $3,
+       bio = $4, location = $5
+WHERE tenant_id = $6 AND id = $7
+`
+
+type ProfileUpdateParams struct {
+	Name     string
+	Phone    pgtype.Text
+	JobTitle pgtype.Text
+	Bio      pgtype.Text
+	Location pgtype.Text
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+func (q *Queries) ProfileUpdate(ctx context.Context, arg ProfileUpdateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, profileUpdate,
+		arg.Name,
+		arg.Phone,
+		arg.JobTitle,
+		arg.Bio,
+		arg.Location,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const purchaseAuditEvents = `-- name: PurchaseAuditEvents :many

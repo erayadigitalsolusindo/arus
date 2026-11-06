@@ -13,6 +13,7 @@ import (
 const (
 	PurposeVerifyEmail   = "verify_email"
 	PurposePasswordReset = "password_reset"
+	PurposeUserMFA       = "user_mfa"     // tantangan login pengguna tenant setelah password benar (menunggu kode TOTP)
 	PurposePlatformMFA   = "platform_mfa" // tantangan login Platform Admin setelah password benar (menunggu kode TOTP)
 )
 

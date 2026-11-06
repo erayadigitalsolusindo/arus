@@ -25,14 +25,15 @@ import (
 	"aciraba/internal/outlet"
 	"aciraba/internal/payable"
 	"aciraba/internal/paymentmethod"
+	"aciraba/internal/plan"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/config"
 	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/storage"
-	"aciraba/internal/plan"
 	"aciraba/internal/platformadmin"
 	"aciraba/internal/posshortcut"
+	"aciraba/internal/profile"
 	"aciraba/internal/purchasing"
 	"aciraba/internal/receivable"
 	reports_debt "aciraba/internal/reports/debt"
@@ -42,8 +43,9 @@ import (
 	reports_stock "aciraba/internal/reports/stock"
 	"aciraba/internal/sales"
 	"aciraba/internal/shift"
-	"aciraba/internal/subscription"
 	"aciraba/internal/stock"
+	"aciraba/internal/subscription"
+	"aciraba/internal/usermfa"
 	"aciraba/internal/voucher"
 	"aciraba/internal/wallet"
 )
@@ -70,9 +72,15 @@ func mountModules(r chi.Router, d appDeps) error {
 	go liveHub.Run(d.Ctx)
 
 	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
+	userTOTP, err := pauth.NewUserTOTPBox(d.Cfg.JWTSecret)
+	if err != nil {
+		return err
+	}
+	userMFA := usermfa.New(d.Pool, userTOTP, sessions)
 	authSvc := auth.NewService(auth.Deps{
 		Pool: d.Pool, Tokens: tokens, Sessions: sessions, OneTime: pauth.NewOneTime(d.Redis), Perms: perms,
 		Mailer: d.Mailer, Jobs: d.Jobs, BaseURL: d.Cfg.AppBaseURL, Approvals: approvalSvc,
+		Google: auth.NewGoogleVerifier(d.Cfg.GoogleClientIDs), MFA: userMFA,
 	})
 	auth.NewHandler(auth.HandlerDeps{
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
@@ -113,12 +121,13 @@ func mountModules(r chi.Router, d appDeps) error {
 	extapi.NewGateway(extStore, d.Redis, tokens, r, d.Log).Mount(r)
 	extapi.NewDocsHandler(extStore, extCatalog, d.Redis, d.Log).Routes(r)
 
-	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).Routes(r)
+	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).WithMFA(userMFA).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
 	audit.NewHandler(audit.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	catalog.NewHandler(catalog.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
 	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
+	profile.NewHandler(profile.NewService(d.Pool, uploads, sessions, perms), perms, tokens, d.Redis, userMFA, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
 	pmSvc := paymentmethod.NewService(d.Pool)

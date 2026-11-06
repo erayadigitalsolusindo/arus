@@ -175,6 +175,15 @@ const (
 	ActionSalePriceOverride = "sale.price_override"
 	ActionSaleLineDiscount  = "sale.line_discount"
 	ActionUserPinSet        = "user.pin_set"
+
+	// Profil pribadi (halaman /profile).
+	ActionUserProfile        = "user.profile"
+	ActionUserProfileImage   = "user.profile_image"
+	ActionUserPasswordChange = "user.password_change"
+	ActionUserMFAEnable      = "user.mfa_enable"
+	ActionUserMFADisable     = "user.mfa_disable"
+	ActionUserMFARecovery    = "user.mfa_recovery"
+	ActionUserMFAReset       = "user.mfa_reset"
 )
 
 // Member & level member (Fase 3.3). `member.points_adjust` = penyesuaian poin manual.

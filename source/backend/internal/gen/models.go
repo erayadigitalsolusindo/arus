@@ -1372,6 +1372,14 @@ type User struct {
 	TermsAcceptedAt  pgtype.Timestamptz
 	TermsVersion     pgtype.Text
 	TokensValidAfter pgtype.Timestamptz
+	JobTitle         pgtype.Text
+	Bio              pgtype.Text
+	Location         pgtype.Text
+	AvatarImageID    pgtype.UUID
+	BannerImageID    pgtype.UUID
+	TotpSecretEnc    pgtype.Text
+	TotpEnabledAt    pgtype.Timestamptz
+	TotpLastStep     int64
 }
 
 type UserFeatureShortcut struct {
@@ -1381,10 +1389,25 @@ type UserFeatureShortcut struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type UserIdentity struct {
+	Provider  string
+	Subject   string
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type UserOutlet struct {
 	TenantID uuid.UUID
 	UserID   uuid.UUID
 	OutletID uuid.UUID
+}
+
+type UserRecoveryCode struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+	CodeHash string
+	UsedAt   pgtype.Timestamptz
 }
 
 type Voucher struct {

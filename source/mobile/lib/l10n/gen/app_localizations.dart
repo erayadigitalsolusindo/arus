@@ -3705,6 +3705,168 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Uang EraPay = tagihan berstatus lunas di EraPay. Pencairan ke rekening bank mengikuti jadwal EraPay dan belum tersedia di sini.'**
   String get setNote;
+
+  /// No description provided for @loginOrEmail.
+  ///
+  /// In id, this message translates to:
+  /// **'atau masuk dengan email'**
+  String get loginOrEmail;
+
+  /// No description provided for @loginGoogle.
+  ///
+  /// In id, this message translates to:
+  /// **'Masuk dengan Google'**
+  String get loginGoogle;
+
+  /// No description provided for @googleCancelled.
+  ///
+  /// In id, this message translates to:
+  /// **'Login Google dibatalkan.'**
+  String get googleCancelled;
+
+  /// No description provided for @googleFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal masuk dengan Google. Coba lagi.'**
+  String get googleFailed;
+
+  /// No description provided for @mfaTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Verifikasi dua langkah'**
+  String get mfaTitle;
+
+  /// No description provided for @mfaIntro.
+  ///
+  /// In id, this message translates to:
+  /// **'Masukkan kode 6 digit dari aplikasi autentikator Anda, atau salah satu kode pemulihan.'**
+  String get mfaIntro;
+
+  /// No description provided for @mfaCode.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode verifikasi'**
+  String get mfaCode;
+
+  /// No description provided for @mfaSubmit.
+  ///
+  /// In id, this message translates to:
+  /// **'Verifikasi'**
+  String get mfaSubmit;
+
+  /// No description provided for @mfaCancel.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get mfaCancel;
+
+  /// No description provided for @errorMfaCodeInvalid.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode verifikasi salah.'**
+  String get errorMfaCodeInvalid;
+
+  /// No description provided for @errorMfaTokenInvalid.
+  ///
+  /// In id, this message translates to:
+  /// **'Sesi verifikasi berakhir. Silakan masuk kembali.'**
+  String get errorMfaTokenInvalid;
+
+  /// No description provided for @errorMfaCodeInvalidLeft.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode verifikasi salah. Sisa {count} percobaan sebelum dikunci sementara.'**
+  String errorMfaCodeInvalidLeft(int count);
+
+  /// No description provided for @googleRegTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Daftar dengan Google'**
+  String get googleRegTitle;
+
+  /// No description provided for @googleRegIntro.
+  ///
+  /// In id, this message translates to:
+  /// **'Lengkapi data usaha untuk membuat akun ARUS.'**
+  String get googleRegIntro;
+
+  /// No description provided for @googleRegBusiness.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama bisnis'**
+  String get googleRegBusiness;
+
+  /// No description provided for @googleRegOutlet.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama outlet'**
+  String get googleRegOutlet;
+
+  /// No description provided for @googleRegPhone.
+  ///
+  /// In id, this message translates to:
+  /// **'Nomor telepon'**
+  String get googleRegPhone;
+
+  /// No description provided for @googleRegTerms.
+  ///
+  /// In id, this message translates to:
+  /// **'Saya menyetujui Syarat Layanan dan Kebijakan Privasi'**
+  String get googleRegTerms;
+
+  /// No description provided for @googleRegSubmit.
+  ///
+  /// In id, this message translates to:
+  /// **'Daftar'**
+  String get googleRegSubmit;
+
+  /// No description provided for @googleRegRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Wajib diisi.'**
+  String get googleRegRequired;
+
+  /// No description provided for @googleRegTermsRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Anda harus menyetujui syarat.'**
+  String get googleRegTermsRequired;
+
+  /// No description provided for @errorGoogleNotRegistered.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun Google ini belum terdaftar.'**
+  String get errorGoogleNotRegistered;
+
+  /// No description provided for @errorGoogleInvalidToken.
+  ///
+  /// In id, this message translates to:
+  /// **'Verifikasi Google gagal atau kedaluwarsa. Coba lagi.'**
+  String get errorGoogleInvalidToken;
+
+  /// No description provided for @errorGoogleEmailUnverified.
+  ///
+  /// In id, this message translates to:
+  /// **'Email akun Google Anda belum terverifikasi.'**
+  String get errorGoogleEmailUnverified;
+
+  /// No description provided for @errorGoogleLinked.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun ini sudah tertaut ke akun Google lain.'**
+  String get errorGoogleLinked;
+
+  /// No description provided for @errorGoogleDisabled.
+  ///
+  /// In id, this message translates to:
+  /// **'Login dengan Google belum diaktifkan.'**
+  String get errorGoogleDisabled;
+
+  /// No description provided for @errorEmailTaken.
+  ///
+  /// In id, this message translates to:
+  /// **'Email ini sudah terdaftar. Silakan masuk.'**
+  String get errorEmailTaken;
 }
 
 class _AppLocalizationsDelegate

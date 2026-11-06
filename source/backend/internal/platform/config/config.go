@@ -51,6 +51,10 @@ type Config struct {
 	// Bawaan: nyala di luar development (di dev mati agar API yang dijalankan ulang tidak menulis ke data pengguna tanpa diminta).
 	EraPayReconcile bool
 
+	// GoogleClientIDs = OAuth client ID yang diterima sebagai `aud` ID token Google (web, dan server client ID untuk mobile).
+	// Kosong = login/daftar Google mati.
+	GoogleClientIDs []string
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// DomainTarget = host yang dituju CNAME domain kustom (white label) tenant. Bawaan: host dari APP_BASE_URL.
@@ -89,6 +93,11 @@ func Load() (Config, error) {
 		SMTPUser:             os.Getenv("SMTP_USER"),
 		SMTPPass:             os.Getenv("SMTP_PASS"),
 		SMTPFrom:             getenv("SMTP_FROM", "ACIRABA <noreply@localhost>"),
+	}
+	for _, id := range strings.Split(os.Getenv("GOOGLE_CLIENT_IDS"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			c.GoogleClientIDs = append(c.GoogleClientIDs, id)
+		}
 	}
 	c.DomainTarget = strings.ToLower(strings.TrimSpace(os.Getenv("CUSTOM_DOMAIN_TARGET")))
 	if c.DomainTarget == "" {

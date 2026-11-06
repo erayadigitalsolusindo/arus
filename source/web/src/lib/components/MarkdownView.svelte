@@ -30,5 +30,13 @@
   .md :global(th), .md :global(td) { border: 1px solid var(--border-subtle); padding: 0.3rem 0.55rem; text-align: start; white-space: nowrap; }
   .md :global(th) { background: var(--surface-sunken); font-weight: 600; }
   .md :global(strong) { font-weight: 600; }
+  .md :global(hr) { border: 0; border-top: 1px solid var(--border-subtle); margin: 0.75rem 0; }
+  .md :global(h4), .md :global(h5), .md :global(h6) { font-size: 0.95rem; font-weight: 600; margin: 0.45rem 0; }
+  .md :global(h1), .md :global(h2) { padding-bottom: 0.25rem; border-bottom: 1px solid var(--border-subtle); }
+  .md :global(del), .md :global(s) { opacity: 0.7; }
+  .md :global(pre code) { background: transparent; padding: 0; }
+  .md :global(li.md-task-item)::before { content: none; }
+  .md :global(li.md-task-item) { list-style: none; margin-inline-start: -1rem; }
+  .md :global(.md-task) { margin-inline-end: 0.35rem; vertical-align: -1px; accent-color: var(--color-primary-600); }
   .md :global(blockquote) { border-inline-start: 3px solid var(--border-subtle); padding-inline-start: 0.75rem; color: var(--text-tertiary); }
 </style>

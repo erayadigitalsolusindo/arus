@@ -2040,4 +2040,96 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get setNote =>
       'EraPay money = invoices marked paid at EraPay. Payout to your bank follows EraPay schedule and is not available here yet.';
+
+  @override
+  String get loginOrEmail => 'or sign in with email';
+
+  @override
+  String get loginGoogle => 'Sign in with Google';
+
+  @override
+  String get googleCancelled => 'Google sign-in was cancelled.';
+
+  @override
+  String get googleFailed => 'Could not sign in with Google. Please try again.';
+
+  @override
+  String get mfaTitle => 'Two-step verification';
+
+  @override
+  String get mfaIntro =>
+      'Enter the 6-digit code from your authenticator app, or one of your recovery codes.';
+
+  @override
+  String get mfaCode => 'Verification code';
+
+  @override
+  String get mfaSubmit => 'Verify';
+
+  @override
+  String get mfaCancel => 'Cancel';
+
+  @override
+  String get errorMfaCodeInvalid => 'Incorrect verification code.';
+
+  @override
+  String get errorMfaTokenInvalid =>
+      'Verification session expired. Please sign in again.';
+
+  @override
+  String errorMfaCodeInvalidLeft(int count) {
+    return 'Incorrect verification code. $count attempts left before a temporary lock.';
+  }
+
+  @override
+  String get googleRegTitle => 'Sign up with Google';
+
+  @override
+  String get googleRegIntro =>
+      'Complete your business details to create an ARUS account.';
+
+  @override
+  String get googleRegBusiness => 'Business name';
+
+  @override
+  String get googleRegOutlet => 'Outlet name';
+
+  @override
+  String get googleRegPhone => 'Phone number';
+
+  @override
+  String get googleRegTerms =>
+      'I agree to the Terms of Service and Privacy Policy';
+
+  @override
+  String get googleRegSubmit => 'Sign up';
+
+  @override
+  String get googleRegRequired => 'Required.';
+
+  @override
+  String get googleRegTermsRequired => 'You must accept the terms.';
+
+  @override
+  String get errorGoogleNotRegistered =>
+      'This Google account is not registered yet.';
+
+  @override
+  String get errorGoogleInvalidToken =>
+      'Google verification failed or expired. Please try again.';
+
+  @override
+  String get errorGoogleEmailUnverified =>
+      'Your Google account email is not verified.';
+
+  @override
+  String get errorGoogleLinked =>
+      'This account is already linked to another Google account.';
+
+  @override
+  String get errorGoogleDisabled => 'Sign-in with Google is not enabled.';
+
+  @override
+  String get errorEmailTaken =>
+      'This email is already registered. Please sign in.';
 }

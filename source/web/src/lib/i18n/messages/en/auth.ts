@@ -62,6 +62,21 @@ const auth: Messages['auth'] = {
     scanTagline: 'Scan & sell in a snap',
     salesToday: "Today's sales",
     transactions: { one: '{count} transaction', other: '{count} transactions' }
+  },
+  mfa: {
+    title: 'Two-step verification',
+    subtitle: 'Enter the 6-digit code from your authenticator app.',
+    code: 'Verification code',
+    hint: 'Lost your device? Use one of your recovery codes.',
+    submit: 'Verify',
+    back: 'Back to sign in'
+  },
+  google: {
+    signupHint: 'Signing up with Google as {email}. Complete your business details below.',
+    useEmail: 'Use email & password instead',
+    orManual: 'or sign up with email',
+    notRegistered: 'This Google account is not registered yet. Complete your business details to sign up.',
+    loadFailed: 'The Google button failed to load. Check your connection and reload the page.'
   }
 };
 

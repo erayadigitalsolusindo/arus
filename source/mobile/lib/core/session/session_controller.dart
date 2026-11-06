@@ -76,6 +76,34 @@ class SessionController extends Notifier<SessionState> {
     state = SessionSignedIn(s.profile);
   }
 
+  Future<void> loginMfa({required String token, required String code}) async {
+    final s = await _api.loginMfa(token: token, code: code);
+    state = SessionSignedIn(s.profile);
+  }
+
+  Future<void> googleLogin({
+    required String idToken,
+    required bool remember,
+  }) async {
+    final s = await _api.googleLogin(idToken: idToken, remember: remember);
+    state = SessionSignedIn(s.profile);
+  }
+
+  Future<void> googleRegister({
+    required String idToken,
+    required String businessName,
+    required String outletName,
+    required String phone,
+  }) async {
+    final s = await _api.googleRegister(
+      idToken: idToken,
+      businessName: businessName,
+      outletName: outletName,
+      phone: phone,
+    );
+    state = SessionSignedIn(s.profile);
+  }
+
   Future<void> switchOutlet(
     String outletId, {
     bool pos = false,

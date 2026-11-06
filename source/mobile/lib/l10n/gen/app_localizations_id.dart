@@ -2047,4 +2047,92 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get setNote =>
       'Uang EraPay = tagihan berstatus lunas di EraPay. Pencairan ke rekening bank mengikuti jadwal EraPay dan belum tersedia di sini.';
+
+  @override
+  String get loginOrEmail => 'atau masuk dengan email';
+
+  @override
+  String get loginGoogle => 'Masuk dengan Google';
+
+  @override
+  String get googleCancelled => 'Login Google dibatalkan.';
+
+  @override
+  String get googleFailed => 'Gagal masuk dengan Google. Coba lagi.';
+
+  @override
+  String get mfaTitle => 'Verifikasi dua langkah';
+
+  @override
+  String get mfaIntro =>
+      'Masukkan kode 6 digit dari aplikasi autentikator Anda, atau salah satu kode pemulihan.';
+
+  @override
+  String get mfaCode => 'Kode verifikasi';
+
+  @override
+  String get mfaSubmit => 'Verifikasi';
+
+  @override
+  String get mfaCancel => 'Batal';
+
+  @override
+  String get errorMfaCodeInvalid => 'Kode verifikasi salah.';
+
+  @override
+  String get errorMfaTokenInvalid =>
+      'Sesi verifikasi berakhir. Silakan masuk kembali.';
+
+  @override
+  String errorMfaCodeInvalidLeft(int count) {
+    return 'Kode verifikasi salah. Sisa $count percobaan sebelum dikunci sementara.';
+  }
+
+  @override
+  String get googleRegTitle => 'Daftar dengan Google';
+
+  @override
+  String get googleRegIntro => 'Lengkapi data usaha untuk membuat akun ARUS.';
+
+  @override
+  String get googleRegBusiness => 'Nama bisnis';
+
+  @override
+  String get googleRegOutlet => 'Nama outlet';
+
+  @override
+  String get googleRegPhone => 'Nomor telepon';
+
+  @override
+  String get googleRegTerms =>
+      'Saya menyetujui Syarat Layanan dan Kebijakan Privasi';
+
+  @override
+  String get googleRegSubmit => 'Daftar';
+
+  @override
+  String get googleRegRequired => 'Wajib diisi.';
+
+  @override
+  String get googleRegTermsRequired => 'Anda harus menyetujui syarat.';
+
+  @override
+  String get errorGoogleNotRegistered => 'Akun Google ini belum terdaftar.';
+
+  @override
+  String get errorGoogleInvalidToken =>
+      'Verifikasi Google gagal atau kedaluwarsa. Coba lagi.';
+
+  @override
+  String get errorGoogleEmailUnverified =>
+      'Email akun Google Anda belum terverifikasi.';
+
+  @override
+  String get errorGoogleLinked => 'Akun ini sudah tertaut ke akun Google lain.';
+
+  @override
+  String get errorGoogleDisabled => 'Login dengan Google belum diaktifkan.';
+
+  @override
+  String get errorEmailTaken => 'Email ini sudah terdaftar. Silakan masuk.';
 }

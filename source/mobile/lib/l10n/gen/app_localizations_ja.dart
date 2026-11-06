@@ -1999,4 +1999,87 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get setNote =>
       'EraPay の金額 = EraPay で入金済みの請求です。銀行口座への振込は EraPay のスケジュールに従い、ここではまだ確認できません。';
+
+  @override
+  String get loginOrEmail => 'またはメールでログイン';
+
+  @override
+  String get loginGoogle => 'Googleでログイン';
+
+  @override
+  String get googleCancelled => 'Googleログインがキャンセルされました。';
+
+  @override
+  String get googleFailed => 'Googleでログインできませんでした。もう一度お試しください。';
+
+  @override
+  String get mfaTitle => '2段階認証';
+
+  @override
+  String get mfaIntro => '認証アプリの6桁コード、またはリカバリーコードを入力してください。';
+
+  @override
+  String get mfaCode => '認証コード';
+
+  @override
+  String get mfaSubmit => '認証';
+
+  @override
+  String get mfaCancel => 'キャンセル';
+
+  @override
+  String get errorMfaCodeInvalid => '認証コードが正しくありません。';
+
+  @override
+  String get errorMfaTokenInvalid => '認証セッションの有効期限が切れました。もう一度ログインしてください。';
+
+  @override
+  String errorMfaCodeInvalidLeft(int count) {
+    return '認証コードが正しくありません。一時ロックまであと$count回です。';
+  }
+
+  @override
+  String get googleRegTitle => 'Googleで登録';
+
+  @override
+  String get googleRegIntro => 'ARUSアカウントを作成するため、事業情報を入力してください。';
+
+  @override
+  String get googleRegBusiness => '事業名';
+
+  @override
+  String get googleRegOutlet => '店舗名';
+
+  @override
+  String get googleRegPhone => '電話番号';
+
+  @override
+  String get googleRegTerms => '利用規約とプライバシーポリシーに同意します';
+
+  @override
+  String get googleRegSubmit => '登録';
+
+  @override
+  String get googleRegRequired => '必須項目です。';
+
+  @override
+  String get googleRegTermsRequired => '規約への同意が必要です。';
+
+  @override
+  String get errorGoogleNotRegistered => 'このGoogleアカウントは未登録です。';
+
+  @override
+  String get errorGoogleInvalidToken => 'Google認証に失敗したか期限切れです。もう一度お試しください。';
+
+  @override
+  String get errorGoogleEmailUnverified => 'Googleアカウントのメールが未確認です。';
+
+  @override
+  String get errorGoogleLinked => 'このアカウントは既に別のGoogleアカウントに連携されています。';
+
+  @override
+  String get errorGoogleDisabled => 'Googleログインは有効化されていません。';
+
+  @override
+  String get errorEmailTaken => 'このメールアドレスは既に登録されています。ログインしてください。';
 }
