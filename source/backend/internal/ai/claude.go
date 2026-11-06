@@ -32,10 +32,17 @@ type block struct {
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 	Content   string          `json:"content,omitempty"`
 	IsError   bool            `json:"is_error,omitempty"`
+	Source    *imageSource    `json:"source,omitempty"` // type "image": foto nota dari pengguna (hanya Anthropic)
 
 	// Hanya di memori (tidak dikirim ke Anthropic): dipakai adaptor penyedia lain.
 	ToolName string `json:"-"` // nama tool pada tool_result (Gemini mencocokkan hasil lewat nama)
 	Sig      string `json:"-"` // thoughtSignature Gemini pada tool_use, wajib dikembalikan apa adanya
+}
+
+type imageSource struct {
+	Type      string `json:"type"` // base64
+	MediaType string `json:"media_type"`
+	Data      string `json:"data"`
 }
 
 type message struct {

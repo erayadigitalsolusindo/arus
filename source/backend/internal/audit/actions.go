@@ -269,8 +269,10 @@ const (
 const (
 	EntityAI = "ai"
 
-	ActionAISettings = "ai.settings" // simpan/ganti API key atau model, hapus key
-	ActionAIChat     = "ai.chat"     // satu pertanyaan ke asisten (pertanyaan dipotong, tool yang dipanggil, token)
+	ActionAISettings     = "ai.settings"      // simpan/ganti API key atau model, hapus key
+	ActionAIChat         = "ai.chat"          // satu pertanyaan ke asisten (pertanyaan dipotong, tool yang dipanggil, token)
+	ActionAIHistoryClear = "ai.history_clear" // pengguna menghapus semua riwayat percakapannya (jumlah percakapan)
+	ActionAIAction       = "ai.action"        // usulan aksi tulis asisten yang DISETUJUI pengguna (jenis, id usulan, penyetuju PIN bila ada)
 )
 
 const ActionAIMCPCall = "ai.mcp_call" // satu panggilan tool lewat connector MCP (nama tool + klien; tanpa isi hasil)

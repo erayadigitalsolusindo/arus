@@ -59,10 +59,10 @@ var Modules = []Module{
 	{"pos_only", viewing},                             // "Hanya Kasir": SPA mengunci akun ke layar kasir (pengunci tampilan; data tetap dibatasi izin role)
 	{"sales_returns", []string{ActView, ActCreate, ActApprove}},
 	{"sales_list", viewing},
-	{"sales_cost", viewing}, // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
-	{"sales_reports", viewing},       // melihat laporan penjualan
-	{"sales_reports_cost", viewing},  // melihat HPP & laba di laporan penjualan
-	{"stock_reports", viewing},       // melihat laporan persedian
+	{"sales_cost", viewing},         // melihat HPP & laba di daftar/detail penjualan (tanpa ini kolom modal tidak dikirim)
+	{"sales_reports", viewing},      // melihat laporan penjualan
+	{"sales_reports_cost", viewing}, // melihat HPP & laba di laporan penjualan
+	{"stock_reports", viewing},      // melihat laporan persedian
 	{"sell_price_history", viewing},
 	{"member_receivables", []string{ActView, ActCreate}},
 	{"receivable_opening", []string{ActView, ActCreate, ActDelete}}, // saldo awal piutang member: create = catat, delete = batalkan (belum dibayar)
@@ -82,7 +82,7 @@ var Modules = []Module{
 	{"users", crud},
 	{"roles", crud},
 	{"outlets", crud},
-	{"ai_assistant", []string{ActView, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), update = kelola API key & model
+	{"ai_assistant", []string{ActView, ActCreate, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), create = boleh menyetujui usulan aksi tulis AI, update = kelola API key & model
 	{"audit_log", viewing},
 	{"subscription", viewing}, // halaman Langganan: lihat paket & pemakaian; membeli/memperpanjang khusus Owner (dicek di layanan)
 }

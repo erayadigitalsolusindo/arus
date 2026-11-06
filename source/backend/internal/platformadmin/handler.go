@@ -17,6 +17,7 @@ import (
 
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
+	"aciraba/internal/ai"
 	"aciraba/internal/extapi"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
@@ -42,6 +43,7 @@ type HandlerDeps struct {
 	APK          *storage.Local // penyimpanan APK Kasir; nil = fitur unggah APK nonaktif
 	Ext          *extapi.Store  // kredensial API eksternal + white label; nil = fitur nonaktif
 	ExtCatalog   *extapi.CatalogBuilder
+	AI           *ai.Service // uji aturan HalloArus (opsional; nil = fitur uji nonaktif)
 }
 
 type Handler struct {
@@ -121,6 +123,17 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Put("/platform/plans/{id}", h.UpdatePlan)
 			r.Get("/platform/tenants/{id}/plan", h.GetTenantPlan)
 			r.Put("/platform/tenants/{id}/plan", h.SetTenantPlan)
+
+			r.Get("/platform/ai/policies", h.ListAIPolicies)
+			r.Put("/platform/ai/policies/global", h.SaveGlobalAIPolicy)
+			r.Put("/platform/ai/policies/tenants/{id}", h.SaveTenantAIPolicy)
+			r.Delete("/platform/ai/policies/tenants/{id}", h.DeleteTenantAIPolicy)
+			r.Get("/platform/ai/rules", h.GlobalAIRules)
+			r.Put("/platform/ai/rules", h.SaveGlobalAIRules)
+			r.Post("/platform/ai/rules/test", h.TestAIRules)
+			r.Get("/platform/ai/rules/tenants", h.AIRulesTenants)
+			r.Get("/platform/ai/rules/tenants/{id}", h.TenantAIRules)
+			r.Put("/platform/ai/rules/tenants/{id}", h.SaveTenantAIRules)
 
 			r.Get("/platform/domains", h.ListDomains)
 			r.Post("/platform/domains", h.CreateDomain)

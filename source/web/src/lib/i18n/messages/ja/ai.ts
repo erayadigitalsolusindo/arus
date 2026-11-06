@@ -6,8 +6,10 @@ const ai: Messages['ai'] = {
   subtitle: 'ビジネスデータを読み取り、結論を導き出し、アドバイスを提供するAIアシスタント。',
   readOnly: '読み取り専用',
   readOnlyHint: 'HalloArus はデータの追加・変更・削除を行うことはできません。',
+  approvalMode: '変更には承認が必要です',
+  approvalModeHint: 'HalloArus はデータ変更を提案するだけです。「承認」を押すまでデータは変わらず、取り消しには承認者のPINも必要です。',
   privacy:
-    '集計された数値は、選択したAIプロバイダー（Claude、ChatGPT、Gemini、Qwen）へ、事業所有のAPIキー（または無料のARUSアカウント）を使用して送信されます。顧客データ（氏名、電話番号、住所）は送信されません。顧客は「Pelanggan 1、2、…」としてのみ表示されます。',
+    '集計された数値は、選択したAIプロバイダー（Claude、ChatGPT、Gemini、Qwen、またはカスタムプロバイダー）へ、事業所有のAPIキー（または無料のARUSアカウント）を使用して送信されます。顧客データ（氏名、電話番号、住所）は送信されません。顧客は「Pelanggan 1、2、…」としてのみ表示されます。',
   settings: '設定',
   setup: {
     title: 'AIに接続',
@@ -49,6 +51,11 @@ const ai: Messages['ai'] = {
     'qwen3-max': 'Qwen3 Max（最大能力）',
     'qwen-plus': 'Qwen Plus（バランス良好）',
     'qwen-flash': 'Qwen Flash（高速・低コスト）'
+  },
+  policy: {
+    disabled: 'このアカウントではプラットフォーム運営者によりHalloArusが無効化されています。有効化が必要な場合はARUS運営者にお問い合わせください。',
+    limited: 'プラットフォーム運営者がこのアカウントのHalloArusのデータや機能を一部制限しているため、答えられない質問があります。',
+    noHistory: '会話履歴の保存はプラットフォーム運営者により無効化されています。'
   },
   free: {
     banner: '無料アカウント：本日の残り {remaining}／{limit} 件。ご自身のAPIキーを設定すれば無制限に利用できます。',
@@ -138,6 +145,72 @@ const ai: Messages['ai'] = {
   dataRead: '読み取ったデータ',
   usage: '{input} トークン入力 · {output} トークン出力',
   disclaimer: 'AI の回答は誤っている可能性があります。重要な数値はレポートで確認してください。金融・税務・法律上のアドバイスではありません。',
+  image: {
+    attach: 'レシート写真を添付',
+    remove: '写真を削除',
+    alt: 'レシート写真',
+    defaultPrompt: 'このレシートを読み取り、記録方法を提案してください。',
+    tooMany: '1回のメッセージに添付できる写真は最大{count}枚です。',
+    invalid: '対応していない画像ファイルです（JPG、PNG、WebP）。'
+  },
+  action: {
+    awaiting: '承認待ち',
+    done: '保存済み',
+    cancelled: 'キャンセル済み',
+    expired: '期限切れ',
+    kind: { petty_cash_add: '提案：小口現金の記録', petty_cash_void: '提案：小口現金の取り消し' },
+    direction: '種類',
+    dir: { out: '現金支出', in: '現金入金' },
+    amount: '金額',
+    category: 'カテゴリ',
+    note: 'メモ',
+    created: '記録日時',
+    voidWarn: '取り消しはシフト締め時に数えるレジ現金に影響し、元に戻せません。',
+    pinHint: 'PINはここで入力され、サーバーに直接送信されます。AIには送られません。',
+    approve: '承認',
+    cancel: 'キャンセル',
+    working: '保存中…'
+  },
+  live: 'ONLINE',
+  liveFree: '無料アカウント',
+  hero: { eyebrow: 'ARUS Intelligence', tryThis: 'この質問例を入力欄に入れる' },
+  thinkingSteps: { s1: '質問を理解中…', s2: '事業データを読み取り中…', s3: '計算・比較中…', s4: '結論をまとめ中…' },
+  history: {
+    title: '履歴',
+    new: '新しい会話',
+    empty: '会話履歴はまだありません。',
+    more: 'さらに読み込む',
+    rename: '名前を変更',
+    delete: '削除',
+    deleteConfirm: 'この会話を削除しますか？元に戻せません。',
+    deleteAll: '自分の履歴をすべて削除',
+    deleteAllConfirm: 'あなたの会話履歴をすべて削除しますか？元に戻せません。',
+    deleted: '{count}件の会話を削除しました。',
+    retention: '暗号化されており、あなただけが読めます。90日後に自動削除されます。',
+    loading: '会話を開いています…',
+    saving: '履歴に保存',
+    temp: '一時的な会話（保存されません）',
+    tempHint: 'クリックするとこの会話は一時的になり、履歴に保存されません。',
+    tempLocked: '変更するには新しい会話を始めてください。',
+    off: '履歴は事業オーナーによってオフにされています。会話は保存されません。',
+    hadImages: 'レシート写真を添付（保存されません）',
+    noPersonal: 'メッセージや写真に個人情報（氏名・番号）を書かないでください。',
+    switchLabel: '会話履歴を保存する',
+    switchHint: '暗号化され、会話の所有者だけが読めます。{days}日後に自動削除されます。レシート写真は保存されません。ユーザーは一時的な会話も使えます。',
+    saved: '履歴の設定を保存しました。'
+  },
+  custom: {
+    name: 'カスタムプロバイダー',
+    add: '＋ カスタムプロバイダーを追加（OpenAI互換）',
+    intro: 'OpenAI形式のAPI（/chat/completions）に対応していれば、OpenKeyやOpenRouterなどどのAIプロバイダーでも使えます。アドレス（ベースURL）、モデル名、APIキーを入力してください。キーは暗号化してサーバーに保存され、再表示はできません。HalloArus がデータを読むには、モデルがツール呼び出しに対応している必要があります。',
+    labelField: 'プロバイダー名',
+    labelPlaceholder: '例：OpenKey',
+    baseUrl: 'ベースURL',
+    baseUrlHint: 'httpsで公開アドレスのみ（localhostや内部ネットワークは不可）。例：https://free.openkey.id/v1',
+    modelHint: 'プロバイダーが示すモデル名をそのまま入力してください。レシート写真は Claude プロバイダーでのみ読み取れます。',
+    needFields: 'プロバイダー名、ベースURL、モデルを入力してください。',
+    needKeyForUrl: 'ベースURLが変更されました。APIキーを再入力してください（古いキーは新しいアドレスには送信されません）。'
+  },
   tools: {
     list_outlets: '店舗一覧',
     sales_summary: '売上サマリー',
@@ -154,6 +227,9 @@ const ai: Messages['ai'] = {
     purchases_summary: '仕入サマリー',
     cash_shifts_summary: 'レジシフト管理',
     petty_cash_summary: '小口現金',
+    list_petty_cash: '小口現金の一覧',
+    propose_petty_cash_entry: '小口現金の記録を提案',
+    propose_void_petty_cash_entry: '小口現金の取り消しを提案',
     accounting_balances: '勘定残高（元帳）'
   }
 };

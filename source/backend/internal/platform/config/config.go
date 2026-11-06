@@ -40,6 +40,9 @@ type Config struct {
 	APIBaseURL       string
 	AIPlatformKey    string
 	AIFreeDailyLimit int
+	// AIHistoryKey = rahasia enkripsi riwayat percakapan HalloArus (AES-GCM). Kosong = diturunkan dari JWT_SECRET dengan label khusus
+	// (memutar JWT_SECRET lalu membuat riwayat lama tak terbaca); set nilai sendiri agar rotasi JWT tidak ikut berdampak.
+	AIHistoryKey string
 
 	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
 	EraPayBaseURL string
@@ -85,6 +88,7 @@ func Load() (Config, error) {
 		APIBaseURL:           strings.TrimRight(getenv("API_BASE_URL", "http://localhost:8080"), "/"),
 		AIPlatformKey:        strings.TrimSpace(os.Getenv("AI_PLATFORM_KEY")),
 		AIFreeDailyLimit:     10,
+		AIHistoryKey:         strings.TrimSpace(os.Getenv("AI_HISTORY_KEY")),
 		EraPayBaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
 		EraPayProvisionToken: strings.TrimSpace(os.Getenv("ERAPAY_ARUS_PROVISION_TOKEN")),
 		EraPayPlatformKey:    strings.TrimSpace(os.Getenv("ERAPAY_PLATFORM_API_KEY")),

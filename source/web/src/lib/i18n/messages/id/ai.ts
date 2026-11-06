@@ -4,7 +4,9 @@ export default {
   subtitle: 'Asisten AI untuk membaca data usaha Anda, menarik kesimpulan, dan memberi saran.',
   readOnly: 'Hanya membaca',
   readOnlyHint: 'HalloArus tidak bisa menambah, mengubah, atau menghapus data apa pun.',
-  privacy: 'Ringkasan angka dikirim ke penyedia AI yang Anda pilih (Claude, ChatGPT, Gemini, atau Qwen) memakai API key milik usaha Anda (atau akun gratis ARUS). Data pelanggan (nama, telepon, alamat) tidak pernah dikirim; pelanggan hanya tampil sebagai "Pelanggan 1, 2, …".',
+  approvalMode: 'Perubahan butuh persetujuan',
+  approvalModeHint: 'HalloArus hanya mengusulkan perubahan data. Data baru berubah setelah Anda menekan Setujui; pembatalan juga butuh PIN penyetuju.',
+  privacy: 'Ringkasan angka dikirim ke penyedia AI yang Anda pilih (Claude, ChatGPT, Gemini, Qwen, atau penyedia kustom) memakai API key milik usaha Anda (atau akun gratis ARUS). Data pelanggan (nama, telepon, alamat) tidak pernah dikirim; pelanggan hanya tampil sebagai "Pelanggan 1, 2, …".',
   settings: 'Pengaturan',
   setup: {
     title: 'Hubungkan AI',
@@ -44,6 +46,11 @@ export default {
     'qwen3-max': 'Qwen3 Max (paling mampu)',
     'qwen-plus': 'Qwen Plus (seimbang)',
     'qwen-flash': 'Qwen Flash (cepat & hemat)'
+  },
+  policy: {
+    disabled: 'HalloArus dinonaktifkan oleh operator platform untuk akun ini. Hubungi operator ARUS bila perlu mengaktifkannya.',
+    limited: 'Operator platform membatasi sebagian data atau fitur HalloArus untuk akun ini, jadi sebagian pertanyaan mungkin tidak bisa dijawab.',
+    noHistory: 'Penyimpanan riwayat dinonaktifkan oleh operator platform.'
   },
   free: {
     banner: 'Akun gratis: sisa {remaining} dari {limit} pertanyaan hari ini. Pasang API key sendiri untuk tanpa batas.',
@@ -132,6 +139,72 @@ export default {
   dataRead: 'Data yang dibaca',
   usage: '{input} token masuk · {output} token keluar',
   disclaimer: 'Jawaban AI bisa keliru; periksa angka penting di laporan. Bukan nasihat keuangan, pajak, atau hukum.',
+  image: {
+    attach: 'Lampirkan foto nota',
+    remove: 'Hapus foto',
+    alt: 'Foto nota',
+    defaultPrompt: 'Tolong baca nota ini dan usulkan pencatatannya.',
+    tooMany: 'Maksimal {count} foto per pesan.',
+    invalid: 'Berkas bukan gambar yang didukung (JPG, PNG, atau WebP).'
+  },
+  action: {
+    awaiting: 'Menunggu persetujuan',
+    done: 'Tersimpan',
+    cancelled: 'Dibatalkan',
+    expired: 'Kedaluwarsa',
+    kind: { petty_cash_add: 'Usulan: catat kas kecil', petty_cash_void: 'Usulan: batalkan catatan kas kecil' },
+    direction: 'Jenis',
+    dir: { out: 'Kas keluar', in: 'Kas masuk' },
+    amount: 'Jumlah',
+    category: 'Kategori',
+    note: 'Catatan',
+    created: 'Dicatat',
+    voidWarn: 'Pembatalan mengubah uang laci yang dihitung saat tutup shift dan tidak bisa diulang.',
+    pinHint: 'PIN diketik di sini dan dikirim langsung ke server; tidak pernah dikirim ke AI.',
+    approve: 'Setujui',
+    cancel: 'Batal',
+    working: 'Menyimpan…'
+  },
+  live: 'ONLINE',
+  liveFree: 'AKUN GRATIS',
+  hero: { eyebrow: 'ARUS Intelligence', tryThis: 'Isi kolom dengan contoh pertanyaan ini' },
+  thinkingSteps: { s1: 'Memahami pertanyaan…', s2: 'Membaca data usaha…', s3: 'Menghitung & membandingkan…', s4: 'Menyusun kesimpulan…' },
+  history: {
+    title: 'Riwayat',
+    new: 'Percakapan baru',
+    empty: 'Belum ada riwayat percakapan.',
+    more: 'Muat lebih banyak',
+    rename: 'Ganti nama',
+    delete: 'Hapus',
+    deleteConfirm: 'Hapus percakapan ini? Tidak bisa dibatalkan.',
+    deleteAll: 'Hapus semua riwayat saya',
+    deleteAllConfirm: 'Hapus SEMUA riwayat percakapan Anda? Tidak bisa dibatalkan.',
+    deleted: '{count} percakapan dihapus.',
+    retention: 'Terenkripsi, hanya Anda yang bisa membaca. Terhapus otomatis setelah 90 hari.',
+    loading: 'Membuka percakapan…',
+    saving: 'Disimpan ke riwayat',
+    temp: 'Percakapan sementara (tidak disimpan)',
+    tempHint: 'Klik untuk menjadikan percakapan ini sementara: tidak disimpan ke riwayat.',
+    tempLocked: 'Mulai percakapan baru untuk mengubah ini.',
+    off: 'Riwayat dimatikan pemilik usaha: percakapan tidak disimpan.',
+    hadImages: 'Foto nota dilampirkan (tidak disimpan)',
+    noPersonal: 'Hindari menulis data pribadi (nama, nomor) di pesan atau foto.',
+    switchLabel: 'Simpan riwayat percakapan',
+    switchHint: 'Terenkripsi, hanya terbaca oleh pemilik percakapan, terhapus otomatis setelah {days} hari. Foto nota tidak disimpan. Pengguna tetap bisa memakai percakapan sementara.',
+    saved: 'Pengaturan riwayat tersimpan.'
+  },
+  custom: {
+    name: 'Penyedia kustom',
+    add: '+ Tambah penyedia kustom (OpenAI-compatible)',
+    intro: 'Pakai penyedia AI mana pun yang mendukung API gaya OpenAI (/chat/completions), mis. OpenKey atau OpenRouter. Isi alamat (base URL), nama model, dan API key. Key disimpan terenkripsi di server dan tidak bisa dilihat lagi. Model harus mendukung pemanggilan tool agar HalloArus bisa membaca data.',
+    labelField: 'Nama penyedia',
+    labelPlaceholder: 'mis. OpenKey',
+    baseUrl: 'Base URL',
+    baseUrlHint: 'Harus https dan alamat publik (bukan localhost/jaringan internal), mis. https://free.openkey.id/v1',
+    modelHint: 'Tulis persis nama model di penyedia itu. Foto nota hanya bisa dibaca dengan penyedia Claude.',
+    needFields: 'Isi nama penyedia, base URL, dan model.',
+    needKeyForUrl: 'Base URL berubah: masukkan ulang API key (key lama tidak dikirim ke alamat baru).'
+  },
   tools: {
     list_outlets: 'Daftar outlet',
     sales_summary: 'Ringkasan penjualan',
@@ -148,6 +221,9 @@ export default {
     purchases_summary: 'Ringkasan pembelian',
     cash_shifts_summary: 'Kontrol shift kasir',
     petty_cash_summary: 'Kas kecil',
+    list_petty_cash: 'Daftar catatan kas kecil',
+    propose_petty_cash_entry: 'Usulan catat kas kecil',
+    propose_void_petty_cash_entry: 'Usulan batalkan kas kecil',
     accounting_balances: 'Saldo akun (buku besar)'
   }
 };

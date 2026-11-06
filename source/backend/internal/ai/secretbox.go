@@ -15,8 +15,13 @@ import (
 type secretBox struct{ aead cipher.AEAD }
 
 func newSecretBox(secret string) (*secretBox, error) {
+	return newSecretBoxLabel(secret, "aciraba-ai-apikey-v1")
+}
+
+// newSecretBoxLabel: kotak terpisah per tujuan (API key vs riwayat) dari rahasia yang sama atau berbeda; label berbeda = kunci berbeda.
+func newSecretBoxLabel(secret, label string) (*secretBox, error) {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte("aciraba-ai-apikey-v1"))
+	mac.Write([]byte(label))
 	block, err := aes.NewCipher(mac.Sum(nil))
 	if err != nil {
 		return nil, err

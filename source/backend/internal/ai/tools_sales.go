@@ -233,8 +233,8 @@ func toolMemberOverview() tool {
 	return tool{
 		name: "member_overview", module: "members",
 		desc: "Customer (member) overview, ANONYMISED: active members, new members in the range, outstanding loyalty points, total deposit balance, " +
-			"and (if the user may see sales) the share of revenue from members vs walk-ins and the top spenders shown only as 'Pelanggan N' with spend and invoice count. " +
-			"Names, phones and addresses are never available.",
+			"and (if the user may see sales) the share of revenue from members vs walk-ins and the top spenders identified ONLY by member ID (member code, e.g. 'M-000123') with spend and invoice count. " +
+			"Names, phones, addresses and emails are never available; refer to a member by ID.",
 		schema: schema(map[string]any{"from": pFrom, "to": pTo, "outlet_id": pOutlet}),
 		run: func(e *env, p params) (any, error) {
 			from, to, outs, err := e.window(p)
@@ -261,9 +261,10 @@ func toolMemberOverview() tool {
 				if err != nil {
 					return nil, err
 				}
-				top, _, err := e.rows(`SELECT count(*) AS invoices, sum(s.total) AS spend
+				top, _, err := e.rows(`SELECT coalesce(m.code, '') AS member_id, count(*) AS invoices, sum(s.total) AS spend
 					FROM sales s JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
-					WHERE `+saleWin+` AND s.member_id IS NOT NULL GROUP BY s.member_id ORDER BY spend DESC LIMIT 10`, e.a.TenantID, outs, from, to)
+					LEFT JOIN members m ON m.tenant_id = s.tenant_id AND m.id = s.member_id
+					WHERE `+saleWin+` AND s.member_id IS NOT NULL GROUP BY s.member_id, m.code ORDER BY spend DESC LIMIT 10`, e.a.TenantID, outs, from, to)
 				if err != nil {
 					return nil, err
 				}

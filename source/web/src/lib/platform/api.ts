@@ -135,6 +135,30 @@ export type TenantPlan = {
 };
 export type TenantPlanInput = { plan_id: string | null; expires_at: string | null; override_max_tx_per_day: number | null; override_max_users: number | null; note: string };
 
+/** Kebijakan HalloArus (null pada pengecualian tenant = ikut aturan global). */
+export type AiPolicyValues = {
+  enabled: boolean | null;
+  domains: string[] | null;
+  allow_write: boolean | null;
+  allow_cost: boolean | null;
+  allow_byok: boolean | null;
+  allow_custom: boolean | null;
+  allow_images: boolean | null;
+  allow_history: boolean | null;
+  allow_mcp: boolean | null;
+  free_enabled: boolean | null;
+  free_daily_limit: number | null;
+  free_model: string | null;
+  chat_limit: number | null;
+  max_range_days: number | null;
+};
+export type AiPolicyRow = AiPolicyValues & { tenant_id: string | null; tenant_code?: string; tenant_name?: string; note: string; updated_at: string };
+export type AiPolicies = { global: AiPolicyRow; tenants: AiPolicyRow[]; domains: string[]; domain_tools: Record<string, string[]>; free_models: string[] };
+export type AiRuleTest = { reply: string; model: string; elapsed_ms: number; rules_chars: number; input_tokens: number; output_tokens: number };
+
+export type AiRuleVersion = { version: number; body: string; created_at: string; author: string };
+export type AiRuleTenant = { tenant_id: string; tenant_code: string; tenant_name: string; version: number; size: number; updated_at: string };
+
 export type ApkInfo = { available: boolean; size?: number; version?: string; sha256?: string; uploaded_at?: string };
 
 export type QAStatus = 'pass' | 'fail' | 'skip';
@@ -223,6 +247,16 @@ export const platformApi = {
   updatePlan: (id: string, body: PlanInput) => papi<{ id: string }>(`/platform/plans/${id}`, { method: 'PUT', body: json(body) }),
   tenantPlan: (id: string) => papi<TenantPlan>(`/platform/tenants/${id}/plan`),
   setTenantPlan: (id: string, body: TenantPlanInput) => papi<void>(`/platform/tenants/${id}/plan`, { method: 'PUT', body: json(body) }),
+
+  aiPolicies: () => papi<AiPolicies>('/platform/ai/policies'),
+  saveAiGlobalPolicy: (body: AiPolicyValues & { note: string }) => papi<{ ok: boolean }>('/platform/ai/policies/global', { method: 'PUT', body: json(body) }),
+  saveAiTenantPolicy: (tenantId: string, body: AiPolicyValues & { note: string }) => papi<{ ok: boolean }>(`/platform/ai/policies/tenants/${tenantId}`, { method: 'PUT', body: json(body) }),
+  deleteAiTenantPolicy: (tenantId: string) => papi<void>(`/platform/ai/policies/tenants/${tenantId}`, { method: 'DELETE' }),
+
+  aiRuleTenants: () => papi<{ items: AiRuleTenant[]; max_chars: number }>('/platform/ai/rules/tenants'),
+  aiRules: (tenantId = '') => papi<{ items: AiRuleVersion[] }>(tenantId ? `/platform/ai/rules/tenants/${tenantId}` : '/platform/ai/rules'),
+  testAiRules: (body: { tenant_id: string; draft: string; message: string }) => papi<AiRuleTest>('/platform/ai/rules/test', { method: 'POST', body: json(body) }),
+  saveAiRules: (tenantId: string, body: string) => papi<{ version: number }>(tenantId ? `/platform/ai/rules/tenants/${tenantId}` : '/platform/ai/rules', { method: 'PUT', body: json({ body }) }),
 
   languages: () => papi<{ items: LanguageRow[] }>('/platform/languages'),
   createLanguage: (body: { code: string; name: string; short: string; intl: string; sort_order: number }) =>

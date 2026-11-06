@@ -18,7 +18,8 @@
       items: [
         { href: '/platform/tenants', key: 'platform.nav.tenants', icon: 'store' },
         { href: '/platform/admins', key: 'platform.nav.admins', icon: 'shield-check' },
-        { href: '/platform/plans', key: 'platform.nav.plans', icon: 'badge-dollar-sign' }
+        { href: '/platform/plans', key: 'platform.nav.plans', icon: 'badge-dollar-sign' },
+        { href: '/platform/halloarus', key: 'platform.nav.halloarus', icon: 'sparkles' }
       ]
     },
     {

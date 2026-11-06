@@ -38,6 +38,7 @@ type env struct {
 	a       authz.Actor
 	today   time.Time // tanggal lokal hari ini (zona waktu outlet aktif)
 	canCost bool
+	maxRange int // rentang tanggal maksimum (hari) menurut kebijakan platform; 0 = bawaan
 }
 
 type params map[string]any
@@ -82,7 +83,11 @@ func (e *env) dateRange(p params) (from, to time.Time, err error) {
 			return from, to, errors.New("format `to` harus YYYY-MM-DD")
 		}
 	}
-	from = to.AddDate(0, 0, -29)
+	limit := maxRangeDays
+	if e.maxRange > 0 {
+		limit = min(e.maxRange, maxRangeDays)
+	}
+	from = to.AddDate(0, 0, -(min(30, limit+1) - 1)) // bawaan 30 hari, dipersempit bila kebijakan platform lebih ketat
 	if s := p.str("from"); s != "" {
 		if from, err = time.Parse(time.DateOnly, s); err != nil {
 			return from, to, errors.New("format `from` harus YYYY-MM-DD")
@@ -91,8 +96,8 @@ func (e *env) dateRange(p params) (from, to time.Time, err error) {
 	if to.Before(from) {
 		return from, to, errors.New("`to` tidak boleh sebelum `from`")
 	}
-	if to.Sub(from) > maxRangeDays*24*time.Hour {
-		return from, to, fmt.Errorf("rentang maksimum %d hari; pecah menjadi beberapa panggilan", maxRangeDays)
+	if to.Sub(from) > time.Duration(limit)*24*time.Hour {
+		return from, to, fmt.Errorf("rentang maksimum %d hari; pecah menjadi beberapa panggilan", limit)
 	}
 	return from, to, nil
 }
@@ -187,12 +192,18 @@ func jsonValue(v any) any {
 	}
 }
 
-// anonymize mengganti kunci `field` (nama pelanggan) pada baris yang berurutan dengan "Pelanggan N" dan membuang kolom pengenal.
+// anonymize membuang kolom pengenal dan menamai pelanggan: ID member (kolom `member_id` = kode member) bila ada, selain itu "Pelanggan N".
+// Nama, telepon, alamat, dan email tidak pernah ikut; ID dipakai agar pengguna bisa mencari member itu sendiri di menu Member.
 func anonymize(rows []map[string]any, drop ...string) {
 	for i, r := range rows {
 		for _, d := range drop {
 			delete(r, d)
 		}
+		if id, ok := r["member_id"].(string); ok && strings.TrimSpace(id) != "" {
+			r["pelanggan"] = id
+			continue
+		}
+		delete(r, "member_id")
 		r["pelanggan"] = fmt.Sprintf("Pelanggan %d", i+1)
 	}
 }

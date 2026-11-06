@@ -458,9 +458,13 @@ func (h *MCPHandler) dispatch(ctx context.Context, gi grantInfo, req rpcRequest)
 	case "ping":
 		return ok(map[string]any{})
 	case "tools/list":
+		pol, perr := h.svc.mustPolicy(ctx, gi.Actor)
+		if perr != nil || !pol.AllowMCP {
+			return fail(-32001, "HalloArus connector dinonaktifkan oleh platform")
+		}
 		defs := []map[string]any{}
 		for _, t := range h.svc.tools {
-			if t.allowed(gi.Actor) {
+			if t.allowed(gi.Actor) && pol.DomainAllowed(t.name) {
 				defs = append(defs, map[string]any{
 					"name": t.name, "description": t.desc, "inputSchema": json.RawMessage(t.schema),
 					"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
@@ -505,6 +509,11 @@ func (h *MCPHandler) auditCall(ctx context.Context, gi grantInfo, tool string, o
 
 // callTool menjalankan satu tool baca atas nama pengguna (dipakai connector MCP).
 func (s *Service) callTool(ctx context.Context, a authz.Actor, name string, args json.RawMessage) (string, error) {
+	if pol, err := s.mustPolicy(ctx, a); err != nil {
+		return "", err
+	} else if !pol.AllowMCP {
+		return "", ErrPolicyBlocked
+	}
 	today, _, _ := s.context(ctx, a)
 	return s.runTool(ctx, a, today, a.Perms.Has("sales_cost", authz.ActView), name, args)
 }

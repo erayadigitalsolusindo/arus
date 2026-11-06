@@ -19,7 +19,7 @@ class AppConfig {
   /// Bukan rahasia (client ID itu publik), jadi boleh ditulis di sini. Isi [googleClientIdDefault] dengan ID dari
   /// Google Cloud Console; kosong = tombol Google disembunyikan. Bisa diganti lewat `--dart-define=GOOGLE_SERVER_CLIENT_ID=...`.
   static const String googleClientIdDefault =
-      '452740845962-ilhsknjm9viukk3vmbo70qoqc0vql11e.apps.googleusercontent.com'; // contoh: 1234567890-xxxx.apps.googleusercontent.com
+      '452740845962-eerv4ddpk4uhbsglrk49mjmiqatlre5p.apps.googleusercontent.com'; // contoh: 1234567890-xxxx.apps.googleusercontent.com
 
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',

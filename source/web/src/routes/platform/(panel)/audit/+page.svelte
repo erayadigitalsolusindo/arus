@@ -10,7 +10,7 @@
     'platform.login', 'platform.setup', 'platform.impersonate', 'platform.tenant_status', 'platform.tenant_edit_window', 'platform.tenant_plan', 'platform.plan_save',
     'platform.admin_create', 'platform.admin_status', 'platform.admin_password', 'platform.mfa_enable', 'platform.mfa_disable', 'platform.mfa_reset', 'platform.mfa_recovery',
     'platform.apk_upload', 'platform.apk_delete', 'platform.ext_cred_create', 'platform.ext_cred_update', 'platform.ext_cred_rotate', 'platform.ext_cred_delete',
-    'platform.ext_brand_save', 'platform.ext_brand_delete'
+    'platform.ext_brand_save', 'platform.ext_brand_delete', 'platform.ai_policy_save', 'platform.ai_policy_delete', 'platform.ai_rules_save', 'platform.ai_rules_test'
   ] as const;
 
   type Level = 'info' | 'warn' | 'crit';

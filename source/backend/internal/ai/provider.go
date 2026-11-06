@@ -22,8 +22,9 @@ type chatClient interface {
 
 type providerSpec struct {
 	ID     string
-	Models []string // yang pertama = bawaan
+	Models []string // yang pertama = bawaan; kosong pada penyedia kustom (nama model bebas)
 	keyOK  func(string) bool
+	custom bool
 }
 
 var providerSpecs = []providerSpec{
@@ -34,6 +35,9 @@ var providerSpecs = []providerSpec{
 }
 
 func specOf(id string) (providerSpec, bool) {
+	if IsCustom(id) {
+		return providerSpec{ID: id, keyOK: customKeyOK, custom: true}, true
+	}
 	for _, p := range providerSpecs {
 		if p.ID == id {
 			return p, true
@@ -43,6 +47,9 @@ func specOf(id string) (providerSpec, bool) {
 }
 
 func (p providerSpec) validModel(m string) bool {
+	if p.custom {
+		return customModel.MatchString(m)
+	}
 	for _, x := range p.Models {
 		if x == m {
 			return true

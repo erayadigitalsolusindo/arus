@@ -111,12 +111,13 @@ func mountModules(r chi.Router, d appDeps) error {
 	})
 	go platformSvc.RunTenantPurger(d.Ctx, d.Log)
 	perms.WithPlatform(platformSvc) // menerima token "masuk sebagai" (hanya-baca) milik Platform Admin
-	platformadmin.NewHandler(platformadmin.HandlerDeps{
+	platformHandler := platformadmin.NewHandler(platformadmin.HandlerDeps{
 		Service: platformSvc, Log: d.Log, Redis: d.Redis,
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 		APK: uploads, Ext: extStore, ExtCatalog: extCatalog,
-	}).Routes(r)
+	})
+	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
 	extapi.NewGateway(extStore, d.Redis, tokens, r, d.Log).Mount(r)
 	extapi.NewDocsHandler(extStore, extCatalog, d.Redis, d.Log).Routes(r)
@@ -156,7 +157,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	payable.NewHandler(payableSvc, perms, tokens, d.Log).Routes(r)
 	dashboard.NewHandler(dashboard.NewService(d.Pool, receivableSvc, payableSvc), perms, tokens, d.Log).Routes(r)
 	wallet.NewHandler(wallet.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	shift.NewHandler(shift.NewService(d.Pool, approvalSvc), perms, tokens, d.Log).Routes(r)
+	shiftSvc := shift.NewService(d.Pool, approvalSvc)
+	shift.NewHandler(shiftSvc, perms, tokens, d.Log).Routes(r)
 	accSvc := accounting.NewService(d.Pool)
 	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
 	reportsSalesSvc := reports_sales.NewService(d.Pool)
@@ -169,7 +171,15 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err != nil {
 		return err
 	}
-	aiSvc.WithAPIBase(d.Cfg.APIBaseURL)
+	aiSvc.WithAPIBase(d.Cfg.APIBaseURL).WithActions(shiftSvc, approvalSvc)
+	histKey := d.Cfg.AIHistoryKey
+	if histKey == "" {
+		histKey = d.Cfg.JWTSecret
+	}
+	if _, err := aiSvc.WithHistory(histKey); err != nil {
+		return err
+	}
+	platformHandler.AI = aiSvc // uji aturan HalloArus dari panel platform (dipasang setelah layanan AI ada; dipakai saat request)
 	ai.NewHandler(aiSvc, perms, tokens, d.Log).Routes(r)
 	ai.NewMCPHandler(aiSvc, perms, tokens, d.Redis, d.Log, d.Cfg.APIBaseURL, d.Cfg.AppBaseURL).Routes(r)
 	if d.Cfg.AutoJournal {

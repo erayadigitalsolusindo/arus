@@ -185,8 +185,8 @@ func toolReceivables() tool {
 			if err != nil {
 				return nil, err
 			}
-			top, _, err := e.rows(cte+` SELECT count(*) AS open_documents, sum(bal) AS balance, max(days_over) AS max_days_overdue
-				FROM ob GROUP BY member_id ORDER BY balance DESC LIMIT 10`, e.a.TenantID, outs)
+			top, _, err := e.rows(cte+` SELECT coalesce(m.code, '') AS member_id, count(*) AS open_documents, sum(ob.bal) AS balance, max(ob.days_over) AS max_days_overdue
+				FROM ob LEFT JOIN members m ON m.tenant_id = $1 AND m.id = ob.member_id GROUP BY ob.member_id, m.code ORDER BY balance DESC LIMIT 10`, e.a.TenantID, outs)
 			if err != nil {
 				return nil, err
 			}
@@ -325,6 +325,22 @@ func toolPettyCash() tool {
 	}
 }
 
+// toolListPettyCash: id catatan kas kecil di shift TERBUKA milik pengguna (bahan propose_void_petty_cash_entry).
+func toolListPettyCash() tool {
+	return tool{
+		name: "list_petty_cash", module: "sales_orders",
+		desc:   "List the petty-cash entries (with ids) of the current user's OPEN cashier shift in the active outlet, newest first. Needed to propose cancelling an entry.",
+		schema: schema(map[string]any{}),
+		run: func(e *env, p params) (any, error) {
+			rows, tr, err := e.rows(`SELECT m.id, m.direction, m.amount, m.category, m.note, m.created_at, m.voided_at IS NOT NULL AS voided
+				FROM cash_movements m JOIN cash_shifts c ON c.tenant_id = m.tenant_id AND c.id = m.shift_id
+				WHERE m.tenant_id = $1 AND c.outlet_id = $2 AND c.user_id = $3 AND c.status = 'open'
+				ORDER BY m.created_at DESC, m.id DESC`, e.a.TenantID, e.a.OutletID, e.a.UserID)
+			return result(rows, tr, nil), err
+		},
+	}
+}
+
 // ---- Akuntansi ----
 
 func toolAccounting() tool {
@@ -395,6 +411,6 @@ func registry() []tool {
 		toolListOutlets(), toolSalesSummary(), toolTopItems(), toolSalesByCategory(), toolReturnsSummary(), toolMemberOverview(),
 		toolStockOverview(), toolStockItems(), toolSlowMoving(), toolOpnameSummary(),
 		toolReceivables(), toolPayables(), toolPurchasesSummary(),
-		toolCashShifts(), toolPettyCash(), toolAccounting(),
+		toolCashShifts(), toolPettyCash(), toolListPettyCash(), toolAccounting(),
 	}
 }

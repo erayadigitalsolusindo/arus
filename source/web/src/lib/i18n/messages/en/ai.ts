@@ -6,7 +6,9 @@ const ai: Messages['ai'] = {
   subtitle: 'An AI assistant that reads your business data, draws conclusions and gives advice.',
   readOnly: 'Read-only',
   readOnlyHint: 'HalloArus cannot add, change or delete any data.',
-  privacy: 'Summarised figures are sent to the AI provider you choose (Claude, ChatGPT, Gemini or Qwen) using your business\'s own API key (or the free ARUS account). Customer data (names, phones, addresses) is never sent; customers appear only as "Pelanggan 1, 2, …".',
+  approvalMode: 'Changes need approval',
+  approvalModeHint: 'HalloArus only proposes data changes. Data changes only after you press Approve; cancelling also needs an approver PIN.',
+  privacy: 'Summarised figures are sent to the AI provider you choose (Claude, ChatGPT, Gemini, Qwen or a custom provider) using your business\'s own API key (or the free ARUS account). Customer data (names, phones, addresses) is never sent; customers appear only as "Pelanggan 1, 2, …".',
   settings: 'Settings',
   setup: {
     title: 'Connect AI',
@@ -46,6 +48,11 @@ const ai: Messages['ai'] = {
     'qwen3-max': 'Qwen3 Max (most capable)',
     'qwen-plus': 'Qwen Plus (balanced)',
     'qwen-flash': 'Qwen Flash (fast & cheap)'
+  },
+  policy: {
+    disabled: 'HalloArus has been disabled by the platform operator for this account. Contact the ARUS operator if it should be enabled.',
+    limited: 'The platform operator restricts some HalloArus data or features for this account, so some questions may not be answerable.',
+    noHistory: 'Conversation history is turned off by the platform operator.'
   },
   free: {
     banner: 'Free account: {remaining} of {limit} questions left today. Add your own API key for unlimited use.',
@@ -134,6 +141,72 @@ const ai: Messages['ai'] = {
   dataRead: 'Data read',
   usage: '{input} tokens in · {output} tokens out',
   disclaimer: 'AI answers can be wrong; check important figures in the reports. Not financial, tax or legal advice.',
+  image: {
+    attach: 'Attach receipt photo',
+    remove: 'Remove photo',
+    alt: 'Receipt photo',
+    defaultPrompt: 'Please read this receipt and propose how to record it.',
+    tooMany: 'At most {count} photos per message.',
+    invalid: 'That file is not a supported image (JPG, PNG or WebP).'
+  },
+  action: {
+    awaiting: 'Awaiting approval',
+    done: 'Saved',
+    cancelled: 'Cancelled',
+    expired: 'Expired',
+    kind: { petty_cash_add: 'Proposal: record petty cash', petty_cash_void: 'Proposal: cancel petty cash entry' },
+    direction: 'Type',
+    dir: { out: 'Cash out', in: 'Cash in' },
+    amount: 'Amount',
+    category: 'Category',
+    note: 'Note',
+    created: 'Recorded',
+    voidWarn: 'Cancelling changes the drawer cash counted at shift close and cannot be repeated.',
+    pinHint: 'The PIN is typed here and sent straight to the server; it is never sent to the AI.',
+    approve: 'Approve',
+    cancel: 'Cancel',
+    working: 'Saving…'
+  },
+  live: 'ONLINE',
+  liveFree: 'FREE ACCOUNT',
+  hero: { eyebrow: 'ARUS Intelligence', tryThis: 'Fill the box with this sample question' },
+  thinkingSteps: { s1: 'Understanding the question…', s2: 'Reading business data…', s3: 'Calculating & comparing…', s4: 'Drafting conclusions…' },
+  history: {
+    title: 'History',
+    new: 'New conversation',
+    empty: 'No conversation history yet.',
+    more: 'Load more',
+    rename: 'Rename',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this conversation? This cannot be undone.',
+    deleteAll: 'Delete all my history',
+    deleteAllConfirm: 'Delete ALL your conversation history? This cannot be undone.',
+    deleted: '{count} conversations deleted.',
+    retention: 'Encrypted; only you can read it. Deleted automatically after 90 days.',
+    loading: 'Opening conversation…',
+    saving: 'Saved to history',
+    temp: 'Temporary conversation (not saved)',
+    tempHint: 'Click to make this conversation temporary: it will not be saved to history.',
+    tempLocked: 'Start a new conversation to change this.',
+    off: 'History is turned off by the business owner: conversations are not saved.',
+    hadImages: 'Receipt photo attached (not stored)',
+    noPersonal: 'Avoid writing personal data (names, numbers) in messages or photos.',
+    switchLabel: 'Save conversation history',
+    switchHint: 'Encrypted, readable only by the conversation owner, deleted automatically after {days} days. Receipt photos are not stored. Users can still use temporary conversations.',
+    saved: 'History setting saved.'
+  },
+  custom: {
+    name: 'Custom provider',
+    add: '+ Add custom provider (OpenAI-compatible)',
+    intro: 'Use any AI provider that supports the OpenAI-style API (/chat/completions), e.g. OpenKey or OpenRouter. Enter its address (base URL), model name and API key. The key is stored encrypted on the server and cannot be viewed again. The model must support tool calling so HalloArus can read data.',
+    labelField: 'Provider name',
+    labelPlaceholder: 'e.g. OpenKey',
+    baseUrl: 'Base URL',
+    baseUrlHint: 'Must be https and a public address (not localhost or an internal network), e.g. https://free.openkey.id/v1',
+    modelHint: 'Type the model name exactly as the provider lists it. Receipt photos can only be read with the Claude provider.',
+    needFields: 'Enter the provider name, base URL and model.',
+    needKeyForUrl: 'The base URL changed: enter the API key again (the old key is never sent to a new address).'
+  },
   tools: {
     list_outlets: 'Outlet list',
     sales_summary: 'Sales summary',
@@ -150,6 +223,9 @@ const ai: Messages['ai'] = {
     purchases_summary: 'Purchases summary',
     cash_shifts_summary: 'Cashier shift control',
     petty_cash_summary: 'Petty cash',
+    list_petty_cash: 'Petty cash entries list',
+    propose_petty_cash_entry: 'Propose petty cash entry',
+    propose_void_petty_cash_entry: 'Propose cancelling petty cash',
     accounting_balances: 'Account balances (ledger)'
   }
 };

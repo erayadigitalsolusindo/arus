@@ -69,7 +69,14 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 **Fase 8b — HalloArus: asisten AI hanya-baca (permintaan pengguna 2026-10-11)**
 - [x] 8b.1 Menu Utama → HalloArus (`/halloarus`, izin `ai_assistant`): chat dengan Claude, API key milik tenant (BYOK, dienkripsi), 16 tool baca di semua domain (penjualan, stok, piutang/hutang, pembelian, kas/shift, akuntansi), transaksi READ ONLY, pelanggan dianonimkan
 - [x] 8b.3 Akun gratis (kuota harian, key platform) dan connector MCP untuk langganan Claude pengguna
-- [ ] 8b.2 Belum: streaming jawaban, riwayat percakapan tersimpan, kuota token per tenant, tool laporan tambahan (transfer stok, voucher, harga beli)
+- [x] 8b.4 (2026-11-06) Aksi tulis HalloArus lewat USULAN + persetujuan pengguna di kartu: catat kas kecil (termasuk dari foto nota, penyedia Claude) dan batalkan kas kecil (wajib PIN penyetuju); izin `ai_assistant.create`; MCP tetap hanya-baca
+- [x] 8b.6 (2026-11-06) Penyedia AI kustom per tenant (OpenAI-compatible: base URL + model + key terenkripsi, anti-SSRF, maks 5)
+- [x] 8b.7 (2026-11-06) Riwayat percakapan terenkripsi (pemilik saja, 90 hari, saklar tenant, percakapan sementara, hapus semua) + redesain tampilan HalloArus bertema AI
+- [x] 8b.8 (2026-11-06) Kebijakan HalloArus oleh Platform Admin: aturan global + pengecualian per tenant (domain data, aksi tulis, HPP/laba, BYOK/kustom, foto nota, riwayat, MCP, akun gratis, batas pemakaian); aturan platform menang atas izin role (`/platform/halloarus`)
+- [x] 8b.9 (2026-11-06) Aturan operator HalloArus dalam Markdown (global + per tenant, hanya Platform Admin, berversi) disisipkan ke prompt sebagai aturan wajib; batas keras tetap di kode
+- [x] 8b.10 (2026-11-06) Uji tanya aturan operator (draf tanpa data tenant), domain `members`, masking pelanggan dengan ID member, aturan global bawaan, modal pengecualian bergaya matriks
+- [ ] 8b.5 Lanjutan aksi tulis: update, pembelian dari foto nota, setujui-otomatis berbatas nominal, toggle per tenant, panduan tenant (Markdown)
+- [ ] 8b.2 Belum: streaming jawaban, kuota token per tenant, tool laporan tambahan (transfer stok, voucher, harga beli)
 
 **Fase 10 — Kasir Mobile Android [PRD §7.11, §6.2, §15.4]**
 - **Keputusan pengguna 2026-10-10: aplikasi kasir mobile dibuat dengan Flutter di `source/mobile/` (menggantikan usulan Capacitor di 10.1), dikerjakan LEBIH CEPAT dari rencana karena dibutuhkan segera; import barang (3.4) menyusul. Konsekuensi: template struk (`receipt.ts`/`escpos.ts`) harus ditulis ulang di Dart, UI kasir dibuat dari nol memakai API Go yang sama. PRD §7.11/§15.4 belum diselaraskan.**
