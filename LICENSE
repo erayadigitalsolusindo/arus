@@ -1,175 +1,257 @@
-# LISENSI KODE SUMBER TERSEDIA ARUS
-## ARUS Source-Available License (ASAL) Versi 1.0
-
-Hak Cipta © 2026 Eraya Digital Solusindo.  
-Seluruh hak dilindungi, kecuali hak-hak yang secara tegas diberikan berdasarkan lisensi ini.
-
-**PEMBERITAHUAN PENTING**
-
-Lisensi ini merupakan lisensi Kode Sumber Tersedia (*Source-Available License*), BUKAN lisensi Sumber Terbuka (*Open Source*) berdasarkan Definisi Sumber Terbuka yang diterbitkan oleh Open Source Initiative (OSI).
-
-Kode sumber ARUS tersedia untuk umum agar dapat dilihat, dipelajari, ditinjau, diteliti, dan digunakan secara terbatas untuk kebutuhan internal, dengan tetap tunduk pada seluruh ketentuan dalam lisensi ini.
-
-Dengan mengakses, mengunduh, menyalin, mengubah, atau menggunakan Perangkat Lunak, Anda dianggap telah membaca dan memahami ketentuan lisensi ini.
-
----
-
-## 1. DEFINISI
-
-Dalam lisensi ini, istilah-istilah berikut memiliki arti:
-
-**1.1. Pemberi Lisensi** adalah Eraya Digital Solusindo, termasuk penerus hak dan perwakilan yang sah.
-
-**1.2. Perangkat Lunak** adalah perangkat lunak ARUS, termasuk kode sumber, kode hasil kompilasi, dokumentasi, konfigurasi, skrip, berkas pendukung, dan perubahan yang didistribusikan oleh Pemberi Lisensi, kecuali dinyatakan lain.
-
-**1.3. Penerima Lisensi** adalah setiap individu, perusahaan, organisasi, lembaga, atau badan hukum yang menggunakan hak berdasarkan lisensi ini.
-
-**1.4. Penggunaan Internal Usaha** adalah penggunaan Perangkat Lunak secara eksklusif untuk menjalankan kegiatan operasional usaha atau organisasi milik Penerima Lisensi sendiri, termasuk toko, cabang, departemen, dan karyawan yang berada dalam kendali internal organisasi tersebut.
-
-**1.5. Distribusi Komersial** adalah setiap kegiatan menjual, menyewakan, melisensikan ulang, mendistribusikan dengan imbalan, menyediakan layanan hosting, atau memanfaatkan Perangkat Lunak maupun Karya Turunannya untuk memperoleh keuntungan dari penggunaan oleh pihak lain.
-
-**1.6. Karya Turunan** adalah setiap perubahan, adaptasi, pengembangan, penerjemahan, perluasan, integrasi, atau karya lain yang dibuat berdasarkan atau menggunakan bagian substansial dari Perangkat Lunak.
-
-**1.7. Pihak Ketiga** adalah setiap individu, perusahaan, organisasi, atau badan hukum selain Penerima Lisensi dan entitas yang berada dalam kendali internal langsung Penerima Lisensi.
-
-**1.8. Persetujuan Tertulis** adalah persetujuan resmi yang diberikan secara tertulis dan ditandatangani oleh pihak yang berwenang mewakili Eraya Digital Solusindo.
-
----
-
-## 2. HAK CIPTA DAN KEPEMILIKAN
-
-**2.1.** Perangkat Lunak merupakan kekayaan intelektual milik Eraya Digital Solusindo atau pemegang hak lain yang sah sesuai dengan kepemilikan masing-masing komponen.
-
-**2.2.** Seluruh hak cipta, hak ekonomi, hak kekayaan intelektual, dan hak kepemilikan lainnya atas Perangkat Lunak tetap berada pada pemegang hak yang sah.
-
-**2.3.** Lisensi ini tidak mengalihkan kepemilikan Perangkat Lunak, kode sumber, maupun hak kekayaan intelektual apa pun kepada Penerima Lisensi.
-
-**2.4.** Seluruh hak yang tidak secara tegas diberikan melalui lisensi ini tetap menjadi hak Pemberi Lisensi atau pemegang hak yang sah.
-
-**2.5.** Tidak ada ketentuan dalam lisensi ini yang dapat ditafsirkan sebagai pemberian hak kepemilikan atas nama ARUS, logo, merek dagang, identitas visual, maupun identitas komersial Eraya Digital Solusindo.
-
----
-
-## 3. HAK PENGGUNAAN YANG DIIZINKAN
-
-Dengan tetap mematuhi seluruh ketentuan lisensi ini, Pemberi Lisensi memberikan hak terbatas, non-eksklusif, tidak dapat dialihkan, dan tidak dapat disublisensikan kepada Penerima Lisensi untuk melakukan kegiatan berikut:
-
-**3.1. Akses dan Pembelajaran**
-
-Mengakses, membaca, melihat, mempelajari, meninjau, dan mengaudit kode sumber Perangkat Lunak untuk tujuan pendidikan, penelitian, pembelajaran, dan evaluasi.
-
-**3.2. Penggunaan Pribadi dan Pengembangan**
-
-Menjalankan, menguji, menyalin, dan mengubah Perangkat Lunak untuk kebutuhan pribadi, pendidikan, penelitian, dan pengembangan.
-
-**3.3. Penggunaan Internal Usaha**
-
-Menjalankan dan menggunakan Perangkat Lunak untuk kegiatan operasional usaha milik Penerima Lisensi sendiri, termasuk kegiatan usaha yang menghasilkan keuntungan, sepanjang penggunaan tersebut secara eksklusif ditujukan untuk kepentingan internal organisasi milik Penerima Lisensi.
-
-Hak penggunaan ini mencakup:
-
-- Penggunaan Perangkat Lunak dalam perusahaan milik Penerima Lisensi sendiri.
-- Penggunaan Perangkat Lunak pada toko dan cabang milik Penerima Lisensi.
-- Pemberian akses kepada karyawan untuk menjalankan kegiatan operasional internal.
-- Perubahan dan penyesuaian Perangkat Lunak sesuai kebutuhan internal.
-- Integrasi Perangkat Lunak dengan sistem internal milik Penerima Lisensi.
-
-**3.4. Perubahan untuk Kebutuhan Internal**
-
-Penerima Lisensi diperbolehkan mengubah dan mengembangkan Perangkat Lunak untuk kebutuhan internal.
-
-Namun, perubahan tersebut tidak memberikan hak tambahan kepada Penerima Lisensi untuk menjual, mendistribusikan, melisensikan ulang, atau memanfaatkan Perangkat Lunak maupun Karya Turunannya secara komersial kepada Pihak Ketiga.
-
-**3.5. Salinan dan Cabang Repositori**
-
-Penerima Lisensi diperbolehkan membuat salinan atau cabang repositori (*fork*) secara pribadi untuk keperluan pengembangan dan pengajuan kontribusi kepada Pemberi Lisensi melalui repositori resmi ARUS.
-
-Publikasi atau pendistribusian cabang repositori kepada umum tidak diperbolehkan tanpa Persetujuan Tertulis.
-
----
-
-## 4. PEMBATASAN PENGGUNAAN
-
-Tanpa Persetujuan Tertulis dari Pemberi Lisensi, Penerima Lisensi DILARANG:
-
-**4.1. Penjualan dan Distribusi Komersial**
-
-Menjual, menyewakan, melisensikan ulang, mendistribusikan dengan imbalan, atau memanfaatkan Perangkat Lunak maupun Karya Turunannya untuk kepentingan komersial Pihak Ketiga.
-
-**4.2. Penyediaan Layanan kepada Pihak Ketiga**
-
-Menyediakan Perangkat Lunak sebagai layanan, termasuk tetapi tidak terbatas pada:
-
-- Perangkat Lunak sebagai Layanan (*Software as a Service/SaaS*).
-- Layanan POS atau ERP berbasis hosting untuk pelanggan eksternal.
-- Layanan ARUS berbasis komputasi awan untuk Pihak Ketiga.
-- Layanan hosting dan pengelolaan Perangkat Lunak secara komersial.
-- Penyediaan layanan pemasangan, implementasi, dan pemeliharaan Perangkat Lunak untuk Pihak Ketiga.
-
-**4.3. Penggunaan White-Label dan Penggantian Identitas**
-
-Mengganti nama, merek, logo, identitas visual, atau identitas komersial Perangkat Lunak untuk ditawarkan, dipasarkan, atau didistribusikan sebagai produk milik sendiri atau pihak lain.
-
-**4.4. Pemasangan dan Pengelolaan untuk Pihak Ketiga**
-
-Memasang, mengonfigurasi, mengoperasikan, memelihara, atau mengelola Perangkat Lunak untuk kepentingan Pihak Ketiga sebagai layanan komersial atau untuk memperoleh imbalan dalam bentuk apa pun.
-
-**4.5. Pendistribusian Tanpa Izin**
-
-Menerbitkan, membagikan, mendistribusikan, atau menyediakan salinan Perangkat Lunak maupun Karya Turunannya kepada publik, termasuk melalui repositori GitHub publik atau platform distribusi lainnya.
-
-**4.6. Penghapusan Informasi Kepemilikan**
-
-Menghapus, menyembunyikan, mengubah, atau memalsukan pemberitahuan hak cipta, informasi kepemilikan, maupun pemberitahuan lisensi yang terdapat dalam Perangkat Lunak.
-
-**4.7. Penyalahgunaan Merek**
-
-Menggunakan nama, logo, merek ARUS, atau identitas Eraya Digital Solusindo dengan cara yang dapat menimbulkan kesan adanya dukungan, afiliasi, kemitraan, atau persetujuan resmi tanpa izin.
-
-**4.8. Pembuatan Produk Komersial Turunan**
-
-Membuat, memasarkan, mendistribusikan, atau menawarkan produk maupun layanan komersial yang menggunakan atau menggabungkan bagian substansial dari kode Perangkat Lunak tanpa Persetujuan Tertulis.
-
----
-
-## 5. IZIN DAN KERJA SAMA KOMERSIAL
-
-**5.1.** Setiap penggunaan di luar hak yang secara tegas diberikan pada Bagian 3 wajib memperoleh Persetujuan Tertulis terlebih dahulu dari Pemberi Lisensi.
-
-**5.2.** Persetujuan komersial dapat diberikan untuk kegiatan berikut:
-
-- Penjualan dan distribusi komersial.
-- Penyediaan layanan SaaS dan hosting.
-- Implementasi POS dan ERP untuk Pihak Ketiga.
-- Pengembangan solusi *white-label*.
-- Kerja sama sebagai penjual kembali atau distributor.
-- Integrasi dan implementasi komersial.
-- Pengembangan produk turunan untuk tujuan komersial.
-
-**5.3.** Ketentuan mengenai biaya lisensi, royalti, kewajiban, batas penggunaan, hak komersial, dan ruang lingkup kerja sama akan diatur melalui perjanjian tertulis terpisah antara Pemberi Lisensi dan pihak yang memperoleh izin.
-
-**5.4.** Izin komersial tidak dianggap diberikan melalui komunikasi lisan, percakapan informal, akses terhadap repositori, maupun ketersediaan kode sumber untuk umum.
-
-**5.5.** Permohonan izin komersial dapat diajukan melalui repositori resmi ARUS:
-
-https://github.com/erayadigitalsolusindo/arus
-
----
-
-## 6. KONTRIBUSI PENGEMBANGAN
-
-**6.1.** Setiap kontribusi yang diajukan melalui repositori resmi ARUS harus melalui proses peninjauan dan persetujuan Pemberi Lisensi.
-
-**6.2.** Dengan mengajukan kontribusi, Penerima Lisensi menyatakan bahwa:
-
-- Penerima Lisensi memiliki hak yang sah untuk mengajukan kontribusi tersebut.
-- Kontribusi tidak secara sengaja melanggar hak kekayaan intelektual pihak lain.
-- Kontribusi tidak mengandung informasi rahasia atau materi pihak ketiga yang digunakan tanpa izin.
-
-**6.3.** Kecuali disepakati lain secara tertulis, Penerima Lisensi memberikan kepada Pemberi Lisensi hak penggunaan yang berlaku di seluruh dunia, berlaku selamanya, tidak dapat ditarik kembali, non-eksklusif, dan bebas royalti untuk menggunakan, memperbanyak, mengubah, mengadaptasi, mendistribusikan, memberikan sublisensi, serta menggabungkan kontribusi tersebut ke dalam Perangkat Lunak dan produk terkait.
-
-**6.4.** Pemberian hak penggunaan kontribusi sebagaimana dimaksud pada Bagian 6.3 tidak secara otomatis mengalihkan kepemilikan kontribusi independen milik Penerima Lisensi kepada Pemberi Lisensi.
-
-**6.5.** Pemberi Lisensi berhak mendistribusikan Perangkat Lunak beserta kontribusi yang telah diterima berdasarkan lisensi ini maupun pengaturan lisensi lainnya, dengan tetap memperhatikan ketentuan hukum dan hak pemegang kontribusi yang bersangkutan.
-
-**6.6.** Pemberi Lisensi dapat meminta penandatanganan Perjanjian Lisensi Kontributor
+LISENSI SOURCE-AVAILABLE ARUS (Versi 1.1)
+
+Hak Cipta (c) 2026 Eraya Digital Solusindo. Semua hak dilindungi kecuali yang
+diberikan secara tegas dalam lisensi ini.
+
+CATATAN: Ini adalah lisensi source-available, BUKAN lisensi open source
+menurut definisi OSI (sampai Tanggal Perubahan pada Bagian 11). Tujuannya
+sederhana: usaha apa pun boleh memakai ARUS secara gratis untuk usahanya
+sendiri, kodenya terbuka untuk dibaca dan diaudit, sedangkan menjual ARUS
+kepada pihak lain memerlukan izin.
+
+1. DEFINISI
+   "Perangkat Lunak": kode sumber, dokumentasi, skrip, dan berkas pendukung
+   dalam repositori ARUS yang dimiliki Pemberi Lisensi, termasuk perubahan
+   dan versi-versinya. Tidak termasuk Komponen Pihak Ketiga (Bagian 9).
+   "Pemberi Lisensi": Eraya Digital Solusindo [isi bentuk badan hukum,
+   alamat, dan NPWP/NIB].
+   "Anda": individu atau badan yang menggunakan Perangkat Lunak. Bila atas
+   nama badan, Anda menyatakan berwenang mengikat badan tersebut.
+   "Usaha Anda": usaha, organisasi, atau kegiatan milik Anda dan badan
+   afiliasi yang Anda kendalikan (memiliki lebih dari 50% saham/suara).
+   Toko, outlet, atau waralaba dalam satu jaringan yang sama dihitung
+   sebagai Usaha Anda bila dikendalikan oleh pemilik yang sama.
+   "Penjualan Ulang": menjual, menyewakan, melisensikan ulang,
+   mendistribusikan dengan imbalan, atau menawarkan Perangkat Lunak atau
+   turunannya kepada pihak lain, termasuk:
+     (i)   menyediakannya sebagai layanan (SaaS, hosting, atau akses multi-
+           tenant) yang dipakai pihak ketiga yang bukan Usaha Anda;
+     (ii)  menjualnya dengan nama atau merek lain (white-label);
+     (iii) menggabungkannya ke produk atau layanan berbayar yang fungsi
+           utamanya adalah menyediakan kembali fungsi ARUS.
+   "Jasa Layanan": jasa instalasi, konfigurasi, pelatihan, migrasi data,
+   dan dukungan teknis yang dibayar pelanggan atas waktu dan keahlian Anda,
+   bukan atas Perangkat Lunak itu sendiri.
+   "Mitra Resmi": pihak yang menandatangani perjanjian kemitraan tertulis
+   dengan Pemberi Lisensi.
+   "Kontribusi": kode, dokumentasi, terjemahan, atau materi lain yang Anda
+   ajukan untuk dimasukkan ke Perangkat Lunak.
+
+2. HAK YANG DIBERIKAN
+   Dengan syarat Anda mematuhi lisensi ini, Anda diberi hak yang berlaku di
+   seluruh dunia, bebas royalti, tidak eksklusif, tidak dapat dialihkan, dan
+   tidak dapat disublisensikan (kecuali kepada pegawai dan kontraktor yang
+   bekerja untuk Usaha Anda, Bagian 2.f) untuk:
+   a. membaca, mempelajari, dan mengaudit kode sumber (termasuk audit
+      keamanan);
+   b. menjalankan dan menguji Perangkat Lunak untuk keperluan pribadi,
+      pendidikan, atau riset;
+   c. menjalankan Perangkat Lunak untuk operasional Usaha Anda, tanpa batas
+      jumlah pengguna, outlet, atau transaksi, tanpa biaya lisensi;
+   d. mengubah Perangkat Lunak untuk keperluan Usaha Anda, dan memelihara
+      perubahan itu secara internal;
+   e. membuat salinan, cadangan, dan fork (termasuk di GitHub) untuk
+      mengajukan Kontribusi, atau untuk keperluan pada butir a–d;
+   f. mengizinkan pegawai dan kontraktor Usaha Anda memakai Perangkat Lunak
+      untuk kepentingan Usaha Anda, dengan Anda yang bertanggung jawab atas
+      kepatuhan mereka;
+   g. memakai data, laporan, dan keluaran yang dihasilkan Perangkat Lunak
+      secara bebas. Data usaha Anda adalah milik Anda sepenuhnya (Bagian 8).
+
+3. JASA LAYANAN YANG DIPERBOLEHKAN
+   Anda boleh menerima bayaran atas Jasa Layanan kepada pelanggan, selama:
+   a. pelanggan menjalankan Perangkat Lunak di infrastruktur miliknya
+      sendiri atau yang ia sewa atas namanya sendiri, dan ia memegang akun
+      serta kendali penuh atas data;
+   b. Anda tidak menarik bayaran atas Perangkat Lunak itu sendiri, tidak
+      menagih biaya berlangganan atas akses ke fungsinya, dan tidak
+      menjualnya dengan merek Anda;
+   c. Anda memberi tahu pelanggan bahwa Perangkat Lunak berlisensi ARUS dan
+      menyerahkan salinan lisensi ini kepadanya;
+   d. Anda tidak menyatakan diri sebagai Mitra Resmi atau afiliasi
+      Pemberi Lisensi tanpa perjanjian tertulis.
+   Di luar syarat ini, berlaku Bagian 4.
+
+4. PEMBATASAN
+   Tanpa izin tertulis dari Pemberi Lisensi, Anda tidak boleh:
+   a. melakukan Penjualan Ulang;
+   b. menyediakan Perangkat Lunak sebagai layanan terkelola kepada pihak
+      lain di luar Usaha Anda;
+   c. menghapus atau mengubah pemberitahuan hak cipta, atribusi, dan
+      lisensi dalam Perangkat Lunak;
+   d. memakai nama, logo, atau merek ARUS dan Eraya Digital Solusindo
+      selain untuk menyebut asal-usul Perangkat Lunak secara jujur (Bagian
+      7);
+   e. menonaktifkan atau menghindari mekanisme lisensi, peringatan hak
+      cipta, atau pembatasan teknis yang sah dalam Perangkat Lunak;
+   f. memakai Perangkat Lunak untuk melanggar hukum, termasuk pelanggaran
+      hak pihak ketiga, penyebaran malware, atau pelanggaran privasi;
+   g. mengklaim Perangkat Lunak atau turunannya sebagai karya Anda sendiri.
+
+5. PROGRAM MITRA RESMI DAN IZIN KOMERSIAL
+   Pemberi Lisensi menyediakan perjanjian tertulis bagi pihak yang ingin
+   menjual, menjadi reseller, menyediakan hosting terkelola, atau membangun
+   produk berbasis ARUS. Syarat komersial yang wajar (bagi hasil, lingkup
+   wilayah, dukungan, dan penggunaan merek) disepakati terpisah. Izin hanya
+   sah bila tertulis dan ditandatangani Pemberi Lisensi. Hubungi Pemberi
+   Lisensi melalui https://github.com/erayadigitalsolusindo/arus.
+   Pemberi Lisensi akan menanggapi permohonan izin dengan itikad baik dalam
+   waktu yang wajar.
+
+6. KONTRIBUSI
+   a. Anda tetap memegang hak cipta atas Kontribusi Anda.
+   b. Dengan mengajukan Kontribusi, Anda memberi Pemberi Lisensi lisensi
+      yang berlaku di seluruh dunia, bebas royalti, tidak eksklusif, tidak
+      dapat dicabut, dan dapat disublisensikan untuk memakai, menyalin,
+      mengubah, mendistribusikan, dan melisensikan Kontribusi tersebut
+      sebagai bagian dari Perangkat Lunak, di bawah lisensi ini maupun
+      lisensi lain yang dipilih Pemberi Lisensi (termasuk lisensi open
+      source).
+   c. Anda memberi lisensi paten atas Kontribusi tersebut sejauh paten itu
+      pasti dilanggar oleh penggunaan Kontribusi bersama Perangkat Lunak.
+   d. Anda menyatakan bahwa Kontribusi adalah karya Anda sendiri atau Anda
+      berhak mengajukannya, tidak melanggar hak pihak ketiga, dan tidak
+      memuat kode dengan lisensi yang bertentangan dengan lisensi ini.
+   e. Pemberi Lisensi tidak wajib menerima Kontribusi apa pun. Bila
+      Kontribusi Anda diterima, nama Anda dicantumkan dalam berkas
+      penghargaan (CONTRIBUTORS), kecuali Anda minta tidak.
+   f. Pemberi Lisensi akan memakai Kontribusi dengan itikad baik, dan tidak
+      akan menghapus atribusi penulis aslinya.
+
+7. MEREK DAGANG DAN ATRIBUSI
+   "ARUS" dan "Eraya Digital Solusindo" beserta logonya adalah merek
+   Pemberi Lisensi. Lisensi ini tidak memberi hak atas merek. Anda boleh
+   menyebut "berbasis ARUS" atau "memakai ARUS" secara jujur dan akurat
+   untuk menjelaskan asal-usul Perangkat Lunak. Penggunaan lain, termasuk
+   menyiratkan dukungan, kemitraan, atau afiliasi, memerlukan izin
+   tertulis. Fork atau versi yang Anda ubah harus diberi nama berbeda dan
+   tidak boleh dibuat sehingga menyesatkan seolah-olah produk resmi.
+
+8. DATA, PRIVASI, DAN KEAMANAN
+   a. Data usaha yang Anda simpan di Perangkat Lunak (transaksi, pelanggan,
+      stok, dan sebagainya) tetap milik Anda. Pemberi Lisensi tidak
+      memperoleh hak atas data tersebut dari lisensi ini.
+   b. Perangkat Lunak dijalankan di infrastruktur Anda. Pemberi Lisensi
+      tidak memiliki akses ke data Anda dan tidak mengirimkan data Anda ke
+      pihak lain, kecuali Anda sendiri mengaktifkan fitur integrasi atau
+      layanan opsional (misalnya layanan platform yang dioperasikan
+      Pemberi Lisensi) yang pengolahan datanya dijelaskan dalam dokumen
+      terpisah.
+   c. Anda bertanggung jawab atas pengamanan instalasi Anda (akses server,
+      cadangan, pembaruan, dan pengelolaan akun) serta atas kepatuhan Anda
+      pada hukum perlindungan data pribadi yang berlaku, termasuk UU No. 27
+      Tahun 2022 tentang Pelindungan Data Pribadi, sebagai pengendali data
+      atas data pelanggan Anda.
+   d. Bila Anda menemukan kerentanan keamanan, mohon laporkan secara
+      tertutup melalui kanal pelaporan keamanan di repositori (bukan di
+      isu publik) dan beri waktu yang wajar (disarankan 90 hari) untuk
+      perbaikan sebelum diungkap. Pemberi Lisensi tidak akan menempuh
+      tindakan hukum terhadap pelaporan yang dilakukan dengan itikad baik,
+      sesuai batas ini, tanpa mengakses atau merusak data pihak lain.
+
+9. KOMPONEN PIHAK KETIGA
+   Perangkat Lunak dapat memuat atau bergantung pada pustaka dan aset
+   milik pihak lain yang tunduk pada lisensinya masing-masing (misalnya
+   pustaka open source). Lisensi ini tidak mengubah lisensi tersebut dan
+   tidak berlaku atas komponen itu. Daftar komponen dan lisensinya ada di
+   berkas NOTICE/THIRD-PARTY. Aset berlisensi komersial yang hanya
+   dipakai sebagai acuan (misalnya template UI berbayar) TIDAK dilisensikan
+   kepada Anda dan tidak boleh Anda salin, distribusikan, atau pakai di
+   luar lisensinya sendiri.
+
+10. PEMBARUAN DAN DUKUNGAN
+    a. Pemberi Lisensi tidak wajib menyediakan pembaruan, perbaikan, atau
+       dukungan, kecuali ada perjanjian terpisah (misalnya paket dukungan
+       berbayar atau perjanjian Mitra Resmi).
+    b. Hak Anda atas versi yang sudah Anda terima tetap berlaku selama Anda
+       mematuhi lisensi ini, walaupun pengembangan dihentikan atau Pemberi
+       Lisensi berhenti beroperasi.
+    c. Versi baru dapat dirilis di bawah lisensi yang berbeda; versi yang
+       sudah Anda terima tidak berubah lisensinya secara retroaktif,
+       kecuali beralih ke lisensi yang lebih longgar (Bagian 11).
+
+11. TANGGAL PERUBAHAN (JAMINAN KETERBUKAAN)
+    Setiap versi rilis Perangkat Lunak akan otomatis beralih ke lisensi
+    Apache License 2.0 pada ulang tahun keempat sejak tanggal rilis
+    publik versi tersebut (kecuali Pemberi Lisensi mengumumkan tanggal
+    yang lebih awal). Setelah tanggal itu, versi tersebut dapat dipakai,
+    diubah, dan dijual ulang sesuai Apache License 2.0, dan Bagian 4
+    tidak berlaku lagi atasnya. Merek dagang (Bagian 7) tetap dilindungi.
+
+12. PELANGGARAN DAN PENCABUTAN
+    a. Bila Anda melanggar lisensi ini, Pemberi Lisensi akan memberi tahu
+       Anda secara tertulis (melalui email atau saluran yang tercatat) dan
+       menjelaskan pelanggarannya.
+    b. Anda mendapat 30 hari sejak pemberitahuan (atau sejak Anda
+       mengetahui, mana yang lebih dulu) untuk menghentikan pelanggaran
+       dan memperbaikinya. Bila diperbaiki dalam waktu itu, hak Anda
+       dipulihkan tanpa sanksi lain.
+    c. Bila pelanggaran tidak diperbaiki, atau berulang dalam 12 bulan,
+       atau berupa Penjualan Ulang tanpa izin, hak Anda berakhir. Setelah
+       itu Anda harus berhenti memakai dan menghapus semua salinan
+       Perangkat Lunak, dan hanya bagian yang dilanggar yang menjadi dasar
+       tuntutan.
+    d. Pengakhiran hak Anda tidak mempengaruhi hak pelanggan akhir Anda
+       yang sebelumnya menerima Perangkat Lunak dengan itikad baik dan
+       sesuai lisensi ini, selama mereka sendiri mematuhinya.
+    e. Pemberi Lisensi tidak dapat mencabut hak Anda atas alasan lain di
+       luar pelanggaran lisensi ini.
+
+13. TANPA JAMINAN
+    PERANGKAT LUNAK DISEDIAKAN "APA ADANYA" DAN "SEBAGAIMANA TERSEDIA",
+    TANPA JAMINAN APA PUN, TERSURAT MAUPUN TERSIRAT, TERMASUK JAMINAN
+    KELAYAKAN DIPERDAGANGKAN, KESESUAIAN UNTUK TUJUAN TERTENTU, KETEPATAN
+    HASIL PERHITUNGAN (PAJAK, STOK, KEUANGAN), DAN BEBAS PELANGGARAN. ANDA
+    BERTANGGUNG JAWAB MEMERIKSA HASIL PERANGKAT LUNAK SEBELUM DIPAKAI UNTUK
+    KEPUTUSAN ATAU LAPORAN RESMI.
+
+14. BATAS TANGGUNG JAWAB
+    SEJAUH DIIZINKAN HUKUM, PEMBERI LISENSI DAN KONTRIBUTORNYA TIDAK
+    BERTANGGUNG JAWAB ATAS KERUGIAN TIDAK LANGSUNG, KHUSUS, INSIDENTAL,
+    ATAU KONSEKUENSIAL (TERMASUK KEHILANGAN LABA, DATA, ATAU KESEMPATAN
+    USAHA), ATAS TUNTUTAN APA PUN YANG TIMBUL DARI LISENSI INI ATAU
+    PENGGUNAAN PERANGKAT LUNAK. TOTAL TANGGUNG JAWAB PEMBERI LISENSI
+    TERBATAS PADA JUMLAH YANG ANDA BAYARKAN KEPADA PEMBERI LISENSI UNTUK
+    PERANGKAT LUNAK DALAM 12 BULAN TERAKHIR (ATAU RP 1.000.000 BILA ANDA
+    TIDAK MEMBAYAR APA PUN). BATAS INI TIDAK BERLAKU UNTUK KERUGIAN YANG
+    TIMBUL DARI KESENGAJAAN ATAU KELALAIAN BERAT, ATAU HAL YANG TIDAK
+    BOLEH DIBATASI MENURUT HUKUM.
+
+15. GANTI RUGI
+    Anda bertanggung jawab atas tuntutan pihak ketiga yang timbul dari
+    pelanggaran Anda terhadap lisensi ini atau dari penggunaan Perangkat
+    Lunak oleh Anda untuk melanggar hukum, dan membebaskan Pemberi
+    Lisensi dari tuntutan tersebut sejauh disebabkan oleh Anda.
+
+16. KEPATUHAN DAN AUDIT
+    Atas permintaan tertulis yang beralasan (tidak lebih sering dari
+    sekali dalam 12 bulan, kecuali ada dugaan pelanggaran), Anda
+    memberikan keterangan tertulis tentang cara Anda memakai Perangkat
+    Lunak untuk memastikan kepatuhan pada Bagian 4. Pemberi Lisensi tidak
+    berhak mengakses data usaha, sistem, atau pelanggan Anda, dan segala
+    informasi yang diberikan dijaga kerahasiaannya.
+
+17. KETENTUAN UMUM
+    a. Lisensi ini adalah keseluruhan kesepakatan antara Anda dan Pemberi
+       Lisensi mengenai Perangkat Lunak. Perjanjian tertulis terpisah
+       (Bagian 5 atau 10.a) mengutamakan bila bertentangan.
+    b. Bila suatu ketentuan tidak sah atau tidak dapat dilaksanakan,
+       ketentuan lain tetap berlaku.
+    c. Kelalaian menegakkan suatu hak bukan berarti melepaskan hak itu.
+    d. Anda tidak boleh mengalihkan lisensi ini tanpa izin tertulis,
+       kecuali kepada pengganti seluruh Usaha Anda dalam merger atau
+       penjualan usaha, dengan pemberitahuan tertulis.
+    e. Pemberi Lisensi dapat menerbitkan versi lisensi yang baru. Versi
+       baru berlaku untuk rilis baru; rilis yang sudah Anda terima tetap
+       tunduk pada versi saat Anda menerimanya, kecuali Anda memilih versi
+       baru.
+    f. Bila ada perbedaan antara versi bahasa Indonesia dan terjemahan,
+       versi bahasa Indonesia yang berlaku.
+
+18. HUKUM YANG BERLAKU DAN PENYELESAIAN SENGKETA
+    Lisensi ini tunduk pada hukum Republik Indonesia. Para pihak lebih
+    dulu menyelesaikan sengketa melalui musyawarah dalam 30 hari. Bila
+    tidak berhasil, sengketa diselesaikan melalui [Pengadilan Negeri
+    ... / BANI] di [kota Pemberi Lisensi]. Pemberi Lisensi tetap boleh
+    meminta putusan sela di pengadilan mana pun untuk menghentikan
+    Penjualan Ulang tanpa izin atau pelanggaran merek.
