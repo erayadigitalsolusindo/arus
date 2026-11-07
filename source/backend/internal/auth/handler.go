@@ -33,6 +33,8 @@ type HandlerDeps struct {
 	Tokens       *pauth.TokenIssuer
 	Perms        *authz.Resolver
 	Origins      []string // dipakai CSRFGuard (endpoint ber-cookie)
+	// OriginOK menerima Origin tambahan saat runtime (domain kustom aktif); nil = hanya Origins.
+	OriginOK func(ctx context.Context, origin string) bool
 	SecureCookie bool
 }
 
@@ -46,7 +48,7 @@ func NewHandler(d HandlerDeps) *Handler { return &Handler{HandlerDeps: d, svc: d
 // Routes mendaftarkan endpoint auth. Rate limit dipasang sebelum pekerjaan mahal (hash argon2id).
 // Endpoint ber-cookie (refresh, logout, pindah outlet) dilindungi CSRFGuard.
 func (h *Handler) Routes(r chi.Router) {
-	csrf := nativeOr(httpx.CSRFGuard(h.Origins))
+	csrf := nativeOr(httpx.CSRFGuardWith(h.Origins, h.OriginOK))
 	authed := []func(http.Handler) http.Handler{httpx.RequireAuth(h.Tokens), h.Perms.Authenticate}
 
 	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/register", h.Register)

@@ -50,9 +50,16 @@ const CSRFHeader = "X-Requested-With"
 // CSRFGuard melindungi endpoint yang memakai cookie (refresh, logout): Origin wajib ada dan termasuk
 // `allowed`, serta header CSRFHeader wajib diisi. SameSite saja tidak cukup (mis. subdomain lain).
 func CSRFGuard(allowed []string) func(http.Handler) http.Handler {
+	return CSRFGuardWith(allowed, nil)
+}
+
+// CSRFGuardWith = CSRFGuard + pemeriksa Origin dinamis (mis. domain kustom tenant yang aktif di database). extra boleh nil.
+func CSRFGuardWith(allowed []string, extra func(ctx context.Context, origin string) bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !slices.Contains(allowed, r.Header.Get("Origin")) || r.Header.Get(CSRFHeader) == "" {
+			origin := r.Header.Get("Origin")
+			ok := slices.Contains(allowed, origin) || (origin != "" && extra != nil && extra(r.Context(), origin))
+			if !ok || r.Header.Get(CSRFHeader) == "" {
 				Error(w, http.StatusForbidden, "FORBIDDEN", "Permintaan ditolak.")
 				return
 			}

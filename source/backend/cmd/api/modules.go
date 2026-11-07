@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -87,7 +90,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
 		Lockout:    auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		RateLimits: auth.NewRateLimitLoader(d.Pool, d.Log),
-		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
+		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, OriginOK: domainOriginOK(d.Pool), SecureCookie: !d.Cfg.IsDev(),
 	}).Routes(r)
 
 	uploads, err := storage.NewLocal(d.Cfg.UploadDir)
@@ -216,5 +219,42 @@ func domainGoogleIDs(pool *pgxpool.Pool) auth.AudienceSource {
 			out = append(out, id)
 		}
 		return out, rows.Err()
+	}
+}
+
+// domainOriginOK menerima Origin https://<host> bila host adalah domain kustom aktif milik tenant aktif (hasil di-cache
+// semenit). Perlu agar refresh/logout di domain white label lolos CSRFGuard tanpa menambah CORS_ORIGINS per klien.
+func domainOriginOK(pool *pgxpool.Pool) func(ctx context.Context, origin string) bool {
+	type entry struct {
+		ok bool
+		at time.Time
+	}
+	var (
+		mu    sync.Mutex
+		cache = map[string]entry{}
+	)
+	return func(ctx context.Context, origin string) bool {
+		host, found := strings.CutPrefix(origin, "https://")
+		if !found || host == "" || strings.ContainsAny(host, "/:?#@ ") || len(host) > 253 {
+			return false
+		}
+		host = strings.ToLower(host)
+		mu.Lock()
+		if e, hit := cache[host]; hit && time.Since(e.at) < time.Minute {
+			mu.Unlock()
+			return e.ok
+		}
+		mu.Unlock()
+		var n int
+		if err := pool.QueryRow(ctx, `SELECT count(*) FROM public_domain_lookup($1)`, host).Scan(&n); err != nil {
+			return false
+		}
+		mu.Lock()
+		if len(cache) > 1000 {
+			clear(cache)
+		}
+		cache[host] = entry{ok: n > 0, at: time.Now()}
+		mu.Unlock()
+		return n > 0
 	}
 }
