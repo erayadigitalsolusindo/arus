@@ -2,6 +2,7 @@
 # Hasil: release.tar.gz (binary Linux + migration + web statis). Unggah ke server lalu jalankan update.sh.
 $ErrorActionPreference = 'Stop'
 $ApiUrl = 'https://arus-api.erayadigital.co.id'
+$PrimaryHosts = 'arus.erayadigital.co.id' # di host lain (domain kustom) web memanggil API lewat origin yang sama; tanpa ini = CORS
 $root = Resolve-Path "$PSScriptRoot\..\.."
 $out  = Join-Path $PSScriptRoot 'release'
 
@@ -30,10 +31,11 @@ Copy-Item "$root\backend\db\migrations" "$out\migrations" -Recurse
 Push-Location "$root\web"
 try {
     $env:VITE_API_URL = $ApiUrl
+    $env:VITE_PRIMARY_HOSTS = $PrimaryHosts
     bun install --frozen-lockfile; Assert-Ok 'bun install (hentikan bun run dev / editor yang memakai source\web bila EPERM)'
     bun run build;    Assert-Ok 'bun run build'
 } finally {
-    Remove-Item Env:VITE_API_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:VITE_API_URL, Env:VITE_PRIMARY_HOSTS -ErrorAction SilentlyContinue
     Pop-Location
 }
 Copy-Item "$root\web\build\*" "$out\web" -Recurse

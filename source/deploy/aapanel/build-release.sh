@@ -5,6 +5,8 @@ set -euo pipefail
 export PATH=/opt/node26/bin:/usr/local/go/bin:$PATH
 SRC=$HOME/arus-src/source
 API_URL=https://arus-api.erayadigital.co.id
+# Host utama web: di host lain (domain kustom tenant) web memanggil API lewat origin yang sama, bukan API_URL (tanpa ini = CORS).
+PRIMARY_HOSTS=arus.erayadigital.co.id
 OUT=$(mktemp -d)
 
 [ "$(uname -m)" = x86_64 ] || { echo "GAGAL: server bukan x86_64"; exit 1; }
@@ -15,7 +17,7 @@ echo "==> 1/3 build API (Go)"
 cp -r "$SRC/backend/db/migrations" "$OUT/migrations"
 
 echo "==> 2/3 build web (SvelteKit)"
-( cd "$SRC/web" && bun install --frozen-lockfile && VITE_API_URL="$API_URL" bun run build )
+( cd "$SRC/web" && bun install --frozen-lockfile && VITE_API_URL="$API_URL" VITE_PRIMARY_HOSTS="$PRIMARY_HOSTS" bun run build )
 mkdir -p "$OUT/web"
 cp -r "$SRC/web/build/." "$OUT/web/"
 
