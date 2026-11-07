@@ -1,0 +1,204 @@
+/* Template "Nusa Tech AI": tema gelap ala terminal + neon cyan/violet. Semua animasi murni CSS (tanpa JS), mati otomatis bila pengguna meminta gerak berkurang.
+   Cara belajar: judul tiap blok "Teknik" di bawah sama dengan kartu di bagian "Bedah CSS" pada halaman. Ubah angka (durasi, warna, ukuran) lalu lihat pratinjaunya. */
+:root {
+  --ai-bg: #05070f;
+  --ai-panel: #0b1020;
+  --ai-line: rgba(148, 163, 184, 0.14);
+  --ai-cyan: #22d3ee;
+  --ai-violet: #8b5cf6;
+  --ai-lime: #a3e635;
+  --ai-pink: #f0abfc;
+  --ai-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+body {
+  background: var(--ai-bg);
+  color: #cbd5e1;
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  scroll-padding-top: 5rem;
+  overflow-x: hidden;
+}
+.ai-mono { font-family: var(--ai-mono); }
+.ai-eyebrow { font-family: var(--ai-mono); letter-spacing: 0.2em; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; color: var(--ai-cyan); }
+.ai-eyebrow::before { content: "// "; color: var(--ai-violet); }
+
+/* ---- keyframes: "resep" gerakan, dipakai ulang di banyak tempat ---- */
+@keyframes ai-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes ai-grid { to { background-position: 0 48px; } }
+@keyframes ai-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(50px, -36px) scale(1.18); } }
+@keyframes ai-shine { to { background-position: 200% center; } }
+@keyframes ai-type { from { width: 0; } }
+@keyframes ai-typeloop { from { width: 0; } to { width: 13ch; } }
+@keyframes ai-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes ai-scan { from { transform: translateY(-100%); } to { transform: translateY(260%); } }
+@keyframes ai-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@keyframes ai-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.55); } 50% { transform: scale(1.25); box-shadow: 0 0 14px 4px rgba(34, 211, 238, 0.45); } }
+@keyframes ai-ping { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3.2); opacity: 0; } }
+@keyframes ai-marquee { to { transform: translateX(-50%); } }
+@keyframes ai-flow { to { background-position: 58px 0, -58px 0; } }
+@keyframes ai-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.3); } }
+@keyframes ai-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ai-glitch {
+  0%, 90%, 100% { text-shadow: none; transform: none; }
+  92% { text-shadow: -3px 0 var(--ai-pink), 3px 0 var(--ai-cyan); transform: translateX(2px); }
+  94% { text-shadow: 3px 0 var(--ai-pink), -3px 0 var(--ai-cyan); transform: translateX(-2px); }
+  96% { text-shadow: -2px 0 var(--ai-cyan); transform: none; }
+}
+
+/* ---- Teknik 1: latar grid bergerak + orb cahaya (hero) ---- */
+.ai-hero { position: relative; overflow: hidden; isolation: isolate; }
+.ai-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: linear-gradient(var(--ai-line) 1px, transparent 1px), linear-gradient(90deg, var(--ai-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: ai-grid 5s linear infinite;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 35%, #000 25%, transparent 75%);
+  mask-image: radial-gradient(ellipse at 50% 35%, #000 25%, transparent 75%);
+}
+.ai-orb { position: absolute; z-index: -1; border-radius: 50%; filter: blur(80px); animation: ai-drift 16s ease-in-out infinite; }
+.ai-orb.o1 { width: 440px; height: 440px; left: -120px; top: -80px; background: rgba(139, 92, 246, 0.4); }
+.ai-orb.o2 { width: 380px; height: 380px; right: -80px; bottom: -100px; background: rgba(34, 211, 238, 0.32); animation-delay: -7s; }
+.ai-spark { position: absolute; z-index: -1; width: 5px; height: 5px; border-radius: 50%; background: var(--ai-cyan); animation: ai-twinkle 3s ease-in-out infinite; }
+.ai-spark.s1 { left: 12%; top: 22%; }
+.ai-spark.s2 { left: 28%; top: 70%; animation-delay: -1s; background: var(--ai-pink); }
+.ai-spark.s3 { left: 46%; top: 12%; animation-delay: -2s; }
+.ai-spark.s4 { right: 30%; top: 64%; animation-delay: -0.5s; background: var(--ai-lime); }
+.ai-spark.s5 { right: 14%; top: 26%; animation-delay: -1.6s; }
+.ai-spark.s6 { right: 6%; top: 80%; animation-delay: -2.4s; background: var(--ai-violet); }
+
+/* ---- Teknik 2: teks gradien bergerak + glitch ---- */
+.ai-shine {
+  background-image: linear-gradient(100deg, var(--ai-cyan), var(--ai-violet), var(--ai-pink), var(--ai-cyan));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-shine 6s linear infinite;
+}
+.ai-glitch { display: inline-block; animation: ai-glitch 5s steps(1) infinite; }
+
+/* ---- Teknik 3: efek mengetik (steps) + kursor berkedip ---- */
+.ai-term { position: relative; overflow: hidden; background: rgba(11, 16, 32, 0.85); border: 1px solid rgba(34, 211, 238, 0.25); border-radius: 1rem; box-shadow: 0 30px 60px -30px rgba(34, 211, 238, 0.35); font-family: var(--ai-mono); font-size: 0.82rem; }
+.ai-term::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 40%; background: linear-gradient(transparent, rgba(34, 211, 238, 0.09), transparent); animation: ai-scan 5s linear infinite; pointer-events: none; }
+.ai-term-bar { display: flex; gap: 0.4rem; align-items: center; padding: 0.7rem 1rem; border-bottom: 1px solid var(--ai-line); }
+.ai-term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #475569; }
+.ai-term-bar i:nth-child(1) { background: #f87171; }
+.ai-term-bar i:nth-child(2) { background: #fbbf24; }
+.ai-term-bar i:nth-child(3) { background: #4ade80; }
+.ai-term-body { padding: 1.1rem 1.2rem 1.4rem; min-height: 11.5rem; }
+.ai-line { overflow: hidden; white-space: nowrap; width: calc(var(--n) * 1ch); margin: 0.25rem 0; color: #e2e8f0; animation: ai-type calc(var(--n) * 0.05s) steps(var(--n)) both; }
+.ai-line.t1 { --n: 32; animation-delay: 0.6s; }
+.ai-line.t2 { --n: 27; animation-delay: 2.4s; }
+.ai-line.t3 { --n: 28; animation-delay: 4s; }
+.ai-line.t4 { --n: 31; animation-delay: 5.6s; }
+.ai-line.t5 { --n: 24; animation-delay: 7.2s; }
+.ai-ok { color: var(--ai-lime); }
+.ai-dim { color: #64748b; }
+.ai-caret { display: inline-block; width: 0.6ch; height: 1.05em; vertical-align: text-bottom; background: var(--ai-cyan); opacity: 0; animation: ai-blink 1s steps(1) 8.8s infinite; }
+
+/* ---- Teknik 4: denyut (pulse) & riak (ping) untuk penanda "live" ---- */
+.ai-badge { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.9rem; border-radius: 999px; border: 1px solid rgba(34, 211, 238, 0.3); background: rgba(34, 211, 238, 0.08); font-family: var(--ai-mono); font-size: 0.74rem; color: var(--ai-cyan); }
+.ai-live { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--ai-lime); }
+.ai-live::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ai-lime); animation: ai-ping 1.8s ease-out infinite; }
+.ai-btn { display: inline-block; padding: 0.8rem 1.6rem; border-radius: 0.8rem; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; }
+.ai-btn:hover { transform: translateY(-2px); }
+.ai-btn-neon { color: #04121a; background: linear-gradient(135deg, var(--ai-cyan), var(--ai-lime)); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6); animation: ai-pulse 2.6s ease-in-out infinite; }
+.ai-btn-ghost { border: 1px solid rgba(148, 163, 184, 0.4); color: #e2e8f0; }
+.ai-btn-ghost:hover { background: rgba(148, 163, 184, 0.12); border-color: var(--ai-cyan); }
+.ai-btn-sm { padding: 0.5rem 1rem; }
+
+/* ---- Teknik 5: melayang (float) ---- */
+.ai-float { animation: ai-float 4s ease-in-out infinite; }
+
+/* ---- Teknik 6: kartu kaca + angkat saat hover ---- */
+.ai-card { position: relative; background: rgba(11, 16, 32, 0.7); border: 1px solid var(--ai-line); border-radius: 1rem; transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s; }
+.ai-card:hover, .ai-lift:hover { transform: translateY(-6px); border-color: var(--ai-cyan); box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 24px 44px -24px rgba(34, 211, 238, 0.5); }
+.ai-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 0.8rem; font-size: 1.4rem; background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(139, 92, 246, 0.22)); border: 1px solid var(--ai-line); }
+.ai-glass { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px); border-radius: 1rem; }
+.ai-tag { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 0.4rem; font-family: var(--ai-mono); font-size: 0.7rem; color: var(--ai-cyan); background: rgba(34, 211, 238, 0.1); }
+
+/* ---- Teknik 7: border berputar (conic-gradient diputar lewat rotate) ---- */
+.ai-spinborder { position: relative; overflow: hidden; border-radius: 1rem; padding: 1px; }
+.ai-spinborder::before { content: ""; position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent 0 65%, var(--ai-cyan) 82%, var(--ai-violet) 100%); animation: ai-spin 4s linear infinite; }
+.ai-spinborder .ai-inner { position: relative; height: 100%; background: var(--ai-panel); border-radius: calc(1rem - 1px); }
+
+/* ---- Teknik 8: marquee tanpa henti (digandakan lalu geser -50%) ---- */
+.ai-marquee { overflow: hidden; background: #070b16; border-block: 1px solid var(--ai-line); }
+.ai-track { display: flex; width: max-content; gap: 3rem; padding: 1rem 0; animation: ai-marquee 36s linear infinite; }
+.ai-marquee:hover .ai-track { animation-play-state: paused; }
+.ai-track span { white-space: nowrap; font-family: var(--ai-mono); font-weight: 600; letter-spacing: 0.08em; color: #94a3b8; }
+.ai-track span::before { content: "# "; color: var(--ai-violet); }
+
+/* ---- Teknik 9: jaringan saraf (node berdenyut, kabel mengalir) + inti AI berorbit ---- */
+.ai-net { display: flex; align-items: stretch; justify-content: center; }
+.ai-col { display: flex; flex-direction: column; justify-content: space-around; gap: 1rem; }
+.ai-n { width: 16px; height: 16px; border-radius: 50%; background: var(--ai-cyan); animation: ai-pulse 2.4s ease-in-out infinite; }
+.ai-col:nth-child(3) .ai-n { background: var(--ai-violet); animation-delay: -0.8s; }
+.ai-col:nth-child(5) .ai-n { background: var(--ai-lime); animation-delay: -1.6s; }
+.ai-col .ai-n:nth-child(2) { animation-delay: -0.4s; }
+.ai-col .ai-n:nth-child(3) { animation-delay: -1.2s; }
+.ai-col .ai-n:nth-child(4) { animation-delay: -2s; }
+.ai-wire { width: 3.8rem; background-image: repeating-linear-gradient(62deg, transparent 0 28px, rgba(34, 211, 238, 0.45) 28px 29px), repeating-linear-gradient(-62deg, transparent 0 28px, rgba(139, 92, 246, 0.45) 28px 29px); background-size: 58px 100%; animation: ai-flow 3s linear infinite; }
+.ai-core { position: relative; width: 17rem; height: 17rem; margin: 0 auto; }
+.ai-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(34, 211, 238, 0.45); animation: ai-spin 18s linear infinite; }
+.ai-ring::after { content: ""; position: absolute; left: 50%; top: -5px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--ai-cyan); box-shadow: 0 0 12px var(--ai-cyan); }
+.ai-ring.r2 { inset: 2.2rem; border-color: rgba(139, 92, 246, 0.55); animation-duration: 11s; animation-direction: reverse; }
+.ai-ring.r2::after { background: var(--ai-violet); box-shadow: 0 0 12px var(--ai-violet); }
+.ai-ring.r3 { inset: 4.4rem; border-color: rgba(163, 230, 53, 0.5); animation-duration: 7s; }
+.ai-ring.r3::after { background: var(--ai-lime); box-shadow: 0 0 12px var(--ai-lime); }
+.ai-core-c { position: absolute; inset: 6.4rem; display: grid; place-items: center; border-radius: 50%; font-family: var(--ai-mono); font-weight: 800; color: #04121a; background: radial-gradient(circle at 35% 30%, var(--ai-lime), var(--ai-cyan) 60%, var(--ai-violet)); animation: ai-pulse 3s ease-in-out infinite; }
+
+/* ---- Teknik 10: bar yang tumbuh (scaleX dari kiri) ---- */
+.ai-meter { display: block; height: 8px; border-radius: 8px; background: rgba(148, 163, 184, 0.18); overflow: hidden; }
+.ai-meter i { display: block; height: 100%; border-radius: 8px; transform-origin: left; background: linear-gradient(90deg, var(--ai-cyan), var(--ai-violet)); animation: ai-bar 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.ai-meter.m1 i { width: 96%; }
+.ai-meter.m2 i { width: 93%; animation-delay: 0.15s; }
+.ai-meter.m3 i { width: 94%; animation-delay: 0.3s; }
+.ai-meter.m4 i { width: 82%; animation-delay: 0.45s; }
+
+/* ---- Teknik 11: muncul saat di-scroll (animation-timeline: view) ---- */
+.ai-reveal { animation: ai-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.ai-d1 { animation-delay: 0.1s; }
+.ai-d2 { animation-delay: 0.2s; }
+.ai-d3 { animation-delay: 0.3s; }
+.ai-d4 { animation-delay: 0.4s; }
+@supports (animation-timeline: view()) {
+  .ai-reveal { animation: ai-rise linear both; animation-timeline: view(); animation-range: entry 5% cover 28%; animation-delay: 0s; }
+}
+
+/* ---- Katalog produk ---- */
+.ai-photo { position: relative; aspect-ratio: 4 / 3; overflow: hidden; display: grid; place-items: center; font-size: 2.4rem; background: linear-gradient(135deg, #131a33, #0b1020); border-bottom: 1px solid var(--ai-line); }
+.ai-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s; }
+.ai-card:hover .ai-photo img { transform: scale(1.07); }
+
+/* ---- Bedah CSS: panggung demo + blok kode ---- */
+.ai-stage { display: grid; place-items: center; min-height: 7.5rem; padding: 1rem; border-radius: 0.8rem; background: #070b16; border: 1px dashed var(--ai-line); overflow: hidden; }
+.ai-big { font-size: 1.8rem; font-weight: 800; }
+.ai-loop-type { display: inline-block; width: 13ch; overflow: hidden; white-space: nowrap; border-right: 2px solid var(--ai-cyan); font-family: var(--ai-mono); color: #e2e8f0; animation: ai-typeloop 4s steps(13) infinite alternate; }
+.ai-demo-dot { position: relative; width: 14px; height: 14px; border-radius: 50%; background: var(--ai-lime); }
+.ai-demo-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ai-lime); animation: ai-ping 1.6s ease-out infinite; }
+.ai-demo-box { width: 3.4rem; height: 3.4rem; border-radius: 0.9rem; background: linear-gradient(135deg, var(--ai-cyan), var(--ai-violet)); }
+.ai-lift { padding: 0.8rem 1.1rem; border: 1px solid var(--ai-line); border-radius: 0.8rem; transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s; font-size: 0.85rem; }
+.ai-mini { width: 9rem; height: 3.2rem; }
+.ai-mini .ai-inner { display: grid; place-items: center; font-family: var(--ai-mono); font-size: 0.8rem; }
+.ai-mini-marq { width: 100%; overflow: hidden; }
+.ai-mini-marq div { display: flex; width: max-content; gap: 1.5rem; animation: ai-marquee 8s linear infinite; font-family: var(--ai-mono); color: var(--ai-cyan); }
+.ai-spinner { width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 3px solid rgba(148, 163, 184, 0.25); border-top-color: var(--ai-cyan); animation: ai-spin 0.9s linear infinite; }
+.ai-code { margin-top: 0.9rem; padding: 0.8rem 0.9rem; border-radius: 0.7rem; background: #03050b; border: 1px solid var(--ai-line); font-family: var(--ai-mono); font-size: 0.72rem; line-height: 1.6; color: #a5f3fc; overflow-x: auto; white-space: pre; }
+
+/* ---- FAQ ---- */
+.ai-faq details { background: rgba(11, 16, 32, 0.7); border: 1px solid var(--ai-line); border-radius: 1rem; padding: 1rem 1.25rem; transition: border-color 0.2s; }
+.ai-faq details[open] { border-color: var(--ai-cyan); }
+.ai-faq summary { cursor: pointer; font-weight: 700; color: #f1f5f9; list-style: none; }
+.ai-faq summary::-webkit-details-marker { display: none; }
+.ai-faq summary::after { content: "+"; float: right; font-family: var(--ai-mono); font-size: 1.3rem; line-height: 1; color: var(--ai-cyan); transition: transform 0.25s; }
+.ai-faq details[open] summary::after { transform: rotate(45deg); }
+
+/* ---- Teknik 12: hormati pengguna yang meminta gerak berkurang (aksesibilitas) ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .ai-line { width: auto; }
+  .ai-reveal, .ai-meter i { opacity: 1; transform: none; }
+}

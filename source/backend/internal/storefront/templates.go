@@ -30,6 +30,12 @@ var kopiEksporHTML string
 //go:embed templates/kopi-ekspor.css
 var kopiEksporCSS string
 
+//go:embed templates/tech-ai.html
+var techAIHTML string
+
+//go:embed templates/tech-ai.css
+var techAICSS string
+
 type builtin struct {
 	Code, Name, Description, Category, HTML, CSS string
 	Sort                                         int
@@ -41,6 +47,11 @@ var builtins = []builtin{
 		Code: "kopi-ekspor", Name: "Kopi Ekspor", Category: "Pangan & Ekspor", Sort: 10,
 		Description: "Landing page eksportir kopi: hero beranimasi, asal kopi, proses, katalog dari barang Anda, syarat ekspor, FAQ, dan kontak. Animasi murni CSS.",
 		HTML:        kopiEksporHTML, CSS: kopiEksporCSS,
+	},
+	{
+		Code: "tech-ai", Name: "Nusa Tech AI", Category: "Teknologi & AI", Sort: 15,
+		Description: "Landing page perusahaan IT/AI bertema terminal neon: grid bergerak, terminal mengetik, jaringan saraf, katalog dari barang Anda, plus bagian \"Bedah CSS\" yang menjelaskan tiap animasi untuk belajar. Murni CSS.",
+		HTML:        techAIHTML, CSS: techAICSS,
 	},
 	{
 		Code: "toko-sederhana", Name: "Toko Sederhana", Category: "Umum", Sort: 20,
