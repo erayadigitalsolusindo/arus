@@ -51,7 +51,14 @@ export default {
     gambar: 'URL of the main product image, for <img src="{gambar}">.',
     barang: 'Repeat the content for each product. kategori = number / "Name" / ini; limit max 48; urut = nama | terbaru | termurah | termahal.',
     kategori: 'Repeat the content for each category (max 20).',
-    ini: 'Inside a category block: only products of that category.'
+    ini: 'Inside a category block: only products of that category.',
+    satuan: 'Product unit and stock status (Tersedia / Habis; services are always Tersedia). E.g. {satuan} {stok}.',
+    angka: 'Store counters: number of categories, outlets and total registered members; {tanggal} = today\'s date.',
+    level: 'Repeat for each member level: {namalevel} {minpoin} {belanjaperpoin} {nilaipoin}. Level rules only, never personal data.',
+    kupon: 'Repeat for coupons switched on with "Show on landing page" in Shopping Coupons that are still valid and have quota left. Max 20.',
+    kuponVars: '{kodekupon} {namakupon} {potongan} {maksimalpotongan} {minbelanja} {berlakuhingga} {sisakuota}',
+    outlet: 'Repeat for each active outlet (name only, max 20).',
+    pembayaran: 'Repeat for each active payment method: {namapembayaran} {jenispembayaran}.'
   },
   templates: 'Templates',
   tpl: {

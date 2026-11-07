@@ -273,14 +273,20 @@ func (d *dbSource) Items(ctx context.Context, q ItemQuery) ([]Item, error) {
 		if q.CategoryID != nil {
 			cat = *q.CategoryID
 		}
-		// order berasal dari peta tetap di atas (bukan masukan pengguna).
+		// order berasal dari peta tetap di atas (bukan masukan pengguna). Subquery memilih N barang dulu; stok baru
+		// dijumlahkan untuk N baris itu (indeks stock_balances_item_idx), bukan untuk seluruh katalog.
 		rows, err := tx.Query(ctx, `
-			SELECT i.id, i.sku, i.name, i.description, i.sell_price, coalesce(c.name, ''), mi.id
-			  FROM items i
+			SELECT i.id, i.sku, i.name, i.description, i.sell_price, coalesce(c.name, ''), mi.id, coalesce(u.name, ''),
+			       (i.kind = 'service' OR i.allow_negative_stock OR coalesce(sb.q, 0) > 0)
+			  FROM (SELECT * FROM items i
+			         WHERE i.tenant_id = $1 AND i.active AND ($2::uuid IS NULL OR i.category_id = $2::uuid)
+			         ORDER BY `+order+` LIMIT $3) i
 			  LEFT JOIN categories c  ON c.tenant_id = i.tenant_id AND c.id = i.category_id
+			  LEFT JOIN units u       ON u.tenant_id = i.tenant_id AND u.id = i.unit_id
 			  LEFT JOIN item_images mi ON mi.tenant_id = i.tenant_id AND mi.item_id = i.id AND mi.is_main
-			 WHERE i.tenant_id = $1 AND i.active AND ($2::uuid IS NULL OR i.category_id = $2::uuid)
-			 ORDER BY `+order+` LIMIT $3`, d.tenant, cat, int32(q.Limit))
+			  LEFT JOIN LATERAL (SELECT sum(s.qty) AS q FROM stock_balances s
+			                      WHERE s.tenant_id = i.tenant_id AND s.item_id = i.id AND s.bucket IN ('display', 'warehouse')) sb ON true
+			 ORDER BY `+order, d.tenant, cat, int32(q.Limit))
 		if err != nil {
 			return err
 		}
@@ -291,7 +297,7 @@ func (d *dbSource) Items(ctx context.Context, q ItemQuery) ([]Item, error) {
 				price decimal.Decimal
 				img   *uuid.UUID
 			)
-			if err := rows.Scan(&it.ID, &it.SKU, &it.Name, &it.Description, &price, &it.Category, &img); err != nil {
+			if err := rows.Scan(&it.ID, &it.SKU, &it.Name, &it.Description, &price, &it.Category, &img, &it.Unit, &it.InStock); err != nil {
 				return err
 			}
 			it.Price, it.ImageID = price, img

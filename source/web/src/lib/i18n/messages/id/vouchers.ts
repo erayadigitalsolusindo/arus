@@ -41,6 +41,9 @@ const vouchers = {
     inactive: 'Nonaktif'
   },
   upTo: 'maks. {amount}',
+  showPublic: 'Tampil di landing page',
+  hidePublic: 'Sembunyikan dari landing page',
+  publicBadge: 'Landing page',
   minShort: 'min. {amount}',
   pos: {
     button: 'Kupon belanja',

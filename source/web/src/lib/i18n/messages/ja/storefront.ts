@@ -51,7 +51,14 @@ export default {
     gambar: '商品のメイン画像のURL。<img src="{gambar}"> で使用。',
     barang: '各商品について内容を繰り返します。kategori = 数字 / "名前" / ini、limit は最大48、urut = nama | terbaru | termurah | termahal。',
     kategori: '各カテゴリについて内容を繰り返します（最大20）。',
-    ini: 'カテゴリブロック内：そのカテゴリの商品のみ。'
+    ini: 'カテゴリブロック内：そのカテゴリの商品のみ。',
+    satuan: '商品の単位と在庫状況（Tersedia / Habis。サービスは常に Tersedia）。例 {satuan} {stok}。',
+    angka: '店舗の集計値：カテゴリ数、店舗数、登録会員の合計。{tanggal} は今日の日付。',
+    level: '会員レベルごとに繰り返し：{namalevel} {minpoin} {belanjaperpoin} {nilaipoin}。レベルの規則のみで個人情報は出ません。',
+    kupon: '「ランディングページに表示」をオンにした有効なクーポン（残数あり）ごとに繰り返し。最大20件。',
+    kuponVars: '{kodekupon} {namakupon} {potongan} {maksimalpotongan} {minbelanja} {berlakuhingga} {sisakuota}',
+    outlet: '有効な店舗ごとに繰り返し（名前のみ、最大20）。',
+    pembayaran: '有効な支払方法ごとに繰り返し：{namapembayaran} {jenispembayaran}。'
   },
   templates: 'テンプレート',
   tpl: {

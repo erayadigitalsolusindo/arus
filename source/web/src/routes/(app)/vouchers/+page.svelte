@@ -185,6 +185,19 @@
     }
   }
 
+  async function togglePublic(v: Voucher) {
+    busyId = v.id;
+    notice = loadError = '';
+    try {
+      await api.setPublic(v.id, !v.show_public);
+      await load();
+    } catch (err) {
+      loadError = errorMessage(err);
+    } finally {
+      busyId = null;
+    }
+  }
+
   const inputClass = 'w-full field-control';
   const labelClass = 'text-[11.5px] font-semibold uppercase tracking-wide mb-1.5 block text-[var(--text-tertiary)]';
   const errClass = 'text-[11.5px] mt-1 text-[var(--color-danger-600)]';
@@ -263,12 +276,23 @@
               <td class="p-3 text-end tabular-nums">{Number(v.min_spend) ? money(v.min_spend) : '–'}</td>
               <td class="p-3 whitespace-nowrap">{validityText(v)}</td>
               <td class="p-3 text-end tabular-nums">{usageText(v)}</td>
-              <td class="p-3"><span class="badge-soft {badge[st]}">{t(`vouchers.status.${st}`)}</span></td>
+              <td class="p-3"><span class="badge-soft {badge[st]}">{t(`vouchers.status.${st}`)}</span>{#if v.show_public}<span class="badge-soft badge-info ms-1">{t('vouchers.publicBadge')}</span>{/if}</td>
               <td class="p-3 text-end whitespace-nowrap">
                 <button type="button" class="header-icon-btn !size-8" aria-label={canWrite(v) ? t('catalog.edit') : t('catalog.view')} onclick={() => openVoucher(v)}>
                   <i class="{canWrite(v) ? 'icon-pencil' : 'icon-eye'} text-[13px]"></i>
                 </button>
                 {#if can('coupons', 'update')}
+                  <button
+                    type="button"
+                    class="header-icon-btn !size-8"
+                    aria-label={v.show_public ? t('vouchers.hidePublic') : t('vouchers.showPublic')}
+                    title={v.show_public ? t('vouchers.hidePublic') : t('vouchers.showPublic')}
+                    aria-pressed={v.show_public}
+                    disabled={busyId === v.id}
+                    onclick={() => togglePublic(v)}
+                  >
+                    <i class="icon-globe text-[13px] {v.show_public ? 'text-[var(--color-primary-600)]' : 'opacity-50'}"></i>
+                  </button>
                   <button
                     type="button"
                     class="header-icon-btn !size-8"

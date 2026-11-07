@@ -68,6 +68,7 @@ type Voucher struct {
 	MaxUses     *int32    `json:"max_uses"`  // nil = tak terbatas
 	UsedCount   int32     `json:"used_count"`
 	Active      bool      `json:"active"`
+	ShowPublic  bool      `json:"show_public"` // tampil di landing page toko
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -254,9 +255,57 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Vouc
 			out = append(out, view(r.ID, r.Code, r.Name, r.Kind, r.Value, r.MaxDiscount, r.MinSpend, r.StartsOn, r.EndsOn, r.MaxUses, r.UsedCount, r.Active, r.CreatedAt))
 			total = int(r.Total)
 		}
-		return err
+		if err != nil || len(out) == 0 {
+			return err
+		}
+		// Saklar landing page dibaca terpisah untuk id satu halaman saja (kolom ini tak ada di query sqlc).
+		ids := make([]uuid.UUID, len(out))
+		for i := range out {
+			ids[i] = out[i].ID
+		}
+		pub, err := tx.Query(ctx, `SELECT id FROM vouchers WHERE tenant_id = $1 AND show_public AND id = ANY($2)`, a.TenantID, ids)
+		if err != nil {
+			return err
+		}
+		defer pub.Close()
+		on := map[uuid.UUID]bool{}
+		for pub.Next() {
+			var id uuid.UUID
+			if err := pub.Scan(&id); err != nil {
+				return err
+			}
+			on[id] = true
+		}
+		for i := range out {
+			out[i].ShowPublic = on[out[i].ID]
+		}
+		return pub.Err()
 	})
 	return out, total, err
+}
+
+// SetPublic menyalakan/mematikan tampilnya kupon di landing page toko (penanda {#kupon}).
+func (s *Service) SetPublic(ctx context.Context, a authz.Actor, id uuid.UUID, show bool) (*Voucher, error) {
+	var out Voucher
+	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE vouchers SET show_public = $3 WHERE tenant_id = $1 AND id = $2`, a.TenantID, id, show); err != nil {
+			return err
+		}
+		r, err := gen.New(tx).VoucherGet(ctx, gen.VoucherGetParams{TenantID: a.TenantID, ID: id})
+		if err != nil {
+			return err
+		}
+		out = view(r.ID, r.Code, r.Name, r.Kind, r.Value, r.MaxDiscount, r.MinSpend, r.StartsOn, r.EndsOn, r.MaxUses, r.UsedCount, r.Active, r.CreatedAt)
+		out.ShowPublic = show
+		return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+			Action: audit.ActionVoucherPublic, Entity: audit.EntityVoucher, EntityID: id.String(),
+			Details: map[string]any{"code": out.Code, "show_public": show},
+		})
+	})
+	if err = conflict(err); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Voucher, error) {

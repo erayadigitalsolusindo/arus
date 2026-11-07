@@ -214,7 +214,14 @@
     ['{gambar}', 'storefront.help.gambar'],
     ['{#barang kategori=1 limit=8 urut=terbaru} … {/barang}', 'storefront.help.barang'],
     ['{#kategori limit=6} {namakategori} {/kategori}', 'storefront.help.kategori'],
-    ['{#barang kategori=ini}', 'storefront.help.ini']
+    ['{#barang kategori=ini}', 'storefront.help.ini'],
+    ['{satuan}  {stok}', 'storefront.help.satuan'],
+    ['{jumlahkategori}  {jumlahoutlet}  {jumlahmember}  {tanggal}', 'storefront.help.angka'],
+    ['{#level} {namalevel} {minpoin} {belanjaperpoin} {nilaipoin} {/level}', 'storefront.help.level'],
+    ['{#kupon limit=6} … {/kupon}', 'storefront.help.kupon'],
+    ['{kodekupon}  {namakupon}  {potongan}  {minbelanja}  {berlakuhingga}  {sisakuota}', 'storefront.help.kuponVars'],
+    ['{#outlet} {namaoutlet} {/outlet}', 'storefront.help.outlet'],
+    ['{#pembayaran} {namapembayaran} {jenispembayaran} {/pembayaran}', 'storefront.help.pembayaran']
   ];
 </script>
 

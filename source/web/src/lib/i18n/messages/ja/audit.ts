@@ -103,6 +103,7 @@ const audit: Messages['audit'] = {
     voucher_create: 'ショッピングクーポンを追加しました',
     voucher_update: 'ショッピングクーポンを編集しました',
     voucher_active: 'クーポンのステータスを変更しました',
+    voucher_public: 'ランディングページでのクーポン表示を変更しました',
     payment_method_create: '支払方法を追加しました',
     payment_method_update: '支払方法を編集しました',
     payment_method_active: '支払方法のステータスを変更しました',
