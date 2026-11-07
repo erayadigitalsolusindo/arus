@@ -1,10 +1,27 @@
 /** Login/daftar Google (Google Identity Services). Server yang memverifikasi ID token; di sini hanya memuat skrip dan membaca nama/email untuk prefill. */
-import { isCustomDomain } from '#lib/api/client.ts';
+import { derived, get, writable } from 'svelte/store';
+import { isCustomDomain, request } from '#lib/api/client.ts';
 
 export const GOOGLE_CLIENT_ID: string = String(import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim();
 
-/** Domain white label tidak terdaftar sebagai origin OAuth Google, jadi tombol hanya di host utama. */
-export const googleEnabled: boolean = GOOGLE_CLIENT_ID !== '' && !isCustomDomain;
+/**
+ * Client ID yang dipakai di host ini. Host utama = VITE_GOOGLE_CLIENT_ID. Domain kustom = client ID milik domain itu
+ * (diisi admin platform di menu Domain; origin-nya harus terdaftar pada client tersebut); kosong = tombol Google tidak tampil.
+ */
+export const googleClientId = writable<string>(isCustomDomain ? '' : GOOGLE_CLIENT_ID);
+export const googleEnabled = derived(googleClientId, (id) => id !== '');
+
+export async function initGoogleForHost(): Promise<boolean> {
+  if (isCustomDomain) {
+    try {
+      const r = await request<{ google_client_id?: string }>(`/public/branding?host=${encodeURIComponent(location.hostname)}`, {}, null);
+      googleClientId.set((r.google_client_id ?? '').trim());
+    } catch {
+      googleClientId.set('');
+    }
+  }
+  return get(googleEnabled);
+}
 
 interface GoogleId {
   initialize(cfg: { client_id: string; callback: (r: { credential?: string }) => void; ux_mode?: string }): void;

@@ -11,7 +11,7 @@
   import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
   import GoogleButton from '#lib/components/GoogleButton.svelte';
-  import { googleEnabled, PENDING_KEY } from '#lib/auth/google.ts';
+  import { googleEnabled, initGoogleForHost, PENDING_KEY } from '#lib/auth/google.ts';
 
   // Respons login: sesi penuh, atau tantangan 2FA bila akun memakai TOTP (belum ada sesi).
   type LoginResponse = AuthResponse | { mfa_required: true; mfa_token: string };
@@ -27,6 +27,7 @@
   // Domain white label: tampilkan nama tenant pemilik domain (endpoint publik, hanya nama).
   let brand = $state('');
   onMount(() => {
+    void initGoogleForHost();
     if (isCustomDomain) {
       request<{ tenant_name: string }>(`/public/branding?host=${encodeURIComponent(location.hostname)}`, {}, null)
         .then((r) => (brand = r.tenant_name))
@@ -220,7 +221,7 @@
         </form>
       {:else}
       <div class="mt-6">
-        {#if googleEnabled}
+        {#if $googleEnabled}
           <GoogleButton onCredential={googleLogin} />
         {:else}
           <button type="button" class="btn btn-outline w-full !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>

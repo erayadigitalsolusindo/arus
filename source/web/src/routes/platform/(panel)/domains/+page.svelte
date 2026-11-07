@@ -229,6 +229,16 @@
       await platformApi.setDomainLanding(d.id, on);
       return on ? t('platform.domains.landingOnMsg') : t('platform.domains.landingOffMsg');
     });
+  // Client ID Google per domain: draf yang sedang diketik (kunci = id domain); tanpa draf = nilai tersimpan.
+  let googleDraft = $state<Record<string, string>>({});
+  const googleValue = (d: DomainRow) => googleDraft[d.id] ?? d.google_client_id;
+  const saveGoogle = (d: DomainRow) =>
+    run(d.id, async () => {
+      const id = googleValue(d).trim();
+      await platformApi.setDomainGoogle(d.id, id);
+      delete googleDraft[d.id];
+      return id ? t('platform.domains.googleOnMsg') : t('platform.domains.googleOffMsg');
+    });
   const remove = (d: DomainRow) => {
     if (!confirm(t('platform.domains.deleteConfirm'))) return;
     return run(d.id, async () => {
@@ -458,6 +468,30 @@
               >
                 <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-all" style="inset-inline-start:{d.landing ? '22px' : '2px'}"></span>
               </button>
+            </div>
+          </div>
+
+          <!-- login Google: client ID milik domain ini -->
+          <div class="space-y-2 border-t border-[var(--border-subtle)] px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-600)]"><i class="fa-brands fa-google text-[14px]"></i></span>
+              <div class="min-w-0">
+                <p class="text-[12.5px] font-semibold">{t('platform.domains.googleTitle')}</p>
+                <p class="text-[12px] text-[var(--text-tertiary)]">{d.google_client_id ? t('platform.domains.googleHelpOn') : t('platform.domains.googleHelpOff', { origin: `https://${d.host}` })}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 ps-11">
+              <input
+                type="text"
+                value={googleValue(d)}
+                oninput={(e) => (googleDraft[d.id] = e.currentTarget.value)}
+                placeholder="1234567890-abc123.apps.googleusercontent.com"
+                aria-label={t('platform.domains.googleTitle')}
+                class="field-control min-w-0 flex-1 font-mono !text-[12px]"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" class="btn btn-outline !text-[12px] !py-1" disabled={busy === d.id || googleValue(d).trim() === d.google_client_id} onclick={() => saveGoogle(d)}>{t('platform.domains.save')}</button>
             </div>
           </div>
 

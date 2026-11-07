@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { i18n, t } from '#lib/i18n/index.ts';
-  import { GOOGLE_CLIENT_ID, loadGoogle } from '#lib/auth/google.ts';
+  import { googleClientId, loadGoogle } from '#lib/auth/google.ts';
 
   let { text = 'signin_with', onCredential }: { text?: 'signin_with' | 'signup_with'; onCredential: (credential: string) => void } = $props();
 
@@ -12,7 +13,7 @@
   onMount(() => {
     loadGoogle()
       .then((gid) => {
-        gid.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => r.credential && onCredential(r.credential) });
+        gid.initialize({ client_id: get(googleClientId), callback: (r) => r.credential && onCredential(r.credential) });
         ready = true;
       })
       .catch(() => (failed = true));

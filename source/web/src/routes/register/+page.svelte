@@ -9,7 +9,7 @@
   import LoginFooter from '#lib/components/LoginFooter.svelte';
   import GoogleButton from '#lib/components/GoogleButton.svelte';
   import { onMount } from 'svelte';
-  import { decodeCredential, googleEnabled, PENDING_KEY, type GoogleProfile } from '#lib/auth/google.ts';
+  import { decodeCredential, googleEnabled, initGoogleForHost, PENDING_KEY, type GoogleProfile } from '#lib/auth/google.ts';
 
   type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm' | 'accept_terms';
 
@@ -56,8 +56,8 @@
     }
   }
 
-  onMount(() => {
-    if (!googleEnabled) return;
+  onMount(async () => {
+    if (!(await initGoogleForHost())) return;
     try {
       const pending = sessionStorage.getItem(PENDING_KEY);
       if (pending) {
@@ -221,7 +221,7 @@
       <h1 class="font-display font-bold text-[22px]">{t('auth.register.title')}</h1>
       <p class="text-[12.5px] mt-1.5 text-tertiary">{t('auth.register.subtitle')}</p>
 
-      {#if googleEnabled && !googleToken}
+      {#if $googleEnabled && !googleToken}
         <div class="mt-6">
           <GoogleButton text="signup_with" onCredential={useGoogle} />
         </div>

@@ -81,7 +81,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	authSvc := auth.NewService(auth.Deps{
 		Pool: d.Pool, Tokens: tokens, Sessions: sessions, OneTime: pauth.NewOneTime(d.Redis), Perms: perms,
 		Mailer: d.Mailer, Jobs: d.Jobs, BaseURL: d.Cfg.AppBaseURL, Approvals: approvalSvc,
-		Google: auth.NewGoogleVerifier(d.Cfg.GoogleClientIDs), MFA: userMFA,
+		Google: auth.NewGoogleVerifierWith(d.Cfg.GoogleClientIDs, domainGoogleIDs(d.Pool)), MFA: userMFA,
 	})
 	auth.NewHandler(auth.HandlerDeps{
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
@@ -197,4 +197,24 @@ func mountModules(r chi.Router, d appDeps) error {
 		go sales.NewEraPayReconciler(salesSvc, d.Pool, d.Log).Run(d.Ctx) // verifikasi nota paksa ke EraPay; berhenti saat shutdown
 	}
 	return nil
+}
+
+// domainGoogleIDs membaca client ID Google milik domain kustom aktif (audience tambahan untuk verifikasi ID token).
+func domainGoogleIDs(pool *pgxpool.Pool) auth.AudienceSource {
+	return func(ctx context.Context) ([]string, error) {
+		rows, err := pool.Query(ctx, `SELECT public_google_client_ids()`)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return nil, err
+			}
+			out = append(out, id)
+		}
+		return out, rows.Err()
+	}
 }

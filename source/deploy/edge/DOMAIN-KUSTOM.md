@@ -112,3 +112,13 @@ Secara bawaan `https://arus.kotakcantik.com/` membuka aplikasi. Admin platform b
 3. `GET /` di domain itu dijawab `/public/domain-root?host=...` oleh API; aplikasi tetap bisa dibuka di `/login`. Bila landing belum dihidupkan tenant, API menjawab 404 dan Caddy kembali ke SPA.
 
 Perlu migration `00103` dan Caddyfile terbaru (blok `@root`).
+
+## G. Login Google di domain kustom
+
+`GOOGLE_CLIENT_IDS` (env) hanya satu set ID untuk host utama. Tiap domain kustom bisa memakai OAuth client ID Google sendiri, disimpan di database lewat **Platform → Domain** (kolom "Login dengan Google" pada kartu domain). Tanpa perubahan env dan tanpa restart.
+
+1. Tenant (atau admin) membuat OAuth client **Web** di Google Cloud Console. Pada **Authorized JavaScript origins** isi `https://arus.kotakcantik.com`.
+2. Tempel client ID-nya (`...apps.googleusercontent.com`) di kartu domain, lalu Simpan. Kosongkan lalu simpan untuk mematikan.
+3. Server menerima ID token dengan `aud` = ID itu paling lambat satu menit setelah disimpan (domain harus berstatus Aktif).
+
+Perlu migration `00104`.

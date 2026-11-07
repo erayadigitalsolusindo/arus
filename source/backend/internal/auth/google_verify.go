@@ -48,20 +48,34 @@ type GoogleVerifier interface {
 // NewGoogleVerifier membuat verifier berbasis JWKS Google. audiences = daftar OAuth client ID yang diterima
 // (web, dan server client ID untuk mobile). Kosong → nil (fitur mati).
 func NewGoogleVerifier(audiences []string) GoogleVerifier {
+	return NewGoogleVerifierWith(audiences, nil)
+}
+
+// AudienceSource menyediakan client ID tambahan saat runtime (mis. client ID per domain kustom dari database).
+type AudienceSource func(ctx context.Context) ([]string, error)
+
+const extraAudTTL = time.Minute
+
+// NewGoogleVerifierWith = NewGoogleVerifier + sumber audience dinamis. Dengan sumber dinamis fitur tetap hidup walau
+// GOOGLE_CLIENT_IDS kosong; client ID domain baru berlaku paling lambat satu menit setelah disimpan.
+func NewGoogleVerifierWith(audiences []string, extra AudienceSource) GoogleVerifier {
 	var aud []string
 	for _, a := range audiences {
 		if a = strings.TrimSpace(a); a != "" {
 			aud = append(aud, a)
 		}
 	}
-	if len(aud) == 0 {
+	if len(aud) == 0 && extra == nil {
 		return nil
 	}
-	return &googleVerifier{audiences: aud, client: &http.Client{Timeout: 10 * time.Second}, url: googleJWKSURL, now: time.Now}
+	return &googleVerifier{audiences: aud, extra: extra, client: &http.Client{Timeout: 10 * time.Second}, url: googleJWKSURL, now: time.Now}
 }
 
 type googleVerifier struct {
 	audiences []string
+	extra     AudienceSource
+	extraAud  []string
+	extraAt   time.Time
 	client    *http.Client
 	url       string
 	now       func() time.Time
@@ -90,7 +104,8 @@ func (v *googleVerifier) Verify(ctx context.Context, idToken string) (GoogleClai
 		return GoogleClaims{}, ErrGoogleInvalidToken
 	}
 	auds, _ := claims.GetAudience()
-	if !slices.ContainsFunc(auds, func(a string) bool { return slices.Contains(v.audiences, a) }) {
+	allowed := v.allAudiences(ctx)
+	if !slices.ContainsFunc(auds, func(a string) bool { return slices.Contains(allowed, a) }) {
 		return GoogleClaims{}, ErrGoogleInvalidToken
 	}
 	sub, _ := claims["sub"].(string)
@@ -112,6 +127,22 @@ func (v *googleVerifier) Verify(ctx context.Context, idToken string) (GoogleClai
 		return GoogleClaims{}, ErrGoogleEmailUnverified
 	}
 	return GoogleClaims{Subject: sub, Email: email, Name: name}, nil
+}
+
+// allAudiences = audience dari env + client ID domain (di-cache sebentar; gagal baca = pakai yang terakhir).
+func (v *googleVerifier) allAudiences(ctx context.Context) []string {
+	if v.extra == nil {
+		return v.audiences
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.now().Sub(v.extraAt) >= extraAudTTL {
+		if ids, err := v.extra(ctx); err == nil {
+			v.extraAud = ids
+		}
+		v.extraAt = v.now()
+	}
+	return append(slices.Clone(v.audiences), v.extraAud...)
 }
 
 // key mengembalikan kunci publik untuk kid; JWKS di-cache dan hanya diambil ulang bila kedaluwarsa atau kid baru.

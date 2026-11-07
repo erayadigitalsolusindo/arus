@@ -26,15 +26,18 @@ const (
 	ActionDomainDisable = "platform.domain_disable"
 	ActionDomainDelete  = "platform.domain_delete"
 	ActionDomainLanding = "platform.domain_landing"
+	ActionDomainGoogle  = "platform.domain_google"
 
 	dnsTimeout = 5 * time.Second
 )
 
 var (
-	ErrDomainTaken    = errors.New("domain sudah terpakai")
-	ErrDomainInvalid  = errors.New("domain tidak valid")
-	ErrDomainNoTarget = errors.New("tujuan CNAME belum dikonfigurasi")
-	domainHostPattern = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$`)
+	ErrDomainTaken         = errors.New("domain sudah terpakai")
+	ErrDomainInvalid       = errors.New("domain tidak valid")
+	ErrDomainNoTarget      = errors.New("tujuan CNAME belum dikonfigurasi")
+	ErrGoogleClientInvalid = errors.New("google client id tidak valid")
+	googleClientPattern    = regexp.MustCompile(`^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$`)
+	domainHostPattern      = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$`)
 )
 
 // dnsResolver dipenuhi *net.Resolver; diganti di test.
@@ -55,7 +58,8 @@ type DomainRow struct {
 	LastCheckAt    *time.Time `json:"last_check_at"`
 	LastCheckError string     `json:"last_check_error"`
 	CreatedAt      time.Time  `json:"created_at"`
-	Landing        bool       `json:"landing"` // root domain menampilkan landing page tenant
+	Landing        bool       `json:"landing"`          // root domain menampilkan landing page tenant
+	GoogleClientID string     `json:"google_client_id"` // OAuth client ID Google milik domain ini; kosong = tanpa login Google
 }
 
 // normalizeHost: huruf kecil, tanpa spasi/titik akhir; ErrDomainInvalid bila bukan nama host yang sah.
@@ -69,7 +73,7 @@ func normalizeHost(raw string) (string, error) {
 
 func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUID) ([]DomainRow, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT id, tenant_id, tenant_code, tenant_name, host, status, verified_at, last_check_at,
-		last_check_error, created_at, landing FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
+		last_check_error, created_at, landing, google_client_id FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
 	if err != nil {
 		if pgCode(err) == "42501" {
 			return nil, ErrInvalidSession
@@ -84,7 +88,7 @@ func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUI
 			verified, lastAt pgtype.Timestamptz
 			r                DomainRow
 		)
-		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt, &r.Landing); err != nil {
+		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt, &r.Landing, &r.GoogleClientID); err != nil {
 			return nil, err
 		}
 		r.ID = uuid.UUID(d.Bytes)
@@ -237,6 +241,31 @@ func (s *Service) SetDomainLanding(ctx context.Context, a Actor, id uuid.UUID, o
 	return nil
 }
 
+// SetDomainGoogle menyimpan OAuth client ID Google milik domain ini ("" = matikan). Origin domain harus sudah didaftarkan
+// pada client itu di Google Cloud Console. ErrGoogleClientInvalid bila formatnya bukan client ID Google.
+func (s *Service) SetDomainGoogle(ctx context.Context, a Actor, id uuid.UUID, clientID string) error {
+	clientID = strings.ToLower(strings.TrimSpace(clientID))
+	if clientID != "" && !googleClientPattern.MatchString(clientID) {
+		return ErrGoogleClientInvalid
+	}
+	d, err := s.getDomain(ctx, a, id)
+	if err != nil {
+		return err
+	}
+	var ok bool
+	if err := s.Pool.QueryRow(ctx, `SELECT platform_domain_set_google($1, $2, $3)`, a.ID, id, clientID).Scan(&ok); err != nil {
+		if pgCode(err) == "42501" {
+			return ErrInvalidSession
+		}
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	s.record(ctx, a, ActionDomainGoogle, d.TenantID, d.TenantName, map[string]any{"host": d.Host, "google_client_id": clientID})
+	return nil
+}
+
 func (s *Service) DeleteDomain(ctx context.Context, a Actor, id uuid.UUID) error {
 	d, err := s.getDomain(ctx, a, id)
 	if err != nil {
@@ -258,8 +287,9 @@ func (s *Service) DeleteDomain(ctx context.Context, a Actor, id uuid.UUID) error
 
 // PublicDomain = identitas minimal tenant pemilik domain aktif (tanpa data sensitif).
 type PublicDomain struct {
-	TenantCode string `json:"tenant_code"`
-	TenantName string `json:"tenant_name"`
+	TenantCode     string `json:"tenant_code"`
+	TenantName     string `json:"tenant_name"`
+	GoogleClientID string `json:"google_client_id"`
 }
 
 // LookupPublicDomain: ErrNotFound bila host bukan domain aktif milik tenant aktif.
@@ -273,7 +303,13 @@ func (s *Service) LookupPublicDomain(ctx context.Context, rawHost string) (Publi
 	if errors.Is(err, pgx.ErrNoRows) {
 		return PublicDomain{}, ErrNotFound
 	}
-	return p, err
+	if err != nil {
+		return PublicDomain{}, err
+	}
+	if err := s.Pool.QueryRow(ctx, `SELECT public_domain_google($1)`, host).Scan(&p.GoogleClientID); err != nil {
+		return PublicDomain{}, err
+	}
+	return p, nil
 }
 
 // ---- HTTP ----
@@ -351,8 +387,9 @@ func (h *Handler) VerifyDomain(w http.ResponseWriter, r *http.Request) {
 }
 
 type patchDomainRequest struct {
-	Disabled *bool `json:"disabled"`
-	Landing  *bool `json:"landing"`
+	Disabled *bool   `json:"disabled"`
+	Landing  *bool   `json:"landing"`
+	Google   *string `json:"google_client_id"`
 }
 
 func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
@@ -364,7 +401,7 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Disabled == nil && req.Landing == nil {
+	if req.Disabled == nil && req.Landing == nil && req.Google == nil {
 		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Tidak ada perubahan.")
 		return
 	}
@@ -375,7 +412,12 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if err == nil && req.Landing != nil {
 		err = h.svc.SetDomainLanding(r.Context(), actor(r), id, *req.Landing)
 	}
+	if err == nil && req.Google != nil {
+		err = h.svc.SetDomainGoogle(r.Context(), actor(r), id, *req.Google)
+	}
 	switch {
+	case errors.Is(err, ErrGoogleClientInvalid):
+		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Google Client ID tidak valid. Contoh: 1234567890-abc123.apps.googleusercontent.com")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Domain tidak ditemukan.")
 	case errors.Is(err, ErrInvalidSession):
