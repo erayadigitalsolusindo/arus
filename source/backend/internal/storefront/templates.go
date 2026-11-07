@@ -53,11 +53,6 @@ var builtins = []builtin{
 		Description: "Landing page perusahaan IT/AI bertema terminal neon: grid bergerak, terminal mengetik, jaringan saraf, katalog dari barang Anda, plus bagian \"Bedah CSS\" yang menjelaskan tiap animasi untuk belajar. Murni CSS.",
 		HTML:        techAIHTML, CSS: techAICSS,
 	},
-	{
-		Code: "toko-sederhana", Name: "Toko Sederhana", Category: "Umum", Sort: 20,
-		Description: "Contoh awal yang bersih: header, produk terbaru, dan daftar per kategori.",
-		HTML:        StarterHTML, CSS: StarterCSS,
-	},
 }
 
 type Template struct {

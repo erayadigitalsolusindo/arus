@@ -50,6 +50,17 @@ SELECT u.id, u.name, u.email, u.active, r.name AS role_name,
 FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE u.tenant_id = $1 ORDER BY u.created_at, u.id;
 
+-- Ganti email login pengguna. Email jadi belum terverifikasi dan token akses lama dicabut (valid_after = jam aplikasi).
+-- name: PlatformUserGet :one
+SELECT id, name, email FROM users WHERE tenant_id = $1 AND id = $2;
+
+-- name: PlatformUserSetEmail :execrows
+UPDATE users SET email = sqlc.arg(email), email_verified_at = NULL, tokens_valid_after = sqlc.arg(valid_after)::timestamptz
+WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
+
+-- name: PlatformUserUnlinkIdentities :one
+SELECT platform_user_unlink_identities(sqlc.arg(actor_id), sqlc.arg(tenant_id), sqlc.arg(user_id))::int;
+
 -- name: PlatformRecoveryRemaining :one
 SELECT count(*) FROM platform_recovery_codes WHERE admin_id = $1 AND used_at IS NULL;
 

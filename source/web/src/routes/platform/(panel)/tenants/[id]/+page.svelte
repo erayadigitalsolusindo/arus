@@ -48,6 +48,35 @@
     }
   }
 
+  // ---- Ubah email pengguna ----
+  let emailUser = $state<string | null>(null);
+  let emailValue = $state('');
+  let savingEmail = $state(false);
+  let emailSaved = $state('');
+  const emailShapeOk = $derived(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue.trim()));
+  function startEmail(u: TenantDetail['users'][number]) {
+    emailUser = u.id;
+    emailValue = u.email;
+    emailSaved = '';
+    error = '';
+  }
+  async function saveEmail(u: TenantDetail['users'][number]) {
+    const next = emailValue.trim();
+    if (savingEmail || !emailShapeOk || next.toLowerCase() === u.email.toLowerCase()) return;
+    savingEmail = true;
+    error = '';
+    try {
+      await platformApi.changeUserEmail(id, u.id, next);
+      emailUser = null;
+      emailSaved = u.id;
+      await Promise.all([load(), loadAudit()]);
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      savingEmail = false;
+    }
+  }
+
   type Tab = 'overview' | 'users' | 'plan' | 'activity' | 'danger';
   let tab = $state<Tab>('overview');
   const tabs = $derived<{ key: Tab; label: string; icon: string; badge?: number }[]>([
@@ -307,10 +336,7 @@
 {#if tenant}
   <!-- Hero + tab -->
   <section class="surface-card !p-0 overflow-hidden">
-    <div class="relative h-24 bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[var(--color-primary-600)]">
-      <div class="absolute inset-0 opacity-30" style="background-image:radial-gradient(circle,#fff 1px,transparent 1.5px);background-size:20px 20px"></div>
-    </div>
-    <div class="px-5 pb-5 -mt-10 flex flex-wrap items-end justify-between gap-4">
+    <div class="px-5 py-5 flex flex-wrap items-end justify-between gap-4">
       <div class="flex items-end gap-4 min-w-0">
         <div class="shrink-0 rounded-2xl ring-4 ring-[var(--surface-card,#fff)] shadow-lg"><Avatar name={tenant.name} size={80} square /></div>
         <div class="min-w-0 pb-1">
@@ -476,6 +502,7 @@
               <th class="px-5 py-2.5 text-start font-semibold" scope="col">{t('platform.tenant.role')}</th>
               <th class="px-5 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.lastLogin')}</th>
               <th class="px-5 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.status')}</th>
+              <th class="px-5 py-2.5" scope="col"><span class="sr-only">{t('platform.tenant.userEmailEdit')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -498,9 +525,39 @@
                   {#if u.last_login_at}<span title={formatDateTime(u.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}>{relativeTime(u.last_login_at)}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.tenants.never')}</span>{/if}
                 </td>
                 <td class="px-5 py-3"><StatusPill ok={u.active} label={u.active ? t('platform.tenants.active') : t('platform.tenants.inactive')} /></td>
+                <td class="px-5 py-3 text-end whitespace-nowrap">
+                  {#if emailSaved === u.id}<span class="me-2 text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.userEmailSaved')}</span>{/if}
+                  <button type="button" class="btn btn-secondary !text-[12px]" onclick={() => startEmail(u)}>{t('platform.tenant.userEmailEdit')}</button>
+                </td>
               </tr>
+              {#if emailUser === u.id}
+                <tr class="border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+                  <td colspan="5" class="px-5 py-4">
+                    <form
+                      class="max-w-xl space-y-2"
+                      onsubmit={(e) => {
+                        e.preventDefault();
+                        void saveEmail(u);
+                      }}
+                    >
+                      <p class="text-[12.5px] font-semibold">{t('platform.tenant.userEmailTitle')}</p>
+                      <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.userEmailHelp')}</p>
+                      <p class="text-[12px] text-[var(--color-warning-600)]">{t('platform.tenant.userEmailWarn')}</p>
+                      <label class="block">
+                        <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.userEmailLabel')}</span>
+                        <input type="email" class="field-control w-full" maxlength="254" autocapitalize="off" autocomplete="off" bind:value={emailValue} aria-invalid={!emailShapeOk} />
+                      </label>
+                      {#if !emailShapeOk || emailValue.trim().toLowerCase() === u.email.toLowerCase()}<p class="text-[12px] text-[var(--color-danger-600)]">{t('platform.tenant.userEmailInvalid')}</p>{/if}
+                      <div class="flex flex-wrap items-center gap-2">
+                        <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={savingEmail || !emailShapeOk || emailValue.trim().toLowerCase() === u.email.toLowerCase()}>{savingEmail ? t('platform.tenant.userEmailSaving') : t('platform.tenant.userEmailSave')}</button>
+                        <button type="button" class="btn btn-secondary !text-[12.5px]" onclick={() => (emailUser = null)}>{t('platform.tenant.userEmailCancel')}</button>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              {/if}
             {:else}
-              <tr><td colspan="4" class="p-8 text-center text-[var(--text-tertiary)]">{t('platform.tenant.noUsers')}</td></tr>
+              <tr><td colspan="5" class="p-8 text-center text-[var(--text-tertiary)]">{t('platform.tenant.noUsers')}</td></tr>
             {/each}
           </tbody>
         </table>

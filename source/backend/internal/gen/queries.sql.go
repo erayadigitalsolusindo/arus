@@ -6676,6 +6676,71 @@ func (q *Queries) PlatformUpdateLanguage(ctx context.Context, arg PlatformUpdate
 	return platform_update_language, err
 }
 
+const platformUserGet = `-- name: PlatformUserGet :one
+SELECT id, name, email FROM users WHERE tenant_id = $1 AND id = $2
+`
+
+type PlatformUserGetParams struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+type PlatformUserGetRow struct {
+	ID    uuid.UUID
+	Name  string
+	Email string
+}
+
+// Ganti email login pengguna. Email jadi belum terverifikasi dan token akses lama dicabut (valid_after = jam aplikasi).
+func (q *Queries) PlatformUserGet(ctx context.Context, arg PlatformUserGetParams) (PlatformUserGetRow, error) {
+	row := q.db.QueryRow(ctx, platformUserGet, arg.TenantID, arg.ID)
+	var i PlatformUserGetRow
+	err := row.Scan(&i.ID, &i.Name, &i.Email)
+	return i, err
+}
+
+const platformUserSetEmail = `-- name: PlatformUserSetEmail :execrows
+UPDATE users SET email = $1, email_verified_at = NULL, tokens_valid_after = $2::timestamptz
+WHERE tenant_id = $3 AND id = $4
+`
+
+type PlatformUserSetEmailParams struct {
+	Email      string
+	ValidAfter pgtype.Timestamptz
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+}
+
+func (q *Queries) PlatformUserSetEmail(ctx context.Context, arg PlatformUserSetEmailParams) (int64, error) {
+	result, err := q.db.Exec(ctx, platformUserSetEmail,
+		arg.Email,
+		arg.ValidAfter,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const platformUserUnlinkIdentities = `-- name: PlatformUserUnlinkIdentities :one
+SELECT platform_user_unlink_identities($1, $2, $3)::int
+`
+
+type PlatformUserUnlinkIdentitiesParams struct {
+	ActorID  uuid.UUID
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) PlatformUserUnlinkIdentities(ctx context.Context, arg PlatformUserUnlinkIdentitiesParams) (int32, error) {
+	row := q.db.QueryRow(ctx, platformUserUnlinkIdentities, arg.ActorID, arg.TenantID, arg.UserID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const posShortcutClear = `-- name: PosShortcutClear :exec
 DELETE FROM pos_shortcuts WHERE tenant_id = $1 AND user_id = $2 AND slot = $3
 `
