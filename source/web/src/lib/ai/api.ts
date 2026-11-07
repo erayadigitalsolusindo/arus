@@ -28,9 +28,9 @@ export type AiPolicy = {
 export type AiSettings = { configured: boolean; active: boolean; free: FreeInfo; connector_url?: string; provider: Provider; providers: ProviderInfo[]; history: HistoryInfo; policy: AiPolicy };
 export type ChatImage = { media_type: string; data: string };
 export type ChatMessage = { role: 'user' | 'assistant'; content: string; images?: ChatImage[] };
-export type ActionKind = 'petty_cash_add' | 'petty_cash_void';
-/** Usulan aksi tulis dari AI; `fields` dibuat server (bukan teks model): direction, amount, category, note, created. */
-export type PendingAction = { id: string; kind: ActionKind; needs_pin: boolean; expires_at: string; fields: Record<string, string> };
+export type ActionKind = 'petty_cash_add' | 'petty_cash_void' | 'master_change';
+/** Usulan aksi tulis dari AI; `fields` dibuat server (bukan teks model): kas kecil = direction, amount, category, note, created; master_change = entity, op, target, dan `chg.<kolom>` (nilai baru, atau `lama → baru`). */
+export type PendingAction = { id: string; kind: ActionKind; needs_pin: boolean; needs_totp: boolean; expires_at: string; fields: Record<string, string> };
 export type ToolCall = { name: string; input?: Record<string, unknown>; error?: boolean };
 export type ChatResult = { reply: string; provider: Provider; model: string; tools_used: ToolCall[]; usage: { input_tokens: number; output_tokens: number }; free?: FreeInfo; actions?: PendingAction[]; conversation_id?: string };
 export type ConversationSummary = { id: string; title: string; msg_count: number; updated_at: string };
@@ -64,8 +64,8 @@ export const ai = {
   deleteAllConversations: () => api<{ deleted: number }>('/ai/conversations', { method: 'DELETE' }),
   /** Saklar simpan riwayat milik tenant (izin ai_assistant.update). */
   setHistory: (save_history: boolean) => api<AiSettings>('/ai/prefs', { method: 'PUT', body: JSON.stringify({ save_history }) }).then(withHistory),
-  /** Setujui usulan; `approval` (penyetuju + PIN) wajib bila `needs_pin`. PIN dikirim langsung ke server, tidak lewat percakapan. */
-  confirmAction: (id: string, approval?: { user_id: string; pin: string }) =>
-    api<{ id: string; kind: ActionKind }>(`/ai/actions/${id}/confirm`, { method: 'POST', body: JSON.stringify({ approval }) }),
+  /** Setujui usulan; penyetuju + PIN dan kode TOTP pengguna wajib untuk semua aksi tulis. Dikirim langsung ke server, tidak lewat percakapan. */
+  confirmAction: (id: string, approval: { user_id: string; pin: string }, totp: string) =>
+    api<{ id: string; kind: ActionKind }>(`/ai/actions/${id}/confirm`, { method: 'POST', body: JSON.stringify({ approval, totp }) }),
   cancelAction: (id: string) => api<null>(`/ai/actions/${id}/cancel`, { method: 'POST' })
 };

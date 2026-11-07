@@ -117,13 +117,16 @@ const ModuleShiftClose = "shift_close"
 // ModuleQrisForce = modul izin penyetuju force-save nota QRIS/QRIS EraPay yang belum terverifikasi lunas (PIN yang sama).
 const ModuleQrisForce = "qris_force"
 
+// ModuleAIWrite = modul izin penyetuju aksi tulis HalloArus (PIN yang sama; ditambah kode 2FA penyetuju).
+const ModuleAIWrite = "ai_write"
+
 func ValidModule(m string) bool {
-	return m == Module || m == ModuleOutletSwitch || m == ModuleSaleEdit || m == ModuleCreditLimit || m == ModuleShiftClose || m == ModuleQrisForce
+	return m == Module || m == ModuleOutletSwitch || m == ModuleSaleEdit || m == ModuleCreditLimit || m == ModuleShiftClose || m == ModuleQrisForce || m == ModuleAIWrite
 }
 
 // canApproveAny = pemegang salah satu izin penyetuju (boleh punya PIN; satu PIN untuk semua jenis persetujuan).
 func canApproveAny(p authz.Permissions) bool {
-	return p.Has(Module, authz.ActApprove) || p.Has(ModuleOutletSwitch, authz.ActApprove) || p.Has(ModuleSaleEdit, authz.ActApprove) || p.Has(ModuleCreditLimit, authz.ActApprove) || p.Has(ModuleShiftClose, authz.ActApprove) || p.Has(ModuleQrisForce, authz.ActApprove)
+	return p.Has(Module, authz.ActApprove) || p.Has(ModuleOutletSwitch, authz.ActApprove) || p.Has(ModuleSaleEdit, authz.ActApprove) || p.Has(ModuleCreditLimit, authz.ActApprove) || p.Has(ModuleShiftClose, authz.ActApprove) || p.Has(ModuleQrisForce, authz.ActApprove) || p.Has(ModuleAIWrite, authz.ActApprove)
 }
 
 func eligible(perms []byte, outletOK bool, module string) bool {

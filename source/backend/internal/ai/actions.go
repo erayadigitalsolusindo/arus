@@ -5,8 +5,11 @@ package ai
 //     usulan dibuat SERVER dari data/parameter tervalidasi, bukan dari teks model.
 //   - Yang menulis adalah pengguna: tombol Setujui di UI memanggil ConfirmAction, yang menjalankan use-case resmi (shift.Service)
 //     dengan hak pengguna itu sendiri: transaksi, idempotensi, audit, dan cek izin berlaku seperti layar biasa.
-//   - Pembatalan (void) wajib PIN penyetuju yang diketik pengguna di UI dan dikirim langsung ke server; PIN tidak pernah lewat
-//     percakapan sehingga tidak terlihat model dan tidak tersimpan di riwayat.
+//   - SEMUA aksi tulis wajib PIN + kode TOTP milik PENYETUJU (pemegang izin penyetuju; bisa orang lain atau pengguna sendiri bila
+//     ia berizin), diketik penyetuju di UI dan dikirim langsung ke server; keduanya tidak pernah lewat percakapan sehingga tidak
+//     terlihat model dan tidak tersimpan di riwayat. Pengguna yang bekerja tidak mengetik apa pun. Penyetuju tanpa 2FA aktif
+//     tidak bisa menyetujui. Transaksi, pembelian, pembayaran hutang/piutang, dan koreksi stok TIDAK PERNAH
+//     dijalankan lewat AI (tidak ada tool-nya); AI hanya boleh membaca dan menjelaskannya.
 //   - Hanya pengguna dengan izin ai_assistant.create yang diberi tool usulan, dan usulan terikat ke pengguna + outlet pembuatnya.
 //   - Jalur MCP (connector) tidak memuat tool ini; ia tetap hanya-baca.
 
@@ -42,6 +45,9 @@ const (
 )
 
 var (
+	ErrTOTPRequired   = errors.New("kode 2FA penyetuju wajib diisi untuk menyetujui aksi ini")
+	ErrTOTPInvalid    = errors.New("kode 2FA penyetuju salah")
+	ErrMFANotEnabled  = errors.New("penyetuju belum mengaktifkan 2FA (TOTP); aksi tulis lewat HalloArus butuh penyetuju ber-2FA")
 	ErrActionNotFound = errors.New("usulan aksi tidak ditemukan atau sudah kedaluwarsa")
 	ErrActionForbid   = errors.New("tidak berhak menjalankan aksi ini")
 )
@@ -50,7 +56,8 @@ var (
 type PendingAction struct {
 	ID        string            `json:"id"`
 	Kind      string            `json:"kind"`
-	NeedsPin  bool              `json:"needs_pin"`
+	NeedsPin  bool              `json:"needs_pin"`  // selalu true: semua aksi tulis wajib PIN penyetuju
+	NeedsTotp bool              `json:"needs_totp"` // selalu true: dan kode TOTP pengguna
 	ExpiresAt time.Time         `json:"expires_at"`
 	Fields    map[string]string `json:"fields"` // ringkasan buatan server (direction, amount, category, note, created)
 }
@@ -78,6 +85,68 @@ type pettyVoidPayload struct {
 type ActionResult struct {
 	ID   string `json:"id"`
 	Kind string `json:"kind"`
+}
+
+// MFAVerifier = 2FA TOTP pengguna (usermfa.Service). Tanpa ini aksi tulis AI mati.
+type MFAVerifier interface {
+	Enabled(ctx context.Context, tenant, user uuid.UUID) (bool, error)
+	Verify(ctx context.Context, tenant, user uuid.UUID, code string) (bool, error)
+}
+
+// WithMFA memasang pemeriksa TOTP untuk aksi tulis.
+func (s *Service) WithMFA(m MFAVerifier) *Service {
+	s.mfa = m
+	return s
+}
+
+const (
+	totpMaxFails = 5
+	totpLockTTL  = 15 * time.Minute
+)
+
+// TOTPLockedError = terlalu banyak kode salah; RetryAfter dalam detik.
+type TOTPLockedError struct{ RetryAfter int }
+
+func (e *TOTPLockedError) Error() string { return "terlalu banyak percobaan kode 2FA" }
+
+func (s *Service) totpKey(tenant, user uuid.UUID) string {
+	return "ai:totpfail:" + tenant.String() + ":" + user.String()
+}
+
+// checkTOTP memverifikasi kode 2FA milik penyetuju dengan batas percobaan (5 salah → kunci 15 menit).
+func (s *Service) checkTOTP(ctx context.Context, tenant, approver uuid.UUID, code string) error {
+	key := s.totpKey(tenant, approver)
+	if n, err := s.rdb.Get(ctx, key).Int(); err == nil && n >= totpMaxFails {
+		ttl, _ := s.rdb.TTL(ctx, key).Result()
+		return &TOTPLockedError{RetryAfter: max(int(ttl.Seconds()), 1)}
+	}
+	ok, err := s.mfa.Verify(ctx, tenant, approver, code)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		if n, err := s.rdb.Incr(ctx, key).Result(); err == nil && n == 1 {
+			s.rdb.Expire(ctx, key, totpLockTTL)
+		}
+		return ErrTOTPInvalid
+	}
+	s.rdb.Del(ctx, key)
+	return nil
+}
+
+// mfaOn = penyetuju sudah mengaktifkan 2FA (syarat menyetujui aksi tulis AI).
+func (s *Service) mfaOn(ctx context.Context, tenant, user uuid.UUID) error {
+	if s.mfa == nil {
+		return ErrMFANotEnabled
+	}
+	on, err := s.mfa.Enabled(ctx, tenant, user)
+	if err != nil {
+		return err
+	}
+	if !on {
+		return ErrMFANotEnabled
+	}
+	return nil
 }
 
 // WithActions mengaktifkan aksi tulis (butuh Redis untuk menyimpan usulan).
@@ -118,7 +187,7 @@ func writeToolDefs() []toolDef {
 		{
 			Name: "propose_void_petty_cash_entry",
 			Description: "Propose cancelling (voiding) one petty-cash entry of a still-open shift. This is a deletion: it does NOT run now; the user must approve on screen " +
-				"AND type an approver PIN there. Never ask for the PIN in chat. Use list_petty_cash first to get the entry id.",
+				"AND an approver types their PIN and 2FA code there. Never ask for either in chat. Use list_petty_cash first to get the entry id.",
 			InputSchema: schema(map[string]any{
 				"movement_id": map[string]any{"type": "string", "description": "Petty-cash entry id (uuid) from list_petty_cash."},
 			}, "movement_id"),
@@ -127,7 +196,7 @@ func writeToolDefs() []toolDef {
 }
 
 func isWriteTool(name string) bool {
-	return name == "propose_petty_cash_entry" || name == "propose_void_petty_cash_entry"
+	return name == "propose_petty_cash_entry" || name == "propose_void_petty_cash_entry" || isMasterTool(name)
 }
 
 func (s *Service) actKey(tenant uuid.UUID, id string) string {
@@ -159,14 +228,17 @@ func (s *Service) propose(ctx context.Context, a authz.Actor, name string, raw j
 		}
 	}
 	var (
-		st  storedAction
-		err error
+		st        storedAction
+		err       error
+		modelView map[string]any
 	)
 	switch name {
 	case "propose_petty_cash_entry":
 		st, err = s.proposePettyAdd(ctx, a, p)
 	case "propose_void_petty_cash_entry":
 		st, err = s.proposePettyVoid(ctx, a, p)
+	case ToolProposeMaster:
+		st, modelView, err = s.proposeMaster(ctx, a, p)
 	default:
 		err = fmt.Errorf("tool %q tidak dikenal", name)
 	}
@@ -174,6 +246,7 @@ func (s *Service) propose(ctx context.Context, a authz.Actor, name string, raw j
 		return PendingAction{}, "", err
 	}
 	st.ID = uuid.NewString()
+	st.NeedsPin, st.NeedsTotp = true, true
 	st.ExpiresAt = time.Now().UTC().Add(actionTTL)
 	st.UserID, st.OutletID = a.UserID, a.OutletID
 	b, err := json.Marshal(st)
@@ -183,13 +256,16 @@ func (s *Service) propose(ctx context.Context, a authz.Actor, name string, raw j
 	if err := s.rdb.Set(ctx, s.actKey(a.TenantID, st.ID), b, actionTTL).Err(); err != nil {
 		return PendingAction{}, "", err
 	}
+	var summary any = st.Fields
+	if modelView != nil {
+		summary = modelView // data master: model hanya diberi nama kolom yang berubah, bukan nilai lama
+	}
 	out, _ := json.Marshal(map[string]any{
 		"status":     "awaiting_user_approval",
 		"action_id":  st.ID,
-		"summary":    st.Fields,
-		"needs_pin":  st.NeedsPin,
+		"summary":    summary,
 		"expires_in": "15 minutes",
-		"note":       "NOT saved yet. The user must press Approve on the card shown on screen" + map[bool]string{true: " and enter the approver PIN there (never ask for it in chat)", false: ""}[st.NeedsPin] + ". Tell the user this; do not claim it is saved.",
+		"note":       "NOT saved yet. The user must press Approve on the card shown on screen and the approver must enter their PIN and 2FA code there (never ask for either in chat). Tell the user this; do not claim it is saved.",
 	})
 	return st.PendingAction, string(out), nil
 }
@@ -229,16 +305,13 @@ func (s *Service) proposePettyAdd(ctx context.Context, a authz.Actor, p params) 
 	if code != "" {
 		return storedAction{}, errors.New("`note` tidak valid (maks 300 karakter)")
 	}
-	needsPin := false
 	err = s.readTx(ctx, a, func(tx pgx.Tx) error {
-		var limit decimal.Decimal
-		err := tx.QueryRow(ctx, `SELECT o.petty_cash_approval_limit FROM cash_shifts c
-			JOIN outlets o ON o.tenant_id = c.tenant_id AND o.id = c.outlet_id
-			WHERE c.tenant_id = $1 AND c.outlet_id = $2 AND c.user_id = $3 AND c.status = 'open'`, a.TenantID, a.OutletID, a.UserID).Scan(&limit)
+		var open bool
+		err := tx.QueryRow(ctx, `SELECT true FROM cash_shifts WHERE tenant_id = $1 AND outlet_id = $2 AND user_id = $3 AND status = 'open'`,
+			a.TenantID, a.OutletID, a.UserID).Scan(&open)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errors.New("pengguna belum membuka shift kasir di outlet ini; minta pengguna membuka shift di menu Kasir dulu")
 		}
-		needsPin = err == nil && dir == "out" && amt.GreaterThan(limit)
 		return err
 	})
 	if err != nil {
@@ -246,7 +319,7 @@ func (s *Service) proposePettyAdd(ctx context.Context, a authz.Actor, p params) 
 	}
 	payload, _ := json.Marshal(pettyAddPayload{Direction: dir, Amount: amt.StringFixed(2), Category: cat, Note: note})
 	return storedAction{
-		PendingAction: PendingAction{Kind: KindPettyAdd, NeedsPin: needsPin,
+		PendingAction: PendingAction{Kind: KindPettyAdd,
 			Fields: map[string]string{"direction": dir, "amount": amt.StringFixed(2), "category": cat, "note": note}},
 		Payload: payload,
 	}, nil
@@ -290,7 +363,7 @@ func (s *Service) proposePettyVoid(ctx context.Context, a authz.Actor, p params)
 		return storedAction{}, err
 	}
 	payload, _ := json.Marshal(pettyVoidPayload{MovementID: id})
-	return storedAction{PendingAction: PendingAction{Kind: KindPettyVoid, NeedsPin: true, Fields: fields}, Payload: payload}, nil
+	return storedAction{PendingAction: PendingAction{Kind: KindPettyVoid, Fields: fields}, Payload: payload}, nil
 }
 
 func (s *Service) loadAction(ctx context.Context, a authz.Actor, id string) (storedAction, error) {
@@ -313,7 +386,7 @@ func (s *Service) loadAction(ctx context.Context, a authz.Actor, id string) (sto
 
 // ConfirmAction menjalankan usulan atas persetujuan pengguna (tombol di UI). Gagal PIN/validasi tidak menghapus usulan,
 // sehingga pengguna bisa mencoba lagi selama masih berlaku.
-func (s *Service) ConfirmAction(ctx context.Context, a authz.Actor, id string, ap *shift.ApprovalIn) (*ActionResult, error) {
+func (s *Service) ConfirmAction(ctx context.Context, a authz.Actor, id string, ap *shift.ApprovalIn, totp string) (*ActionResult, error) {
 	if a.Impersonator != uuid.Nil {
 		return nil, ErrImpersonating
 	}
@@ -324,7 +397,26 @@ func (s *Service) ConfirmAction(ctx context.Context, a authz.Actor, id string, a
 	if err != nil {
 		return nil, err
 	}
-	var approver *uuid.UUID
+	if ap == nil {
+		return nil, approval.ErrPinRequired
+	}
+	if totp == "" {
+		return nil, ErrTOTPRequired
+	}
+	if err := s.mfaOn(ctx, a.TenantID, ap.UserID); err != nil {
+		return nil, err
+	}
+	var verified approval.Approver
+	if err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) (err error) {
+		verified, err = s.approvals.VerifyFor(ctx, tx, a, approverModule(st.Kind), a.OutletID, ap.UserID, ap.Pin)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.checkTOTP(ctx, a.TenantID, ap.UserID, totp); err != nil {
+		return nil, err
+	}
+	approver := &ap.UserID
 	switch st.Kind {
 	case KindPettyAdd:
 		if !a.Perms.Has(shift.ModuleCashier, authz.ActCreate) {
@@ -336,29 +428,20 @@ func (s *Service) ConfirmAction(ctx context.Context, a authz.Actor, id string, a
 		}
 		// Kunci idempotensi diturunkan dari id usulan: klik ganda / kirim ulang tidak mencatat dua kali.
 		if _, err := s.shifts.AddMovement(ctx, a, "ai-"+id, shift.MovementInput{
-			Direction: pl.Direction, Amount: json.Number(pl.Amount), Category: pl.Category, Note: pl.Note, Approval: ap,
+			Direction: pl.Direction, Amount: json.Number(pl.Amount), Category: pl.Category, Note: pl.Note, Approval: ap, Verified: &verified,
 		}); err != nil {
 			return nil, err
-		}
-		if ap != nil && st.NeedsPin {
-			approver = &ap.UserID
 		}
 	case KindPettyVoid:
 		var pl pettyVoidPayload
 		if err := json.Unmarshal(st.Payload, &pl); err != nil {
 			return nil, ErrActionNotFound
 		}
-		if ap == nil {
-			return nil, approval.ErrPinRequired
-		}
-		if err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-			_, err := s.approvals.VerifyFor(ctx, tx, a, shift.ModuleApprove, a.OutletID, ap.UserID, ap.Pin)
-			return err
-		}); err != nil {
+		if err := s.shifts.VoidMovement(ctx, a, pl.MovementID); err != nil {
 			return nil, err
 		}
-		approver = &ap.UserID
-		if err := s.shifts.VoidMovement(ctx, a, pl.MovementID); err != nil {
+	case KindMaster:
+		if err := s.execMaster(ctx, a, st.Payload); err != nil {
 			return nil, err
 		}
 	default:
@@ -369,6 +452,10 @@ func (s *Service) ConfirmAction(ctx context.Context, a authz.Actor, id string, a
 	s.auditAction(ctx, a, st, approver)
 	return &ActionResult{ID: id, Kind: st.Kind}, nil
 }
+
+// approverModule = izin penyetuju yang harus dimiliki pemilik PIN untuk jenis aksi ini.
+// Semua aksi tulis HalloArus memakai satu izin penyetuju khusus (`ai_write`), terpisah dari penyetuju harga/kas.
+func approverModule(string) string { return approval.ModuleAIWrite }
 
 // CancelAction membuang usulan (idempoten).
 func (s *Service) CancelAction(ctx context.Context, a authz.Actor, id string) error {

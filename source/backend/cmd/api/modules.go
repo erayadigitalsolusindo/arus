@@ -133,9 +133,10 @@ func mountModules(r chi.Router, d appDeps) error {
 	iam.NewHandler(iam.NewService(d.Pool, perms, sessions), perms, tokens, d.Log).WithMFA(userMFA).Routes(r)
 	outlet.NewHandler(outlet.NewService(d.Pool, perms), perms, tokens, d.Log).Routes(r)
 	audit.NewHandler(audit.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	catalog.NewHandler(catalog.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	item.NewHandler(item.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
-	member.NewHandler(member.NewService(d.Pool, uploads), perms, tokens, d.Log).Routes(r)
+	catalogSvc, itemSvc, memberSvc := catalog.NewService(d.Pool), item.NewService(d.Pool, uploads), member.NewService(d.Pool, uploads)
+	catalog.NewHandler(catalogSvc, perms, tokens, d.Log).Routes(r)
+	item.NewHandler(itemSvc, perms, tokens, d.Log).Routes(r)
+	member.NewHandler(memberSvc, perms, tokens, d.Log).Routes(r)
 	profile.NewHandler(profile.NewService(d.Pool, uploads, sessions, perms), perms, tokens, d.Redis, userMFA, d.Log).Routes(r)
 	stock.NewHandler(stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	approval.NewHandler(approvalSvc, perms, tokens, d.Log).Routes(r)
@@ -153,7 +154,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	receivableSvc := receivable.NewService(d.Pool)
 	receivable.NewHandler(receivableSvc, perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
-	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	voucherSvc := voucher.NewService(d.Pool)
+	voucher.NewHandler(voucherSvc, perms, tokens, d.Log).Routes(r)
 	storefront.NewHandler(storefrontSvc, perms, tokens, d.Redis, uploads, d.Log).Routes(r)
 	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
 	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
@@ -180,7 +182,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err != nil {
 		return err
 	}
-	aiSvc.WithAPIBase(d.Cfg.APIBaseURL).WithActions(shiftSvc, approvalSvc)
+	aiSvc.WithAPIBase(d.Cfg.APIBaseURL).WithActions(shiftSvc, approvalSvc).WithMFA(userMFA).WithMasters(ai.Masters{Items: itemSvc, Members: memberSvc, Catalog: catalogSvc, Vouchers: voucherSvc, Storefront: storefrontSvc})
 	histKey := d.Cfg.AIHistoryKey
 	if histKey == "" {
 		histKey = d.Cfg.JWTSecret

@@ -52,6 +52,7 @@ var Modules = []Module{
 	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
 	{"outlet_switch", []string{ActView, ActApprove}},  // Owner/Supervisor yang boleh menyetujui pindah outlet di kasir lewat PIN
 	{"sale_edit", []string{ActView, ActApprove}},      // Owner/Supervisor yang boleh menyetujui edit/batal nota lewat PIN
+	{"ai_write", []string{ActView, ActApprove}},        // Penyetuju aksi tulis HalloArus (PIN + kode 2FA yang diketik penyetuju di kartu usulan)
 	{"qris_force", []string{ActView, ActApprove}},     // Owner/Supervisor yang boleh menyetujui force-save nota QRIS EraPay yang belum terverifikasi lunas lewat PIN
 	{"credit_limit", []string{ActView, ActApprove}},   // Owner/Supervisor yang boleh menyetujui penjualan kredit melewati limit piutang member lewat PIN
 	{"shift_close", []string{ActView, ActApprove}},    // Owner/Supervisor yang boleh menyetujui tutup shift kasir yang memiliki selisih lewat PIN

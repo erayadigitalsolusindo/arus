@@ -55,6 +55,20 @@ func (h *Handler) Routes(r chi.Router) {
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var up *upstreamError
 	var fields shift.FieldErrors
+	var tl *TOTPLockedError
+	var me *MasterError
+	if errors.As(err, &me) {
+		if me.Fields != nil {
+			httpx.ValidationError(w, me.Fields)
+		} else {
+			httpx.Error(w, me.Status, me.Code, me.Msg)
+		}
+		return
+	}
+	if errors.As(err, &tl) {
+		httpx.Retry(w, "TOTP_LOCKED", "Terlalu banyak kode 2FA salah. Coba lagi nanti.", time.Duration(tl.RetryAfter)*time.Second)
+		return
+	}
 	if approval.Fail(w, err) {
 		return
 	}
@@ -69,6 +83,12 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "AI_CUSTOM_LIMIT", "Jumlah penyedia kustom sudah mencapai batas; hapus salah satu dulu.")
 	case errors.Is(err, ErrImageProvider):
 		httpx.Error(w, http.StatusUnprocessableEntity, "AI_IMAGE_UNSUPPORTED", "Foto nota hanya bisa dibaca dengan penyedia Claude (Anthropic).")
+	case errors.Is(err, ErrTOTPRequired):
+		httpx.Error(w, http.StatusUnprocessableEntity, "TOTP_REQUIRED", "Kode 2FA wajib diisi.")
+	case errors.Is(err, ErrTOTPInvalid):
+		httpx.Error(w, http.StatusUnprocessableEntity, "TOTP_INVALID", "Kode 2FA salah.")
+	case errors.Is(err, ErrMFANotEnabled):
+		httpx.Error(w, http.StatusConflict, "MFA_NOT_ENABLED", "Aktifkan 2FA di profil Anda dulu untuk menjalankan aksi tulis lewat HalloArus.")
 	case errors.Is(err, ErrActionNotFound):
 		httpx.Error(w, http.StatusNotFound, "AI_ACTION_NOT_FOUND", "Usulan tidak ditemukan atau sudah kedaluwarsa; minta asisten mengusulkan ulang.")
 	case errors.Is(err, ErrActionForbid), errors.Is(err, shift.ErrForbidden):
@@ -227,7 +247,8 @@ func (h *Handler) RevokeConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 type confirmReq struct {
-	Approval *shift.ApprovalIn `json:"approval"` // penyetuju + PIN (wajib untuk pembatalan / kas keluar di atas batas)
+	Approval *shift.ApprovalIn `json:"approval"` // penyetuju + PIN (wajib untuk semua aksi tulis)
+	TOTP     string            `json:"totp"`     // kode 2FA pengguna sendiri (wajib untuk semua aksi tulis)
 }
 
 // ConfirmAction: POST /ai/actions/{id}/confirm. Pengguna menekan Setujui pada kartu usulan; PIN dikirim langsung dari UI.
@@ -237,7 +258,7 @@ func (h *Handler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSONLimit(w, r, &in, 4<<10) {
 		return
 	}
-	res, err := h.svc.ConfirmAction(r.Context(), a, chi.URLParam(r, "id"), in.Approval)
+	res, err := h.svc.ConfirmAction(r.Context(), a, chi.URLParam(r, "id"), in.Approval, in.TOTP)
 	if err != nil {
 		h.fail(w, r, err)
 		return

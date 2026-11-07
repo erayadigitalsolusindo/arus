@@ -23,6 +23,7 @@ export default {
     outlet_switch: 'Setujui Pindah Outlet (PIN)',
     sale_edit: 'Setujui Edit/Batal Nota (PIN)',
     credit_limit: 'Setujui Kredit Melebihi Limit (PIN)',
+    ai_write: 'Setujui Aksi Tulis HalloArus (PIN + 2FA)',
     qris_force: 'Setujui Simpaksa Nota QRIS EraPay (PIN)',
     shift_close: 'Setujui Selisih Tutup Shift (PIN)',
     cash_shifts: 'Daftar Shift Kasir',
