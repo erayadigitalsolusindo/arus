@@ -29,6 +29,7 @@ const (
 	ActionTenantStatus  = "platform.tenant_status"
 	ActionEditWindow    = "platform.tenant_edit_window"
 	ActionTenantRename  = "platform.tenant_rename"
+	ActionUserEmail     = "platform.user_email"
 	ActionTenantDeleteSchedule = "platform.tenant_delete_schedule"
 	ActionTenantDeleteCancel   = "platform.tenant_delete_cancel"
 	ActionTenantPurge          = "platform.tenant_purge"

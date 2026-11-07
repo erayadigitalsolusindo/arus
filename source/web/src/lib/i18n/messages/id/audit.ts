@@ -122,6 +122,7 @@ export default {
     platform_impersonate: 'Platform Admin masuk ke tenant (akses penuh)',
     platform_tenant_status: 'Platform Admin mengubah status tenant',
     platform_tenant_rename: 'Platform Admin mengganti nama/kode toko',
+    platform_user_email: 'Platform Admin mengubah email login pengguna',
     platform_tenant_edit_window: 'Platform Admin mengubah batas waktu edit nota',
     platform_tenant_delete_schedule: 'Platform Admin menjadwalkan hapus tenant',
     platform_tenant_delete_cancel: 'Platform Admin membatalkan jadwal hapus tenant',

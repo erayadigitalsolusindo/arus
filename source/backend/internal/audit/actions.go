@@ -41,6 +41,7 @@ const (
 	ActionPlatformEditWindow   = "platform.tenant_edit_window" // batas hari edit/batal nota (diatur operator platform)
 	ActionPlatformTenantRename = "platform.tenant_rename"      // nama/kode (slug) tenant diganti operator platform
 	ActionPlatformTenantPlan   = "platform.tenant_plan"        // paket langganan tenant dipasang/diubah manual oleh operator platform
+	ActionPlatformUserEmail    = "platform.user_email"         // email login pengguna tenant diganti operator platform
 )
 
 // Master pendukung katalog (Fase 3.1). Aksi `<entitas>.active` = arsip/aktifkan kembali.

@@ -31,6 +31,7 @@ var (
 	ErrSetupUnavailable   = errors.New("setup tidak tersedia")
 	ErrBadSetupToken      = errors.New("token setup salah")
 	ErrEmailTaken         = errors.New("email sudah terdaftar")
+	ErrEmailUnchanged     = errors.New("email sama dengan yang lama")
 	ErrNotFound           = errors.New("tidak ditemukan")
 	ErrLastAdmin          = errors.New("admin aktif terakhir")
 	ErrSelf               = errors.New("tidak boleh pada diri sendiri")

@@ -91,6 +91,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/platform/tenants", h.ListTenants)
 			r.Get("/platform/tenants/{id}", h.GetTenant)
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
+			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)
 			r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
 			r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
 			r.Get("/platform/tenants/{id}/deletion", h.GetDeleteSchedule)
@@ -420,6 +421,41 @@ func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {
 		h.internal(w, r, "detail tenant gagal", err)
 	default:
 		httpx.JSON(w, http.StatusOK, t)
+	}
+}
+
+type userEmailRequest struct {
+	Email string `json:"email"`
+}
+
+// ChangeUserEmail: PATCH /platform/tenants/{id}/users/{userId}/email {"email": "..."}.
+func (h *Handler) ChangeUserEmail(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	userID, err := uuid.Parse(chi.URLParam(r, "userId"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Pengguna tidak ditemukan.")
+		return
+	}
+	var req userEmailRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	switch err := h.svc.ChangeUserEmail(r.Context(), actor(r), id, userID, req.Email); {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, ErrInvalidEmail):
+		httpx.ValidationError(w, map[string]string{"email": "INVALID"})
+	case errors.Is(err, ErrEmailUnchanged):
+		httpx.ValidationError(w, map[string]string{"email": "UNCHANGED"})
+	case errors.Is(err, ErrEmailTaken):
+		httpx.Error(w, http.StatusConflict, "EMAIL_TAKEN", "Email sudah dipakai akun lain.")
+	case errors.Is(err, ErrNotFound):
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Pengguna tidak ditemukan.")
+	default:
+		h.internal(w, r, "ubah email pengguna gagal", err)
 	}
 }
 

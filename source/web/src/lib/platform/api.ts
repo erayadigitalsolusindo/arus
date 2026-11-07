@@ -226,6 +226,9 @@ export const platformApi = {
   setSaleEditWindow: (id: string, days: number) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ sale_edit_window_days: days }) }),
   /** Ganti nama dan kode (slug) tenant; keduanya dikirim bersamaan. */
   renameTenant: (id: string, name: string, code: string) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ name, code }) }),
+  /** Ganti email login pengguna tenant (belum terverifikasi, sesi dicabut, tautan Google dilepas). */
+  changeUserEmail: (tenantId: string, userId: string, email: string) =>
+    papi<void>(`/platform/tenants/${tenantId}/users/${userId}/email`, { method: 'PATCH', body: json({ email }) }),
   /** Jadwal hapus permanen tenant (null = tidak dijadwalkan). */
   deleteSchedule: (id: string) => papi<{ schedule: DeleteSchedule | null }>(`/platform/tenants/${id}/deletion`),
   /** Jadwalkan hapus permanen setelah `days` hari (0-365; 0 = langsung boleh dihapus). Tenant wajib nonaktif. */

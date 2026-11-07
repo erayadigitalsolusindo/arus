@@ -18,6 +18,7 @@ import (
 	gen "aciraba/internal/gen"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/db"
+	"aciraba/internal/platform/sanitize"
 )
 
 const (
@@ -234,6 +235,62 @@ func (s *Service) RenameTenant(ctx context.Context, a Actor, tenantID uuid.UUID,
 		return ErrTenantCodeTaken
 	}
 	return err
+}
+
+var ErrInvalidEmail = errors.New("email tidak valid")
+
+// ChangeUserEmail mengganti email login pengguna tenant. Transaksi merujuk pengguna lewat id, bukan email, jadi riwayat
+// tidak terpengaruh. Email baru berstatus belum terverifikasi; token akses dan semua sesi refresh dicabut; tautan Google
+// lama dilepas (identitas itu milik pemilik email lama). Email bentrok = ErrEmailTaken. Tercatat di audit platform dan tenant.
+func (s *Service) ChangeUserEmail(ctx context.Context, a Actor, tenantID, userID uuid.UUID, rawEmail string) error {
+	email, code := sanitize.Email(rawEmail)
+	if code != "" {
+		return ErrInvalidEmail
+	}
+	err := db.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		q := gen.New(tx)
+		t, err := q.PlatformTenantGet(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		u, err := q.PlatformUserGet(ctx, gen.PlatformUserGetParams{TenantID: tenantID, ID: userID})
+		if err != nil {
+			return err
+		}
+		if strings.EqualFold(u.Email, email) {
+			return ErrEmailUnchanged
+		}
+		if n, err := q.PlatformUserSetEmail(ctx, gen.PlatformUserSetEmailParams{TenantID: tenantID, ID: userID, Email: email, ValidAfter: pgtype.Timestamptz{Time: s.now(), Valid: true}}); err != nil || n == 0 {
+			if err == nil {
+				err = pgx.ErrNoRows
+			}
+			return err
+		}
+		unlinked, err := q.PlatformUserUnlinkIdentities(ctx, gen.PlatformUserUnlinkIdentitiesParams{ActorID: a.ID, TenantID: tenantID, UserID: userID})
+		if err != nil {
+			return err
+		}
+		details := map[string]any{"user_id": userID.String(), "user": u.Name, "email": email, "previous": u.Email, "google_unlinked": unlinked > 0}
+		if err := s.recordTx(ctx, tx, a, ActionUserEmail, tenantID, t.Name, details); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Actor{TenantID: tenantID, Name: "Platform: " + a.Name}, audit.Entry{
+			Action: audit.ActionPlatformUserEmail, Entity: audit.EntityUser, EntityID: userID.String(),
+			Details: map[string]any{"email": email, "previous": u.Email, "google_unlinked": unlinked > 0, "admin_id": a.ID.String()},
+		})
+	})
+	var pe *pgconn.PgError
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrNotFound
+	case errors.As(err, &pe) && pe.Code == "23505" && pe.ConstraintName == "users_email_key":
+		return ErrEmailTaken
+	}
+	if err != nil {
+		return err
+	}
+	s.Perms.InvalidateTenant(tenantID)
+	return s.Sessions.RevokeUser(ctx, userID.String())
 }
 
 // MaxEditWindowDays = batas atas pengaturan (3650 hari ≈ tanpa batas).

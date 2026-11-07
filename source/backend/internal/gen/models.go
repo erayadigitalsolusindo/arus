@@ -52,6 +52,85 @@ type AccountingPeriod struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type AiAction struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	Status         string
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type AiConversation struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	TitleEnc  string
+	MsgCount  int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type AiMessage struct {
+	ConversationID uuid.UUID
+	TenantID       uuid.UUID
+	Seq            int32
+	Role           string
+	ContentEnc     string
+	ActionsEnc     pgtype.Text
+	Tools          []string
+	HadImages      bool
+	CreatedAt      pgtype.Timestamptz
+}
+
+type AiPlatformProvider struct {
+	ID        bool
+	BaseUrl   string
+	Model     string
+	ApiKeyEnc string
+	KeyHint   string
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
+type AiPolicy struct {
+	ID             uuid.UUID
+	TenantID       pgtype.UUID
+	Enabled        pgtype.Bool
+	Domains        []string
+	AllowWrite     pgtype.Bool
+	AllowCost      pgtype.Bool
+	AllowByok      pgtype.Bool
+	AllowCustom    pgtype.Bool
+	AllowImages    pgtype.Bool
+	AllowHistory   pgtype.Bool
+	AllowMcp       pgtype.Bool
+	FreeEnabled    pgtype.Bool
+	FreeDailyLimit pgtype.Int4
+	FreeModel      pgtype.Text
+	ChatLimit      pgtype.Int4
+	MaxRangeDays   pgtype.Int4
+	Note           string
+	UpdatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type AiPref struct {
+	TenantID    uuid.UUID
+	SaveHistory bool
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type AiRule struct {
+	ID        uuid.UUID
+	TenantID  pgtype.UUID
+	Version   int32
+	Body      string
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type AiSetting struct {
 	TenantID  uuid.UUID
 	ApiKeyEnc string
@@ -61,6 +140,8 @@ type AiSetting struct {
 	UpdatedAt pgtype.Timestamptz
 	Provider  string
 	Active    bool
+	BaseUrl   string
+	Label     string
 }
 
 type ApiCredential struct {
@@ -628,6 +709,7 @@ type Plan struct {
 	UpdatedAt    pgtype.Timestamptz
 	Modules      []string
 	Highlights   []string
+	MaxItems     pgtype.Int4
 }
 
 type PlatformAdmin struct {
@@ -1251,6 +1333,44 @@ type StockTransferLine struct {
 	UnitCost    decimal.Decimal
 }
 
+type Storefront struct {
+	TenantID  uuid.UUID
+	Slug      string
+	Enabled   bool
+	Title     string
+	Html      string
+	Css       string
+	Version   int32
+	UpdatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type StorefrontTemplate struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Description string
+	Category    string
+	Html        string
+	Css         string
+	Active      bool
+	SortOrder   int32
+	UpdatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type StorefrontVersion struct {
+	TenantID  uuid.UUID
+	Version   int32
+	Title     string
+	Html      string
+	Css       string
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type SubscriptionPayment struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID
@@ -1333,6 +1453,19 @@ type TenantDomain struct {
 	LastCheckError string
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	Landing        bool
+	GoogleClientID string
+	BrandName      string
+	BrandFooter    string
+	BrandVer       int64
+}
+
+type TenantDomainAsset struct {
+	DomainID    uuid.UUID
+	Kind        string
+	ContentType string
+	Data        []byte
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type TenantSubscription struct {
@@ -1344,6 +1477,7 @@ type TenantSubscription struct {
 	Note                string
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	OverrideMaxItems    pgtype.Int4
 }
 
 type Unit struct {
