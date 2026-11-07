@@ -104,10 +104,11 @@ Dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Node.js 
 </td></tr>
 <tr><td valign="top">
 
-**🤖 HalloArus (AI hanya-baca)**
+**🤖 HalloArus (AI baca + usulan ubah data master)**
 - Tanya angka toko ke Claude, ChatGPT, Gemini, atau Qwen (API key milik tenant; data pelanggan dianonimkan)
 - Atau lewat **connector MCP** dari langganan Claude Anda
 - Selalu dibatasi izin role pengguna
+- Bisa **mengusulkan** perubahan data master (barang/harga, pelanggan, supplier, kupon, storefront; nonaktifkan, bukan hapus). Setiap usulan baru tersimpan setelah **penyetuju memasukkan PIN + kode 2FA**; transaksi, pembelian, bayar hutang/piutang, dan koreksi stok tidak pernah lewat AI
 
 **💳 Paket langganan**
 - Paket dinamis (FREE / PRO / FULL, dikelola Platform Admin): batas transaksi/hari, batas user, **modul per paket**

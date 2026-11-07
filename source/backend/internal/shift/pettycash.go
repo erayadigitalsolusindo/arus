@@ -51,6 +51,9 @@ type MovementInput struct {
 	Category  string      `json:"category"`
 	Note      string      `json:"note"`
 	Approval  *ApprovalIn `json:"approval"`
+	// Verified = penyetuju yang SUDAH diverifikasi pemanggil tepercaya di server (HalloArus: PIN + 2FA di jalur konfirmasi sendiri).
+	// Tidak pernah dibaca dari JSON klien.
+	Verified *approval.Approver `json:"-"`
 }
 
 // loadMovements: catatan kas kecil satu shift (terbaru dulu), dipakai Get/Current.
@@ -143,12 +146,16 @@ func (s *Service) AddMovement(ctx context.Context, a authz.Actor, key string, in
 		var approverID *uuid.UUID
 		var approverName *string
 		if in.Direction == "out" && amt.GreaterThan(limit) {
-			if in.Approval == nil || s.approvals == nil {
-				return approval.ErrPinRequired
-			}
-			ap, err := s.approvals.VerifyFor(ctx, tx, a, ModuleApprove, a.OutletID, in.Approval.UserID, in.Approval.Pin)
-			if err != nil {
-				return err
+			ap := in.Verified
+			if ap == nil {
+				if in.Approval == nil || s.approvals == nil {
+					return approval.ErrPinRequired
+				}
+				v, err := s.approvals.VerifyFor(ctx, tx, a, ModuleApprove, a.OutletID, in.Approval.UserID, in.Approval.Pin)
+				if err != nil {
+					return err
+				}
+				ap = &v
 			}
 			approverID, approverName = &ap.ID, &ap.Name
 		}

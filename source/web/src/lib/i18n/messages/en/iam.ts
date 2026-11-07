@@ -25,6 +25,7 @@ const iam: Messages['iam'] = {
     outlet_switch: 'Approve Outlet Switch (PIN)',
     sale_edit: 'Approve Receipt Edit/Void (PIN)',
     credit_limit: 'Approve Credit Over Limit (PIN)',
+    ai_write: 'Approve HalloArus Write Actions (PIN + 2FA)',
     qris_force: 'Approve EraPay QRIS Force-Save (PIN)',
     shift_close: 'Approve Shift Close Difference (PIN)',
     cash_shifts: 'Cashier Shifts',

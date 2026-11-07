@@ -25,6 +25,7 @@ const iam: Messages['iam'] = {
     outlet_switch: '店舗切替の承認（PIN）',
     sale_edit: 'レシート編集/取消の承認（PIN）',
     credit_limit: '限度額を超えるクレジットの承認（PIN）',
+    ai_write: 'HalloArusの書き込み操作を承認（PIN + 2FA）',
     qris_force: 'EraPay QRIS強制保存の承認（PIN）',
     shift_close: 'シフト締めの差額承認（PIN）',
     cash_shifts: 'レジシフトリスト',

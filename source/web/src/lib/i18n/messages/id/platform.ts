@@ -486,7 +486,7 @@ export default {
     fEnabled: 'HalloArus aktif',
     fEnabledHint: 'Mati = seluruh fitur (chat, connector, riwayat) tertutup untuk tenant.',
     fWrite: 'Usulan aksi tulis',
-    fWriteHint: 'AI boleh mengusulkan catat/batalkan kas kecil. Tetap butuh persetujuan pengguna.',
+    fWriteHint: 'AI boleh mengusulkan perubahan data master (barang, pelanggan, supplier, kupon, storefront) dan kas kecil. Setiap usulan wajib PIN + kode 2FA penyetuju. Mematikan domain data (mis. Pelanggan) juga menutup tulis ke entitasnya. Transaksi, pembelian, dan pembayaran hutang/piutang tidak pernah bisa diubah AI.',
     fCost: 'HPP, laba, dan nilai stok',
     fCostHint: 'Bila diblokir, AI tidak menampilkannya walau role tenant punya izin.',
     fByok: 'API key penyedia sendiri',

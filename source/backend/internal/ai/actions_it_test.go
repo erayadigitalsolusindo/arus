@@ -19,7 +19,20 @@ import (
 	"aciraba/internal/shift"
 )
 
-const itPassword = "Rahasia-Uji-123"
+const (
+	itPassword = "Rahasia-Uji-123"
+	totpOK     = "123456"
+)
+
+// fakeMFA: 2FA aktif untuk semua pengguna kecuali yang ada di `off`; kode benar hanya totpOK.
+type fakeMFA struct{ off map[uuid.UUID]bool }
+
+func (f fakeMFA) Enabled(_ context.Context, _, user uuid.UUID) (bool, error) {
+	return !f.off[user], nil
+}
+func (f fakeMFA) Verify(_ context.Context, _, _ uuid.UUID, code string) (bool, error) {
+	return code == totpOK, nil
+}
 
 type actEnv struct {
 	svc      *Service
@@ -30,6 +43,8 @@ type actEnv struct {
 	other    authz.Actor // kasir lain, tanpa usulan
 	approver authz.Actor
 	pin      string
+	rdb      *redis.Client
+	app      *pgxpool.Pool
 }
 
 // newActEnv membuat TENANT SEMENTARA (dihapus saat selesai) berisi kasir bershift terbuka dan penyetuju ber-PIN. Tidak menyentuh data nyata.
@@ -62,9 +77,9 @@ func newActEnv(t *testing.T) *actEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc.WithActions(shift.NewService(app, appr), appr)
+	svc.WithActions(shift.NewService(app, appr), appr).WithMFA(fakeMFA{off: map[uuid.UUID]bool{}})
 
-	e := &actEnv{svc: svc, admin: admin, tenant: uuid.New(), outlet: uuid.New(), pin: "482915"}
+	e := &actEnv{app: app, rdb: rdb, svc: svc, admin: admin, tenant: uuid.New(), outlet: uuid.New(), pin: "482915"}
 	exec := func(sql string, args ...any) {
 		t.Helper()
 		if _, err := admin.Exec(ctx, sql, args...); err != nil {
@@ -94,7 +109,7 @@ func newActEnv(t *testing.T) *actEnv {
 	const kasirPerms = `{"sales_orders":["view","create"],"ai_assistant":["view","create"]}`
 	e.cashier = person("Kasir", kasirPerms)
 	e.other = person("KasirLain", kasirPerms)
-	e.approver = person("Penyetuju", `{"shift_close":["approve"]}`)
+	e.approver = person("Penyetuju", `{"ai_write":["approve"]}`)
 	if err := appr.SetPin(ctx, e.approver, itPassword, e.pin); err != nil {
 		t.Fatal(err)
 	}
@@ -102,6 +117,11 @@ func newActEnv(t *testing.T) *actEnv {
 		t.Fatal(err)
 	}
 	return e
+}
+
+// good = penyetuju + PIN yang benar.
+func (e *actEnv) good() *shift.ApprovalIn {
+	return &shift.ApprovalIn{UserID: e.approver.UserID, Pin: e.pin}
 }
 
 func (e *actEnv) propose(t *testing.T, a authz.Actor, tool, in string) (PendingAction, error) {
@@ -125,17 +145,17 @@ func TestAIPettyCashAddFlow(t *testing.T) {
 
 	// Usulan saja TIDAK menulis apa pun.
 	pa, err := e.propose(t, e.cashier, "propose_petty_cash_entry", `{"direction":"out","amount":"85000","category":"Listrik","note":"Toko Listrik Jaya"}`)
-	if err != nil || pa.Kind != KindPettyAdd || pa.NeedsPin || pa.Fields["amount"] != "85000.00" {
+	if err != nil || pa.Kind != KindPettyAdd || !pa.NeedsPin || !pa.NeedsTotp || pa.Fields["amount"] != "85000.00" {
 		t.Fatalf("propose: %+v %v", pa, err)
 	}
 	if n := e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1`, e.tenant); n != 0 {
 		t.Fatalf("usulan belum boleh menulis, ada %d baris", n)
 	}
 	// Pengguna lain tidak bisa menyetujui usulan orang.
-	if _, err := e.svc.ConfirmAction(ctx, e.other, pa.ID, nil); !errors.Is(err, ErrActionNotFound) {
+	if _, err := e.svc.ConfirmAction(ctx, e.other, pa.ID, nil, ""); !errors.Is(err, ErrActionNotFound) {
 		t.Fatalf("pengguna lain: %v", err)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, nil); err != nil {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), totpOK); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	if n := e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1 AND amount = 85000 AND direction = 'out' AND category = 'Listrik' AND idem_key = $2 AND created_by = $3`,
@@ -146,7 +166,7 @@ func TestAIPettyCashAddFlow(t *testing.T) {
 		t.Fatalf("audit ai.action harus 1, got %d", n)
 	}
 	// Usulan sekali pakai: klik ulang tidak mencatat dua kali.
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, nil); !errors.Is(err, ErrActionNotFound) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), totpOK); !errors.Is(err, ErrActionNotFound) {
 		t.Fatalf("confirm ulang: %v", err)
 	}
 	if n := e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1`, e.tenant); n != 1 {
@@ -158,17 +178,17 @@ func TestAIPettyCashAddFlow(t *testing.T) {
 	if err != nil || !big.NeedsPin {
 		t.Fatalf("kas keluar besar harus butuh PIN: %+v %v", big, err)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, nil); !errors.Is(err, approval.ErrPinRequired) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, nil, ""); !errors.Is(err, approval.ErrPinRequired) {
 		t.Fatalf("tanpa PIN: %v", err)
 	}
 	bad := &shift.ApprovalIn{UserID: e.approver.UserID, Pin: "111222"}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, bad); !errors.Is(err, approval.ErrInvalidPin) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, bad, totpOK); !errors.Is(err, approval.ErrInvalidPin) {
 		t.Fatalf("PIN salah: %v", err)
 	}
 	if n := e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1`, e.tenant); n != 1 {
 		t.Fatalf("PIN gagal tidak boleh menulis, got %d", n)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, &shift.ApprovalIn{UserID: e.approver.UserID, Pin: e.pin}); err != nil {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, big.ID, e.good(), totpOK); err != nil {
 		t.Fatalf("PIN benar: %v", err)
 	}
 	if n := e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1 AND amount = 150000 AND approved_by = $2`, e.tenant, e.approver.UserID); n != 1 {
@@ -189,7 +209,7 @@ func TestAIPettyCashVoidNeedsPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, add.ID, nil); err != nil {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, add.ID, e.good(), totpOK); err != nil {
 		t.Fatal(err)
 	}
 	var movID uuid.UUID
@@ -214,19 +234,19 @@ func TestAIPettyCashVoidNeedsPin(t *testing.T) {
 		return e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1 AND id = $2 AND voided_at IS NOT NULL`, e.tenant, movID)
 	}
 	// Hapus WAJIB PIN: tanpa PIN / PIN salah / penyetuju tak berizin → tidak ada yang dibatalkan, usulan tetap ada.
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, nil); !errors.Is(err, approval.ErrPinRequired) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, nil, ""); !errors.Is(err, approval.ErrPinRequired) {
 		t.Fatalf("tanpa PIN: %v", err)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.approver.UserID, Pin: "111222"}); !errors.Is(err, approval.ErrInvalidPin) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.approver.UserID, Pin: "111222"}, totpOK); !errors.Is(err, approval.ErrInvalidPin) {
 		t.Fatalf("PIN salah: %v", err)
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.other.UserID, Pin: e.pin}); !errors.Is(err, approval.ErrInvalidPin) {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.other.UserID, Pin: e.pin}, totpOK); !errors.Is(err, approval.ErrInvalidPin) {
 		t.Fatalf("penyetuju tak berizin: %v", err)
 	}
 	if voided() != 0 {
 		t.Fatal("tidak boleh terbatalkan tanpa PIN yang benar")
 	}
-	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.approver.UserID, Pin: e.pin}); err != nil {
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, va.ID, &shift.ApprovalIn{UserID: e.approver.UserID, Pin: e.pin}, totpOK); err != nil {
 		t.Fatalf("void dengan PIN benar: %v", err)
 	}
 	if voided() != 1 {
@@ -238,5 +258,54 @@ func TestAIPettyCashVoidNeedsPin(t *testing.T) {
 	// Sudah dibatalkan: tidak bisa diusulkan lagi.
 	if _, err := e.propose(t, e.cashier, "propose_void_petty_cash_entry", `{"movement_id":"`+movID.String()+`"}`); err == nil {
 		t.Error("catatan yang sudah dibatalkan tidak boleh diusulkan lagi")
+	}
+}
+
+// Semua aksi tulis wajib kode 2FA PENYETUJU: tanpa kode / kode salah / 2FA belum aktif ditolak tanpa menulis, dan percobaan salah dikunci.
+func TestAIWriteNeedsTOTP(t *testing.T) {
+	e := newActEnv(t)
+	ctx := context.Background()
+	rows := func() int { return e.count(t, `SELECT count(*) FROM cash_movements WHERE tenant_id = $1`, e.tenant) }
+	e.rdb.Del(ctx, e.svc.totpKey(e.tenant, e.approver.UserID))
+	t.Cleanup(func() { e.rdb.Del(ctx, e.svc.totpKey(e.tenant, e.approver.UserID)) })
+
+	pa, err := e.propose(t, e.cashier, "propose_petty_cash_entry", `{"direction":"out","amount":"5000","category":"Makan"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), ""); !errors.Is(err, ErrTOTPRequired) {
+		t.Fatalf("tanpa TOTP: %v", err)
+	}
+	for i := 0; i < totpMaxFails; i++ {
+		if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), "000000"); !errors.Is(err, ErrTOTPInvalid) {
+			t.Fatalf("TOTP salah #%d: %v", i, err)
+		}
+	}
+	var lk *TOTPLockedError
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), totpOK); !errors.As(err, &lk) {
+		t.Fatalf("setelah %d salah harus terkunci walau kode benar: %v", totpMaxFails, err)
+	}
+	if rows() != 0 {
+		t.Fatal("tidak boleh menulis tanpa TOTP yang benar")
+	}
+	e.rdb.Del(ctx, e.svc.totpKey(e.tenant, e.approver.UserID))
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pa.ID, e.good(), totpOK); err != nil {
+		t.Fatalf("PIN + TOTP benar: %v", err)
+	}
+	if rows() != 1 {
+		t.Fatalf("harus tercatat 1, got %d", rows())
+	}
+
+	// Penyetuju tanpa 2FA aktif tidak bisa menyetujui; pengguna yang bekerja tidak perlu 2FA.
+	pb, err := e.propose(t, e.cashier, "propose_petty_cash_entry", `{"direction":"out","amount":"5000","category":"Makan"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.mfa = fakeMFA{off: map[uuid.UUID]bool{e.approver.UserID: true}}
+	if _, err := e.svc.ConfirmAction(ctx, e.cashier, pb.ID, e.good(), totpOK); !errors.Is(err, ErrMFANotEnabled) {
+		t.Fatalf("penyetuju tanpa 2FA harus ditolak: %v", err)
+	}
+	if rows() != 1 {
+		t.Fatalf("tidak boleh menulis, got %d", rows())
 	}
 }

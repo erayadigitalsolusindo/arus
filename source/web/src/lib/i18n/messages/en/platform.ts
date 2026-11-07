@@ -490,7 +490,7 @@ const platform: Messages['platform'] = {
     fEnabled: 'HalloArus enabled',
     fEnabledHint: 'Off = every feature (chat, connector, history) is closed for the tenant.',
     fWrite: 'Write-action proposals',
-    fWriteHint: 'The AI may propose recording/voiding petty cash. A user approval is still required.',
+    fWriteHint: 'The AI may propose changes to master data (items, members, suppliers, vouchers, storefront) and petty cash. Every proposal requires an approver PIN + 2FA code. Turning off a data domain (e.g. Members) also blocks writes to its entity. Sales, purchases and debt/receivable payments can never be changed by the AI.',
     fCost: 'COGS, profit and stock value',
     fCostHint: 'When blocked, the AI never shows them even if the tenant role has permission.',
     fByok: 'Own provider API key',

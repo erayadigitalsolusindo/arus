@@ -185,20 +185,20 @@ func TestActionOwnershipAndPinRequired(t *testing.T) {
 	id := save(KindPettyVoid, a)
 	other := a
 	other.UserID = uuid.New()
-	if _, err := s.ConfirmAction(ctx, other, id, nil); err != ErrActionNotFound {
+	if _, err := s.ConfirmAction(ctx, other, id, nil, ""); err != ErrActionNotFound {
 		t.Errorf("pengguna lain harus ditolak seperti 'tidak ada', got %v", err)
 	}
 	otherOutlet := a
 	otherOutlet.OutletID = uuid.New()
-	if _, err := s.ConfirmAction(ctx, otherOutlet, id, nil); err != ErrActionNotFound {
+	if _, err := s.ConfirmAction(ctx, otherOutlet, id, nil, ""); err != ErrActionNotFound {
 		t.Errorf("outlet lain harus ditolak, got %v", err)
 	}
 	otherTenant := a
 	otherTenant.TenantID = uuid.New()
-	if _, err := s.ConfirmAction(ctx, otherTenant, id, nil); err != ErrActionNotFound {
+	if _, err := s.ConfirmAction(ctx, otherTenant, id, nil, ""); err != ErrActionNotFound {
 		t.Errorf("tenant lain harus ditolak, got %v", err)
 	}
-	if _, err := s.ConfirmAction(ctx, a, id, nil); err != approval.ErrPinRequired {
+	if _, err := s.ConfirmAction(ctx, a, id, nil, ""); err != approval.ErrPinRequired {
 		t.Errorf("void tanpa PIN harus ditolak, got %v", err)
 	}
 	if _, err := s.loadAction(ctx, a, id); err != nil {
@@ -219,7 +219,7 @@ func TestActionOwnershipAndPinRequired(t *testing.T) {
 	if err := s.CancelAction(ctx, a, id); err != nil {
 		t.Errorf("batal harus idempoten: %v", err)
 	}
-	if _, err := s.ConfirmAction(ctx, a, "bukan-uuid", nil); err != ErrActionNotFound {
+	if _, err := s.ConfirmAction(ctx, a, "bukan-uuid", nil, ""); err != ErrActionNotFound {
 		t.Errorf("id sembarang harus ditolak, got %v", err)
 	}
 }
