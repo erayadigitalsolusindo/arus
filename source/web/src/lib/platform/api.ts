@@ -193,6 +193,11 @@ export type DomainRow = {
   created_at: string;
   landing: boolean;
   google_client_id: string;
+  brand_name: string;
+  brand_footer: string;
+  brand_ver: number;
+  has_logo: boolean;
+  has_icon: boolean;
 };
 
 export type TemplateRow = { id: string; code: string; name: string; description: string; category: string; active: boolean; sort_order: number; bytes: number; updated_at: string };
@@ -290,6 +295,11 @@ export const platformApi = {
   setDomainDisabled: (id: string, disabled: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ disabled }) }),
   setDomainLanding: (id: string, landing: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ landing }) }),
   setDomainGoogle: (id: string, google_client_id: string) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ google_client_id }) }),
+  setDomainBrand: (id: string, body: { brand_name?: string; brand_footer?: string }) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json(body) }),
+  /** Unggah logo/ikon domain (badan = berkas gambar mentah, maks 512 KB). */
+  uploadDomainAsset: (id: string, kind: 'logo' | 'icon', file: File) =>
+    papi<void>(`/platform/domains/${id}/brand/${kind}`, { method: 'PUT', body: file, headers: { 'Content-Type': file.type || 'application/octet-stream' } }),
+  deleteDomainAsset: (id: string, kind: 'logo' | 'icon') => papi<void>(`/platform/domains/${id}/brand/${kind}`, { method: 'DELETE' }),
   deleteDomain: (id: string) => papi<void>(`/platform/domains/${id}`, { method: 'DELETE' }),
 
   qaCatalog: () => papi<{ apps: QAApp[]; total: number }>('/platform/qa/catalog'),

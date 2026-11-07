@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '#lib/i18n/index.ts';
+  import { brand } from '#lib/brand.svelte.ts';
 
   // Tautan ke Syarat Layanan dan Kebijakan Privasi; warna mengikuti teks induk (footer terang, sidebar gelap).
   // `newTab` dipakai di dalam aplikasi supaya tab kerja dan draf formulir tidak ditinggalkan.
@@ -9,6 +10,10 @@
 </script>
 
 <nav class="legal-links" aria-label={t('legal.nav')}>
+  {#if brand.footer}
+    <span>{brand.footer}</span>
+    <span aria-hidden="true">·</span>
+  {/if}
   <a href="/terms" {target} {rel}>{t('legal.terms.title')}</a>
   <span aria-hidden="true">·</span>
   <a href="/privacy" {target} {rel}>{t('legal.privacy.title')}</a>

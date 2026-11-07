@@ -58,7 +58,12 @@ type DomainRow struct {
 	LastCheckAt    *time.Time `json:"last_check_at"`
 	LastCheckError string     `json:"last_check_error"`
 	CreatedAt      time.Time  `json:"created_at"`
-	Landing        bool       `json:"landing"`          // root domain menampilkan landing page tenant
+	Landing        bool       `json:"landing"` // root domain menampilkan landing page tenant
+	BrandName      string     `json:"brand_name"`
+	BrandFooter    string     `json:"brand_footer"`
+	BrandVer       int64      `json:"brand_ver"`
+	HasLogo        bool       `json:"has_logo"`
+	HasIcon        bool       `json:"has_icon"`
 	GoogleClientID string     `json:"google_client_id"` // OAuth client ID Google milik domain ini; kosong = tanpa login Google
 }
 
@@ -73,7 +78,7 @@ func normalizeHost(raw string) (string, error) {
 
 func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUID) ([]DomainRow, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT id, tenant_id, tenant_code, tenant_name, host, status, verified_at, last_check_at,
-		last_check_error, created_at, landing, google_client_id FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
+		last_check_error, created_at, landing, google_client_id, brand_name, brand_footer, brand_ver, has_logo, has_icon FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
 	if err != nil {
 		if pgCode(err) == "42501" {
 			return nil, ErrInvalidSession
@@ -88,7 +93,7 @@ func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUI
 			verified, lastAt pgtype.Timestamptz
 			r                DomainRow
 		)
-		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt, &r.Landing, &r.GoogleClientID); err != nil {
+		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt, &r.Landing, &r.GoogleClientID, &r.BrandName, &r.BrandFooter, &r.BrandVer, &r.HasLogo, &r.HasIcon); err != nil {
 			return nil, err
 		}
 		r.ID = uuid.UUID(d.Bytes)
@@ -287,9 +292,10 @@ func (s *Service) DeleteDomain(ctx context.Context, a Actor, id uuid.UUID) error
 
 // PublicDomain = identitas minimal tenant pemilik domain aktif (tanpa data sensitif).
 type PublicDomain struct {
-	TenantCode     string `json:"tenant_code"`
-	TenantName     string `json:"tenant_name"`
-	GoogleClientID string `json:"google_client_id"`
+	TenantCode     string       `json:"tenant_code"`
+	TenantName     string       `json:"tenant_name"`
+	GoogleClientID string       `json:"google_client_id"`
+	Brand          *PublicBrand `json:"brand,omitempty"`
 }
 
 // LookupPublicDomain: ErrNotFound bila host bukan domain aktif milik tenant aktif.
@@ -307,6 +313,9 @@ func (s *Service) LookupPublicDomain(ctx context.Context, rawHost string) (Publi
 		return PublicDomain{}, err
 	}
 	if err := s.Pool.QueryRow(ctx, `SELECT public_domain_google($1)`, host).Scan(&p.GoogleClientID); err != nil {
+		return PublicDomain{}, err
+	}
+	if p.Brand, err = s.publicBrand(ctx, host); err != nil {
 		return PublicDomain{}, err
 	}
 	return p, nil
@@ -387,9 +396,11 @@ func (h *Handler) VerifyDomain(w http.ResponseWriter, r *http.Request) {
 }
 
 type patchDomainRequest struct {
-	Disabled *bool   `json:"disabled"`
-	Landing  *bool   `json:"landing"`
-	Google   *string `json:"google_client_id"`
+	Disabled    *bool   `json:"disabled"`
+	Landing     *bool   `json:"landing"`
+	Google      *string `json:"google_client_id"`
+	BrandName   *string `json:"brand_name"`
+	BrandFooter *string `json:"brand_footer"`
 }
 
 func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
@@ -401,7 +412,7 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Disabled == nil && req.Landing == nil && req.Google == nil {
+	if req.Disabled == nil && req.Landing == nil && req.Google == nil && req.BrandName == nil && req.BrandFooter == nil {
 		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Tidak ada perubahan.")
 		return
 	}
@@ -412,10 +423,15 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if err == nil && req.Landing != nil {
 		err = h.svc.SetDomainLanding(r.Context(), actor(r), id, *req.Landing)
 	}
+	if err == nil && (req.BrandName != nil || req.BrandFooter != nil) {
+		err = h.svc.SetDomainBrand(r.Context(), actor(r), id, req.BrandName, req.BrandFooter)
+	}
 	if err == nil && req.Google != nil {
 		err = h.svc.SetDomainGoogle(r.Context(), actor(r), id, *req.Google)
 	}
 	switch {
+	case errors.Is(err, ErrBrandInvalid):
+		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Nama maks 60 karakter dan footer maks 200 karakter, tanpa karakter kontrol.")
 	case errors.Is(err, ErrGoogleClientInvalid):
 		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Google Client ID tidak valid. Contoh: 1234567890-abc123.apps.googleusercontent.com")
 	case errors.Is(err, ErrNotFound):

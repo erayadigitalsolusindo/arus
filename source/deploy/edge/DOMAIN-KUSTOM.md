@@ -122,3 +122,9 @@ Perlu migration `00103` dan Caddyfile terbaru (blok `@root`).
 3. Server menerima ID token dengan `aud` = ID itu paling lambat satu menit setelah disimpan (domain harus berstatus Aktif).
 
 Perlu migration `00104`.
+
+## H. White label penuh
+
+Di **Platform → Domain**, kartu domain punya bagian **Tampilan white label**: nama aplikasi, teks footer, logo penuh, dan ikon/favicon (gambar maks 512 KB, disimpan di database). Di domain itu, kata "ARUS" pada teks aplikasi, judul tab, logo, dan footer diganti sesuai pengaturan. Bila dikosongkan: nama tenant tanpa logo ARUS.
+
+Landing ARUS (`/landing`) tidak dipakai di domain kustom: `/landing` diarahkan ke `/`, dan `/` menampilkan landing tenant (bila saklarnya nyala) atau halaman login. Perlu migration `00105`, web terbaru, dan Caddyfile terbaru (blok `@arus_landing`).

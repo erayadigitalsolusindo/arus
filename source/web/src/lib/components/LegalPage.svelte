@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLogo from '#lib/components/BrandLogo.svelte';
   import { onMount } from 'svelte';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
@@ -199,7 +200,7 @@
       </button>
     </div>
     <a href="/login" class="flex justify-center" aria-label="ARUS">
-      <img src="/logo_dengan_text-no-bg.svg" alt="ARUS" class="h-14 w-auto logo" />
+      <BrandLogo class="h-14 w-auto logo" />
     </a>
 
     <div class="term mt-6">
@@ -327,7 +328,7 @@
   .g2 { bottom: -18rem; right: -14rem; background: #7c3aed; }
   .scan { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px); opacity: var(--scan); }
   /* Stroke putih tipis (4 bayangan tanpa blur) + cahaya hijau, supaya logo biru tetap terbaca di latar gelap. */
-  .logo { filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 0 16px rgb(34 197 94 / 0.35)); }
+  :global(.logo) { filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 0 16px rgb(34 197 94 / 0.35)); }
   .foot :global(.text-tertiary) { color: var(--muted); }
   .foot :global(a:hover), .foot :global(button:hover) { color: var(--acc); }
 

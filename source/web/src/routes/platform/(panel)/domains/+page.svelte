@@ -3,6 +3,7 @@
   import { platformApi, type DomainRow, type TenantRow } from '#lib/platform/api.ts';
   import { t, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import { API_URL } from '#lib/api/client.ts';
   import Avatar from '#lib/platform/Avatar.svelte';
   import StatCard from '#lib/platform/StatCard.svelte';
   import { relativeTime } from '#lib/platform/relative.ts';
@@ -239,6 +240,33 @@
       delete googleDraft[d.id];
       return id ? t('platform.domains.googleOnMsg') : t('platform.domains.googleOffMsg');
     });
+  // White label: draf nama/footer yang sedang diketik per domain; logo/ikon diunggah langsung saat dipilih.
+  let brandDraft = $state<Record<string, { name?: string; footer?: string }>>({});
+  const brandName = (d: DomainRow) => brandDraft[d.id]?.name ?? d.brand_name;
+  const brandFooter = (d: DomainRow) => brandDraft[d.id]?.footer ?? d.brand_footer;
+  const brandDirty = (d: DomainRow) => brandName(d).trim() !== d.brand_name || brandFooter(d).trim() !== d.brand_footer;
+  const saveBrand = (d: DomainRow) =>
+    run(d.id, async () => {
+      await platformApi.setDomainBrand(d.id, { brand_name: brandName(d).trim(), brand_footer: brandFooter(d).trim() });
+      delete brandDraft[d.id];
+      return t('platform.domains.brandSaved');
+    });
+  const pickAsset = (d: DomainRow, kind: 'logo' | 'icon', e: Event) => {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    return run(d.id, async () => {
+      await platformApi.uploadDomainAsset(d.id, kind, file);
+      return t('platform.domains.brandImgSaved');
+    });
+  };
+  const removeAsset = (d: DomainRow, kind: 'logo' | 'icon') =>
+    run(d.id, async () => {
+      await platformApi.deleteDomainAsset(d.id, kind);
+      return t('platform.domains.brandImgRemoved');
+    });
+  const assetUrl = (d: DomainRow, kind: 'logo' | 'icon') => `${API_URL}/public/brand-asset?kind=${kind}&host=${encodeURIComponent(d.host)}&v=${d.brand_ver}`;
   const remove = (d: DomainRow) => {
     if (!confirm(t('platform.domains.deleteConfirm'))) return;
     return run(d.id, async () => {
@@ -468,6 +496,54 @@
               >
                 <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-all" style="inset-inline-start:{d.landing ? '22px' : '2px'}"></span>
               </button>
+            </div>
+          </div>
+
+          <!-- white label: nama, logo, ikon, footer -->
+          <div class="space-y-3 border-t border-[var(--border-subtle)] px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-600)]"><i class="icon-palette text-[16px]"></i></span>
+              <div class="min-w-0">
+                <p class="text-[12.5px] font-semibold">{t('platform.domains.brandTitle')}</p>
+                <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.domains.brandHelp')}</p>
+              </div>
+            </div>
+            <div class="grid gap-3 ps-11 sm:grid-cols-2">
+              <label class="block text-[12px] font-medium">{t('platform.domains.brandName')}
+                <input type="text" maxlength="60" value={brandName(d)} oninput={(e) => (brandDraft[d.id] = { ...brandDraft[d.id], name: e.currentTarget.value })} placeholder={d.tenant_name} class="field-control mt-1 w-full !text-[12.5px]" />
+              </label>
+              <label class="block text-[12px] font-medium">{t('platform.domains.brandFooter')}
+                <input type="text" maxlength="200" value={brandFooter(d)} oninput={(e) => (brandDraft[d.id] = { ...brandDraft[d.id], footer: e.currentTarget.value })} placeholder={t('platform.domains.brandFooterPh', { name: d.tenant_name })} class="field-control mt-1 w-full !text-[12.5px]" />
+              </label>
+              {#each [{ kind: 'logo' as const, has: d.has_logo, label: t('platform.domains.brandLogo') }, { kind: 'icon' as const, has: d.has_icon, label: t('platform.domains.brandIcon') }] as a (a.kind)}
+                <div class="rounded-xl border border-[var(--border-subtle)] p-3">
+                  <p class="text-[12px] font-medium">{a.label}</p>
+                  <div class="mt-2 flex items-center gap-3">
+                    <div class="grid h-12 w-24 shrink-0 place-items-center overflow-hidden rounded-lg bg-[var(--surface-sunken)]">
+                      {#if a.has && d.status === 'active'}
+                        <img src={assetUrl(d, a.kind)} alt={a.label} class="max-h-12 max-w-24 object-contain" />
+                      {:else if a.has}
+                        <i class="icon-check text-[16px] text-[var(--color-success-600)]"></i>
+                      {:else}
+                        <i class="icon-image text-[18px] text-[var(--text-tertiary)]"></i>
+                      {/if}
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                      <label class="btn btn-outline !text-[11.5px] !py-1 cursor-pointer">
+                        <i class="icon-upload text-[12px]"></i>{a.has ? t('platform.domains.brandReplace') : t('platform.domains.brandUpload')}
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" class="sr-only" disabled={busy === d.id} onchange={(e) => pickAsset(d, a.kind, e)} />
+                      </label>
+                      {#if a.has}
+                        <button type="button" class="btn btn-outline !text-[11.5px] !py-1 text-[var(--color-danger-600)]" disabled={busy === d.id} onclick={() => removeAsset(d, a.kind)}>{t('platform.domains.brandRemove')}</button>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 ps-11">
+              <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.domains.brandImgHelp')}</p>
+              <button type="button" class="btn btn-primary !text-[12px] !py-1" disabled={busy === d.id || !brandDirty(d)} onclick={() => saveBrand(d)}>{t('platform.domains.save')}</button>
             </div>
           </div>
 

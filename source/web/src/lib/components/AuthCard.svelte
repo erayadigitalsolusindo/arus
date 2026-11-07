@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLogo from '#lib/components/BrandLogo.svelte';
   import type { Snippet } from 'svelte';
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
@@ -11,7 +12,7 @@
   <LoginBackdrop />
   <div class="relative flex-1 flex flex-col justify-center w-full mx-auto {wide ? 'max-w-[760px]' : 'max-w-[420px]'}">
     <a href="/login" class="flex justify-center" aria-label="ACIRABA">
-      <img src="/logo_dengan_text-no-bg.svg" alt="ACIRABA" class="h-16 w-auto" />
+      <BrandLogo class="h-16 w-auto" />
     </a>
     <div class="surface-card p-6 mt-6">
       {@render children()}

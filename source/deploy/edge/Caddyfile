@@ -59,8 +59,13 @@ https:// {
 		}
 	}
 
+	# Landing ARUS (/landing) tidak dipakai di domain kustom (white label): kembali ke root, yang menampilkan landing tenant
+	# (bila dinyalakan) atau halaman login.
+	@arus_landing path /landing /landing/*
+	redir @arus_landing / 302
+
 	# Berkas statis SPA.
-	@assets path /_app/* /landing/* /robots.txt /sitemap.xml *.svg
+	@assets path /_app/* /robots.txt /sitemap.xml *.svg
 	handle @assets {
 		import web_upstream
 	}

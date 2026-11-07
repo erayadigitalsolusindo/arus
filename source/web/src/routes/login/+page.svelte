@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLogo from '#lib/components/BrandLogo.svelte';
   import { z } from 'zod';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -192,7 +193,7 @@
       <BarcodeScanner />
       <h1 class="flex flex-col justify-center items-center text-center font-display font-bold text-[22px]">
         {t('auth.login.titleLine1')}
-        <img src="/logo_dengan_text-no-bg.svg" alt={t('auth.login.titleLine2')} class="mt-1 h-20 w-auto" />
+        <BrandLogo class="mt-1 h-20 w-auto" />
       </h1>
       <p class="flex justify-center items-center text-[12.5px] mt-1.5 text-tertiary">{t('auth.login.subtitle')}</p>
       {#if brand}<p class="flex justify-center items-center text-[13px] mt-1 font-semibold">{t('auth.login.brandedFor', { name: brand })}</p>{/if}

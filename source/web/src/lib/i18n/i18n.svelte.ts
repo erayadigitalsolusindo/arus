@@ -45,6 +45,9 @@ export function setLocale(locale: Locale) {
   }
 }
 
+/** Nama merek domain kustom; kosong = tampilkan teks apa adanya (ARUS). */
+export const brandText = $state({ name: '' });
+
 function lookup(locale: Locale, key: string): string | Plural | undefined {
   let node: unknown = messages[locale];
   for (const part of key.split('.')) {
@@ -70,6 +73,7 @@ function render(text: string | Plural, locale: Locale, params?: Params): string 
     const category = count === 0 && text.zero !== undefined ? 'zero' : new Intl.PluralRules(LOCALES[locale].intl).select(count);
     out = text[category as keyof Plural] ?? text.other;
   }
+  if (brandText.name) out = out.replace(/\bARUS\b/g, () => brandText.name);
   if (!params) return out;
   const nf = new Intl.NumberFormat(LOCALES[locale].intl);
   return out.replace(/\{(\w+)\}/g, (m, name: string) => {

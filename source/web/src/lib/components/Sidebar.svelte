@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLogo from '#lib/components/BrandLogo.svelte';
   import LegalLinks from '#lib/components/LegalLinks.svelte';
   import { session, logout, can, isLocked } from '#lib/auth/session.svelte.ts';
   import { showLockPrompt } from '#lib/subscription/lock.svelte.ts';
@@ -69,8 +70,8 @@
 <aside class="app-sidebar sidebar-pattern scroll-thin" class:is-mobile-open={mobileOpen} aria-label={t('shell.sidebar')}>
   <div class="flex items-center justify-between h-16 px-4 shrink-0 border-b border-[var(--sidebar-border)]">
     <a href="/dashboard" class="flex items-center gap-2.5 min-w-0 rounded-xl px-2.5 py-1.5">
-      <img src="/logo_dengan_text-no-bg.svg" alt="ARUS" class="sidebar-logo-full logo-outline h-10 w-auto object-contain shrink-0" />
-      <img src="/logo_tanpa_text-no-bg.svg" alt="ARUS" class="sidebar-logo-small logo-outline h-8 w-auto object-contain shrink-0 hidden" />
+      <BrandLogo class="sidebar-logo-full logo-outline h-10 w-auto object-contain shrink-0" />
+      <BrandLogo kind="icon" class="sidebar-logo-small logo-outline h-8 w-auto object-contain shrink-0 hidden" />
     </a>
     <button
       type="button"
@@ -239,7 +240,7 @@
   }
 
   /* Outline putih mengikuti kontur logo (logo biru tua di atas sidebar gelap). */
-  .logo-outline {
+  :global(.logo-outline) {
     filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff);
   }
 

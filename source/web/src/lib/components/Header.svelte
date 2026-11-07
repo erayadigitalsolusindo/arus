@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLogo from '#lib/components/BrandLogo.svelte';
   import { t } from '#lib/i18n/index.ts';
   import ShortcutBar from '#lib/components/ShortcutBar.svelte';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
@@ -103,7 +104,7 @@
     </button>
 
     <a href="/dashboard" class="lg:hidden shrink-0" aria-label="ACIRABA">
-      <img src="/logo_tanpa_text-no-bg.svg" alt="ARUS" class="h-8 w-auto object-contain" />
+      <BrandLogo kind="icon" class="h-8 w-auto object-contain" />
     </a>
 
     <div class="flex w-full items-center gap-2.5 lg:gap-3">
