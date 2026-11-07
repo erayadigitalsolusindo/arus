@@ -18,14 +18,11 @@
 }
 
 (web_upstream) {
-	reverse_proxy https://arus.erayadigital.co.id {
-		header_up Host {upstream_hostport}
-	}
+	reverse_proxy https://arus.erayadigital.co.id
 }
 
 (api_upstream) {
 	reverse_proxy https://arus-api.erayadigital.co.id {
-		header_up Host {upstream_hostport}
 		# X-Forwarded-For (alamat klien asli untuk rate limit/lockout API; API butuh TRUST_PROXY=true) sudah diisi Caddy sendiri.
 	}
 }
@@ -34,6 +31,9 @@ https:// {
 	tls {
 		on_demand
 	}
+
+	# Kompres JS/CSS/JSON ke browser (respons yang sudah terkompres dari upstream dibiarkan apa adanya).
+	encode zstd gzip
 
 	# Rute API yang tidak pernah berupa halaman SPA (dibuka juga lewat tautan langsung, mis. unduh APK, OAuth, MCP).
 	@api_only path /public/* /s/* /oauth/* /.well-known/* /mcp /mcp/* /healthz /ext/*
@@ -50,7 +50,6 @@ https:// {
 	handle @root {
 		rewrite * /public/domain-root?host={host}
 		reverse_proxy https://arus-api.erayadigital.co.id {
-			header_up Host {upstream_hostport}
 			@nolanding status 404
 			handle_response @nolanding {
 				rewrite * /

@@ -510,7 +510,7 @@
             </div>
             <div class="grid gap-3 ps-11 sm:grid-cols-2">
               <label class="block text-[12px] font-medium">{t('platform.domains.brandName')}
-                <input type="text" maxlength="60" value={brandName(d)} oninput={(e) => (brandDraft[d.id] = { ...brandDraft[d.id], name: e.currentTarget.value })} placeholder={d.tenant_name} class="field-control mt-1 w-full !text-[12.5px]" />
+                <input type="text" maxlength="60" value={brandName(d)} oninput={(e) => (brandDraft[d.id] = { ...brandDraft[d.id], name: e.currentTarget.value })} placeholder="ARUS" class="field-control mt-1 w-full !text-[12.5px]" />
               </label>
               <label class="block text-[12px] font-medium">{t('platform.domains.brandFooter')}
                 <input type="text" maxlength="200" value={brandFooter(d)} oninput={(e) => (brandDraft[d.id] = { ...brandDraft[d.id], footer: e.currentTarget.value })} placeholder={t('platform.domains.brandFooterPh', { name: d.tenant_name })} class="field-control mt-1 w-full !text-[12.5px]" />

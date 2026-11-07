@@ -73,7 +73,7 @@ function render(text: string | Plural, locale: Locale, params?: Params): string 
     const category = count === 0 && text.zero !== undefined ? 'zero' : new Intl.PluralRules(LOCALES[locale].intl).select(count);
     out = text[category as keyof Plural] ?? text.other;
   }
-  if (brandText.name) out = out.replace(/\bARUS\b/g, () => brandText.name);
+  if (brandText.name && out.includes('ARUS')) out = out.replace(/\bARUS\b/g, () => brandText.name);
   if (!params) return out;
   const nf = new Intl.NumberFormat(LOCALES[locale].intl);
   return out.replace(/\{(\w+)\}/g, (m, name: string) => {

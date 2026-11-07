@@ -27,30 +27,36 @@ export async function initBrand(): Promise<void> {
       brand?: { name: string; footer: string; logo_url: string; icon_url: string };
     }>(`/public/branding?host=${encodeURIComponent(location.hostname)}`, {}, null);
     const b = r.brand;
-    // Tanpa nama khusus memakai nama tenant, bukan "ARUS" (white label penuh).
-    const name = (b?.name || r.tenant_name || '').trim();
+    // Bawaan = tampilan ARUS; hanya bagian yang diisi admin (Platform > Domain) yang berubah.
+    const name = (b?.name ?? '').trim();
     if (name) {
       brand.name = name;
       brandText.name = name;
       // Judul tab diatur tiap halaman ("... | ACIRABA"); ganti ARUS/ACIRABA dengan nama merek, juga saat judul berubah.
+      // Idempoten: judul yang sudah memuat nama merek tidak diganti lagi. Tanpa ini, nama yang mengandung kata "ARUS"
+      // (mis. "ARUS Kotak Cantik") membuat penggantian memicu pengamat lagi tanpa henti dan browser membeku.
       const fix = () => {
-        const next = document.title.replace(/\b(ARUS|ACIRABA)\b/g, () => name);
-        if (next !== document.title) document.title = next;
+        const cur = document.title;
+        if (cur.includes(name) || !/\b(ARUS|ACIRABA)\b/.test(cur)) return;
+        document.title = cur.replace(/\b(ARUS|ACIRABA)\b/g, () => name);
       };
       fix();
-      new MutationObserver(fix).observe(document.querySelector('title') ?? document.head, { childList: true, subtree: true, characterData: true });
+      const titleEl = document.querySelector('title');
+      if (titleEl) new MutationObserver(fix).observe(titleEl, { childList: true, characterData: true });
     }
     brand.footer = b?.footer ?? '';
-    brand.logo = b?.logo_url || '';
-    brand.icon = b?.icon_url || b?.logo_url || '';
-    if (brand.icon) {
+    brand.logo = b?.logo_url || DEFAULT_LOGO;
+    brand.icon = b?.icon_url || DEFAULT_ICON;
+    if (b?.icon_url) {
       for (const el of document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]')) {
-        el.href = brand.icon;
+        el.href = b.icon_url;
         el.removeAttribute('type');
       }
     }
   } catch {
-    /* gagal memuat: tampilan polos tanpa logo ARUS */
+    // Gagal memuat: tetap tampilan ARUS.
+    brand.logo = DEFAULT_LOGO;
+    brand.icon = DEFAULT_ICON;
   } finally {
     brand.ready = true;
   }
