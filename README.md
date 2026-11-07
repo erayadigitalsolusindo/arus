@@ -172,7 +172,7 @@ flowchart LR
 | Cetak | print-agent Go tanpa dependensi (spooler RAW); mobile: Bluetooth SPP ESC/POS |
 | Deploy | Docker Compose (Postgres + Redis), binary Go via systemd, web statis di Apache/Nginx, Caddy untuk domain kustom |
 
-**Invarian di semua modul:** tenant/outlet dari token · satu use-case satu transaksi · harga dihitung server · stok = ledger · idempotensi · kunci bisnis dijaga DB · uang tanpa float · aturan bisnis di service Go yang dites · tanpa secret di repo. Uraian lengkap: [`AGENTS.md` §3](AGENTS.md); desain data: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+**Invarian di semua modul:** tenant/outlet dari token · satu use-case satu transaksi · harga dihitung server · stok = ledger · idempotensi · kunci bisnis dijaga DB · uang tanpa float · aturan bisnis di service Go yang dites · tanpa secret di repo. Desain data: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## 🚀 Quickstart
 
@@ -289,7 +289,7 @@ Test membuat dan membersihkan tenant uji sendiri; pakai database dev, bukan prod
 
 ## 📱 ARUS Mobile (Android)
 
-Kasir native (Flutter) dengan API Go yang sama dengan web. Aturan lengkap: [`source/mobile/AGENTS.md`](source/mobile/AGENTS.md).
+Kasir native (Flutter) dengan API Go yang sama dengan web.
 
 - **Kasir lengkap**: katalog bergambar, scan kamera + pemindai HID, keranjang dengan harga dari server, bayar tunai/non-tunai/split/**kredit**, **QRIS EraPay**, member & tukar poin, salesman, ubah harga dengan PIN penyetuju, biaya lain, nota pending, pintasan barang, filter kategori
 - **Shift**: buka/tutup dengan hitung fisik, kas kecil, Penjualan hari ini, pindah cabang
@@ -322,9 +322,6 @@ Integrasi server-ke-server lewat gateway **`/ext/v1/*`** dengan tanda tangan **H
 
 ```text
 .
-├── AGENTS.md              # pintu masuk agen: keputusan terkunci, invarian, peta dokumen
-├── CLAUDE.md              # pointer ke AGENTS.md
-├── .agent/SESSION.md      # status sesi terkini dan langkah berikutnya
 ├── docs/                  # PRD, ROADMAP, ARCHITECTURE, DEV-ENV, RUN, LEGACY, SESSION-LOG
 ├── reference/             # acuan visual template UI (tidak ikut git)
 ├── docker/                # compose mesin dev pengembang, bukan compose ARUS
@@ -366,7 +363,7 @@ Modul backend (`source/backend/internal/`): `auth` `authz` `iam` `audit` `outlet
 
 **Batasan:** kasir belum bisa offline · Syarat Layanan & Kebijakan Privasi belum ditinjau konsultan hukum (banner draf sudah dihapus atas keputusan pemilik produk) · email verifikasi belum memblokir login dan dikirim tanpa antrean/retry.
 
-Status rinci yang selalu terbaru: [`.agent/SESSION.md`](.agent/SESSION.md) dan [`docs/ROADMAP.md`](docs/ROADMAP.md). Bila README berbeda dengan keduanya atau dengan [`AGENTS.md`](AGENTS.md), **ikuti mereka**.
+Status rinci yang selalu terbaru: [`docs/ROADMAP.md`](docs/ROADMAP.md). Bila README berbeda, **ikuti `docs/`**.
 
 ## 🌐 Deploy
 
@@ -389,8 +386,6 @@ Status rinci yang selalu terbaru: [`.agent/SESSION.md`](.agent/SESSION.md) dan [
 
 | Dokumen | Isi |
 |---|---|
-| [`AGENTS.md`](AGENTS.md) | Pintu masuk: keputusan terkunci, invarian, konvensi (per folder: `source/backend`, `source/web`, `source/mobile`) |
-| [`.agent/SESSION.md`](.agent/SESSION.md) | Status terkini dan langkah berikutnya |
 | [`docs/PRD.md`](docs/PRD.md) | Kebutuhan produk: APA & MENGAPA (ID `FR-POS-…`, dst.) |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Fase dan kotak centang |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Desain data, struktur repo, pemetaan template UI |
@@ -399,10 +394,9 @@ Status rinci yang selalu terbaru: [`.agent/SESSION.md`](.agent/SESSION.md) dan [
 
 ## 🤝 Kontribusi
 
-- Baca `AGENTS.md` (dan `AGENTS.md` folder yang dikerjakan) sebelum mengubah kode.
 - **Tabel bertenant baru** wajib punya `tenant_id`, `ENABLE ROW LEVEL SECURITY` + policy `tenant_isolation`, dan test isolasi.
 - **Teks UI** selalu lewat kamus i18n `t('domain.kunci')` (id sumber + en + ja), tidak ditulis langsung di komponen.
-- **Siap big data:** paginasi keyset, tanpa `OFFSET`/count besar; pencarian teks di bawah RLS memakai pola fungsi `SECURITY DEFINER` ([`source/backend/AGENTS.md`](source/backend/AGENTS.md)). Ukur query berat sebagai role `aciraba_app`, bukan pemilik.
+- **Siap big data:** paginasi keyset, tanpa `OFFSET`/count besar; pencarian teks di bawah RLS memakai pola fungsi `SECURITY DEFINER`. Ukur query berat sebagai role `aciraba_app`, bukan pemilik.
 - Setiap modul wajib test invarian (stok tidak minus, total nota, idempotensi, konkurensi).
 - Jangan mengomit `.env`, kredensial, atau dump data pelanggan.
 
