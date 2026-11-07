@@ -2,16 +2,6 @@
 
 <img src="source/web/static/logo_dengan_text-no-bg.svg" alt="ARUS" width="260">
 
-```text
- █████╗ ██████╗ ██╗   ██╗███████╗
-██╔══██╗██╔══██╗██║   ██║██╔════╝
-███████║██████╔╝██║   ██║███████╗
-██╔══██║██╔══██╗██║   ██║╚════██║
-██║  ██║██║  ██║╚██████╔╝███████║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
- POS & ERP ritel · multi-tenant · multi-cabang
-```
-
 **Cepat di kasir. Rapi di stok. Jujur di angka.**
 
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white)
