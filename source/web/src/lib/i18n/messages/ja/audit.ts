@@ -123,6 +123,7 @@ const audit: Messages['audit'] = {
     member_level_active: 'メンバーレベルのステータスを変更しました',
     platform_impersonate: 'プラットフォーム管理者がテナントにログインしました（フルアクセス）',
     platform_tenant_status: 'プラットフォーム管理者がテナントのステータスを変更しました',
+    platform_tenant_rename: 'プラットフォーム管理者が店舗名/コードを変更しました',
     platform_tenant_edit_window: 'プラットフォーム管理者がレシート編集の制限期間を変更しました',
     platform_tenant_delete_schedule: 'プラットフォーム管理者がテナントの削除をスケジュールしました',
     platform_tenant_delete_cancel: 'プラットフォーム管理者がテナントの削除をキャンセルしました',

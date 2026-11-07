@@ -45,6 +45,7 @@ const errors: Messages['errors'] = {
   GOOGLE_EMAIL_UNVERIFIED: 'Googleアカウントのメールが未確認です。',
   GOOGLE_LINKED: 'このアカウントは既に別のGoogleアカウントに連携されています。',
   GOOGLE_DISABLED: 'Googleログインは有効化されていません。',
+  TENANT_CODE_TAKEN: 'この店舗コードは既に他の店舗で使われています。',
   EMAIL_TAKEN: 'このメールアドレスは既に登録されています。ログインするか、別のメールアドレスを使用してください。',
   INVALID_CREDENTIALS: 'メールアドレスまたはパスワードが正しくありません。',
   INVALID_CREDENTIALS_LEFT: { one: 'メールアドレスまたはパスワードが正しくありません。アカウントが一時的にロックされるまで残り {count} 回です。', other: 'メールアドレスまたはパスワードが正しくありません。アカウントが一時的にロックされるまで残り {count} 回です。' },

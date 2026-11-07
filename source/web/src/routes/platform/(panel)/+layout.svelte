@@ -1,5 +1,4 @@
 <script lang="ts">
-  import LegalLinks from '#lib/components/LegalLinks.svelte';
   import type { Snippet } from 'svelte';
   import { page } from '$app/state';
   import { afterNavigate, goto } from '$app/navigation';
@@ -131,9 +130,6 @@
           <i class="icon-log-out text-[14px]"></i>
         </button>
       </div>
-      <div class="workspace-text mt-2 px-1 text-[10.5px] text-[var(--sidebar-text)]">
-        <LegalLinks newTab help />
-      </div>
     </div>
   </aside>
 
@@ -192,6 +188,11 @@
             {#if menu}
               <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
                 <a href="/platform/security" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-key-round text-[15px]"></i>{t('platform.nav.security')}</a>
+                <div class="my-1 border-t border-[var(--border-subtle)]"></div>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-file-text text-[15px]"></i>{t('legal.terms.title')}</a>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-shield-check text-[15px]"></i>{t('legal.privacy.title')}</a>
+                <a href="/help" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-circle-help text-[15px]"></i>{t('common.help')}</a>
+                <div class="my-1 border-t border-[var(--border-subtle)]"></div>
                 <button type="button" onclick={platformLogout} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('platform.nav.signOut')}</button>
               </div>
             {/if}

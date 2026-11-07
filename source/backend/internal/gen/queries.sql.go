@@ -6552,6 +6552,24 @@ func (q *Queries) PlatformTenantOutlets(ctx context.Context, tenantID uuid.UUID)
 	return items, nil
 }
 
+const platformTenantRename = `-- name: PlatformTenantRename :execrows
+UPDATE tenants SET name = $1, code = $2 WHERE id = $3
+`
+
+type PlatformTenantRenameParams struct {
+	Name string
+	Code string
+	ID   uuid.UUID
+}
+
+func (q *Queries) PlatformTenantRename(ctx context.Context, arg PlatformTenantRenameParams) (int64, error) {
+	result, err := q.db.Exec(ctx, platformTenantRename, arg.Name, arg.Code, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const platformTenantSetActive = `-- name: PlatformTenantSetActive :execrows
 UPDATE tenants SET active = $1 WHERE id = $2
 `

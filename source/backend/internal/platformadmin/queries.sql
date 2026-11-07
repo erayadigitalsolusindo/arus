@@ -35,6 +35,9 @@ SELECT id, code, name, active, created_at, sale_edit_window_days FROM tenants WH
 -- name: PlatformTenantSetActive :execrows
 UPDATE tenants SET active = sqlc.arg(active) WHERE id = sqlc.arg(id);
 
+-- name: PlatformTenantRename :execrows
+UPDATE tenants SET name = sqlc.arg(name), code = sqlc.arg(code) WHERE id = sqlc.arg(id);
+
 -- name: PlatformTenantSetEditWindow :execrows
 UPDATE tenants SET sale_edit_window_days = sqlc.arg(days) WHERE id = sqlc.arg(id);
 

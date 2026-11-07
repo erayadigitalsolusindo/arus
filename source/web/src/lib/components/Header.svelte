@@ -187,6 +187,11 @@
           <div class="absolute end-0 mt-2 w-52 surface-card p-1.5 z-50" role="menu">
             <a href="/profile"  class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-user text-[15px]"></i>{t('shell.profile')}</a>
             <button type="button" onclick={(e) => { e.stopPropagation(); openEcosystem(); }} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-settings text-[15px]"></i>{t('shell.settings')}</button>
+            <div class="my-1 border-t border-[var(--border-subtle)]"></div>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-file-text text-[15px]"></i>{t('legal.terms.title')}</a>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-shield-check text-[15px]"></i>{t('legal.privacy.title')}</a>
+            <a href="/help" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-circle-help text-[15px]"></i>{t('common.help')}</a>
+            <div class="my-1 border-t border-[var(--border-subtle)]"></div>
             <button type="button" onclick={logout} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-[var(--color-danger-600)] hover:bg-[var(--surface-sunken)]" role="menuitem"><i class="icon-log-out text-[15px]"></i>{t('shell.signOut')}</button>
           </div>
         {/if}
