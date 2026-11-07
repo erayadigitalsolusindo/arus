@@ -39,6 +39,7 @@ const (
 	ActionPlatformImpersonate  = "platform.impersonate"
 	ActionPlatformTenantStatus = "platform.tenant_status"
 	ActionPlatformEditWindow   = "platform.tenant_edit_window" // batas hari edit/batal nota (diatur operator platform)
+	ActionPlatformTenantRename = "platform.tenant_rename"      // nama/kode (slug) tenant diganti operator platform
 	ActionPlatformTenantPlan   = "platform.tenant_plan"        // paket langganan tenant dipasang/diubah manual oleh operator platform
 )
 

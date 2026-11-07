@@ -499,6 +499,12 @@
             </div>
           </div>
 
+          <!-- white label + login Google: akordion, tertutup secara default -->
+          <details class="group border-t border-[var(--border-subtle)]">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[12.5px] font-semibold hover:bg-[var(--surface-sunken)] [&::-webkit-details-marker]:hidden">
+              <span class="inline-flex items-center gap-2"><i class="icon-palette text-[15px] text-[var(--color-primary-600)]"></i>{t('platform.domains.brandTitle')}</span>
+              <i class="icon-chevron-down text-[12px] text-[var(--text-tertiary)] transition-transform group-open:rotate-180"></i>
+            </summary>
           <!-- white label: nama, logo, ikon, footer -->
           <div class="space-y-3 border-t border-[var(--border-subtle)] px-4 py-3">
             <div class="flex items-start gap-3">
@@ -570,6 +576,8 @@
               <button type="button" class="btn btn-outline !text-[12px] !py-1" disabled={busy === d.id || googleValue(d).trim() === d.google_client_id} onclick={() => saveGoogle(d)}>{t('platform.domains.save')}</button>
             </div>
           </div>
+
+          </details>
 
           <!-- aksi -->
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2.5">

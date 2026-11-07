@@ -3,10 +3,13 @@ package platformadmin
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"aciraba/internal/audit"
@@ -180,6 +183,55 @@ func (s *Service) SetTenantActive(ctx context.Context, a Actor, tenantID uuid.UU
 		if active { // mengaktifkan kembali = membatalkan jadwal hapus (bila ada)
 			_, err = s.Pool.Exec(ctx, `SELECT platform_tenant_cancel_delete($1, $2)`, a.ID, tenantID)
 		}
+	}
+	return err
+}
+
+var (
+	ErrInvalidTenantName = errors.New("nama toko tidak valid")
+	ErrInvalidTenantCode = errors.New("kode toko tidak valid")
+	ErrTenantCodeTaken   = errors.New("kode toko sudah dipakai")
+
+	tenantCodeRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,31}$`)
+)
+
+// RenameTenant mengganti nama dan kode (slug) tenant. Kode hanya pengenal tampilan/dukungan (login memakai email),
+// jadi aman diganti; keunikan dijaga UNIQUE tenants_code_key. Tercatat di audit platform dan audit tenant.
+func (s *Service) RenameTenant(ctx context.Context, a Actor, tenantID uuid.UUID, name, code string) error {
+	name, code = strings.TrimSpace(name), strings.ToLower(strings.TrimSpace(code))
+	if n := len([]rune(name)); n < 1 || n > 100 {
+		return ErrInvalidTenantName
+	}
+	if !tenantCodeRe.MatchString(code) {
+		return ErrInvalidTenantCode
+	}
+	err := db.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		q := gen.New(tx)
+		t, err := q.PlatformTenantGet(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		if n, err := q.PlatformTenantRename(ctx, gen.PlatformTenantRenameParams{ID: tenantID, Name: name, Code: code}); err != nil || n == 0 {
+			if err == nil {
+				err = pgx.ErrNoRows
+			}
+			return err
+		}
+		details := map[string]any{"name": name, "code": code, "previous_name": t.Name, "previous_code": t.Code}
+		if err := s.recordTx(ctx, tx, a, ActionTenantRename, tenantID, name, details); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Actor{TenantID: tenantID, Name: "Platform: " + a.Name}, audit.Entry{
+			Action: audit.ActionPlatformTenantRename, Entity: audit.EntityTenant, EntityID: tenantID.String(),
+			Details: map[string]any{"name": name, "code": code, "previous_name": t.Name, "previous_code": t.Code, "admin_id": a.ID.String()},
+		})
+	})
+	var pe *pgconn.PgError
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrNotFound
+	case errors.As(err, &pe) && pe.Code == "23505" && pe.ConstraintName == "tenants_code_key":
+		return ErrTenantCodeTaken
 	}
 	return err
 }

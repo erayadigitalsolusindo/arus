@@ -427,6 +427,9 @@ type activeRequest struct {
 	Active *bool `json:"active"`
 	// SaleEditWindowDays: batas hari edit/batal nota tenant (0–3650); boleh dikirim bersama atau tanpa active.
 	SaleEditWindowDays *int `json:"sale_edit_window_days"`
+	// Name + Code (slug) diganti bersamaan; keduanya wajib bila salah satunya dikirim.
+	Name *string `json:"name"`
+	Code *string `json:"code"`
 }
 
 func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
@@ -438,9 +441,36 @@ func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Active == nil && req.SaleEditWindowDays == nil {
+	if req.Active == nil && req.SaleEditWindowDays == nil && req.Name == nil && req.Code == nil {
 		httpx.ValidationError(w, map[string]string{"active": "REQUIRED"})
 		return
+	}
+	if req.Name != nil || req.Code != nil {
+		if req.Name == nil || req.Code == nil {
+			httpx.ValidationError(w, map[string]string{"name": "REQUIRED", "code": "REQUIRED"})
+			return
+		}
+		switch err := h.svc.RenameTenant(r.Context(), actor(r), id, *req.Name, *req.Code); {
+		case errors.Is(err, ErrInvalidTenantName):
+			httpx.ValidationError(w, map[string]string{"name": "INVALID"})
+			return
+		case errors.Is(err, ErrInvalidTenantCode):
+			httpx.ValidationError(w, map[string]string{"code": "INVALID"})
+			return
+		case errors.Is(err, ErrTenantCodeTaken):
+			httpx.Error(w, http.StatusConflict, "TENANT_CODE_TAKEN", "Kode toko sudah dipakai toko lain.")
+			return
+		case errors.Is(err, ErrNotFound):
+			httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Tenant tidak ditemukan.")
+			return
+		case err != nil:
+			h.internal(w, r, "ubah nama toko gagal", err)
+			return
+		}
+		if req.Active == nil && req.SaleEditWindowDays == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 	}
 	if req.SaleEditWindowDays != nil {
 		switch err := h.svc.SetSaleEditWindow(r.Context(), actor(r), id, *req.SaleEditWindowDays); {

@@ -26,6 +26,28 @@
   let savingWindow = $state(false);
   let windowSaved = $state(false);
 
+  let idName = $state('');
+  let idCode = $state('');
+  let savingId = $state(false);
+  let idSaved = $state(false);
+  const idValid = $derived(idName.trim().length >= 1 && idName.trim().length <= 100 && /^[a-z0-9][a-z0-9_-]{1,31}$/.test(idCode.trim().toLowerCase()));
+  const idDirty = $derived(!!tenant && (idName.trim() !== tenant.name || idCode.trim().toLowerCase() !== tenant.code));
+  async function saveIdentity() {
+    if (!tenant || !idValid || !idDirty || savingId) return;
+    savingId = true;
+    error = '';
+    idSaved = false;
+    try {
+      await platformApi.renameTenant(id, idName.trim(), idCode.trim().toLowerCase());
+      await Promise.all([load(), loadAudit()]);
+      idSaved = true;
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      savingId = false;
+    }
+  }
+
   type Tab = 'overview' | 'users' | 'plan' | 'activity' | 'danger';
   let tab = $state<Tab>('overview');
   const tabs = $derived<{ key: Tab; label: string; icon: string; badge?: number }[]>([
@@ -42,6 +64,8 @@
     try {
       tenant = await platformApi.tenant(id);
       windowDays = String(tenant.sale_edit_window_days);
+      idName = tenant.name;
+      idCode = tenant.code;
     } catch (err) {
       error = errorMessage(err);
     } finally {
@@ -383,6 +407,7 @@
         </section>
       </div>
 
+      <div class="space-y-4">
       <!-- Outlet -->
       <section class="surface-card !p-0 overflow-hidden">
         {@render cardHead('map-pin', t('platform.tenant.outlets'), tenant.outlets.length)}
@@ -411,6 +436,34 @@
         {/if}
         <p class="border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)]/50 px-5 py-3 text-[11.5px] text-[var(--text-tertiary)]"><i class="icon-info me-1"></i>{t('platform.tenant.enterAsHelp')}</p>
       </section>
+
+      <section class="surface-card !p-0 overflow-hidden">
+        {@render cardHead('store', t('platform.tenant.identityTitle'))}
+        <form
+          class="p-5 space-y-3"
+          onsubmit={(e) => {
+            e.preventDefault();
+            void saveIdentity();
+          }}
+        >
+          <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.identityHelp')}</p>
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.identityName')}</span>
+            <input class="field-control w-full" maxlength="100" bind:value={idName} oninput={() => (idSaved = false)} />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.identityCode')}</span>
+            <input class="field-control w-full font-mono" maxlength="32" autocapitalize="off" bind:value={idCode} oninput={() => (idSaved = false)} aria-invalid={!idValid} />
+            <span class="mt-1 block text-[11px] text-[var(--text-tertiary)]">{t('platform.tenant.identityCodeHint')}</span>
+          </label>
+          {#if !idValid}<p class="text-[12px] text-[var(--color-danger-600)]">{t('platform.tenant.identityInvalid')}</p>{/if}
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!idValid || !idDirty || savingId}>{savingId ? t('platform.tenant.identitySaving') : t('platform.tenant.identitySave')}</button>
+            {#if idSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.identitySaved')}</p>{/if}
+          </div>
+        </form>
+      </section>
+      </div>
     </div>
   {:else if tab === 'users'}
     <section class="surface-card !p-0 overflow-hidden">

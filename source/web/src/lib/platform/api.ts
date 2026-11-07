@@ -224,6 +224,8 @@ export const platformApi = {
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
   /** Batas hari edit/batal nota tenant (0 = hanya hari nota dibuat, maks 3650). Hanya operator platform yang boleh mengubah. */
   setSaleEditWindow: (id: string, days: number) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ sale_edit_window_days: days }) }),
+  /** Ganti nama dan kode (slug) tenant; keduanya dikirim bersamaan. */
+  renameTenant: (id: string, name: string, code: string) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ name, code }) }),
   /** Jadwal hapus permanen tenant (null = tidak dijadwalkan). */
   deleteSchedule: (id: string) => papi<{ schedule: DeleteSchedule | null }>(`/platform/tenants/${id}/deletion`),
   /** Jadwalkan hapus permanen setelah `days` hari (0-365; 0 = langsung boleh dihapus). Tenant wajib nonaktif. */
