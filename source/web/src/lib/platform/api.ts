@@ -191,6 +191,7 @@ export type DomainRow = {
   last_check_at: string | null;
   last_check_error: string;
   created_at: string;
+  landing: boolean;
 };
 
 export type TemplateRow = { id: string; code: string; name: string; description: string; category: string; active: boolean; sort_order: number; bytes: number; updated_at: string };
@@ -286,6 +287,7 @@ export const platformApi = {
   createDomain: (body: { tenant_id: string; host: string }) => papi<{ id: string }>('/platform/domains', { method: 'POST', body: json(body) }),
   verifyDomain: (id: string) => papi<DomainRow>(`/platform/domains/${id}/verify`, { method: 'POST' }),
   setDomainDisabled: (id: string, disabled: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ disabled }) }),
+  setDomainLanding: (id: string, landing: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ landing }) }),
   deleteDomain: (id: string) => papi<void>(`/platform/domains/${id}`, { method: 'DELETE' }),
 
   qaCatalog: () => papi<{ apps: QAApp[]; total: number }>('/platform/qa/catalog'),

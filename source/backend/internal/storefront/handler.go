@@ -47,6 +47,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Get("/public/s-assets/tailwind.css", h.tailwind)
 	r.With(limit).Get("/public/s/{slug}", h.page)
 	r.With(limit).Get("/s/{slug}", h.page)
+	r.With(limit).Get("/public/domain-root", h.domainRoot)
 	r.With(limit).Get("/public/s/{slug}/style.css", h.style)
 	r.With(limit).Get("/public/s/{slug}/img/{id}", h.image)
 
@@ -97,7 +98,27 @@ func notFoundPage(w http.ResponseWriter) {
 }
 
 func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
-	slug := strings.ToLower(chi.URLParam(r, "slug"))
+	h.servePage(w, r, strings.ToLower(chi.URLParam(r, "slug")))
+}
+
+// domainRoot melayani landing page di root domain kustom (reverse proxy meneruskan GET / sebagai ?host=). Host tanpa
+// landing -> 404 kosong agar proxy jatuh kembali ke aplikasi (SPA).
+func (h *Handler) domainRoot(w http.ResponseWriter, r *http.Request) {
+	slug, err := h.svc.DomainLandingSlug(r.Context(), r.URL.Query().Get("host"))
+	if errors.Is(err, ErrNotFound) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log.ErrorContext(r.Context(), "storefront: domain root gagal", "err", err)
+		httpx.Error(w, http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan.")
+		return
+	}
+	h.servePage(w, r, slug)
+}
+
+func (h *Handler) servePage(w http.ResponseWriter, r *http.Request, slug string) {
 	key := "sf:page:" + slug
 	if b, err := h.redis.Get(r.Context(), key).Bytes(); err == nil {
 		publicHeaders(w, "text/html; charset=utf-8", 60)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -197,6 +198,23 @@ func (s *Service) Lookup(ctx context.Context, slug string) (*Published, error) {
 		return nil, ErrNotFound
 	}
 	return &p, err
+}
+
+// DomainLandingSlug: slug landing page yang tampil di root domain kustom itu; ErrNotFound bila tidak ada
+// (domain tidak aktif/tidak diatur, atau halaman belum dihidupkan).
+func (s *Service) DomainLandingSlug(ctx context.Context, host string) (string, error) {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" || len(host) > 253 {
+		return "", ErrNotFound
+	}
+	var slug *string
+	if err := s.pool.QueryRow(ctx, `SELECT public_domain_landing($1)`, host).Scan(&slug); err != nil {
+		return "", err
+	}
+	if slug == nil {
+		return "", ErrNotFound
+	}
+	return *slug, nil
 }
 
 // ImageOK memastikan gambar milik barang aktif tenant itu (agar URL gambar tak bisa dipakai menebak berkas tenant lain).

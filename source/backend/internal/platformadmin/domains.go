@@ -25,6 +25,7 @@ const (
 	ActionDomainVerify  = "platform.domain_verify"
 	ActionDomainDisable = "platform.domain_disable"
 	ActionDomainDelete  = "platform.domain_delete"
+	ActionDomainLanding = "platform.domain_landing"
 
 	dnsTimeout = 5 * time.Second
 )
@@ -54,6 +55,7 @@ type DomainRow struct {
 	LastCheckAt    *time.Time `json:"last_check_at"`
 	LastCheckError string     `json:"last_check_error"`
 	CreatedAt      time.Time  `json:"created_at"`
+	Landing        bool       `json:"landing"` // root domain menampilkan landing page tenant
 }
 
 // normalizeHost: huruf kecil, tanpa spasi/titik akhir; ErrDomainInvalid bila bukan nama host yang sah.
@@ -67,7 +69,7 @@ func normalizeHost(raw string) (string, error) {
 
 func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUID) ([]DomainRow, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT id, tenant_id, tenant_code, tenant_name, host, status, verified_at, last_check_at,
-		last_check_error, created_at FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
+		last_check_error, created_at, landing FROM platform_domain_list($1, $2, $3)`, a.ID, tenant, id)
 	if err != nil {
 		if pgCode(err) == "42501" {
 			return nil, ErrInvalidSession
@@ -82,7 +84,7 @@ func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUI
 			verified, lastAt pgtype.Timestamptz
 			r                DomainRow
 		)
-		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&d, &r.TenantID, &r.TenantCode, &r.TenantName, &r.Host, &r.Status, &verified, &lastAt, &r.LastCheckError, &r.CreatedAt, &r.Landing); err != nil {
 			return nil, err
 		}
 		r.ID = uuid.UUID(d.Bytes)
@@ -215,6 +217,26 @@ func (s *Service) SetDomainDisabled(ctx context.Context, a Actor, id uuid.UUID, 
 	return nil
 }
 
+// SetDomainLanding: true = root domain (https://host/) menampilkan landing page tenant; false = aplikasi seperti biasa.
+func (s *Service) SetDomainLanding(ctx context.Context, a Actor, id uuid.UUID, on bool) error {
+	d, err := s.getDomain(ctx, a, id)
+	if err != nil {
+		return err
+	}
+	var ok bool
+	if err := s.Pool.QueryRow(ctx, `SELECT platform_domain_set_landing($1, $2, $3)`, a.ID, id, on).Scan(&ok); err != nil {
+		if pgCode(err) == "42501" {
+			return ErrInvalidSession
+		}
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	s.record(ctx, a, ActionDomainLanding, d.TenantID, d.TenantName, map[string]any{"host": d.Host, "landing": on})
+	return nil
+}
+
 func (s *Service) DeleteDomain(ctx context.Context, a Actor, id uuid.UUID) error {
 	d, err := s.getDomain(ctx, a, id)
 	if err != nil {
@@ -329,7 +351,8 @@ func (h *Handler) VerifyDomain(w http.ResponseWriter, r *http.Request) {
 }
 
 type patchDomainRequest struct {
-	Disabled bool `json:"disabled"`
+	Disabled *bool `json:"disabled"`
+	Landing  *bool `json:"landing"`
 }
 
 func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +364,17 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	err := h.svc.SetDomainDisabled(r.Context(), actor(r), id, req.Disabled)
+	if req.Disabled == nil && req.Landing == nil {
+		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Tidak ada perubahan.")
+		return
+	}
+	var err error
+	if req.Disabled != nil {
+		err = h.svc.SetDomainDisabled(r.Context(), actor(r), id, *req.Disabled)
+	}
+	if err == nil && req.Landing != nil {
+		err = h.svc.SetDomainLanding(r.Context(), actor(r), id, *req.Landing)
+	}
 	switch {
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Domain tidak ditemukan.")

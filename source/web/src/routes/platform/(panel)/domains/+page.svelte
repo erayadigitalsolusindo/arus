@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { platformApi, type DomainRow } from '#lib/platform/api.ts';
+  import { platformApi, type DomainRow, type TenantRow } from '#lib/platform/api.ts';
   import { t, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Avatar from '#lib/platform/Avatar.svelte';
@@ -21,10 +21,17 @@
   let filter = $state<Filter>('all');
 
   let showModal = $state(false);
-  let form = $state({ tenantCode: '', host: '' });
+  let form = $state({ host: '', landing: false });
   let saving = $state(false);
   let modalError = $state('');
-  let lookup = $state<{ state: 'idle' | 'checking' | 'found' | 'missing'; id: string; name: string }>({ state: 'idle', id: '', name: '' });
+
+  // combobox tenant
+  let picked = $state<TenantRow | null>(null);
+  let tq = $state('');
+  let options = $state<TenantRow[]>([]);
+  let optState = $state<'idle' | 'loading' | 'done'>('idle');
+  let listOpen = $state(false);
+  let activeIdx = $state(0);
 
   let copiedKey = $state('');
 
@@ -102,41 +109,84 @@
 
   // ---- tambah domain ----
   function openCreate() {
-    form = { tenantCode: '', host: '' };
-    lookup = { state: 'idle', id: '', name: '' };
+    form = { host: '', landing: false };
+    picked = null;
+    tq = '';
+    options = [];
+    optState = 'idle';
+    listOpen = false;
     modalError = '';
     showModal = true;
   }
 
-  // Cari tenant berdasarkan kode (debounce), supaya salah ketik kode terlihat sebelum disimpan.
-  let lookupSeq = 0;
+  // Saran tenant: cari berdasarkan nama/kode (debounce); kolom kosong menampilkan tenant terbaru.
+  let seq = 0;
   $effect(() => {
-    const code = form.tenantCode.trim().toLowerCase();
-    if (!showModal || !code) {
-      lookup = { state: 'idle', id: '', name: '' };
-      return;
-    }
-    lookup = { state: 'checking', id: '', name: '' };
-    const my = ++lookupSeq;
+    const q = tq.trim().toLowerCase();
+    if (!showModal || !listOpen || picked) return;
+    optState = 'loading';
+    const my = ++seq;
     const timer = setTimeout(async () => {
       try {
-        const found = (await platformApi.tenants(code, 10, 0)).items.find((x) => x.code === code);
-        if (my === lookupSeq) lookup = found ? { state: 'found', id: found.id, name: found.name } : { state: 'missing', id: '', name: '' };
+        const res = await platformApi.tenants(q, 8, 0);
+        if (my !== seq) return;
+        options = res.items;
+        activeIdx = 0;
       } catch {
-        if (my === lookupSeq) lookup = { state: 'idle', id: '', name: '' };
+        if (my === seq) options = [];
+      } finally {
+        if (my === seq) optState = 'done';
       }
-    }, 350);
+    }, q ? 200 : 0);
     return () => clearTimeout(timer);
   });
 
+  function pick(row: TenantRow) {
+    picked = row;
+    tq = '';
+    listOpen = false;
+  }
+  function clearPick() {
+    picked = null;
+    tq = '';
+    listOpen = true;
+  }
+  function comboKey(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      listOpen = true;
+      if (options.length) activeIdx = (activeIdx + 1) % options.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (options.length) activeIdx = (activeIdx - 1 + options.length) % options.length;
+    } else if (e.key === 'Enter' && listOpen && options[activeIdx]) {
+      e.preventDefault();
+      pick(options[activeIdx]);
+    } else if (e.key === 'Escape' && listOpen) {
+      e.stopPropagation();
+      listOpen = false;
+    }
+  }
+  // tutup daftar saat fokus keluar dari combobox
+  function comboBlur(e: FocusEvent) {
+    const next = e.relatedTarget as Node | null;
+    if (!next || !(e.currentTarget as HTMLElement).contains(next)) listOpen = false;
+  }
+
+  const hostNorm = $derived(form.host.trim().toLowerCase());
+  const hostOk = $derived(hostLooksValid(hostNorm));
+  const hostPlaceholder = $derived('arus.namabisnismu.id');
+  const canSave = $derived(!!picked && hostOk && !saving);
+
   async function save() {
-    if (lookup.state !== 'found') return;
+    if (!picked || !hostOk) return;
     saving = true;
     modalError = '';
     notice = '';
     error = '';
     try {
-      await platformApi.createDomain({ tenant_id: lookup.id, host: form.host.trim() });
+      const created = await platformApi.createDomain({ tenant_id: picked.id, host: hostNorm });
+      if (form.landing) await platformApi.setDomainLanding(created.id, true);
       notice = t('platform.domains.created');
       showModal = false;
       await load();
@@ -173,6 +223,11 @@
       const disable = d.status !== 'disabled';
       await platformApi.setDomainDisabled(d.id, disable);
       return disable ? t('platform.domains.disabledMsg') : t('platform.domains.enabledMsg');
+    });
+  const setLanding = (d: DomainRow, on: boolean) =>
+    run(d.id, async () => {
+      await platformApi.setDomainLanding(d.id, on);
+      return on ? t('platform.domains.landingOnMsg') : t('platform.domains.landingOffMsg');
     });
   const remove = (d: DomainRow) => {
     if (!confirm(t('platform.domains.deleteConfirm'))) return;
@@ -376,6 +431,36 @@
             </dl>
           </div>
 
+          <!-- landing page di root domain -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-4 py-3">
+            <div class="flex min-w-0 items-start gap-3">
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-600)]"><i class="icon-layout-template text-[16px]"></i></span>
+              <div class="min-w-0">
+                <p class="text-[12.5px] font-semibold">{t('platform.domains.landingTitle')}</p>
+                <p class="text-[12px] text-[var(--text-tertiary)]">
+                  {d.status === 'disabled' ? t('platform.domains.landingNeedActive') : d.landing && d.status === 'pending' ? t('platform.domains.landingPending') : d.landing ? t('platform.domains.landingHelpOn', { host: d.host }) : t('platform.domains.landingHelpOff', { host: d.host })}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              {#if d.landing && d.status === 'active'}
+                <a href="https://{d.host}/" target="_blank" rel="noopener noreferrer" class="btn btn-outline !text-[12px] !py-1"><i class="icon-external-link text-[13px]"></i>{t('platform.domains.open')}</a>
+              {/if}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={d.landing}
+                aria-label={t('platform.domains.landingTitle')}
+                disabled={busy === d.id || (d.status === 'disabled' && !d.landing)}
+                class="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50"
+                style="background:{d.landing ? 'var(--color-success-500)' : 'var(--border-subtle)'}"
+                onclick={() => setLanding(d, !d.landing)}
+              >
+                <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-all" style="inset-inline-start:{d.landing ? '22px' : '2px'}"></span>
+              </button>
+            </div>
+          </div>
+
           <!-- aksi -->
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2.5">
             <button type="button" class="btn btn-outline !text-[12px] !py-1 text-[var(--color-danger-600)]" disabled={busy === d.id} onclick={() => remove(d)}>
@@ -397,45 +482,150 @@
 </div>
 
 {#if showModal}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={t('platform.domains.addTitle')}>
-    <div class="surface-card w-full max-w-lg rounded-xl shadow-xl !p-0">
-      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-        <h2 class="font-semibold text-[15px]">{t('platform.domains.addTitle')}</h2>
-        <button type="button" aria-label={t('platform.domains.close')} class="header-icon-btn !size-7" onclick={() => (showModal = false)}><i class="icon-x text-[14px]"></i></button>
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]" role="dialog" tabindex="-1" aria-modal="true" aria-label={t('platform.domains.addTitle')} onkeydown={(e) => e.key === 'Escape' && (showModal = false)}>
+    <div class="surface-card w-full max-w-xl rounded-2xl shadow-2xl !p-0 overflow-visible">
+      <div class="flex items-start justify-between gap-3 rounded-t-2xl bg-gradient-to-br from-[#06122b] via-[#0a1f4a] to-[#0d2b63] px-5 py-4 text-white">
+        <div class="flex items-center gap-3">
+          <span class="grid size-10 place-items-center rounded-xl bg-white/10 text-sky-200"><i class="icon-globe text-[20px]"></i></span>
+          <div>
+            <h2 class="font-semibold text-[15px] leading-tight" style="color:#fff">{t('platform.domains.addTitle')}</h2>
+            <p class="mt-0.5 text-[12px] text-sky-100/75">{t('platform.domains.addSubtitle')}</p>
+          </div>
+        </div>
+        <button type="button" aria-label={t('platform.domains.close')} class="grid size-7 place-items-center rounded-md text-sky-100 hover:bg-white/15" onclick={() => (showModal = false)}><i class="icon-x text-[14px]"></i></button>
       </div>
-      <form onsubmit={(e) => { e.preventDefault(); save(); }} novalidate class="p-5 space-y-4">
+
+      <form onsubmit={(e) => { e.preventDefault(); save(); }} novalidate class="space-y-5 p-5">
         {#if modalError}
           <div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] shrink-0"></i><span>{modalError}</span></div>
         {/if}
+
+        <!-- 1. tenant -->
         <div>
-          <label for="dom-tenant" class="block text-[12.5px] font-medium mb-1.5">{t('platform.domains.tenantCode')}</label>
-          <input id="dom-tenant" type="text" bind:value={form.tenantCode} class="form-input !text-[13px] font-mono" autocomplete="off" placeholder="kotakcantik" />
-          <p class="mt-1 text-[11.5px] min-h-4 {lookup.state === 'found' ? 'text-[var(--color-success-600)] font-semibold' : lookup.state === 'missing' ? 'text-[var(--color-danger-600)]' : 'text-[var(--text-tertiary)]'}">
-            {#if lookup.state === 'found'}<i class="icon-circle-check text-[12px]"></i> {t('platform.domains.tenantFound', { name: lookup.name })}
-            {:else if lookup.state === 'missing'}<i class="icon-circle-x text-[12px]"></i> {t('platform.domains.tenantNotFound')}
-            {:else if lookup.state === 'checking'}{t('platform.domains.tenantChecking')}
-            {:else}{t('platform.domains.tenantCodeHelp')}{/if}
+          <p class="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
+            <span class="grid size-5 place-items-center rounded-full bg-[var(--color-primary-600)] text-[11px] font-bold text-white">1</span>
+            <label for="dom-tenant">{t('platform.domains.tenantPick')}</label>
+          </p>
+
+          {#if picked}
+            <div class="flex items-center gap-3 rounded-xl border border-[var(--color-success-500)] p-3">
+              <Avatar name={picked.name} size={40} square />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-[13.5px] font-semibold">{picked.name}</p>
+                <p class="truncate text-[12px] text-[var(--text-tertiary)]"><span class="font-mono">{picked.code}</span>{picked.owner_email ? ` · ${picked.owner_email}` : ''}</p>
+              </div>
+              <i class="icon-circle-check text-[18px] text-[var(--color-success-600)]"></i>
+              <button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={clearPick}>{t('platform.domains.tenantChange')}</button>
+            </div>
+          {:else}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="relative" onfocusout={comboBlur}>
+              <div class="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card,#fff)] px-3 focus-within:border-[var(--color-primary-500)] focus-within:ring-2 focus-within:ring-[var(--color-primary-500)]/20" style="height:42px">
+              <i class="icon-search shrink-0 text-[14px] text-[var(--text-tertiary)]"></i>
+              <input
+                id="dom-tenant"
+                type="text"
+                role="combobox"
+                aria-expanded={listOpen}
+                aria-controls="dom-tenant-list"
+                aria-autocomplete="list"
+                bind:value={tq}
+                style="flex:1;min-width:0;border:0;outline:0;background:transparent;box-shadow:none;padding:0;font-size:13px;color:inherit"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder={t('platform.domains.tenantSearch')}
+                onfocus={() => (listOpen = true)}
+                oninput={() => (listOpen = true)}
+                onkeydown={comboKey}
+              />
+              </div>
+              {#if listOpen}
+                <ul id="dom-tenant-list" role="listbox" class="surface-card absolute inset-x-0 top-full z-10 mt-1 max-h-64 overflow-y-auto rounded-xl !p-1 shadow-xl">
+                  {#if optState === 'loading' && options.length === 0}
+                    <li class="px-3 py-3 text-[12.5px] text-[var(--text-tertiary)]">{t('platform.domains.tenantChecking')}</li>
+                  {:else if options.length === 0}
+                    <li class="flex items-center gap-2 px-3 py-3 text-[12.5px] text-[var(--text-tertiary)]"><i class="icon-circle-x text-[14px]"></i>{t('platform.domains.tenantNotFound')}</li>
+                  {:else}
+                    {#each options as o, i (o.id)}
+                      <li role="option" aria-selected={i === activeIdx}>
+                        <button
+                          type="button"
+                          tabindex="-1"
+                          class="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-start {i === activeIdx ? 'bg-[var(--color-primary-50)]' : 'hover:bg-[var(--surface-sunken)]'}"
+                          onmousemove={() => (activeIdx = i)}
+                          onmousedown={(e) => { e.preventDefault(); pick(o); }}
+                        >
+                          <Avatar name={o.name} size={32} square />
+                          <span class="min-w-0 flex-1">
+                            <span class="block truncate text-[13px] font-semibold">{o.name}</span>
+                            <span class="block truncate text-[11.5px] text-[var(--text-tertiary)]">{o.owner_email || '—'}</span>
+                          </span>
+                          <code class="shrink-0 rounded-md bg-[var(--surface-sunken)] px-1.5 py-0.5 font-mono text-[11.5px]">{o.code}</code>
+                          {#if !o.active}<span class="badge-info shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold">{t('platform.domains.tenantInactive')}</span>{/if}
+                        </button>
+                      </li>
+                    {/each}
+                  {/if}
+                </ul>
+              {/if}
+            </div>
+            <p class="mt-1.5 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.domains.tenantCodeHelp')}</p>
+          {/if}
+        </div>
+
+        <!-- 2. domain -->
+        <div>
+          <p class="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
+            <span class="grid size-5 place-items-center rounded-full bg-[var(--color-primary-600)] text-[11px] font-bold text-white">2</span>
+            <label for="dom-host">{t('platform.domains.host')}</label>
+          </p>
+          <div class="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card,#fff)] px-3 focus-within:border-[var(--color-primary-500)] focus-within:ring-2 focus-within:ring-[var(--color-primary-500)]/20" style="height:42px">
+            <span class="shrink-0 font-mono text-[12px] text-[var(--text-tertiary)]">https://</span>
+            <input id="dom-host" type="text" bind:value={form.host} class="font-mono" style="flex:1;min-width:0;border:0;outline:0;background:transparent;box-shadow:none;padding:0;font-size:13px;color:inherit" placeholder={hostPlaceholder} autocomplete="off" spellcheck="false" />
+          </div>
+          <p class="mt-1.5 min-h-4 text-[11.5px] {form.host && !hostOk ? 'text-[var(--color-danger-600)]' : 'text-[var(--text-tertiary)]'}">
+            {#if form.host && !hostOk}<i class="icon-circle-alert text-[12px]"></i> {t('platform.domains.hostInvalid')}{:else}{t('platform.domains.hostHelp')}{/if}
           </p>
         </div>
+
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border-subtle)] p-3 {form.landing ? 'bg-[var(--color-primary-50)] border-[var(--color-primary-500)]' : ''}">
+          <input type="checkbox" bind:checked={form.landing} class="mt-0.5 size-4 accent-[var(--color-primary-600)]" />
+          <span class="min-w-0">
+            <span class="block text-[12.5px] font-semibold">{t('platform.domains.landingAddLabel')}</span>
+            <span class="block text-[11.5px] text-[var(--text-tertiary)]">{t('platform.domains.landingAddHelp')}</span>
+          </span>
+        </label>
+
+        <!-- 3. DNS -->
         <div>
-          <label for="dom-host" class="block text-[12.5px] font-medium mb-1.5">{t('platform.domains.host')}</label>
-          <input id="dom-host" type="text" bind:value={form.host} class="form-input !text-[13px] font-mono" placeholder="arus.kotakcantik.com" autocomplete="off" spellcheck="false" />
-          <p class="mt-1 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.domains.hostHelp')}</p>
+          <p class="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
+            <span class="grid size-5 place-items-center rounded-full bg-[var(--color-primary-600)] text-[11px] font-bold text-white">3</span>
+            {t('platform.domains.dnsRecord')}
+          </p>
+          {#if hostOk && target}
+            <div class="rounded-xl bg-[#0b1220] p-3 text-slate-200">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-[10.5px] font-bold uppercase tracking-wider text-sky-300">{t('platform.domains.dnsAtProvider')}</p>
+                {@render copyBtn(instruction(hostNorm), 'ins-new')}
+              </div>
+              <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-[12.5px]">
+                <dt class="text-slate-400">{t('platform.domains.recordType')}</dt><dd class="text-emerald-300">CNAME</dd>
+                <dt class="text-slate-400">{t('platform.domains.recordName')}</dt><dd class="break-all">{label(hostNorm)}</dd>
+                <dt class="text-slate-400">{t('platform.domains.recordValue')}</dt><dd class="break-all text-sky-200">{target}</dd>
+              </dl>
+            </div>
+          {:else}
+            <p class="rounded-xl border border-dashed border-[var(--border-subtle)] px-3 py-3 text-[12px] text-[var(--text-tertiary)]">{target ? t('platform.domains.dnsWaiting') : t('platform.domains.noTarget')}</p>
+          {/if}
         </div>
 
-        {#if hostLooksValid(form.host) && target}
-          <div class="rounded-xl bg-[#0b1220] p-3 text-slate-200">
-            <div class="flex items-center justify-between gap-2">
-              <p class="text-[10.5px] font-bold uppercase tracking-wider text-sky-300">{t('platform.domains.dnsRecord')}</p>
-              {@render copyBtn(instruction(form.host.trim().toLowerCase()), 'ins-new')}
-            </div>
-            <p class="mt-2 font-mono text-[12.5px] break-all"><span class="text-emerald-300">CNAME</span>  {label(form.host.trim().toLowerCase())}  <span class="text-slate-500">→</span>  <span class="text-sky-200">{target}</span></p>
+        <div class="flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-4">
+          <p class="hidden text-[11.5px] text-[var(--text-tertiary)] sm:block">{t('platform.domains.afterSave')}</p>
+          <div class="ms-auto flex gap-2">
+            <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showModal = false)}>{t('platform.domains.cancel')}</button>
+            <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={!canSave}>{saving ? t('platform.domains.saving') : t('platform.domains.save')}</button>
           </div>
-        {/if}
-
-        <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showModal = false)}>{t('platform.domains.cancel')}</button>
-          <button type="submit" class="btn btn-primary !text-[12.5px]" disabled={saving || lookup.state !== 'found' || !hostLooksValid(form.host)}>{saving ? t('platform.domains.saving') : t('platform.domains.save')}</button>
         </div>
       </form>
     </div>

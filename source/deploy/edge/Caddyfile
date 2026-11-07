@@ -41,6 +41,24 @@ https:// {
 		import api_upstream
 	}
 
+	# Root domain (GET /) -> landing page tenant bila admin menyalakannya di Platform > Domain. API menjawab 404 bila domain
+	# ini tidak memakai landing; saat itu proxy jatuh kembali ke SPA seperti biasa.
+	@root {
+		method GET HEAD
+		path /
+	}
+	handle @root {
+		rewrite * /public/domain-root?host={host}
+		reverse_proxy https://arus-api.erayadigital.co.id {
+			header_up Host {upstream_hostport}
+			@nolanding status 404
+			handle_response @nolanding {
+				rewrite * /
+				import web_upstream
+			}
+		}
+	}
+
 	# Berkas statis SPA.
 	@assets path /_app/* /landing/* /robots.txt /sitemap.xml *.svg
 	handle @assets {

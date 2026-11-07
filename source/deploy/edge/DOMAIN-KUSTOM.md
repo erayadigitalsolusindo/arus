@@ -102,3 +102,13 @@ Caddyfile membedakan halaman dari panggilan API lewat header `Accept: text/html`
 - `GET /public/domain-check` dibatasi 6000 permintaan/jam per IP; `GET /public/branding` 600/jam. Tanpa cache; bila trafik penerbitan sertifikat tinggi, tambahkan cache Redis.
 - Branding saat ini hanya nama tenant (tabel `tenants` belum punya logo/warna).
 - Domain apex (mis. `kotakcantik.com` tanpa subdomain) tidak bisa memakai CNAME di sebagian penyedia DNS; gunakan subdomain, atau ALIAS/ANAME ke IP yang sama dengan edge (verifikasi menerima IP yang sama).
+
+## F. Landing page di root domain
+
+Secara bawaan `https://arus.kotakcantik.com/` membuka aplikasi. Admin platform bisa menampilkan landing page tenant (halaman `/s/<slug>` dari menu Landing Page tenant) di root domain itu:
+
+1. Domain harus berstatus **Aktif**, dan tenant sudah menghidupkan landing page-nya.
+2. **Platform → Domain** → saklar **Landing page di domain utama** pada kartu domain.
+3. `GET /` di domain itu dijawab `/public/domain-root?host=...` oleh API; aplikasi tetap bisa dibuka di `/login`. Bila landing belum dihidupkan tenant, API menjawab 404 dan Caddy kembali ke SPA.
+
+Perlu migration `00103` dan Caddyfile terbaru (blok `@root`).
