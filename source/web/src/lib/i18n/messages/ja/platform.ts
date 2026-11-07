@@ -15,7 +15,7 @@ const platform: Messages['platform'] = {
     evening: 'こんばんは',
     subtitle: 'ARUSコントロールセンター: すべてのテナントを監視し、アクセスを管理し、監査ログであらゆる操作を追跡します。'
   },
-  nav: { groupMain: 'プラットフォーム', groupSystem: 'システム', mobile: 'モバイルアプリ', apiAccess: '外部API', languages: '言語', plans: 'プラン', halloarus: 'HalloArus', security: 'セキュリティ', tenants: 'テナント', admins: 'プラットフォーム管理者', audit: 'プラットフォーム監査', qa: 'QAチェックリスト', domains: 'ドメイン', signOut: 'ログアウト' },
+  nav: { groupMain: 'プラットフォーム', groupSystem: 'システム', mobile: 'モバイルアプリ', apiAccess: '外部API', languages: '言語', plans: 'プラン', templates: 'ランディングテンプレート', halloarus: 'HalloArus', security: 'セキュリティ', tenants: 'テナント', admins: 'プラットフォーム管理者', audit: 'プラットフォーム監査', qa: 'QAチェックリスト', domains: 'ドメイン', signOut: 'ログアウト' },
   login: {
     title: 'プラットフォーム管理者ログイン',
     subtitle: 'ACIRABAオペレーター専用です。店舗利用者向けではありません。',
@@ -557,6 +557,7 @@ const platform: Messages['platform'] = {
     durationHelp: '空欄＝無期限（手動で設定）。',
     maxTx: '1日の最大取引数',
     maxUsers: '最大ユーザー数（オーナー含む）',
+    maxItems: '有効な商品の上限',
     limitHelp: '空欄＝無制限。',
     selfService: 'QRISでセルフ販売',
     selfServiceHelp: 'テナントの契約ページに表示されます。価格・期間・有効が必須です。',
@@ -591,6 +592,7 @@ const platform: Messages['platform'] = {
     noExpiry: '期限なし',
     txToday: '本日の取引数',
     activeUsers: '有効なユーザー',
+    activeItems: '有効な商品',
     unlimited: '無制限',
     usedOf: '{limit}中{used}',
     plan: 'プラン',
@@ -599,6 +601,7 @@ const platform: Messages['platform'] = {
     expiresHelp: '空欄＝無期限。',
     overrideTx: '1日の取引上限（個別）',
     overrideUsers: 'ユーザー上限（個別）',
+    overrideItems: '商品数上限（個別）',
     overrideHelp: '空欄＝プランに従う。',
     note: 'メモ',
     save: 'プランを保存',

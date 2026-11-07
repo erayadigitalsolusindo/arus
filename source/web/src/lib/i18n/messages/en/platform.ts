@@ -17,7 +17,7 @@ const platform: Messages['platform'] = {
   },
   nav: {
     groupMain: 'Platform',
-    groupSystem: 'System', mobile: 'Mobile App', apiAccess: 'External API', languages: 'Languages', plans: 'Plans', halloarus: 'HalloArus', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', qa: 'QA Checklist', domains: 'Domains', signOut: 'Sign out' },
+    groupSystem: 'System', mobile: 'Mobile App', apiAccess: 'External API', languages: 'Languages', plans: 'Plans', templates: 'Landing Templates', halloarus: 'HalloArus', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', qa: 'QA Checklist', domains: 'Domains', signOut: 'Sign out' },
   login: {
     title: 'Platform Admin sign-in',
     subtitle: 'For ACIRABA operators only. Not for store users.',
@@ -559,6 +559,7 @@ const platform: Messages['platform'] = {
     durationHelp: 'Leave empty = never expires (assigned manually).',
     maxTx: 'Max transactions per day',
     maxUsers: 'Max users (including Owner)',
+    maxItems: 'Max active items',
     limitHelp: 'Leave empty = unlimited.',
     selfService: 'Sold via QRIS self-service',
     selfServiceHelp: 'Shown on the tenant Subscription page. Requires a price, a duration, and active.',
@@ -593,6 +594,7 @@ const platform: Messages['platform'] = {
     noExpiry: 'No expiry',
     txToday: 'Transactions today',
     activeUsers: 'Active users',
+    activeItems: 'Active items',
     unlimited: 'Unlimited',
     usedOf: '{used} of {limit}',
     plan: 'Plan',
@@ -601,6 +603,7 @@ const platform: Messages['platform'] = {
     expiresHelp: 'Leave empty = never expires.',
     overrideTx: 'Custom daily transaction limit',
     overrideUsers: 'Custom user limit',
+    overrideItems: 'Custom item limit',
     overrideHelp: 'Leave empty = follow the plan.',
     note: 'Note',
     save: 'Save Plan',

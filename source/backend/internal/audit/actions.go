@@ -86,6 +86,13 @@ const (
 	ActionItemActive = "item.active"
 )
 
+// Landing page publik toko (/s/{slug}).
+const (
+	EntityStorefront = "storefront"
+
+	ActionStorefrontSave = "storefront.save"
+)
+
 // Gambar item (Fase 3.2, irisan C).
 const (
 	ActionItemImageAdd    = "item.image_add"

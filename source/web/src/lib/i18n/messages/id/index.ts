@@ -31,6 +31,7 @@ import reports from './reports.ts';
 import extapi from './extapi.ts';
 import subscription from './subscription.ts';
 import profile from './profile.ts';
+import storefront from './storefront.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile, storefront };

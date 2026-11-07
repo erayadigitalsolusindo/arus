@@ -56,6 +56,7 @@ const iam: Messages['iam'] = {
     outlets: 'Outlets',
     ai_assistant: 'HalloArus',
     audit_log: 'Audit Log',
+    storefront: 'Store Landing Page',
     subscription: 'Subscription & Plan'
   },
   users: {

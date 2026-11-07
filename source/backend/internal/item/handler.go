@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"aciraba/internal/authz"
+	"aciraba/internal/plan"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 )
@@ -264,6 +265,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.ValidationError(w, fields)
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Item tidak ditemukan.")
+	case errors.Is(err, plan.ErrItemLimit):
+		httpx.Error(w, http.StatusPaymentRequired, "PLAN_ITEM_LIMIT_REACHED", "Batas jumlah barang paket tercapai. Arsipkan barang yang tidak dipakai atau upgrade paket.")
 	case errors.Is(err, ErrCodeTaken):
 		httpx.Error(w, http.StatusConflict, "CODE_TAKEN", "Kode barang sudah dipakai.")
 	case errors.Is(err, ErrImageNotFound):

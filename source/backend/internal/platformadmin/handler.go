@@ -15,14 +15,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
+	"aciraba/internal/ai"
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
-	"aciraba/internal/ai"
 	"aciraba/internal/extapi"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/platform/storage"
+	"aciraba/internal/storefront"
 )
 
 const (
@@ -43,7 +44,8 @@ type HandlerDeps struct {
 	APK          *storage.Local // penyimpanan APK Kasir; nil = fitur unggah APK nonaktif
 	Ext          *extapi.Store  // kredensial API eksternal + white label; nil = fitur nonaktif
 	ExtCatalog   *extapi.CatalogBuilder
-	AI           *ai.Service // uji aturan HalloArus (opsional; nil = fitur uji nonaktif)
+	AI           *ai.Service         // uji aturan HalloArus (opsional; nil = fitur uji nonaktif)
+	Storefront   *storefront.Service // pustaka template landing page (opsional; nil = fitur nonaktif)
 }
 
 type Handler struct {
@@ -116,6 +118,13 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Post("/platform/ext/brands", h.ExtCreateBrand)
 			r.Put("/platform/ext/brands/{id}", h.ExtUpdateBrand)
 			r.Delete("/platform/ext/brands/{id}", h.ExtDeleteBrand)
+
+			r.Get("/platform/storefront-templates", h.ListStorefrontTemplates)
+			r.Get("/platform/storefront-templates/{id}", h.GetStorefrontTemplate)
+			r.Post("/platform/storefront-templates", h.CreateStorefrontTemplate)
+			r.Put("/platform/storefront-templates/{id}", h.UpdateStorefrontTemplate)
+			r.Delete("/platform/storefront-templates/{id}", h.DeleteStorefrontTemplate)
+			r.Post("/platform/storefront-templates/preview", h.PreviewStorefrontTemplate)
 
 			r.Get("/platform/plans", h.ListPlans)
 			r.Get("/platform/plans/modules", h.PlanModules)
@@ -669,10 +678,10 @@ func (h *Handler) ListLanguages(w http.ResponseWriter, r *http.Request) {
 }
 
 type createLanguageRequest struct {
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Short    string `json:"short"`
-	Intl     string `json:"intl"`
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	Short     string `json:"short"`
+	Intl      string `json:"intl"`
 	SortOrder int    `json:"sort_order"`
 }
 

@@ -56,6 +56,7 @@ const iam: Messages['iam'] = {
     outlets: '店舗',
     ai_assistant: 'HalloArus',
     audit_log: '監査ログ',
+    storefront: 'ストアのランディングページ',
     subscription: 'サブスクリプションとプラン'
   },
   users: {

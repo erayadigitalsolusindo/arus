@@ -1,0 +1,133 @@
+/* Template "Kopi Ekspor": espresso gelap + krim + karamel. Animasi murni CSS (tanpa JS); mati otomatis bila pengguna meminta gerak berkurang. */
+:root {
+  --kp-espresso: #1a0f08;
+  --kp-roast: #2b1a10;
+  --kp-cream: #f7f0e4;
+  --kp-latte: #e9d9bf;
+  --kp-caramel: #d98e3a;
+  --kp-gold: #f2c46b;
+  --kp-leaf: #5b8a5a;
+}
+body {
+  background: var(--kp-cream);
+  color: #2b1a10;
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  scroll-padding-top: 5rem;
+}
+.kp-serif { font-family: Georgia, "Times New Roman", serif; }
+.kp-eyebrow { letter-spacing: 0.22em; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; color: var(--kp-caramel); }
+.kp-wide { letter-spacing: 0.12em; }
+
+/* ---- keyframes ---- */
+@keyframes kp-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes kp-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kp-float { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-22px) rotate(calc(var(--r, 0deg) + 14deg)); } }
+@keyframes kp-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(40px, -30px) scale(1.15); } }
+@keyframes kp-shine { to { background-position: 200% center; } }
+@keyframes kp-scroll { to { transform: translateX(-50%); } }
+@keyframes kp-steam { 0% { opacity: 0; transform: translateY(14px) scaleX(0.9); } 40% { opacity: 0.55; } 100% { opacity: 0; transform: translateY(-46px) scaleX(1.25); } }
+@keyframes kp-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes kp-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(217, 142, 58, 0.55); } 100% { box-shadow: 0 0 0 16px rgba(217, 142, 58, 0); } }
+
+/* ---- hero ---- */
+.kp-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(120% 90% at 20% 0%, #4a2a16 0%, var(--kp-roast) 45%, var(--kp-espresso) 100%);
+}
+.kp-glow { position: absolute; border-radius: 50%; filter: blur(70px); z-index: -1; animation: kp-drift 14s ease-in-out infinite; }
+.kp-glow.g1 { width: 420px; height: 420px; left: -80px; top: -60px; background: rgba(217, 142, 58, 0.35); }
+.kp-glow.g2 { width: 360px; height: 360px; right: -60px; bottom: -80px; background: rgba(91, 138, 90, 0.28); animation-delay: -6s; }
+.kp-bean {
+  position: absolute;
+  width: 44px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 35% 30%, #8a5a36, #3d2415 70%);
+  box-shadow: inset -3px -4px 6px rgba(0, 0, 0, 0.45), 0 8px 18px rgba(0, 0, 0, 0.35);
+  animation: kp-float 9s ease-in-out infinite;
+  z-index: -1;
+  opacity: 0.85;
+}
+.kp-bean::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 46%;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  transform: rotate(-9deg);
+}
+.kp-bean.b1 { left: 8%; top: 22%; --r: 20deg; }
+.kp-bean.b2 { left: 18%; bottom: 14%; --r: -30deg; width: 34px; height: 22px; animation-delay: -3s; }
+.kp-bean.b3 { right: 12%; top: 18%; --r: 50deg; width: 54px; height: 34px; animation-delay: -5s; }
+.kp-bean.b4 { right: 22%; bottom: 20%; --r: -10deg; animation-delay: -2s; }
+.kp-bean.b5 { left: 46%; top: 8%; --r: 80deg; width: 30px; height: 20px; animation-delay: -7s; }
+.kp-bean.b6 { right: 4%; top: 55%; --r: 10deg; width: 38px; height: 24px; animation-delay: -4s; }
+.kp-shine {
+  background-image: linear-gradient(100deg, #f2c46b 0%, #fff3d6 30%, #d98e3a 55%, #f2c46b 100%);
+  background-size: 200% auto;
+  animation: kp-shine 7s linear infinite;
+}
+.kp-cup { position: relative; display: inline-block; font-size: 4.5rem; line-height: 1; }
+.kp-cup i { position: absolute; left: 50%; top: -6px; width: 10px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, 0.5); filter: blur(5px); animation: kp-steam 3.2s ease-in infinite; }
+.kp-cup i:nth-child(1) { margin-left: -22px; animation-delay: 0s; }
+.kp-cup i:nth-child(2) { margin-left: -4px; animation-delay: 1s; }
+.kp-cup i:nth-child(3) { margin-left: 14px; animation-delay: 2s; }
+
+/* ---- tombol & kartu ---- */
+.kp-btn { display: inline-block; padding: 0.8rem 1.6rem; border-radius: 999px; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; }
+.kp-btn:hover { transform: translateY(-2px); }
+.kp-btn-gold { background: linear-gradient(135deg, var(--kp-gold), var(--kp-caramel)); color: #2b1a10; box-shadow: 0 10px 24px -8px rgba(217, 142, 58, 0.7); animation: kp-pulse-ring 2.4s ease-out infinite; }
+.kp-btn-sm { padding: 0.5rem 1rem; }
+.kp-btn-ghost { border: 1px solid rgba(255, 255, 255, 0.35); color: #fff; }
+.kp-btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+.kp-card { background: #fffaf1; border: 1px solid var(--kp-latte); border-radius: 1.25rem; transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s; }
+.kp-card:hover { transform: translateY(-6px); box-shadow: 0 22px 40px -22px rgba(43, 26, 16, 0.45); border-color: var(--kp-caramel); }
+.kp-glass { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(8px); border-radius: 1rem; }
+.kp-photo { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: linear-gradient(135deg, #6b4226, #2b1a10); display: grid; place-items: center; font-size: 2.6rem; }
+.kp-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s; }
+.kp-card:hover .kp-photo img { transform: scale(1.07); }
+.kp-badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--kp-latte); color: #5a3a1e; }
+
+/* ---- marquee negara tujuan ---- */
+.kp-marquee { overflow: hidden; background: var(--kp-espresso); border-block: 1px solid rgba(255, 255, 255, 0.08); }
+.kp-track { display: flex; width: max-content; gap: 3rem; padding: 1rem 0; animation: kp-scroll 38s linear infinite; }
+.kp-marquee:hover .kp-track { animation-play-state: paused; }
+.kp-track span { white-space: nowrap; color: var(--kp-latte); font-weight: 600; letter-spacing: 0.08em; }
+.kp-track span::before { content: "✦ "; }
+
+/* ---- garis waktu proses ---- */
+.kp-steps { position: relative; }
+.kp-steps::before { content: ""; position: absolute; left: 1.55rem; top: 0.5rem; bottom: 0.5rem; width: 2px; background: linear-gradient(var(--kp-caramel), rgba(217, 142, 58, 0.1)); transform-origin: top; animation: kp-grow 1.4s ease-out both; }
+.kp-step-no { display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: 50%; background: var(--kp-espresso); color: var(--kp-gold); font-weight: 800; border: 2px solid var(--kp-caramel); flex: none; }
+
+/* ---- FAQ ---- */
+.kp-faq details { background: #fffaf1; border: 1px solid var(--kp-latte); border-radius: 1rem; padding: 1rem 1.25rem; transition: border-color 0.2s; }
+.kp-faq details[open] { border-color: var(--kp-caramel); }
+.kp-faq summary { cursor: pointer; font-weight: 700; list-style: none; }
+.kp-faq summary::-webkit-details-marker { display: none; }
+.kp-faq summary::after { content: "+"; float: right; font-size: 1.3rem; line-height: 1; color: var(--kp-caramel); transition: transform 0.25s; }
+.kp-faq details[open] summary::after { transform: rotate(45deg); }
+.kp-faq details[open] p { animation: kp-fade 0.4s ease both; }
+
+/* ---- tabel spesifikasi ---- */
+.kp-spec td, .kp-spec th { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--kp-latte); text-align: left; }
+.kp-spec th { width: 42%; color: #7a5632; font-weight: 600; }
+
+/* ---- muncul saat dimuat / di-scroll ---- */
+.kp-reveal { animation: kp-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.kp-d1 { animation-delay: 0.1s; }
+.kp-d2 { animation-delay: 0.2s; }
+.kp-d3 { animation-delay: 0.3s; }
+.kp-d4 { animation-delay: 0.4s; }
+@supports (animation-timeline: view()) {
+  .kp-reveal { animation: kp-rise linear both; animation-timeline: view(); animation-range: entry 5% cover 28%; animation-delay: 0s; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -16,6 +16,7 @@ import (
 var (
 	ErrTxLimit   = errors.New("batas transaksi harian paket tercapai")
 	ErrUserLimit = errors.New("batas jumlah pengguna paket tercapai")
+	ErrItemLimit = errors.New("batas jumlah barang paket tercapai")
 )
 
 // Effective = paket yang berlaku sekarang untuk satu tenant, sudah memperhitungkan override dan kedaluwarsa.
@@ -25,6 +26,7 @@ type Effective struct {
 	Name        string     `json:"name"`
 	MaxTxPerDay *int       `json:"max_tx_per_day"` // nil = tanpa batas
 	MaxUsers    *int       `json:"max_users"`      // nil = tanpa batas
+	MaxItems    *int       `json:"max_items"`      // barang aktif; nil = tanpa batas
 	ExpiresAt   *time.Time `json:"expires_at"`     // nil = tanpa kedaluwarsa
 	IsDefault   bool       `json:"is_default"`
 	// Modules = id modul izin yang boleh dipakai paket ini; nil = semua modul.
@@ -34,13 +36,14 @@ type Effective struct {
 // Langganan yang kedaluwarsa dilewati sehingga tenant jatuh ke paket default tanpa job apa pun.
 const effectiveSQL = `
 WITH s AS (
-    SELECT plan_id, expires_at, override_max_tx_per_day o_tx, override_max_users o_users
+    SELECT plan_id, expires_at, override_max_tx_per_day o_tx, override_max_users o_users, override_max_items o_items
       FROM tenant_subscriptions
      WHERE tenant_id = $1 AND (expires_at IS NULL OR expires_at > now())
 )
 SELECT p.id, p.code, p.name,
        coalesce((SELECT o_tx FROM s), p.max_tx_per_day),
        coalesce((SELECT o_users FROM s), p.max_users),
+       coalesce((SELECT o_items FROM s), p.max_items),
        (SELECT expires_at FROM s), p.is_default, p.modules
   FROM plans p
  WHERE p.id = coalesce((SELECT plan_id FROM s), (SELECT id FROM plans WHERE is_default))`
@@ -48,14 +51,14 @@ SELECT p.id, p.code, p.name,
 // Get membaca paket efektif tenant di dalam transaksi pemanggil.
 func Get(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) (Effective, error) {
 	var (
-		e         Effective
-		maxTx, maxUsr pgtype.Int4
-		expiresAt pgtype.Timestamptz
+		e                     Effective
+		maxTx, maxUsr, maxItm pgtype.Int4
+		expiresAt             pgtype.Timestamptz
 	)
-	if err := tx.QueryRow(ctx, effectiveSQL, tenant).Scan(&e.PlanID, &e.Code, &e.Name, &maxTx, &maxUsr, &expiresAt, &e.IsDefault, &e.Modules); err != nil {
+	if err := tx.QueryRow(ctx, effectiveSQL, tenant).Scan(&e.PlanID, &e.Code, &e.Name, &maxTx, &maxUsr, &maxItm, &expiresAt, &e.IsDefault, &e.Modules); err != nil {
 		return Effective{}, err
 	}
-	e.MaxTxPerDay, e.MaxUsers = intPtr(maxTx), intPtr(maxUsr)
+	e.MaxTxPerDay, e.MaxUsers, e.MaxItems = intPtr(maxTx), intPtr(maxUsr), intPtr(maxItm)
 	if expiresAt.Valid {
 		t := expiresAt.Time
 		e.ExpiresAt = &t
@@ -118,17 +121,43 @@ func CheckUserSlot(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
 	return nil
 }
 
+// CheckItemSlot menolak (ErrItemLimit) bila menambah / mengaktifkan satu barang lagi akan melewati batas barang aktif paket.
+// Barang dihitung dengan LIMIT sebesar batas sehingga biayanya dibatasi oleh batas itu, bukan oleh jumlah barang tenant. Kunci
+// advisory per tenant menyerialkan dua penambahan bersamaan. Panggil di dalam transaksi yang menambah / mengaktifkan barang.
+func CheckItemSlot(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
+	e, err := Get(ctx, tx, tenant)
+	if err != nil {
+		return err
+	}
+	if e.MaxItems == nil {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('plan_items:' || $1::text, 0))`, tenant); err != nil {
+		return err
+	}
+	var active int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM items WHERE tenant_id = $1 AND active LIMIT $2) x`, tenant, int32(*e.MaxItems)).Scan(&active); err != nil {
+		return err
+	}
+	if active >= *e.MaxItems {
+		return ErrItemLimit
+	}
+	return nil
+}
+
 // Usage = pemakaian saat ini untuk halaman langganan.
 type Usage struct {
 	TxToday int `json:"tx_today"`
 	Users   int `json:"users"`
+	Items   int `json:"items"` // barang aktif
 }
 
 // UsageFor membaca pemakaian hari ini (tanggal lokal outlet `day`) dan jumlah pengguna aktif.
 func UsageFor(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, day pgtype.Date) (Usage, error) {
 	var u Usage
 	if err := tx.QueryRow(ctx, `SELECT coalesce((SELECT tx_count FROM tenant_daily_tx WHERE tenant_id = $1 AND day = $2), 0),
-		(SELECT count(*) FROM users WHERE tenant_id = $1 AND active)`, tenant, day).Scan(&u.TxToday, &u.Users); err != nil {
+		(SELECT count(*) FROM users WHERE tenant_id = $1 AND active),
+		(SELECT count(*) FROM items WHERE tenant_id = $1 AND active)`, tenant, day).Scan(&u.TxToday, &u.Users, &u.Items); err != nil {
 		return Usage{}, err
 	}
 	return u, nil

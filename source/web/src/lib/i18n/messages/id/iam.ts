@@ -54,6 +54,7 @@ export default {
     outlets: 'Outlet',
     ai_assistant: 'HalloArus',
     audit_log: 'Audit Log',
+    storefront: 'Landing Page Toko',
     subscription: 'Langganan & Paket'
   },
   users: {

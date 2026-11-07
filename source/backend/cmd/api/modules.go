@@ -44,6 +44,7 @@ import (
 	"aciraba/internal/sales"
 	"aciraba/internal/shift"
 	"aciraba/internal/stock"
+	"aciraba/internal/storefront"
 	"aciraba/internal/subscription"
 	"aciraba/internal/usermfa"
 	"aciraba/internal/voucher"
@@ -111,11 +112,15 @@ func mountModules(r chi.Router, d appDeps) error {
 	})
 	go platformSvc.RunTenantPurger(d.Ctx, d.Log)
 	perms.WithPlatform(platformSvc) // menerima token "masuk sebagai" (hanya-baca) milik Platform Admin
+	storefrontSvc := storefront.NewService(d.Pool)
+	if err := storefrontSvc.SeedTemplates(d.Ctx); err != nil {
+		return err
+	}
 	platformHandler := platformadmin.NewHandler(platformadmin.HandlerDeps{
 		Service: platformSvc, Log: d.Log, Redis: d.Redis,
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
-		APK: uploads, Ext: extStore, ExtCatalog: extCatalog,
+		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc,
 	})
 	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
@@ -146,6 +151,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	receivable.NewHandler(receivableSvc, perms, tokens, d.Log).Routes(r)
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucher.NewHandler(voucher.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
+	storefront.NewHandler(storefrontSvc, perms, tokens, d.Redis, uploads, d.Log).Routes(r)
 	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
 	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
 	subSvc := subscription.NewService(d.Pool, d.Cfg.EraPayBaseURL, d.Cfg.EraPayPlatformKey)

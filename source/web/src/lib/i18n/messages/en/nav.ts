@@ -9,6 +9,7 @@ const nav: Messages['nav'] = {
   outlets: 'Outlets',
   auditLog: 'Audit Log',
   subscription: 'Subscription',
+  storefront: 'Landing Page',
   siak: 'SIAK Aciraba',
   halloarus: 'HalloArus',
   backToArus: 'Back to ARUS',

@@ -36,7 +36,7 @@ https:// {
 	}
 
 	# Rute API yang tidak pernah berupa halaman SPA (dibuka juga lewat tautan langsung, mis. unduh APK, OAuth, MCP).
-	@api_only path /public/* /oauth/* /.well-known/* /mcp /mcp/* /healthz /ext/*
+	@api_only path /public/* /s/* /oauth/* /.well-known/* /mcp /mcp/* /healthz /ext/*
 	handle @api_only {
 		import api_upstream
 	}

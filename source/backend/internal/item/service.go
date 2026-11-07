@@ -22,6 +22,7 @@ import (
 	"aciraba/internal/audit"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
+	"aciraba/internal/plan"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/platform/storage"
@@ -610,6 +611,9 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in Input) (*Item, e
 	var it Item
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
+		if err := plan.CheckItemSlot(ctx, tx, a.TenantID); err != nil {
+			return err
+		}
 		if err := checkRefs(ctx, q, a.TenantID, c, nil); err != nil {
 			return err
 		}
@@ -817,6 +821,15 @@ func (s *Service) SetActive(ctx context.Context, a authz.Actor, id uuid.UUID, ac
 	var it Item
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
+		if active {
+			// Mengaktifkan kembali barang memakai satu slot; baris yang sudah aktif tidak menambah hitungan, jadi tidak dicek.
+			var was bool
+			if err := tx.QueryRow(ctx, `SELECT active FROM items WHERE tenant_id = $1 AND id = $2`, a.TenantID, id).Scan(&was); err == nil && !was {
+				if err := plan.CheckItemSlot(ctx, tx, a.TenantID); err != nil {
+					return err
+				}
+			}
+		}
 		r, err := q.ItemSetActive(ctx, gen.ItemSetActiveParams{TenantID: a.TenantID, ID: id, Active: active})
 		if err != nil {
 			return err

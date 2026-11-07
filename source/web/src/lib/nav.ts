@@ -225,6 +225,7 @@ export const nav: NavGroup[] = [
       { id: 'pin', labelKey: 'nav.pin', icon: 'key-round', module: 'price_override', anyOf: ['outlet_switch', 'sale_edit', 'credit_limit', 'shift_close'], href: '/pin' },
       { id: 'outlets', labelKey: 'nav.outlets', icon: 'store', module: 'outlets', href: '/outlets' },
       { id: 'auditLog', labelKey: 'nav.auditLog', icon: 'history', module: 'audit_log', href: '/audit-log' },
+      { id: 'storefront', labelKey: 'nav.storefront', icon: 'globe', module: 'storefront', href: '/storefront' },
       { id: 'subscription', labelKey: 'nav.subscription', icon: 'badge-dollar-sign', module: 'subscription', href: '/subscription' }
     ]
   }

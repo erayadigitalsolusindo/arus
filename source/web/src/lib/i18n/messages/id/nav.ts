@@ -7,6 +7,7 @@ export default {
   outlets: 'Outlet',
   auditLog: 'Audit Log',
   subscription: 'Langganan',
+  storefront: 'Landing Page',
   siak: 'SIAK Aciraba',
   halloarus: 'HalloArus',
   backToArus: 'Kembali ke ARUS',

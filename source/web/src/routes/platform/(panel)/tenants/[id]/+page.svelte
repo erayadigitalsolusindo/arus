@@ -59,6 +59,7 @@
   let planExpires = $state(''); // datetime-local; kosong = tanpa kedaluwarsa
   let planTx = $state('');
   let planUsers = $state('');
+  let planItems = $state('');
   let planNote = $state('');
   let savingPlan = $state(false);
   let planSaved = $state(false);
@@ -77,6 +78,7 @@
       planExpires = toLocal(sub?.expires_at ?? null);
       planTx = sub?.override_max_tx_per_day == null ? '' : String(sub.override_max_tx_per_day);
       planUsers = sub?.override_max_users == null ? '' : String(sub.override_max_users);
+      planItems = sub?.override_max_items == null ? '' : String(sub.override_max_items);
       planNote = sub?.note ?? '';
     } catch (err) {
       error = errorMessage(err);
@@ -99,6 +101,7 @@
         expires_at: planChoice && planExpires ? new Date(`${planExpires}T23:59:59`).toISOString() : null,
         override_max_tx_per_day: planChoice ? num(planTx) : null,
         override_max_users: planChoice ? num(planUsers) : null,
+        override_max_items: planChoice ? num(planItems) : null,
         note: planChoice ? planNote.trim() : ''
       });
       await Promise.all([loadPlan(), loadAudit()]);
@@ -390,6 +393,10 @@
               <span class="text-[var(--text-tertiary)]">{t('platform.tenantPlan.activeUsers')}</span>
               <span class="tabular-nums">{t('platform.tenantPlan.usedOf', { used: formatNumber(tplan.usage.users), limit: limitText(tplan.effective.max_users) })}</span>
             </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[var(--text-tertiary)]">{t('platform.tenantPlan.activeItems')}</span>
+              <span class="tabular-nums">{t('platform.tenantPlan.usedOf', { used: formatNumber(tplan.usage.items), limit: limitText(tplan.effective.max_items) })}</span>
+            </div>
             <p class="text-[11.5px] text-[var(--text-tertiary)]">
               {#if tplan.subscription?.expired}{t('platform.tenantPlan.expiredNote')}
               {:else if tplan.effective.is_default}{t('platform.tenantPlan.defaultNote')}
@@ -427,6 +434,10 @@
                 <label class="block">
                   <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideUsers')}</span>
                   <input class="field-control w-full text-end tabular-nums" inputmode="numeric" bind:value={planUsers} oninput={() => (planSaved = false)} />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideItems')}</span>
+                  <input class="field-control w-full text-end tabular-nums" inputmode="numeric" bind:value={planItems} oninput={() => (planSaved = false)} />
                 </label>
               </div>
               <p class="-mt-1 text-[11px] text-[var(--text-tertiary)]">{t('platform.tenantPlan.overrideHelp')}</p>

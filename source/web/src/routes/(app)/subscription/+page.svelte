@@ -34,6 +34,7 @@
 
   let shownTx = $state(0);
   let shownUsers = $state(0);
+  let shownItems = $state(0);
   let meterReady = $state(false);
   function countTo(setter: (n: number) => void, to: number, ms = 900) {
     if (reduce || to === 0) return setter(to);
@@ -51,6 +52,7 @@
       status = await subscription.status();
       countTo((n) => (shownTx = n), status.usage.tx_today);
       countTo((n) => (shownUsers = n), status.usage.users);
+      countTo((n) => (shownItems = n), status.usage.items);
       requestAnimationFrame(() => (meterReady = true)); // lebar bar bertransisi dari 0 ke nilai akhir
     } catch (err) {
       error = errorMessage(err);
@@ -74,7 +76,8 @@
     status && cur
       ? [
           { id: 'tx', icon: 'receipt', label: t('subscription.txToday'), used: status.usage.tx_today, shown: shownTx, max: cur.max_tx_per_day, unit: t('subscription.unitTx') },
-          { id: 'users', icon: 'users', label: t('subscription.activeUsers'), used: status.usage.users, shown: shownUsers, max: cur.max_users, unit: t('subscription.unitUsers') }
+          { id: 'users', icon: 'users', label: t('subscription.activeUsers'), used: status.usage.users, shown: shownUsers, max: cur.max_users, unit: t('subscription.unitUsers') },
+          { id: 'items', icon: 'package', label: t('subscription.activeItems'), used: status.usage.items, shown: shownItems, max: cur.max_items, unit: t('subscription.unitItems') }
         ]
       : []
   );
@@ -82,12 +85,16 @@
   const daysLeft = $derived(cur?.expires_at ? Math.ceil((new Date(cur.expires_at).getTime() - Date.now()) / 86_400_000) : null);
   const expiringSoon = $derived(daysLeft !== null && daysLeft <= 7);
 
-  const limitLabel = (n: number | null, unit: 'tx' | 'users') =>
-    n === null ? t(unit === 'tx' ? 'subscription.txUnlimited' : 'subscription.usersUnlimited') : t(unit === 'tx' ? 'subscription.txLimit' : 'subscription.userLimit', { count: formatNumber(n) });
+  const limitKeys = {
+    tx: ['subscription.txUnlimited', 'subscription.txLimit'],
+    users: ['subscription.usersUnlimited', 'subscription.userLimit'],
+    items: ['subscription.itemsUnlimited', 'subscription.itemLimit']
+  } as const;
+  const limitLabel = (n: number | null, unit: 'tx' | 'users' | 'items') => (n === null ? t(limitKeys[unit][0]) : t(limitKeys[unit][1], { count: formatNumber(n) }));
   // Selisih batas paket dibanding paket aktif ("naik dari 100 jadi 300"), hanya untuk paket lain.
-  function gain(p: PlanInfo, unit: 'tx' | 'users') {
-    const from = unit === 'tx' ? cur?.max_tx_per_day : cur?.max_users;
-    const to = unit === 'tx' ? p.max_tx_per_day : p.max_users;
+  function gain(p: PlanInfo, unit: 'tx' | 'users' | 'items') {
+    const from = unit === 'tx' ? cur?.max_tx_per_day : unit === 'users' ? cur?.max_users : cur?.max_items;
+    const to = unit === 'tx' ? p.max_tx_per_day : unit === 'users' ? p.max_users : p.max_items;
     if (!cur || p.id === cur.plan_id || from == null || to == null || to <= from) return '';
     return t('subscription.gain', { from: formatNumber(from), to: formatNumber(to) });
   }
@@ -298,8 +305,8 @@
                 {#if p.duration_days}<span class="text-[12.5px] text-[var(--text-tertiary)]">{t('subscription.perDuration', { count: formatNumber(p.duration_days) })}</span>{/if}
               </div>
               <ul class="text-[13px] space-y-2.5 grow">
-                {#each [{ unit: 'tx', icon: 'receipt', text: limitLabel(p.max_tx_per_day, 'tx') }, { unit: 'users', icon: 'users', text: limitLabel(p.max_users, 'users') }] as f (f.unit)}
-                  {@const g = gain(p, f.unit as 'tx' | 'users')}
+                {#each [{ unit: 'tx', icon: 'receipt', text: limitLabel(p.max_tx_per_day, 'tx') }, { unit: 'users', icon: 'users', text: limitLabel(p.max_users, 'users') }, { unit: 'items', icon: 'package', text: limitLabel(p.max_items, 'items') }] as f (f.unit)}
+                  {@const g = gain(p, f.unit as 'tx' | 'users' | 'items')}
                   <li class="flex items-start gap-2.5">
                     <span class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-success-500)]/12 text-[var(--color-success-600)]"><i class="icon-check text-[13px]"></i></span>
                     <span>

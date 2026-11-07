@@ -19,6 +19,7 @@
     duration: string;
     maxTx: string;
     maxUsers: string;
+    maxItems: string;
     selfService: boolean;
     active: boolean;
     sort: string;
@@ -69,7 +70,7 @@
   function openNew() {
     notice = '';
     fieldErrors = {};
-    form = { id: null, code: '', name: '', description: '', price: '0', duration: '', maxTx: '', maxUsers: '', selfService: false, active: true, sort: String(plans.length + 1), isDefault: false, modules: null, highlights: '' };
+    form = { id: null, code: '', name: '', description: '', price: '0', duration: '', maxTx: '', maxUsers: '', maxItems: '', selfService: false, active: true, sort: String(plans.length + 1), isDefault: false, modules: null, highlights: '' };
   }
 
   function openEdit(p: PlanRow) {
@@ -80,6 +81,7 @@
       duration: p.duration_days === null ? '' : String(p.duration_days),
       maxTx: p.max_tx_per_day === null ? '' : String(p.max_tx_per_day),
       maxUsers: p.max_users === null ? '' : String(p.max_users),
+      maxItems: p.max_items === null ? '' : String(p.max_items),
       selfService: p.self_service, active: p.active, sort: String(p.sort_order), isDefault: p.is_default,
       modules: p.modules === null ? null : [...p.modules],
       highlights: p.highlights.join('\n')
@@ -98,6 +100,7 @@
       duration_days: num(form.duration),
       max_tx_per_day: num(form.maxTx),
       max_users: num(form.maxUsers),
+      max_items: num(form.maxItems),
       self_service: form.selfService,
       active: form.active,
       sort_order: Number(form.sort) || 0,
@@ -150,6 +153,7 @@
             <th class="px-4 py-2.5 text-end font-semibold">{t('platform.plans.duration')}</th>
             <th class="px-4 py-2.5 text-end font-semibold">{t('platform.plans.maxTx')}</th>
             <th class="px-4 py-2.5 text-end font-semibold">{t('platform.plans.maxUsers')}</th>
+            <th class="px-4 py-2.5 text-end font-semibold">{t('platform.plans.maxItems')}</th>
             <th class="px-4 py-2.5 text-start font-semibold">{t('platform.plans.status')}</th>
             <th class="px-4 py-2.5 text-end font-semibold">{t('platform.plans.actions')}</th>
           </tr>
@@ -165,6 +169,7 @@
               <td class="px-4 py-3 text-end tabular-nums">{p.duration_days === null ? '—' : t('platform.plans.days', { count: formatNumber(p.duration_days) })}</td>
               <td class="px-4 py-3 text-end tabular-nums">{limitLabel(p.max_tx_per_day, 'perDay')}</td>
               <td class="px-4 py-3 text-end tabular-nums">{limitLabel(p.max_users, null)}</td>
+              <td class="px-4 py-3 text-end tabular-nums">{limitLabel(p.max_items, null)}</td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   {#if p.is_default}<span class="badge-info">{t('platform.plans.isDefault')}</span>{/if}
@@ -258,18 +263,18 @@
           <section class="msec">
             <h3 class="msec-title"><span class="msec-num">3</span>{t('platform.plans.m.secLimits')}</h3>
             <div class="grid gap-5 sm:grid-cols-2">
-              {#each [{ id: 'plan-tx', key: 'maxTx', label: t('platform.plans.maxTx'), icon: 'receipt', presets: [100, 300, 1000], err: fe('max_tx_per_day') }, { id: 'plan-users', key: 'maxUsers', label: t('platform.plans.maxUsers'), icon: 'users', presets: [2, 4, 10], err: fe('max_users') }] as f (f.id)}
-                {@const unlimited = form[f.key as 'maxTx' | 'maxUsers'] === ''}
+              {#each [{ id: 'plan-tx', key: 'maxTx', label: t('platform.plans.maxTx'), icon: 'receipt', presets: [100, 300, 1000], err: fe('max_tx_per_day') }, { id: 'plan-users', key: 'maxUsers', label: t('platform.plans.maxUsers'), icon: 'users', presets: [2, 4, 10], err: fe('max_users') }, { id: 'plan-items', key: 'maxItems', label: t('platform.plans.maxItems'), icon: 'package', presets: [100, 1000, 10000], err: fe('max_items') }] as f (f.id)}
+                {@const unlimited = form[f.key as 'maxTx' | 'maxUsers' | 'maxItems'] === ''}
                 <div>
                   <label for={f.id} class="mlabel"><i class="icon-{f.icon} me-1.5 text-[var(--text-tertiary)]"></i>{f.label}</label>
                   <div class="affix">
-                    <input id={f.id} class="form-input !text-[13px] text-end" inputmode="numeric" disabled={unlimited} value={form[f.key as 'maxTx' | 'maxUsers']} oninput={(e) => (form![f.key as 'maxTx' | 'maxUsers'] = e.currentTarget.value)} placeholder="∞" />
+                    <input id={f.id} class="form-input !text-[13px] text-end" inputmode="numeric" disabled={unlimited} value={form[f.key as 'maxTx' | 'maxUsers' | 'maxItems']} oninput={(e) => (form![f.key as 'maxTx' | 'maxUsers' | 'maxItems'] = e.currentTarget.value)} placeholder="∞" />
                   </div>
                   <div class="mt-2 flex flex-wrap gap-1.5">
                     {#each f.presets as n (n)}
-                      <button type="button" class="mpreset {form[f.key as 'maxTx' | 'maxUsers'] === String(n) ? 'on' : ''}" onclick={() => (form![f.key as 'maxTx' | 'maxUsers'] = String(n))}>{formatNumber(n)}</button>
+                      <button type="button" class="mpreset {form[f.key as 'maxTx' | 'maxUsers' | 'maxItems'] === String(n) ? 'on' : ''}" onclick={() => (form![f.key as 'maxTx' | 'maxUsers' | 'maxItems'] = String(n))}>{formatNumber(n)}</button>
                     {/each}
-                    <button type="button" class="mpreset {unlimited ? 'on' : ''}" onclick={() => (form![f.key as 'maxTx' | 'maxUsers'] = unlimited ? String(f.presets[0]) : '')}><i class="icon-infinity text-[12px] me-1"></i>{t('platform.plans.unlimited')}</button>
+                    <button type="button" class="mpreset {unlimited ? 'on' : ''}" onclick={() => (form![f.key as 'maxTx' | 'maxUsers' | 'maxItems'] = unlimited ? String(f.presets[0]) : '')}><i class="icon-infinity text-[12px] me-1"></i>{t('platform.plans.unlimited')}</button>
                   </div>
                   <p class="mhint {f.err ? '!text-[var(--color-danger-600)]' : ''}">{f.err || t('platform.plans.limitHelp')}</p>
                 </div>

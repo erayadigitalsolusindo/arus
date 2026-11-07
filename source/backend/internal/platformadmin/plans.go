@@ -41,11 +41,12 @@ type PlanRow struct {
 	DurationDays *int      `json:"duration_days"`
 	MaxTxPerDay  *int      `json:"max_tx_per_day"`
 	MaxUsers     *int      `json:"max_users"`
+	MaxItems     *int      `json:"max_items"`
 	IsDefault    bool      `json:"is_default"`
 	SelfService  bool      `json:"self_service"`
 	Active       bool      `json:"active"`
 	SortOrder    int       `json:"sort_order"`
-	Modules      []string  `json:"modules"` // nil = semua modul
+	Modules      []string  `json:"modules"`    // nil = semua modul
 	Highlights   []string  `json:"highlights"` // poin keunggulan bebas untuk kartu paket
 }
 
@@ -65,7 +66,7 @@ func pgInt4(v *int) pgtype.Int4 {
 }
 
 func (s *Service) ListPlans(ctx context.Context) ([]PlanRow, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT id, code, name, description, price, duration_days, max_tx_per_day, max_users,
+	rows, err := s.Pool.Query(ctx, `SELECT id, code, name, description, price, duration_days, max_tx_per_day, max_users, max_items,
 		is_default, self_service, active, sort_order, modules, highlights FROM plans ORDER BY sort_order, price, code`)
 	if err != nil {
 		return nil, err
@@ -74,15 +75,15 @@ func (s *Service) ListPlans(ctx context.Context) ([]PlanRow, error) {
 	out := []PlanRow{}
 	for rows.Next() {
 		var (
-			p              PlanRow
-			price          decimal.Decimal
-			dur, mtx, musr pgtype.Int4
-			sort           int32
+			p                    PlanRow
+			price                decimal.Decimal
+			dur, mtx, musr, mitm pgtype.Int4
+			sort                 int32
 		)
-		if err := rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &price, &dur, &mtx, &musr, &p.IsDefault, &p.SelfService, &p.Active, &sort, &p.Modules, &p.Highlights); err != nil {
+		if err := rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &price, &dur, &mtx, &musr, &mitm, &p.IsDefault, &p.SelfService, &p.Active, &sort, &p.Modules, &p.Highlights); err != nil {
 			return nil, err
 		}
-		p.Price, p.DurationDays, p.MaxTxPerDay, p.MaxUsers, p.SortOrder = price.StringFixed(0), int4(dur), int4(mtx), int4(musr), int(sort)
+		p.Price, p.DurationDays, p.MaxTxPerDay, p.MaxUsers, p.MaxItems, p.SortOrder = price.StringFixed(0), int4(dur), int4(mtx), int4(musr), int4(mitm), int(sort)
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -90,14 +91,14 @@ func (s *Service) ListPlans(ctx context.Context) ([]PlanRow, error) {
 
 // SavePlanInput: ID nil = paket baru. Code hanya dipakai saat membuat.
 type SavePlanInput struct {
-	ID                                  *uuid.UUID
-	Code, Name, Description             string
-	Price                               decimal.Decimal
-	DurationDays, MaxTxPerDay, MaxUsers *int
-	SelfService, Active                 bool
-	SortOrder                           int
-	Modules                             []string // nil = semua modul
-	Highlights                          []string // poin keunggulan, satu per elemen
+	ID                                            *uuid.UUID
+	Code, Name, Description                       string
+	Price                                         decimal.Decimal
+	DurationDays, MaxTxPerDay, MaxUsers, MaxItems *int
+	SelfService, Active                           bool
+	SortOrder                                     int
+	Modules                                       []string // nil = semua modul
+	Highlights                                    []string // poin keunggulan, satu per elemen
 }
 
 func (in SavePlanInput) validate() map[string]string {
@@ -114,7 +115,7 @@ func (in SavePlanInput) validate() map[string]string {
 	if in.Price.IsNegative() || !in.Price.Equal(in.Price.Truncate(0)) {
 		f["price"] = "INVALID"
 	}
-	for k, v := range map[string]*int{"duration_days": in.DurationDays, "max_tx_per_day": in.MaxTxPerDay, "max_users": in.MaxUsers} {
+	for k, v := range map[string]*int{"duration_days": in.DurationDays, "max_tx_per_day": in.MaxTxPerDay, "max_users": in.MaxUsers, "max_items": in.MaxItems} {
 		if v != nil && (*v < 1 || *v > 1_000_000 || (k == "duration_days" && *v > 3650)) {
 			f[k] = "INVALID"
 		}
@@ -152,9 +153,9 @@ func (s *Service) SavePlan(ctx context.Context, a Actor, in SavePlanInput) (uuid
 		id = pgtype.UUID{Bytes: *in.ID, Valid: true}
 	}
 	var out pgtype.UUID
-	err := s.Pool.QueryRow(ctx, `SELECT platform_save_plan($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+	err := s.Pool.QueryRow(ctx, `SELECT platform_save_plan($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		a.ID, id, in.Code, in.Name, in.Description, in.Price, pgInt4(in.DurationDays), pgInt4(in.MaxTxPerDay), pgInt4(in.MaxUsers),
-		in.SelfService, in.Active, int32(in.SortOrder), in.Modules, in.Highlights).Scan(&out)
+		in.SelfService, in.Active, int32(in.SortOrder), in.Modules, in.Highlights, pgInt4(in.MaxItems)).Scan(&out)
 	switch {
 	case pgCode(err) == "42501":
 		return uuid.Nil, ErrInvalidSession
@@ -169,7 +170,7 @@ func (s *Service) SavePlan(ctx context.Context, a Actor, in SavePlanInput) (uuid
 	}
 	pid := uuid.UUID(out.Bytes)
 	s.record(ctx, a, ActionPlanSave, uuid.Nil, "", map[string]any{"plan_id": pid.String(), "code": in.Code, "name": in.Name, "price": in.Price.StringFixed(0),
-		"duration_days": in.DurationDays, "max_tx_per_day": in.MaxTxPerDay, "max_users": in.MaxUsers, "self_service": in.SelfService, "active": in.Active, "modules": in.Modules, "highlights": in.Highlights, "create": in.ID == nil})
+		"duration_days": in.DurationDays, "max_tx_per_day": in.MaxTxPerDay, "max_users": in.MaxUsers, "max_items": in.MaxItems, "self_service": in.SelfService, "active": in.Active, "modules": in.Modules, "highlights": in.Highlights, "create": in.ID == nil})
 	return pid, nil
 }
 
@@ -187,6 +188,7 @@ type TenantSubscription struct {
 	Expired     bool       `json:"expired"`
 	OverrideTx  *int       `json:"override_max_tx_per_day"`
 	OverrideUsr *int       `json:"override_max_users"`
+	OverrideItm *int       `json:"override_max_items"`
 	Note        string     `json:"note"`
 }
 
@@ -209,10 +211,11 @@ func (s *Service) GetTenantPlan(ctx context.Context, tenantID uuid.UUID) (*Tenan
 			exp    pgtype.Timestamptz
 			otx    pgtype.Int4
 			ousr   pgtype.Int4
+			oitm   pgtype.Int4
 			expird bool
 		)
-		err = tx.QueryRow(ctx, `SELECT plan_id, expires_at, override_max_tx_per_day, override_max_users, note, (expires_at IS NOT NULL AND expires_at <= now())
-			FROM tenant_subscriptions WHERE tenant_id = $1`, tenantID).Scan(&sub.PlanID, &exp, &otx, &ousr, &sub.Note, &expird)
+		err = tx.QueryRow(ctx, `SELECT plan_id, expires_at, override_max_tx_per_day, override_max_users, override_max_items, note, (expires_at IS NOT NULL AND expires_at <= now())
+			FROM tenant_subscriptions WHERE tenant_id = $1`, tenantID).Scan(&sub.PlanID, &exp, &otx, &ousr, &oitm, &sub.Note, &expird)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 		case err != nil:
@@ -222,7 +225,7 @@ func (s *Service) GetTenantPlan(ctx context.Context, tenantID uuid.UUID) (*Tenan
 				t := exp.Time
 				sub.ExpiresAt = &t
 			}
-			sub.OverrideTx, sub.OverrideUsr, sub.Expired = int4(otx), int4(ousr), expird
+			sub.OverrideTx, sub.OverrideUsr, sub.OverrideItm, sub.Expired = int4(otx), int4(ousr), int4(oitm), expird
 			out.Subscription = &sub
 		}
 		// Hari ini menurut zona waktu outlet aktif pertama.
@@ -244,15 +247,15 @@ func (s *Service) GetTenantPlan(ctx context.Context, tenantID uuid.UUID) (*Tenan
 
 // SetTenantPlanInput: PlanID nil = kembali ke paket default (hapus langganan manual).
 type SetTenantPlanInput struct {
-	PlanID               *uuid.UUID
-	ExpiresAt            *time.Time
-	OverrideTx, OverrideU *int
-	Note                 string
+	PlanID                               *uuid.UUID
+	ExpiresAt                            *time.Time
+	OverrideTx, OverrideU, OverrideItems *int
+	Note                                 string
 }
 
 func (s *Service) SetTenantPlan(ctx context.Context, a Actor, tenantID uuid.UUID, in SetTenantPlanInput) error {
 	f := map[string]string{}
-	for k, v := range map[string]*int{"override_max_tx_per_day": in.OverrideTx, "override_max_users": in.OverrideU} {
+	for k, v := range map[string]*int{"override_max_tx_per_day": in.OverrideTx, "override_max_users": in.OverrideU, "override_max_items": in.OverrideItems} {
 		if v != nil && (*v < 1 || *v > 1_000_000) {
 			f[k] = "INVALID"
 		}
@@ -260,7 +263,7 @@ func (s *Service) SetTenantPlan(ctx context.Context, a Actor, tenantID uuid.UUID
 	if len([]rune(in.Note)) > 300 {
 		f["note"] = "INVALID"
 	}
-	if in.PlanID == nil && (in.ExpiresAt != nil || in.OverrideTx != nil || in.OverrideU != nil) {
+	if in.PlanID == nil && (in.ExpiresAt != nil || in.OverrideTx != nil || in.OverrideU != nil || in.OverrideItems != nil) {
 		f["plan_id"] = "REQUIRED"
 	}
 	if len(f) > 0 {
@@ -279,11 +282,11 @@ func (s *Service) SetTenantPlan(ctx context.Context, a Actor, tenantID uuid.UUID
 		if err := tx.QueryRow(ctx, `SELECT name FROM tenants WHERE id = $1`, tenantID).Scan(&name); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `SELECT platform_set_tenant_plan($1, $2, $3, $4, $5, $6, $7)`,
-			a.ID, tenantID, pid, exp, pgInt4(in.OverrideTx), pgInt4(in.OverrideU), in.Note); err != nil {
+		if _, err := tx.Exec(ctx, `SELECT platform_set_tenant_plan($1, $2, $3, $4, $5, $6, $7, $8)`,
+			a.ID, tenantID, pid, exp, pgInt4(in.OverrideTx), pgInt4(in.OverrideU), in.Note, pgInt4(in.OverrideItems)); err != nil {
 			return err
 		}
-		details := map[string]any{"plan_id": in.PlanID, "expires_at": in.ExpiresAt, "override_max_tx_per_day": in.OverrideTx, "override_max_users": in.OverrideU, "note": in.Note}
+		details := map[string]any{"plan_id": in.PlanID, "expires_at": in.ExpiresAt, "override_max_tx_per_day": in.OverrideTx, "override_max_users": in.OverrideU, "override_max_items": in.OverrideItems, "note": in.Note}
 		if err := s.recordTx(ctx, tx, a, ActionTenantPlanSet, tenantID, name, details); err != nil {
 			return err
 		}
@@ -346,6 +349,7 @@ type planRequest struct {
 	DurationDays *int            `json:"duration_days"`
 	MaxTxPerDay  *int            `json:"max_tx_per_day"`
 	MaxUsers     *int            `json:"max_users"`
+	MaxItems     *int            `json:"max_items"`
 	SelfService  bool            `json:"self_service"`
 	Active       bool            `json:"active"`
 	SortOrder    int             `json:"sort_order"`
@@ -360,7 +364,7 @@ func (h *Handler) savePlan(w http.ResponseWriter, r *http.Request, id *uuid.UUID
 	}
 	pid, err := h.svc.SavePlan(r.Context(), actor(r), SavePlanInput{
 		ID: id, Code: req.Code, Name: req.Name, Description: req.Description, Price: req.Price, DurationDays: req.DurationDays,
-		MaxTxPerDay: req.MaxTxPerDay, MaxUsers: req.MaxUsers, SelfService: req.SelfService, Active: req.Active, SortOrder: req.SortOrder, Modules: dedupe(req.Modules), Highlights: cleanLines(req.Highlights),
+		MaxTxPerDay: req.MaxTxPerDay, MaxUsers: req.MaxUsers, MaxItems: req.MaxItems, SelfService: req.SelfService, Active: req.Active, SortOrder: req.SortOrder, Modules: dedupe(req.Modules), Highlights: cleanLines(req.Highlights),
 	})
 	if err != nil {
 		h.planErr(w, r, "simpan paket gagal", err)
@@ -402,17 +406,18 @@ func (h *Handler) SetTenantPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		PlanID     *uuid.UUID `json:"plan_id"`
-		ExpiresAt  *time.Time `json:"expires_at"`
-		OverrideTx *int       `json:"override_max_tx_per_day"`
-		OverrideU  *int       `json:"override_max_users"`
-		Note       string     `json:"note"`
+		PlanID        *uuid.UUID `json:"plan_id"`
+		ExpiresAt     *time.Time `json:"expires_at"`
+		OverrideTx    *int       `json:"override_max_tx_per_day"`
+		OverrideU     *int       `json:"override_max_users"`
+		OverrideItems *int       `json:"override_max_items"`
+		Note          string     `json:"note"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 	if err := h.svc.SetTenantPlan(r.Context(), actor(r), id, SetTenantPlanInput{
-		PlanID: req.PlanID, ExpiresAt: req.ExpiresAt, OverrideTx: req.OverrideTx, OverrideU: req.OverrideU, Note: req.Note,
+		PlanID: req.PlanID, ExpiresAt: req.ExpiresAt, OverrideTx: req.OverrideTx, OverrideU: req.OverrideU, OverrideItems: req.OverrideItems, Note: req.Note,
 	}); err != nil {
 		h.planErr(w, r, "ubah paket tenant gagal", err)
 		return

@@ -118,6 +118,8 @@ export type PlanRow = {
   duration_days: number | null;
   max_tx_per_day: number | null;
   max_users: number | null;
+  /** Barang aktif; null = tanpa batas. */
+  max_items: number | null;
   is_default: boolean;
   self_service: boolean;
   active: boolean;
@@ -129,11 +131,11 @@ export type PlanRow = {
 };
 export type PlanInput = Omit<PlanRow, 'id' | 'is_default' | 'code'>;
 export type TenantPlan = {
-  effective: { plan_id: string; code: string; name: string; max_tx_per_day: number | null; max_users: number | null; expires_at: string | null; is_default: boolean };
-  subscription: { plan_id: string; expires_at: string | null; expired: boolean; override_max_tx_per_day: number | null; override_max_users: number | null; note: string } | null;
-  usage: { tx_today: number; users: number };
+  effective: { plan_id: string; code: string; name: string; max_tx_per_day: number | null; max_users: number | null; max_items: number | null; expires_at: string | null; is_default: boolean };
+  subscription: { plan_id: string; expires_at: string | null; expired: boolean; override_max_tx_per_day: number | null; override_max_users: number | null; override_max_items: number | null; note: string } | null;
+  usage: { tx_today: number; users: number; items: number };
 };
-export type TenantPlanInput = { plan_id: string | null; expires_at: string | null; override_max_tx_per_day: number | null; override_max_users: number | null; note: string };
+export type TenantPlanInput = { plan_id: string | null; expires_at: string | null; override_max_tx_per_day: number | null; override_max_users: number | null; override_max_items: number | null; note: string };
 
 /** Kebijakan HalloArus (null pada pengecualian tenant = ikut aturan global). */
 export type AiPolicyValues = {
@@ -191,7 +193,17 @@ export type DomainRow = {
   created_at: string;
 };
 
+export type TemplateRow = { id: string; code: string; name: string; description: string; category: string; active: boolean; sort_order: number; bytes: number; updated_at: string };
+export type TemplateDetail = TemplateRow & { html: string; css: string };
+export type TemplateInput = { code?: string; name: string; description: string; category: string; html: string; css: string; active: boolean; sort_order: number };
+
 export const platformApi = {
+  storefrontTemplates: () => papi<{ items: TemplateRow[] }>('/platform/storefront-templates').then((r) => r.items),
+  storefrontTemplate: (id: string) => papi<TemplateDetail>(`/platform/storefront-templates/${id}`),
+  createStorefrontTemplate: (body: TemplateInput) => papi<{ id: string; warnings: string[] }>('/platform/storefront-templates', { method: 'POST', body: json(body) }),
+  updateStorefrontTemplate: (id: string, body: TemplateInput) => papi<{ id: string; warnings: string[] }>(`/platform/storefront-templates/${id}`, { method: 'PUT', body: json(body) }),
+  deleteStorefrontTemplate: (id: string) => papi<void>(`/platform/storefront-templates/${id}`, { method: 'DELETE' }),
+  previewStorefrontTemplate: (body: { html: string; css: string }) => papi<{ html: string }>('/platform/storefront-templates/preview', { method: 'POST', body: json(body) }),
   apkInfo: () => papi<ApkInfo>('/public/mobile/apk/info'),
   /** Unggah APK Kasir (multipart; versi harus dikirim sebelum berkas). */
   uploadApk: (file: File, version: string) => {

@@ -13,7 +13,7 @@ export default {
     evening: 'Selamat malam',
     subtitle: 'Pusat kendali ARUS: pantau semua tenant, kelola akses, dan telusuri setiap tindakan lewat audit.'
   },
-  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', apiAccess: 'API Eksternal', languages: 'Bahasa', plans: 'Paket', halloarus: 'HalloArus', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', qa: 'Checklist QA', domains: 'Domain', signOut: 'Keluar' },
+  nav: { groupMain: 'Platform', groupSystem: 'Sistem', mobile: 'Aplikasi Mobile', apiAccess: 'API Eksternal', languages: 'Bahasa', plans: 'Paket', templates: 'Template Landing', halloarus: 'HalloArus', security: 'Keamanan', tenants: 'Tenant', admins: 'Platform Admin', audit: 'Audit Platform', qa: 'Checklist QA', domains: 'Domain', signOut: 'Keluar' },
   login: {
     title: 'Masuk Platform Admin',
     subtitle: 'Khusus operator ACIRABA. Bukan untuk pengguna toko.',
@@ -555,6 +555,7 @@ export default {
     durationHelp: 'Kosongkan = tanpa kedaluwarsa (dipasang manual).',
     maxTx: 'Maks transaksi per hari',
     maxUsers: 'Maks pengguna (termasuk Owner)',
+    maxItems: 'Maks barang aktif',
     limitHelp: 'Kosongkan = tanpa batas.',
     selfService: 'Dijual sendiri via QRIS',
     selfServiceHelp: 'Tampil di halaman Langganan tenant. Wajib berharga, berdurasi, dan aktif.',
@@ -589,6 +590,7 @@ export default {
     noExpiry: 'Tanpa kedaluwarsa',
     txToday: 'Transaksi hari ini',
     activeUsers: 'Pengguna aktif',
+    activeItems: 'Barang aktif',
     unlimited: 'Tanpa batas',
     usedOf: '{used} dari {limit}',
     plan: 'Paket',
@@ -597,6 +599,7 @@ export default {
     expiresHelp: 'Kosongkan = tanpa kedaluwarsa.',
     overrideTx: 'Batas transaksi/hari khusus',
     overrideUsers: 'Batas pengguna khusus',
+    overrideItems: 'Batas barang khusus',
     overrideHelp: 'Kosongkan = ikut paket.',
     note: 'Catatan',
     save: 'Simpan Paket',

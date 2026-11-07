@@ -83,6 +83,7 @@ var Modules = []Module{
 	{"roles", crud},
 	{"outlets", crud},
 	{"ai_assistant", []string{ActView, ActCreate, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), create = boleh menyetujui usulan aksi tulis AI, update = kelola API key & model
+	{"storefront", []string{ActView, ActUpdate}}, // Landing page publik toko (/s/{slug}): lihat/ubah isi halaman
 	{"audit_log", viewing},
 	{"subscription", viewing}, // halaman Langganan: lihat paket & pemakaian; membeli/memperpanjang khusus Owner (dicek di layanan)
 }
