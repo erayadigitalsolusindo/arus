@@ -352,7 +352,7 @@
       const name = activeInfo.custom ? (activeInfo.label ?? activeInfo.id) : (tryT(`ai.providers.${activeInfo.id}.name`) ?? activeInfo.id);
       return `${name} · ${tryT(`ai.models.${activeInfo.model}`) ?? activeInfo.model}`;
     }
-    return `${t('ai.liveFree')} · ${settings.free.model}`;
+    return `${t('ai.liveFree')} · ${settings.free.arus ? 'API ARUS' : settings.free.model}`;
   });
   const historyOn = $derived(!!settings?.history.available && !!settings.history.enabled);
 

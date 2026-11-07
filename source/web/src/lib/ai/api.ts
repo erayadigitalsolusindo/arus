@@ -2,7 +2,7 @@
 // ia hanya mengusulkan aksi (PendingAction) yang baru dijalankan server setelah pengguna menyetujui lewat confirmAction.
 import { api } from '#lib/api/client.ts';
 
-export type FreeInfo = { enabled: boolean; limit: number; remaining: number; model: string };
+export type FreeInfo = { enabled: boolean; limit: number; remaining: number; model: string; arus?: boolean };
 export type Connection = { id: string; client: string; user_name: string; created_at: string; last_used_at?: string; own: boolean };
 /** Penyedia bawaan ('anthropic'|'openai'|'gemini'|'qwen') atau penyedia kustom tenant ('custom_xxxxxxxx'). */
 export type Provider = string;

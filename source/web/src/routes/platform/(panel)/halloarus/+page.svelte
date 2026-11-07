@@ -10,9 +10,10 @@
   import AiEffectPanel from '#lib/platform/AiEffectPanel.svelte';
   import Avatar from '#lib/platform/Avatar.svelte';
   import AiRulesPanel from '#lib/platform/AiRulesPanel.svelte';
+  import AiProviderPanel from '#lib/platform/AiProviderPanel.svelte';
   import { FEATURES, pick, emptyPolicy, posture, changedCount } from '#lib/platform/aiPolicyMeta.ts';
 
-  type Tab = 'policy' | 'overrides' | 'rules';
+  type Tab = 'policy' | 'overrides' | 'rules' | 'provider';
   let tab = $state<Tab>('policy');
 
   let data = $state<AiPolicies | null>(null);
@@ -250,12 +251,18 @@
       {#if rulesVer}<span class="cnt">{t('platform.ai.rulesVer', { n: rulesVer })}</span>{/if}
       {#if tab === 'rules'}<span class="uline"></span>{/if}
     </button>
+    <button type="button" role="tab" aria-selected={tab === 'provider'} class={tabBtn(tab === 'provider')} onclick={() => (tab = 'provider')}>
+      <i class="icon-plug-zap text-[14px]"></i>{t('platform.ai.tabProvider')}
+      {#if tab === 'provider'}<span class="uline"></span>{/if}
+    </button>
   </div>
 
   {#if notice}<div class="rounded-lg border border-[var(--color-success-500)]/20 bg-[var(--color-success-500)]/10 px-3 py-2 text-[12.5px] text-[var(--color-success-600)]" role="status">{notice}</div>{/if}
   {#if error}<div class="rounded-lg border border-[var(--color-danger-500)]/20 bg-[var(--color-danger-500)]/10 px-3 py-2 text-[12.5px] text-[var(--color-danger-600)]" role="alert">{error}</div>{/if}
 
-  {#if tab === 'rules'}
+  {#if tab === 'provider'}
+    <AiProviderPanel />
+  {:else if tab === 'rules'}
     <AiRulesPanel onsaved={loadRulesInfo} />
   {:else if loading && !data}
     <div class="h-48 animate-pulse rounded-xl bg-[var(--surface-sunken)]"></div>

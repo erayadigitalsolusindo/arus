@@ -161,6 +161,9 @@ func (s *Service) freeLimit(p aipolicy.Effective) int {
 }
 
 func (s *Service) freeModelFor(p aipolicy.Effective) string {
+	if pp := s.ppCached(); pp != nil {
+		return pp.model // API ARUS menentukan modelnya sendiri; pilihan model kebijakan hanya untuk key env (Claude)
+	}
 	if p.FreeModel != "" && ValidFreeModel(p.FreeModel) {
 		return p.FreeModel
 	}
@@ -168,7 +171,7 @@ func (s *Service) freeModelFor(p aipolicy.Effective) string {
 }
 
 func (s *Service) freeOn(p aipolicy.Effective) bool {
-	return s.free.Key != "" && p.FreeEnabled && s.freeLimit(p) > 0 && s.rdb != nil
+	return (s.free.Key != "" || s.ppCached() != nil) && p.FreeEnabled && s.freeLimit(p) > 0 && s.rdb != nil
 }
 
 // PolicyInfo = ringkasan kebijakan untuk UI tenant (menyembunyikan fitur yang dikunci platform).

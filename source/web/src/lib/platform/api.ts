@@ -153,6 +153,7 @@ export type AiPolicyValues = {
   max_range_days: number | null;
 };
 export type AiPolicyRow = AiPolicyValues & { tenant_id: string | null; tenant_code?: string; tenant_name?: string; note: string; updated_at: string };
+export type AiProvider = { configured: boolean; base_url: string; model: string; key_hint: string; updated_at: string; author: string };
 export type AiPolicies = { global: AiPolicyRow; tenants: AiPolicyRow[]; domains: string[]; domain_tools: Record<string, string[]>; free_models: string[] };
 export type AiRuleTest = { reply: string; model: string; elapsed_ms: number; rules_chars: number; input_tokens: number; output_tokens: number };
 
@@ -252,6 +253,10 @@ export const platformApi = {
   saveAiGlobalPolicy: (body: AiPolicyValues & { note: string }) => papi<{ ok: boolean }>('/platform/ai/policies/global', { method: 'PUT', body: json(body) }),
   saveAiTenantPolicy: (tenantId: string, body: AiPolicyValues & { note: string }) => papi<{ ok: boolean }>(`/platform/ai/policies/tenants/${tenantId}`, { method: 'PUT', body: json(body) }),
   deleteAiTenantPolicy: (tenantId: string) => papi<void>(`/platform/ai/policies/tenants/${tenantId}`, { method: 'DELETE' }),
+
+  aiProvider: () => papi<AiProvider>('/platform/ai/provider'),
+  saveAiProvider: (body: { base_url: string; model: string; api_key: string }) => papi<{ ok: boolean }>('/platform/ai/provider', { method: 'PUT', body: json(body) }),
+  deleteAiProvider: () => papi<void>('/platform/ai/provider', { method: 'DELETE' }),
 
   aiRuleTenants: () => papi<{ items: AiRuleTenant[]; max_chars: number }>('/platform/ai/rules/tenants'),
   aiRules: (tenantId = '') => papi<{ items: AiRuleVersion[] }>(tenantId ? `/platform/ai/rules/tenants/${tenantId}` : '/platform/ai/rules'),

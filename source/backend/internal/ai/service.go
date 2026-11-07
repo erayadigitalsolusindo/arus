@@ -76,6 +76,9 @@ type Service struct {
 	log     *slog.Logger
 	pc      *policyCache // kebijakan platform per tenant (cache singkat)
 
+	// API ARUS (penyedia akun gratis yang diatur di panel platform), cache singkat.
+	ppc *ppCache
+
 	// Aksi tulis (opsional, WithActions): nil = tool usulan tidak ditawarkan.
 	shifts    *shift.Service
 	approvals *approval.Service
@@ -89,7 +92,7 @@ func NewService(pool *pgxpool.Pool, rdb *redis.Client, jwtSecret string, free Fr
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{free: free, pool: pool, rdb: rdb, box: box, claude: newClaudeClient(), tools: registry(), byName: map[string]tool{}, log: log, pc: &policyCache{}}
+	s := &Service{free: free, pool: pool, rdb: rdb, box: box, claude: newClaudeClient(), tools: registry(), byName: map[string]tool{}, log: log, pc: &policyCache{}, ppc: &ppCache{}}
 	s.clients = map[string]chatClient{ProviderAnthropic: s.claude, ProviderOpenAI: newOpenAIClient(), ProviderGemini: newGeminiClient(), ProviderQwen: newQwenClient()}
 	for _, t := range s.tools {
 		s.byName[t.name] = t
@@ -105,6 +108,7 @@ type FreeInfo struct {
 	Limit     int    `json:"limit"`
 	Remaining int    `json:"remaining"`
 	Model     string `json:"model"`
+	Arus      bool   `json:"arus,omitempty"` // dilayani API ARUS (diatur operator); model tidak ditampilkan ke pelanggan
 }
 
 // ProviderInfo = status satu penyedia AI untuk tenant ini (key tak pernah dikirim balik, hanya 4 karakter terakhir).
@@ -458,11 +462,17 @@ func (s *Service) ChatWith(ctx context.Context, a authz.Actor, in []ChatMessage,
 		err = ErrNotConfigured // key tenant tersimpan, tetapi platform tidak mengizinkan penyedia ini: perlakukan seperti belum diatur
 	}
 	free := false
+	var freeClient chatClient
+	pp := s.platformProv(ctx) // API ARUS dari panel (nil = pakai AI_PLATFORM_KEY)
 	if errors.Is(err, ErrNotConfigured) && s.freeOn(pol) {
 		if err = s.takeFree(ctx, a, pol); err != nil {
 			return nil, err
 		}
-		provider, key, model, free = ProviderAnthropic, s.free.Key, s.freeModelFor(pol), true
+		if pp != nil {
+			provider, key, model, free, freeClient = ProviderArus, pp.key, pp.model, true, newCustomClient(pp.base)
+		} else {
+			provider, key, model, free = ProviderAnthropic, s.free.Key, s.freeModelFor(pol), true
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -473,19 +483,28 @@ func (s *Service) ChatWith(ctx context.Context, a authz.Actor, in []ChatMessage,
 		}
 		return nil, ErrImageProvider
 	}
-	client, ok := s.clientFor(provider, cr.baseURL)
-	if !ok {
-		return nil, ErrBadInput
+	client := freeClient
+	if client == nil {
+		if client, ok = s.clientFor(provider, cr.baseURL); !ok {
+			return nil, ErrBadInput
+		}
 	}
 	res, err := s.converseWith(ctx, a, client, provider, key, model, msgs, pol)
 	if err != nil {
 		if free {
 			s.refundFree(ctx, a)
 			var up *upstreamError
-			if errors.As(err, &up) && (up.Code == "AI_KEY_INVALID" || up.Code == "AI_NO_CREDIT" || up.Code == "AI_UPSTREAM_LIMIT") {
+			if errors.As(err, &up) && (up.Code == "AI_KEY_INVALID" || up.Code == "AI_NO_CREDIT" || up.Code == "AI_UPSTREAM_LIMIT" || provider == ProviderArus) {
 				// masalah pada key platform, bukan salah tenant: jangan menyuruh tenant memperbaiki key-nya
 				s.log.ErrorContext(ctx, "ai: key platform bermasalah", "code", up.Code)
-				err = &upstreamError{Status: http.StatusBadGateway, Code: "AI_UNAVAILABLE", Message: up.Message}
+				msg := up.Message
+				if provider == ProviderArus { // jangan bocorkan pesan mentah gateway ke pelanggan
+					msg = "Layanan gratis HalloArus sedang tidak tersedia; coba lagi nanti atau pasang API key sendiri."
+					if up.Code == "AI_UPSTREAM_LIMIT" {
+						msg = "Layanan gratis HalloArus sedang penuh; coba lagi nanti atau pasang API key sendiri."
+					}
+				}
+				err = &upstreamError{Status: http.StatusBadGateway, Code: "AI_UNAVAILABLE", Message: msg}
 			}
 		}
 		return nil, err
@@ -502,6 +521,9 @@ func (s *Service) ChatWith(ctx context.Context, a authz.Actor, in []ChatMessage,
 		} else {
 			res.ConversationID = id.String()
 		}
+	}
+	if free && provider == ProviderArus {
+		res.Model = "" // pelanggan hanya tahu "API ARUS"; model tercatat di audit/riwayat
 	}
 	return res, nil
 }
@@ -692,7 +714,11 @@ func (s *Service) freeKey(a authz.Actor, day time.Time) string {
 
 // freeInfo = sisa kuota hari ini (hari menurut zona waktu outlet aktif). Redis gagal → dianggap habis (tertutup).
 func (s *Service) freeInfo(ctx context.Context, a authz.Actor, pol aipolicy.Effective) FreeInfo {
-	fi := FreeInfo{Enabled: pol.Enabled && s.freeOn(pol), Limit: s.freeLimit(pol), Model: s.freeModelFor(pol)}
+	s.platformProv(ctx) // segarkan cache API ARUS sebelum pemeriksaan sinkron di bawah
+	fi := FreeInfo{Enabled: pol.Enabled && s.freeOn(pol), Limit: s.freeLimit(pol), Model: s.freeModelFor(pol), Arus: s.ppCached() != nil}
+	if fi.Arus {
+		fi.Model = "" // gateway/model dirahasiakan dari pelanggan
+	}
 	if !fi.Enabled {
 		return fi
 	}

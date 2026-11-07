@@ -57,7 +57,8 @@ func (s *Service) TestRules(ctx context.Context, in TestRulesInput) (*TestRulesR
 	if msg == "" || utf8.RuneCountInString(msg) > ruleTestMaxMessage || utf8.RuneCountInString(draft) > ruleTestMaxDraft {
 		return nil, ErrBadInput
 	}
-	if s.free.Key == "" {
+	pp := s.platformProv(ctx)
+	if pp == nil && s.free.Key == "" {
 		return nil, ErrPlatformKeyMissing
 	}
 	if s.rdb != nil {
@@ -83,7 +84,12 @@ func (s *Service) TestRules(ctx context.Context, in TestRulesInput) (*TestRulesR
 
 	model := s.freeModelFor(pol)
 	start := time.Now()
-	resp, err := s.claude.send(ctx, s.free.Key, apiRequest{Model: model, MaxTokens: ruleTestTokens, System: system,
+	var client chatClient = s.claude
+	key := s.free.Key
+	if pp != nil {
+		client, key = newCustomClient(pp.base), pp.key
+	}
+	resp, err := client.send(ctx, key, apiRequest{Model: model, MaxTokens: ruleTestTokens, System: system,
 		Messages: []message{{Role: "user", Content: []block{{Type: "text", Text: msg}}}}})
 	if err != nil {
 		s.log.WarnContext(ctx, "ai: uji aturan gagal", "err", err)
