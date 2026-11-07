@@ -219,6 +219,7 @@ const (
 	ActionVoucherCreate = "voucher.create"
 	ActionVoucherUpdate = "voucher.update"
 	ActionVoucherActive = "voucher.active"
+	ActionVoucherPublic = "voucher.public"
 )
 
 // Metode pembayaran. `payment_method.active` = arsip/aktifkan kembali.

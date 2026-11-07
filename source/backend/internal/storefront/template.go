@@ -25,12 +25,20 @@ import (
 //	{#kategori limit=6} {namakategori} {nomor} … {/kategori}  ulang untuk tiap kategori
 //	  - kategori= angka (urutan), "Nama Kategori", atau ini (kategori dari blok {#kategori} di sekelilingnya)
 //	  - urut= nama | terbaru | termurah | termahal
+//	{satuan} {stok}                        satuan barang; stok = Tersedia | Habis (jasa/boleh minus selalu Tersedia)
+//	{jumlahkategori} {jumlahoutlet} {jumlahmember} {tanggal}   angka ringkas toko (member = total terdaftar, dari penghitung)
+//	{#level}  {namalevel} {minpoin} {belanjaperpoin} {nilaipoin} {nomor}          level member (aturan, bukan data orang)
+//	{#kupon limit=6}  {kodekupon} {namakupon} {potongan} {maksimalpotongan} {minbelanja} {berlakuhingga} {sisakuota}
+//	  - hanya kupon aktif, berlaku hari ini, kuota tersisa, dan diberi saklar "tampil di landing page"
+//	{#outlet} {namaoutlet}      {#pembayaran} {namapembayaran} {jenispembayaran}
+//	Data pribadi (nama/telepon/poin member) TIDAK pernah tersedia di penanda.
 
 const (
 	maxCategories  = 20
 	maxIndexed     = 24
 	maxBlockLimit  = 48
 	defBlockLimit  = 8
+	maxListed      = 20
 	maxQueries     = 40
 	maxNodes       = 6000
 	maxOutputBytes = 2 << 20
@@ -49,7 +57,29 @@ type Item struct {
 	Price       decimal.Decimal
 	Category    string
 	ImageID     *uuid.UUID
+	Unit        string
+	InStock     bool
 }
+
+type Level struct {
+	Name          string
+	MinPoints     int
+	SpendPerPoint decimal.Decimal
+	PointValue    decimal.Decimal
+}
+
+type Coupon struct {
+	Code, Name, Kind string
+	Value            decimal.Decimal
+	MaxDiscount      decimal.Decimal // 0 = tanpa batas
+	MinSpend         decimal.Decimal
+	EndsOn           *time.Time
+	Remaining        *int // nil = kuota tak terbatas
+}
+
+type Outlet struct{ Name string }
+
+type PayMethod struct{ Name, Kind string }
 
 type ItemQuery struct {
 	CategoryID *uuid.UUID
@@ -61,6 +91,12 @@ type ItemQuery struct {
 type Source interface {
 	Categories(ctx context.Context, limit int) ([]Category, error)
 	Items(ctx context.Context, q ItemQuery) ([]Item, error)
+	Levels(ctx context.Context, limit int) ([]Level, error)
+	Coupons(ctx context.Context, today time.Time, limit int) ([]Coupon, error)
+	Outlets(ctx context.Context, limit int) ([]Outlet, error)
+	PayMethods(ctx context.Context, limit int) ([]PayMethod, error)
+	// MemberTotal = total member terdaftar, dibaca dari penghitung nomor member (O(1)), bukan count(*).
+	MemberTotal(ctx context.Context) (int64, error)
 }
 
 // Site = data toko untuk satu render.
@@ -83,7 +119,8 @@ var (
 	tagRe    = regexp.MustCompile(`^(#?/?)([a-z][a-z0-9]*)((?:\s+[a-z]+=(?:"[^"{}]*"|[^\s"{}]+))*)\s*$`)
 	argRe    = regexp.MustCompile(`([a-z]+)=(?:"([^"{}]*)"|([^\s"{}]+))`)
 	indexRe  = regexp.MustCompile(`^([a-z]+?)([0-9]{1,2})$`)
-	itemVars = map[string]bool{"namabarang": true, "harga": true, "hargaangka": true, "kodebarang": true, "kategoribarang": true, "deskripsi": true, "gambar": true, "nomor": true}
+	itemVars = map[string]bool{"namabarang": true, "harga": true, "hargaangka": true, "kodebarang": true, "kategoribarang": true, "deskripsi": true, "gambar": true, "nomor": true, "satuan": true, "stok": true}
+	blocks   = map[string]bool{"barang": true, "kategori": true, "level": true, "kupon": true, "outlet": true, "pembayaran": true}
 )
 
 // parse memecah templat menjadi pohon. Penanda yang tidak dikenal dibiarkan sebagai teks biasa; blok yang tak seimbang
@@ -137,7 +174,7 @@ func parse(src string) ([]*node, error) {
 		}
 		prefix, name, rest := m[1], m[2], m[3]
 		switch {
-		case prefix == "#" && (name == "barang" || name == "kategori"):
+		case prefix == "#" && blocks[name]:
 			args := map[string]string{}
 			for _, a := range argRe.FindAllStringSubmatch(rest, -1) {
 				v := a[2]
@@ -151,7 +188,7 @@ func parse(src string) ([]*node, error) {
 				return nil, err
 			}
 			stack = append(stack, n)
-		case prefix == "/" && (name == "barang" || name == "kategori"):
+		case prefix == "/" && blocks[name]:
 			if len(stack) > 1 && stack[len(stack)-1].name == name {
 				stack = stack[:len(stack)-1]
 			}
@@ -168,7 +205,32 @@ func parse(src string) ([]*node, error) {
 	return root.child, nil
 }
 
+// memo = daftar yang dimuat paling banyak sekali per render (dan hanya bila dipakai templat).
+type memo[T any] struct {
+	done bool
+	v    []T
+}
+
+func load[T any](r *renderer, m *memo[T], fn func() ([]T, error)) []T {
+	if !m.done {
+		m.done = true
+		if r.spend() {
+			v, err := fn()
+			r.fail(err)
+			m.v = v
+		}
+	}
+	return m.v
+}
+
 type renderer struct {
+	levels  memo[Level]
+	coupons memo[Coupon]
+	outlets memo[Outlet]
+	pays    memo[PayMethod]
+	members int64
+	memOK   bool
+
 	ctx     context.Context
 	src     Source
 	site    Site
@@ -186,7 +248,11 @@ type scope struct {
 	idx  int
 	cat  *Category
 	// nomor urut baris di blok terdalam (1-based)
-	num int
+	num    int
+	level  *Level
+	coupon *Coupon
+	outlet *Outlet
+	pay    *PayMethod
 }
 
 // Render mengisi templat. Keluaran BELUM disaring; pemanggil wajib menjalankan SanitizeHTML(tmpl=false).
@@ -259,14 +325,45 @@ func (r *renderer) walk(nodes []*node, sc scope) {
 				r.out.WriteString(html.EscapeString(n.text)) // tak dikenal: tampil apa adanya
 			}
 		case 'b':
-			if n.name == "kategori" {
+			switch n.name {
+			case "kategori":
 				r.kategoriBlock(n, sc)
-			} else {
+			case "level":
+				for i, x := range load(r, &r.levels, func() ([]Level, error) { return r.src.Levels(r.ctx, 10) }) {
+					if i >= blockLimit(n) {
+						break
+					}
+					r.walk(n.child, scope{level: &x, item: sc.item, cat: sc.cat, num: i + 1})
+				}
+			case "kupon":
+				for i, x := range load(r, &r.coupons, func() ([]Coupon, error) { return r.src.Coupons(r.ctx, r.site.Now, maxListed) }) {
+					if i >= blockLimit(n) {
+						break
+					}
+					r.walk(n.child, scope{coupon: &x, item: sc.item, cat: sc.cat, num: i + 1})
+				}
+			case "outlet":
+				for i, x := range load(r, &r.outlets, func() ([]Outlet, error) { return r.src.Outlets(r.ctx, maxListed) }) {
+					if i >= blockLimit(n) {
+						break
+					}
+					r.walk(n.child, scope{outlet: &x, item: sc.item, cat: sc.cat, num: i + 1})
+				}
+			case "pembayaran":
+				for i, x := range load(r, &r.pays, func() ([]PayMethod, error) { return r.src.PayMethods(r.ctx, maxListed) }) {
+					if i >= blockLimit(n) {
+						break
+					}
+					r.walk(n.child, scope{pay: &x, item: sc.item, cat: sc.cat, num: i + 1})
+				}
+			default:
 				r.barangBlock(n, sc)
 			}
 		}
 	}
 }
+
+func blockLimit(n *node) int { return clamp(atoi(n.args["limit"], maxListed), 0, maxListed) }
 
 func (r *renderer) kategoriBlock(n *node, sc scope) {
 	cats := r.categories()
@@ -331,6 +428,25 @@ func (r *renderer) value(n *node, sc scope) (string, bool) {
 		return "", true
 	case "nomor":
 		return strconv.Itoa(sc.num), true
+	case "tanggal":
+		return indoDate(r.site.Now), true
+	case "jumlahkategori":
+		return strconv.Itoa(len(r.categories())), true
+	case "jumlahoutlet":
+		return strconv.Itoa(len(load(r, &r.outlets, func() ([]Outlet, error) { return r.src.Outlets(r.ctx, maxListed) }))), true
+	case "jumlahmember":
+		if !r.memOK {
+			r.memOK = true
+			if r.spend() {
+				n, err := r.src.MemberTotal(r.ctx)
+				r.fail(err)
+				r.members = n
+			}
+		}
+		return groupDigits(strconv.FormatInt(r.members, 10)), true
+	}
+	if v, ok := r.blockValue(name, sc); ok {
+		return v, true
 	}
 	if m := indexRe.FindStringSubmatch(name); m != nil {
 		num, _ := strconv.Atoi(m[2])
@@ -360,6 +476,86 @@ func (r *renderer) value(n *node, sc scope) (string, bool) {
 	return "", false
 }
 
+func (r *renderer) blockValue(name string, sc scope) (string, bool) {
+	if l := sc.level; l != nil {
+		switch name {
+		case "namalevel":
+			return l.Name, true
+		case "minpoin":
+			return strconv.Itoa(l.MinPoints), true
+		case "belanjaperpoin":
+			return "Rp" + rupiah(l.SpendPerPoint), true
+		case "nilaipoin":
+			return "Rp" + rupiah(l.PointValue), true
+		}
+	}
+	if c := sc.coupon; c != nil {
+		switch name {
+		case "kodekupon":
+			return c.Code, true
+		case "namakupon":
+			return c.Name, true
+		case "potongan":
+			if c.Kind == "percent" {
+				return strings.TrimRight(strings.TrimRight(c.Value.StringFixed(2), "0"), ".") + "%", true
+			}
+			return "Rp" + rupiah(c.Value), true
+		case "maksimalpotongan":
+			if c.MaxDiscount.IsPositive() {
+				return "Rp" + rupiah(c.MaxDiscount), true
+			}
+			return "", true
+		case "minbelanja":
+			if c.MinSpend.IsPositive() {
+				return "Rp" + rupiah(c.MinSpend), true
+			}
+			return "Tanpa minimum", true
+		case "berlakuhingga":
+			if c.EndsOn != nil {
+				return indoDate(*c.EndsOn), true
+			}
+			return "Tanpa batas", true
+		case "sisakuota":
+			if c.Remaining != nil {
+				return strconv.Itoa(*c.Remaining), true
+			}
+			return "Tak terbatas", true
+		}
+	}
+	if sc.outlet != nil && name == "namaoutlet" {
+		return sc.outlet.Name, true
+	}
+	if p := sc.pay; p != nil {
+		switch name {
+		case "namapembayaran":
+			return p.Name, true
+		case "jenispembayaran":
+			return payKinds[p.Kind], true
+		}
+	}
+	switch name {
+	case "namalevel", "minpoin", "belanjaperpoin", "nilaipoin", "kodekupon", "namakupon", "potongan", "maksimalpotongan",
+		"minbelanja", "berlakuhingga", "sisakuota", "namaoutlet", "namapembayaran", "jenispembayaran":
+		return "", true // di luar blok induknya: kosong, bukan teks mentah
+	}
+	return "", false
+}
+
+var payKinds = map[string]string{"cash": "Tunai", "debit": "Kartu debit", "credit_card": "Kartu kredit", "ewallet": "E-wallet", "transfer": "Transfer"}
+
+var indoMonths = [...]string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+
+func indoDate(t time.Time) string {
+	return strconv.Itoa(t.Day()) + " " + indoMonths[t.Month()-1] + " " + strconv.Itoa(t.Year())
+}
+
+func groupDigits(s string) string {
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "." + s[i:]
+	}
+	return s
+}
+
 func (r *renderer) itemField(name string, it *Item, num int) string {
 	switch name {
 	case "namabarang":
@@ -381,6 +577,13 @@ func (r *renderer) itemField(name string, it *Item, num int) string {
 		return ""
 	case "nomor":
 		return strconv.Itoa(num)
+	case "satuan":
+		return it.Unit
+	case "stok":
+		if it.InStock {
+			return "Tersedia"
+		}
+		return "Habis"
 	}
 	return ""
 }

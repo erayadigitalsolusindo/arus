@@ -101,6 +101,7 @@ export default {
     voucher_create: 'Menambah kupon belanja',
     voucher_update: 'Mengubah kupon belanja',
     voucher_active: 'Mengubah status kupon belanja',
+    voucher_public: 'Mengubah tampil kupon di landing page',
     payment_method_create: 'Menambah metode pembayaran',
     payment_method_update: 'Mengubah metode pembayaran',
     payment_method_active: 'Mengubah status metode pembayaran',

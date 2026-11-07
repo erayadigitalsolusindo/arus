@@ -103,6 +103,7 @@ const audit: Messages['audit'] = {
     voucher_create: 'Added a shopping coupon',
     voucher_update: 'Edited a shopping coupon',
     voucher_active: 'Changed a coupon status',
+    voucher_public: 'Changed coupon visibility on the landing page',
     payment_method_create: 'Added a payment method',
     payment_method_update: 'Edited a payment method',
     payment_method_active: 'Changed a payment method status',

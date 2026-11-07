@@ -51,7 +51,14 @@ export default {
     gambar: 'Alamat gambar utama barang, untuk <img src="{gambar}">.',
     barang: 'Ulangi isinya untuk tiap barang. kategori = angka / "Nama" / ini; limit maks 48; urut = nama | terbaru | termurah | termahal.',
     kategori: 'Ulangi isinya untuk tiap kategori (maks 20).',
-    ini: 'Di dalam blok kategori: hanya barang dari kategori itu.'
+    ini: 'Di dalam blok kategori: hanya barang dari kategori itu.',
+    satuan: 'Satuan barang dan status stok (Tersedia / Habis; jasa selalu Tersedia). Contoh {satuan} {stok}.',
+    angka: 'Angka ringkas toko: jumlah kategori, outlet, dan total member terdaftar; {tanggal} = tanggal hari ini.',
+    level: 'Ulangi untuk tiap level member: {namalevel} {minpoin} {belanjaperpoin} {nilaipoin}. Hanya aturan level, bukan data orang.',
+    kupon: 'Ulangi untuk kupon yang diberi saklar "Tampil di landing page" di menu Kupon Belanja, masih berlaku, dan kuotanya ada. Maks 20.',
+    kuponVars: '{kodekupon} {namakupon} {potongan} {maksimalpotongan} {minbelanja} {berlakuhingga} {sisakuota}',
+    outlet: 'Ulangi untuk tiap outlet aktif (nama saja, maks 20).',
+    pembayaran: 'Ulangi untuk tiap metode pembayaran aktif: {namapembayaran} {jenispembayaran}.'
   },
   templates: 'Template',
   tpl: {

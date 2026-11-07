@@ -43,6 +43,9 @@ const vouchers: Messages['vouchers'] = {
     inactive: 'Inactive'
   },
   upTo: 'max. {amount}',
+  showPublic: 'Show on landing page',
+  hidePublic: 'Hide from landing page',
+  publicBadge: 'Landing page',
   minShort: 'min. {amount}',
   pos: {
     button: 'Shopping coupons',

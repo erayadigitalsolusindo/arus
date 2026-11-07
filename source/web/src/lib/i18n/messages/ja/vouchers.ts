@@ -43,6 +43,9 @@ const vouchers: Messages['vouchers'] = {
     inactive: '無効'
   },
   upTo: '最大 {amount}',
+  showPublic: 'ランディングページに表示',
+  hidePublic: 'ランディングページから非表示',
+  publicBadge: 'ランディングページ',
   minShort: '最低 {amount}',
   pos: {
     button: 'ショッピングクーポン',

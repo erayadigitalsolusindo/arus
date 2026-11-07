@@ -18,6 +18,8 @@ export type Voucher = {
   max_uses: number | null;
   used_count: number;
   active: boolean;
+  /** Tampil di landing page toko (penanda {#kupon}). */
+  show_public: boolean;
   created_at: string;
 };
 
@@ -50,7 +52,8 @@ export const vouchers = {
   list: (p: VoucherQuery = {}, signal?: AbortSignal) => api<VoucherPage>(`/vouchers/${qs(p)}`, { signal }),
   create: (input: VoucherInput) => api<Voucher>('/vouchers/', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: VoucherInput) => api<Voucher>(`/vouchers/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
-  setActive: (id: string, active: boolean) => api<Voucher>(`/vouchers/${id}/active`, { method: 'PUT', body: JSON.stringify({ active }) })
+  setActive: (id: string, active: boolean) => api<Voucher>(`/vouchers/${id}/active`, { method: 'PUT', body: JSON.stringify({ active }) }),
+  setPublic: (id: string, show_public: boolean) => api<Voucher>(`/vouchers/${id}/public`, { method: 'PUT', body: JSON.stringify({ show_public }) })
 };
 
 export type VoucherState = 'inactive' | 'upcoming' | 'expired' | 'exhausted' | 'running';

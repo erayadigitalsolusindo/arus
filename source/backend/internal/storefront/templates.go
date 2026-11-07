@@ -226,6 +226,27 @@ func (sampleSource) Items(_ context.Context, q ItemQuery) ([]Item, error) {
 	return out, nil
 }
 
+func (sampleSource) Levels(context.Context, int) ([]Level, error) {
+	return []Level{
+		{Name: "Reguler", MinPoints: 0, SpendPerPoint: decimal.NewFromInt(10000), PointValue: decimal.NewFromInt(100)},
+		{Name: "Gold", MinPoints: 500, SpendPerPoint: decimal.NewFromInt(6000), PointValue: decimal.NewFromInt(100)},
+	}, nil
+}
+
+func (sampleSource) Coupons(context.Context, time.Time, int) ([]Coupon, error) {
+	return []Coupon{{Code: "HEMAT10", Name: "Diskon 10%", Kind: "percent", Value: decimal.NewFromInt(10), MaxDiscount: decimal.NewFromInt(25000), MinSpend: decimal.NewFromInt(100000)}}, nil
+}
+
+func (sampleSource) Outlets(context.Context, int) ([]Outlet, error) {
+	return []Outlet{{Name: "Outlet Pusat"}, {Name: "Outlet Cabang"}}, nil
+}
+
+func (sampleSource) PayMethods(context.Context, int) ([]PayMethod, error) {
+	return []PayMethod{{Name: "Tunai", Kind: "cash"}, {Name: "QRIS", Kind: "ewallet"}}, nil
+}
+
+func (sampleSource) MemberTotal(context.Context) (int64, error) { return 1250, nil }
+
 func nameOf(cs []Category, id uuid.UUID) string {
 	for _, c := range cs {
 		if c.ID == id {

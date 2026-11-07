@@ -215,6 +215,32 @@ func (f *fakeSource) Items(_ context.Context, q ItemQuery) ([]Item, error) {
 	return out, nil
 }
 
+func (f *fakeSource) Levels(context.Context, int) ([]Level, error) {
+	f.queries++
+	return []Level{{Name: "Reguler", SpendPerPoint: decimal.NewFromInt(10000), PointValue: decimal.NewFromInt(100)}, {Name: "Gold", MinPoints: 500, SpendPerPoint: decimal.NewFromInt(6000), PointValue: decimal.NewFromInt(100)}}, nil
+}
+
+func (f *fakeSource) Coupons(context.Context, time.Time, int) ([]Coupon, error) {
+	f.queries++
+	rem := 3
+	return []Coupon{{Code: "HEMAT10", Name: "<i>Hemat</i>", Kind: "percent", Value: decimal.NewFromInt(10), MaxDiscount: decimal.NewFromInt(25000), MinSpend: decimal.NewFromInt(100000), Remaining: &rem}}, nil
+}
+
+func (f *fakeSource) Outlets(context.Context, int) ([]Outlet, error) {
+	f.queries++
+	return []Outlet{{Name: "Pusat"}, {Name: "Cabang"}}, nil
+}
+
+func (f *fakeSource) PayMethods(context.Context, int) ([]PayMethod, error) {
+	f.queries++
+	return []PayMethod{{Name: "Tunai", Kind: "cash"}}, nil
+}
+
+func (f *fakeSource) MemberTotal(context.Context) (int64, error) {
+	f.queries++
+	return 1234567, nil
+}
+
 func newFake() *fakeSource {
 	minum, makan := Category{uuid.New(), "Minuman"}, Category{uuid.New(), "Makanan"}
 	img := func() *uuid.UUID { id := uuid.New(); return &id }

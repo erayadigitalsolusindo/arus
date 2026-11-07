@@ -33,6 +33,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require(ModuleID, authz.ActCreate)).Post("/", h.create)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}", h.update)
 		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}/active", h.active)
+		r.With(authz.Require(ModuleID, authz.ActUpdate)).Put("/{id}/public", h.public)
 	})
 }
 
@@ -132,6 +133,29 @@ func (h *Handler) active(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, err := h.svc.SetActive(r.Context(), actor(r), id, *req.Active)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, v)
+}
+
+func (h *Handler) public(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		ShowPublic *bool `json:"show_public"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if req.ShowPublic == nil {
+		httpx.ValidationError(w, map[string]string{"show_public": "REQUIRED"})
+		return
+	}
+	v, err := h.svc.SetPublic(r.Context(), actor(r), id, *req.ShowPublic)
 	if err != nil {
 		h.fail(w, r, err)
 		return
