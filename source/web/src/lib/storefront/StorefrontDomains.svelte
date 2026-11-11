@@ -7,6 +7,7 @@
 
   let domains = $state<DomainInfo[]>([]);
   let target = $state('');
+  let parents = $state<string[]>([]);
   let loading = $state(true);
   let busy = $state('');
   let error = $state('');
@@ -23,6 +24,7 @@
       const r = await storefront.domains();
       domains = r.data;
       target = r.target;
+      parents = r.parents ?? [];
       if (!roots.some((d) => d.host === base)) base = roots[0]?.host ?? '';
     } catch (e) {
       error = errorMessage(e);
@@ -50,6 +52,7 @@
       await storefront.addSubdomain(base, label.trim().toLowerCase());
       label = '';
     });
+  const addParent = (host: string) => run('parent', () => storefront.addParent(host));
   const remove = (d: DomainInfo) => confirm(t('storefront.domains.confirmDelete', { host: d.host })) && run(d.id, () => storefront.deleteSubdomain(d.id));
 </script>
 
@@ -99,6 +102,15 @@
         </li>
       {/each}
     </ul>
+
+    {#if canEdit && parents.length > 0}
+      <div class="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px]">
+        <span class="text-[var(--text-secondary)]">{t('storefront.domains.parentHelp')}</span>
+        {#each parents as p (p)}
+          <button type="button" class="btn btn-outline !px-2 !py-1 !text-[12px] font-mono" disabled={busy === 'parent'} onclick={() => addParent(p)}>+ {p}</button>
+        {/each}
+      </div>
+    {/if}
 
     {#if canEdit && roots.length > 0}
       <form class="flex flex-wrap items-end gap-2" onsubmit={(e) => { e.preventDefault(); add(); }}>

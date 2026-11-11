@@ -5,6 +5,7 @@ export default {
   domains: {
     title: 'Domain address',
     help: 'Choose which host shows the landing page. App = app pages only; Landing = landing page only (app pages redirect to /); Both = / shows the landing page, everything else is the app. The main domain is registered by the ARUS admin; you can add your own subdomains.',
+    parentHelp: 'Your parent domain can also be used:',
     notActive: 'Waiting for the ARUS admin to verify DNS and activate this domain.',
     dnsHint: 'Point this host in DNS: CNAME to {target} (or a wildcard CNAME for the domain).',
     addLabel: 'Add subdomain',

@@ -51,6 +51,40 @@ func (s *Service) Domains(ctx context.Context, a authz.Actor) ([]Domain, error) 
 	return out, rows.Err()
 }
 
+// Parents = domain induk yang boleh dipakai tenant tetapi belum jadi host (mis. kotakcantik.com untuk arus.kotakcantik.com):
+// hanya bila tidak ada tenant lain yang punya host di bawahnya. target = alamat aplikasi ARUS (induknya tak pernah ditawarkan).
+func (s *Service) Parents(ctx context.Context, a authz.Actor, target string) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `SELECT host FROM tenant_domain_parents($1, $2) ORDER BY 1`, a.TenantID, target)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+func (s *Service) AddParent(ctx context.Context, a authz.Actor, host, target string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := s.pool.QueryRow(ctx, `SELECT tenant_domain_add_parent($1, $2, $3)`, a.TenantID, strings.ToLower(strings.TrimSpace(host)), target).Scan(&id)
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) {
+		switch {
+		case pe.Code == "23505":
+			return uuid.Nil, ErrDomainTaken
+		case pe.Message == "DOMAIN_BASE":
+			return uuid.Nil, ErrDomainBase
+		}
+	}
+	return id, err
+}
+
 func (s *Service) AddSubdomain(ctx context.Context, a authz.Actor, base, label string) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := s.pool.QueryRow(ctx, `SELECT tenant_domain_add_sub($1, $2, $3)`, a.TenantID, strings.ToLower(strings.TrimSpace(base)), strings.ToLower(strings.TrimSpace(label))).Scan(&id)
@@ -99,6 +133,7 @@ func (s *Service) DeleteSubdomain(ctx context.Context, a authz.Actor, id uuid.UU
 func (h *Handler) domainsRoutes(r chi.Router) {
 	r.With(authz.Require("storefront", authz.ActView)).Get("/domains", h.domainList)
 	r.With(authz.Require("storefront", authz.ActUpdate)).Post("/domains", h.domainAdd)
+	r.With(authz.Require("storefront", authz.ActUpdate)).Post("/domains/parent", h.domainAddParent)
 	r.With(authz.Require("storefront", authz.ActUpdate)).Put("/domains/{id}", h.domainRole)
 	r.With(authz.Require("storefront", authz.ActUpdate)).Delete("/domains/{id}", h.domainDelete)
 }
@@ -129,7 +164,27 @@ func (h *Handler) domainList(w http.ResponseWriter, r *http.Request) {
 		h.domainFail(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"data": ds, "target": h.domainTarget})
+	parents, err := h.svc.Parents(r.Context(), actor(r), h.domainTarget)
+	if err != nil {
+		h.domainFail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"data": ds, "target": h.domainTarget, "parents": parents})
+}
+
+func (h *Handler) domainAddParent(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Host string `json:"host"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	id, err := h.svc.AddParent(r.Context(), actor(r), req.Host, h.domainTarget)
+	if err != nil {
+		h.domainFail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, map[string]any{"id": id})
 }
 
 func (h *Handler) domainAdd(w http.ResponseWriter, r *http.Request) {

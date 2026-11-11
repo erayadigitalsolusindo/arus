@@ -79,3 +79,79 @@ func TestTenantDomains(t *testing.T) {
 		t.Fatalf("batas = %v", err)
 	}
 }
+
+// Induk otomatis: kotakcantik.com ditawarkan untuk arus.kotakcantik.com hanya bila tak ada tenant lain di bawahnya.
+func TestTenantDomainParents(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	p := "uji" + uuid.NewString()[:8] + ".com"
+	t.Cleanup(func() { _, _ = e.admin.Exec(ctx, `DELETE FROM tenant_domains WHERE host LIKE '%' || $1`, p) })
+	add := func(tenant uuid.UUID, host string) {
+		t.Helper()
+		if _, err := e.admin.Exec(ctx, `INSERT INTO tenant_domains (tenant_id, host, status, verified_at) VALUES ($1, $2, 'active', now())`, tenant, host); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add(e.a.TenantID, "arus."+p)
+	got, err := e.svc.Parents(ctx, e.a, "app.erayadigital.co.id")
+	if err != nil || len(got) != 1 || got[0] != p {
+		t.Fatalf("induk = %v %v", got, err)
+	}
+	// Alamat aplikasi ARUS sendiri: induknya tak ditawarkan.
+	if got, _ := e.svc.Parents(ctx, e.a, "x."+p); len(got) != 0 {
+		t.Fatalf("induk target = %v", got)
+	}
+	// Tenant lain punya host di bawah induk yang sama: tak ditawarkan ke siapa pun.
+	add(e.b.TenantID, "toko."+p)
+	if got, _ := e.svc.Parents(ctx, e.a, "app.erayadigital.co.id"); len(got) != 0 {
+		t.Fatalf("induk bersama = %v", got)
+	}
+	if _, err := e.svc.AddParent(ctx, e.a, p, "app.erayadigital.co.id"); !errors.Is(err, ErrDomainBase) {
+		t.Fatalf("add induk bersama = %v", err)
+	}
+	e.sql(t, `DELETE FROM tenant_domains WHERE host = $1`, "toko."+p)
+
+	id, err := e.svc.AddParent(ctx, e.a, p, "app.erayadigital.co.id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Setelah jadi host: tak ditawarkan lagi, bisa dipakai sebagai induk sub-domain, dan peran bisa diubah.
+	if got, _ := e.svc.Parents(ctx, e.a, "app.erayadigital.co.id"); len(got) != 0 {
+		t.Fatalf("induk sudah jadi host = %v", got)
+	}
+	if _, err := e.svc.AddSubdomain(ctx, e.a, p, "landing"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.SetDomainRole(ctx, e.a, id, true, true); err != nil {
+		t.Fatal(err)
+	}
+	// Akhiran dua-tingkat umum tak pernah jadi induk.
+	add(e.a.TenantID, "arus.uji"+p[3:8]+".co.id")
+	for _, h := range func() []string { g, _ := e.svc.Parents(ctx, e.a, "x.y.z"); return g }() {
+		if h == "co.id" {
+			t.Fatal("co.id tidak boleh jadi induk")
+		}
+	}
+}
+
+// Domain induk untuk bentuk domain umum: .com, .co.id, .id, .my.id; akhiran milik registrar tak pernah jadi induk.
+func TestDomainParentForms(t *testing.T) {
+	e := newEnv(t)
+	for host, want := range map[string]string{
+		"arus.domain.com": "domain.com", "arus.domain.co.id": "domain.co.id", "arus.domain.id": "domain.id", "arus.domain.my.id": "domain.my.id",
+		"domain.com": "", "domain.co.id": "", "domain.id": "", "domain.my.id": "",
+	} {
+		var got *string
+		if err := e.admin.QueryRow(context.Background(), `SELECT domain_parent($1)`, host).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if g := ""; got != nil {
+			g = *got
+			if g != want {
+				t.Errorf("domain_parent(%s) = %q, want %q", host, g, want)
+			}
+		} else if want != "" {
+			t.Errorf("domain_parent(%s) = NULL, want %q", host, want)
+		}
+	}
+}

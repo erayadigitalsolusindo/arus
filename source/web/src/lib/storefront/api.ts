@@ -26,7 +26,8 @@ export const storefront = {
   save: (body: StorefrontInput) => api<{ config: StorefrontConfig; warnings: string[] }>('/storefront/', { method: 'PUT', body: JSON.stringify(body) }),
   /** Halaman utuh hasil render (sudah disaring server) untuk iframe srcdoc ber-sandbox. */
   preview: (body: { html: string; css: string; title: string; slug: string }) => api<{ html: string }>('/storefront/preview', { method: 'POST', body: JSON.stringify(body) }),
-  domains: () => api<{ data: DomainInfo[]; target: string }>('/storefront/domains'),
+  domains: () => api<{ data: DomainInfo[]; target: string; parents: string[] }>('/storefront/domains'),
+  addParent: (host: string) => api<{ id: string }>('/storefront/domains/parent', { method: 'POST', body: JSON.stringify({ host }) }),
   addSubdomain: (base: string, label: string) => api<{ id: string }>('/storefront/domains', { method: 'POST', body: JSON.stringify({ base, label }) }),
   setDomainMode: (id: string, mode: 'app' | 'landing' | 'both') => api<void>(`/storefront/domains/${id}`, { method: 'PUT', body: JSON.stringify({ mode }) }),
   deleteSubdomain: (id: string) => api<void>(`/storefront/domains/${id}`, { method: 'DELETE' }),

@@ -5,6 +5,7 @@ export default {
   domains: {
     title: 'Alamat domain',
     help: 'Pilih di host mana landing page tampil. Aplikasi = halaman aplikasi saja; Landing = hanya landing page (halaman aplikasi dialihkan ke /); Keduanya = / menampilkan landing, sisanya aplikasi. Domain utama didaftarkan admin ARUS; Anda bisa menambah sub-domain sendiri.',
+    parentHelp: 'Domain induk Anda juga bisa dipakai:',
     notActive: 'Menunggu admin ARUS memverifikasi DNS dan mengaktifkan domain ini.',
     dnsHint: 'Arahkan DNS host ini: CNAME ke {target} (atau wildcard CNAME untuk domainnya).',
     addLabel: 'Tambah sub-domain',
