@@ -18,6 +18,7 @@ import (
 	"aciraba/internal/ai"
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
+	"aciraba/internal/backup"
 	"aciraba/internal/extapi"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
@@ -46,6 +47,7 @@ type HandlerDeps struct {
 	ExtCatalog   *extapi.CatalogBuilder
 	AI           *ai.Service         // uji aturan HalloArus (opsional; nil = fitur uji nonaktif)
 	Storefront   *storefront.Service // pustaka template landing page (opsional; nil = fitur nonaktif)
+	Backup       *backup.Service     // backup ke Google Drive (opsional; nil = fitur nonaktif)
 }
 
 type Handler struct {
@@ -164,6 +166,15 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Delete("/platform/qa/runs/{id}", h.DeleteQARun)
 			r.Get("/platform/qa/runs/{id}/results", h.QAResults)
 			r.Put("/platform/qa/runs/{id}/results", h.SetQAResult)
+
+			r.Get("/platform/backup", h.GetBackup)
+			r.Put("/platform/backup", h.SaveBackup)
+			r.Post("/platform/backup/drive/auth-url", h.BackupAuthURL)
+			r.Post("/platform/backup/drive/connect", h.BackupConnect)
+			r.Delete("/platform/backup/drive", h.BackupDisconnect)
+			r.Post("/platform/backup/passphrase", h.BackupPassphrase)
+			r.Post("/platform/backup/run", h.BackupRun)
+			r.Post("/platform/backup/restore-test", h.BackupRestoreTest)
 
 			r.Get("/platform/languages", h.ListLanguages)
 			r.Post("/platform/languages", h.CreateLanguage)

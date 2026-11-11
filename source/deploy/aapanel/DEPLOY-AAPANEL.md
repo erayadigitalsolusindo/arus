@@ -175,7 +175,14 @@ sudo grep ^PLATFORM_SETUP_TOKEN /www/wwwroot/arus/api/.env
 ```
 Buka `https://arus.erayadigital.co.id/platform/setup`, isi token, buat admin, daftarkan 2FA (wajib). Lalu **hapus baris `PLATFORM_SETUP_TOKEN` dari `api/.env`** dan `sudo systemctl restart arus-api`.
 
-## 9. Backup terjadwal
+## 9a. Backup ke Google Drive dari panel (disarankan)
+Platform Admin → Sistem → **Backup**. Dump database (+ gambar) dienkripsi lalu diunggah ke Google Drive tiap hari, tanpa berkas sementara.
+1. Server: `sudo apt install postgresql-client-16` (versi ≥ server DB; `pg_dump`/`pg_restore` harus ada di PATH proses API) dan isi `MIGRATE_DATABASE_URL` (role pemilik skema, **bukan** `aciraba_app`: RLS membuat dump role app kosong) di `api/.env`, lalu `sudo systemctl restart arus-api`.
+2. Google Cloud Console: buat project → aktifkan **Google Drive API** → OAuth consent screen (External, lalu **Publish app / In production** supaya refresh token tidak kedaluwarsa tiap 7 hari; cakupan `drive.file` tidak perlu verifikasi) → Credentials → OAuth client ID jenis **Web** dengan Authorized redirect URI `https://<host-panel>/platform/backup/callback` (persis seperti yang tampil di halaman Backup).
+3. Di halaman Backup: isi client ID + secret → **Hubungkan Google Drive** → buat **passphrase** (tampil sekali, simpan di luar server) → aktifkan jadwal → **Backup sekarang** → **Uji restore**.
+Berkas di Drive berakhiran `.enc`. Memulihkan: unduh, lalu `BACKUP_PASSPHRASE=... go run ./cmd/backupdec arus-db-....dump.enc > arus.dump` dan `pg_restore --no-owner -d <db_kosong> arus.dump`; gambar: `.tar.gz.enc` dibuka dengan alat yang sama lalu `tar xzf`. Kehilangan passphrase = salinan tidak bisa dibuka. Backup di panel TIDAK menggantikan WAL archiving (RPO tetap ±24 jam).
+
+## 9. Backup terjadwal (cron lokal, cadangan)
 ```bash
 sudo bash -c 'echo "30 2 * * * root bash /www/wwwroot/arus/deploy/aapanel/backup.sh >> /var/log/arus-backup.log 2>&1" > /etc/cron.d/arus-backup'
 sudo bash /www/wwwroot/arus/deploy/aapanel/backup.sh && ls -lh /www/wwwroot/arus/backups

@@ -16,6 +16,7 @@ import (
 	"aciraba/internal/approval"
 	"aciraba/internal/audit"
 	"aciraba/internal/auth"
+	"aciraba/internal/backup"
 	"aciraba/internal/authz"
 	"aciraba/internal/catalog"
 	"aciraba/internal/dashboard"
@@ -119,11 +120,16 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err := storefrontSvc.SeedTemplates(d.Ctx); err != nil {
 		return err
 	}
+	backupSvc, err := backup.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret, d.Cfg.OwnerDatabaseURL, d.Cfg.UploadDir, d.Cfg.AppBaseURL, d.Log)
+	if err != nil {
+		return err
+	}
+	go backupSvc.Scheduler(d.Ctx)
 	platformHandler := platformadmin.NewHandler(platformadmin.HandlerDeps{
 		Service: platformSvc, Log: d.Log, Redis: d.Redis,
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
-		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc,
+		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc, Backup: backupSvc,
 	})
 	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.

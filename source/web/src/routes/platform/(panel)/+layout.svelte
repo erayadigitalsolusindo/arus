@@ -27,6 +27,7 @@
       items: [
         { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' },
         { href: '/platform/qa', key: 'platform.nav.qa', icon: 'list-checks' },
+        { href: '/platform/backup', key: 'platform.nav.backup', icon: 'cloud-backup' },
         { href: '/platform/mobile', key: 'platform.nav.mobile', icon: 'smartphone' },
         { href: '/platform/api-access', key: 'platform.nav.apiAccess', icon: 'plug' },
         { href: '/platform/domains', key: 'platform.nav.domains', icon: 'globe' },

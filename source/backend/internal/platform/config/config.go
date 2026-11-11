@@ -22,6 +22,10 @@ type Config struct {
 	// TrustProxy: percayai X-Forwarded-For (hanya bila di belakang proxy tepercaya).
 	TrustProxy bool
 
+	// OwnerDatabaseURL = koneksi role PEMILIK skema (MIGRATE_DATABASE_URL), hanya untuk backup terjadwal (pg_dump perlu melewati RLS).
+	// Kosong = backup dari panel Platform Admin tidak bisa dijalankan.
+	OwnerDatabaseURL string
+
 	// UploadDir = folder penyimpanan gambar unggahan (disk lokal). Di luar kode dan di-gitignore; di produksi taruh di
 	// volume yang ikut dicadangkan.
 	UploadDir string
@@ -80,6 +84,7 @@ func Load() (Config, error) {
 		Env:                  getenv("APP_ENV", "development"),
 		HTTPAddr:             getenv("HTTP_ADDR", ":8080"),
 		DatabaseURL:          os.Getenv("DATABASE_URL"),
+		OwnerDatabaseURL:     os.Getenv("MIGRATE_DATABASE_URL"),
 		RedisURL:             os.Getenv("REDIS_URL"),
 		JWTSecret:            os.Getenv("JWT_SECRET"),
 		TrustProxy:           os.Getenv("TRUST_PROXY") == "true",

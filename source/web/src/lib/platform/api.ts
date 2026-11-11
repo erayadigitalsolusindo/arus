@@ -204,7 +204,44 @@ export type TemplateRow = { id: string; code: string; name: string; description:
 export type TemplateDetail = TemplateRow & { html: string; css: string };
 export type TemplateInput = { code?: string; name: string; description: string; category: string; html: string; css: string; active: boolean; sort_order: number };
 
+export type BackupConfig = {
+  client_id: string;
+  has_secret: boolean;
+  connected: boolean;
+  account: string;
+  has_passphrase: boolean;
+  enabled: boolean;
+  run_hour: number;
+  keep_count: number;
+  include_uploads: boolean;
+  redirect_uri: string;
+  pg_dump: boolean;
+  pg_restore: boolean;
+  owner_url: boolean;
+};
+export type BackupRun = {
+  id: string;
+  kind: 'auto' | 'manual' | 'restore_test';
+  status: 'running' | 'ok' | 'failed';
+  started_at: string;
+  finished_at: string | null;
+  db_name: string;
+  db_bytes: number;
+  uploads_bytes: number;
+  deleted: boolean;
+  detail: string;
+};
+export type BackupSave = { client_id: string; client_secret: string; enabled: boolean; run_hour: number; keep_count: number; include_uploads: boolean };
+
 export const platformApi = {
+  backup: () => papi<{ config: BackupConfig; runs: BackupRun[] }>('/platform/backup'),
+  saveBackup: (body: BackupSave) => papi<{ ok: boolean }>('/platform/backup', { method: 'PUT', body: json(body) }),
+  backupAuthUrl: () => papi<{ url: string }>('/platform/backup/drive/auth-url', { method: 'POST' }),
+  backupConnect: (code: string, state: string) => papi<{ account: string }>('/platform/backup/drive/connect', { method: 'POST', body: json({ code, state }) }),
+  backupDisconnect: () => papi<void>('/platform/backup/drive', { method: 'DELETE' }),
+  backupPassphrase: () => papi<{ passphrase: string }>('/platform/backup/passphrase', { method: 'POST' }),
+  backupRun: () => papi<{ id: string }>('/platform/backup/run', { method: 'POST' }),
+  backupRestoreTest: () => papi<{ id: string }>('/platform/backup/restore-test', { method: 'POST' }),
   storefrontTemplates: () => papi<{ items: TemplateRow[] }>('/platform/storefront-templates').then((r) => r.items),
   storefrontTemplate: (id: string) => papi<TemplateDetail>(`/platform/storefront-templates/${id}`),
   createStorefrontTemplate: (body: TemplateInput) => papi<{ id: string; warnings: string[] }>('/platform/storefront-templates', { method: 'POST', body: json(body) }),
