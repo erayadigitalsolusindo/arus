@@ -36,7 +36,12 @@ type Handler struct {
 	redis    *redis.Client
 	store    *storage.Local
 	log      *slog.Logger
+	// domainTarget = tujuan CNAME untuk DNS sub-host (CUSTOM_DOMAIN_TARGET); hanya ditampilkan ke tenant.
+	domainTarget string
 }
+
+// WithDomainTarget mengisi tujuan CNAME yang ditampilkan di daftar host tenant.
+func (h *Handler) WithDomainTarget(t string) *Handler { h.domainTarget = t; return h }
 
 func NewHandler(svc *Service, resolver *authz.Resolver, tokens *pauth.TokenIssuer, rdb *redis.Client, store *storage.Local, log *slog.Logger) *Handler {
 	return &Handler{svc: svc, resolver: resolver, tokens: tokens, redis: rdb, store: store, log: log}
@@ -60,6 +65,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(authz.Require("storefront", authz.ActView)).Get("/versions/{version}", h.version)
 		r.With(authz.Require("storefront", authz.ActView)).Get("/templates", h.templates)
 		r.With(authz.Require("storefront", authz.ActView)).Get("/templates/{id}", h.template)
+		h.domainsRoutes(r)
 	})
 }
 

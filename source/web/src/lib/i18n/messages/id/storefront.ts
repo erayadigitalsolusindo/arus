@@ -2,6 +2,18 @@ export default {
   docTitle: 'Landing Page | ACIRABA',
   title: 'Landing Page Toko',
   subtitle: 'Halaman publik toko Anda di /s/alamat. Tulis HTML dan class Tailwind sendiri; barang dipanggil lewat penanda seperti {namabarang}.',
+  domains: {
+    title: 'Alamat domain',
+    help: 'Pilih di host mana landing page tampil. Aplikasi = halaman aplikasi saja; Landing = hanya landing page (halaman aplikasi dialihkan ke /); Keduanya = / menampilkan landing, sisanya aplikasi. Domain utama didaftarkan admin ARUS; Anda bisa menambah sub-domain sendiri.',
+    notActive: 'Menunggu admin ARUS memverifikasi DNS dan mengaktifkan domain ini.',
+    dnsHint: 'Arahkan DNS host ini: CNAME ke {target} (atau wildcard CNAME untuk domainnya).',
+    addLabel: 'Tambah sub-domain',
+    baseLabel: 'Domain utama',
+    add: 'Tambah',
+    delete: 'Hapus sub-domain',
+    confirmDelete: 'Hapus {host}?',
+    mode: { app: 'Aplikasi', both: 'Keduanya', landing: 'Landing' }
+  },
   loading: 'Memuat…',
   statusLive: 'Tayang',
   statusDraft: 'Draf',

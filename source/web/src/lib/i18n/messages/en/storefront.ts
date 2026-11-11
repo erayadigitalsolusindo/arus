@@ -2,6 +2,18 @@ export default {
   docTitle: 'Landing Page | ACIRABA',
   title: 'Store Landing Page',
   subtitle: 'Your public store page at /s/address. Write your own HTML and Tailwind classes; call products with tags like {namabarang}.',
+  domains: {
+    title: 'Domain address',
+    help: 'Choose which host shows the landing page. App = app pages only; Landing = landing page only (app pages redirect to /); Both = / shows the landing page, everything else is the app. The main domain is registered by the ARUS admin; you can add your own subdomains.',
+    notActive: 'Waiting for the ARUS admin to verify DNS and activate this domain.',
+    dnsHint: 'Point this host in DNS: CNAME to {target} (or a wildcard CNAME for the domain).',
+    addLabel: 'Add subdomain',
+    baseLabel: 'Main domain',
+    add: 'Add',
+    delete: 'Delete subdomain',
+    confirmDelete: 'Delete {host}?',
+    mode: { app: 'App', both: 'Both', landing: 'Landing' }
+  },
   loading: 'Loading…',
   statusLive: 'Live',
   statusDraft: 'Draft',

@@ -2,6 +2,18 @@ export default {
   docTitle: 'ランディングページ | ACIRABA',
   title: 'ストアのランディングページ',
   subtitle: '/s/アドレス で公開されるストアページです。HTMLとTailwindクラスを自分で書き、{namabarang} のようなタグで商品を呼び出します。',
+  domains: {
+    title: 'ドメインアドレス',
+    help: 'ランディングページを表示するホストを選びます。アプリ=アプリのページのみ、ランディング=ランディングのみ(アプリのページは / にリダイレクト)、両方=/ がランディング、その他はアプリ。メインドメインはARUS管理者が登録し、サブドメインは自分で追加できます。',
+    notActive: 'ARUS管理者によるDNS確認と有効化を待っています。',
+    dnsHint: 'このホストのDNS: {target} への CNAME(またはドメインのワイルドカード CNAME)を設定してください。',
+    addLabel: 'サブドメインを追加',
+    baseLabel: 'メインドメイン',
+    add: '追加',
+    delete: 'サブドメインを削除',
+    confirmDelete: '{host} を削除しますか？',
+    mode: { app: 'アプリ', both: '両方', landing: 'ランディング' }
+  },
   loading: '読み込み中…',
   statusLive: '公開中',
   statusDraft: '下書き',

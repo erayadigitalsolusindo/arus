@@ -17,6 +17,8 @@ export type VersionInfo = { version: number; title: string; created_at: string; 
 export type TemplateInfo = { id: string; code: string; name: string; description: string; category: string; active: boolean; sort_order: number; bytes: number; updated_at: string };
 export type TemplateFull = TemplateInfo & { html: string; css: string };
 
+export type DomainInfo = { id: string; host: string; status: 'pending' | 'active' | 'disabled'; app: boolean; landing: boolean; tenant_made: boolean };
+
 export const storefront = {
   templates: () => api<{ data: TemplateInfo[] }>('/storefront/templates').then((r) => r.data),
   template: (id: string) => api<TemplateFull>(`/storefront/templates/${id}`),
@@ -24,6 +26,10 @@ export const storefront = {
   save: (body: StorefrontInput) => api<{ config: StorefrontConfig; warnings: string[] }>('/storefront/', { method: 'PUT', body: JSON.stringify(body) }),
   /** Halaman utuh hasil render (sudah disaring server) untuk iframe srcdoc ber-sandbox. */
   preview: (body: { html: string; css: string; title: string; slug: string }) => api<{ html: string }>('/storefront/preview', { method: 'POST', body: JSON.stringify(body) }),
+  domains: () => api<{ data: DomainInfo[]; target: string }>('/storefront/domains'),
+  addSubdomain: (base: string, label: string) => api<{ id: string }>('/storefront/domains', { method: 'POST', body: JSON.stringify({ base, label }) }),
+  setDomainMode: (id: string, mode: 'app' | 'landing' | 'both') => api<void>(`/storefront/domains/${id}`, { method: 'PUT', body: JSON.stringify({ mode }) }),
+  deleteSubdomain: (id: string) => api<void>(`/storefront/domains/${id}`, { method: 'DELETE' }),
   versions: () => api<{ data: VersionInfo[] }>('/storefront/versions').then((r) => r.data),
   version: (v: number) => api<StorefrontConfig>(`/storefront/versions/${v}`)
 };

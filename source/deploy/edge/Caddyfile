@@ -75,8 +75,16 @@ https:// {
 		method GET HEAD
 		header Accept *text/html*
 	}
+	# Host berperan "landing saja" (Platform > Domain): API menjawab 302 ke / (landing); selain itu 204 = lanjut ke SPA.
 	handle @page {
-		import web_upstream
+		rewrite * /public/domain-gate?host={host}
+		reverse_proxy https://arus-api.erayadigital.co.id {
+			@allowed status 204
+			handle_response @allowed {
+				rewrite * {http.request.orig_uri}
+				import web_upstream
+			}
+		}
 	}
 
 	# Selebihnya = panggilan API dari SPA.

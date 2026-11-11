@@ -59,6 +59,7 @@ type DomainRow struct {
 	LastCheckError string     `json:"last_check_error"`
 	CreatedAt      time.Time  `json:"created_at"`
 	Landing        bool       `json:"landing"` // root domain menampilkan landing page tenant
+	App            bool       `json:"app"`     // host melayani aplikasi; false = "landing saja" (halaman aplikasi dialihkan ke /)
 	BrandName      string     `json:"brand_name"`
 	BrandFooter    string     `json:"brand_footer"`
 	BrandVer       int64      `json:"brand_ver"`
@@ -105,7 +106,30 @@ func (s *Service) ListDomains(ctx context.Context, a Actor, tenant, id *uuid.UUI
 		}
 		out = append(out, r)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	roles, err := s.Pool.Query(ctx, `SELECT id, app_enabled FROM platform_domain_roles($1, $2, $3)`, a.ID, tenant, id)
+	if err != nil {
+		return nil, err
+	}
+	defer roles.Close()
+	app := map[uuid.UUID]bool{}
+	for roles.Next() {
+		var (
+			d  pgtype.UUID
+			on bool
+		)
+		if err := roles.Scan(&d, &on); err != nil {
+			return nil, err
+		}
+		app[uuid.UUID(d.Bytes)] = on
+	}
+	for i := range out {
+		out[i].App = app[out[i].ID]
+	}
+	return out, roles.Err()
 }
 
 func (s *Service) getDomain(ctx context.Context, a Actor, id uuid.UUID) (DomainRow, error) {
@@ -226,23 +250,33 @@ func (s *Service) SetDomainDisabled(ctx context.Context, a Actor, id uuid.UUID, 
 	return nil
 }
 
-// SetDomainLanding: true = root domain (https://host/) menampilkan landing page tenant; false = aplikasi seperti biasa.
-func (s *Service) SetDomainLanding(ctx context.Context, a Actor, id uuid.UUID, on bool) error {
+// SetDomainRole mengatur peran host: app = melayani aplikasi, landing = root menampilkan landing page tenant. Nil = tidak diubah.
+// Keduanya mati ditolak (ErrDomainInvalid). Landing saja: halaman aplikasi di host itu dialihkan ke / oleh proxy.
+func (s *Service) SetDomainRole(ctx context.Context, a Actor, id uuid.UUID, app, landing *bool) error {
 	d, err := s.getDomain(ctx, a, id)
 	if err != nil {
 		return err
 	}
+	if app == nil {
+		app = &d.App
+	}
+	if landing == nil {
+		landing = &d.Landing
+	}
 	var ok bool
-	if err := s.Pool.QueryRow(ctx, `SELECT platform_domain_set_landing($1, $2, $3)`, a.ID, id, on).Scan(&ok); err != nil {
-		if pgCode(err) == "42501" {
+	if err := s.Pool.QueryRow(ctx, `SELECT platform_domain_set_role($1, $2, $3, $4)`, a.ID, id, *app, *landing).Scan(&ok); err != nil {
+		switch pgCode(err) {
+		case "42501":
 			return ErrInvalidSession
+		case "23514":
+			return ErrDomainInvalid
 		}
 		return err
 	}
 	if !ok {
 		return ErrNotFound
 	}
-	s.record(ctx, a, ActionDomainLanding, d.TenantID, d.TenantName, map[string]any{"host": d.Host, "landing": on})
+	s.record(ctx, a, ActionDomainLanding, d.TenantID, d.TenantName, map[string]any{"host": d.Host, "app": *app, "landing": *landing})
 	return nil
 }
 
@@ -398,6 +432,7 @@ func (h *Handler) VerifyDomain(w http.ResponseWriter, r *http.Request) {
 type patchDomainRequest struct {
 	Disabled    *bool   `json:"disabled"`
 	Landing     *bool   `json:"landing"`
+	App         *bool   `json:"app"`
 	Google      *string `json:"google_client_id"`
 	BrandName   *string `json:"brand_name"`
 	BrandFooter *string `json:"brand_footer"`
@@ -412,7 +447,7 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Disabled == nil && req.Landing == nil && req.Google == nil && req.BrandName == nil && req.BrandFooter == nil {
+	if req.Disabled == nil && req.Landing == nil && req.App == nil && req.Google == nil && req.BrandName == nil && req.BrandFooter == nil {
 		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Tidak ada perubahan.")
 		return
 	}
@@ -420,8 +455,8 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 	if req.Disabled != nil {
 		err = h.svc.SetDomainDisabled(r.Context(), actor(r), id, *req.Disabled)
 	}
-	if err == nil && req.Landing != nil {
-		err = h.svc.SetDomainLanding(r.Context(), actor(r), id, *req.Landing)
+	if err == nil && (req.Landing != nil || req.App != nil) {
+		err = h.svc.SetDomainRole(r.Context(), actor(r), id, req.App, req.Landing)
 	}
 	if err == nil && (req.BrandName != nil || req.BrandFooter != nil) {
 		err = h.svc.SetDomainBrand(r.Context(), actor(r), id, req.BrandName, req.BrandFooter)
@@ -430,6 +465,8 @@ func (h *Handler) PatchDomain(w http.ResponseWriter, r *http.Request) {
 		err = h.svc.SetDomainGoogle(r.Context(), actor(r), id, *req.Google)
 	}
 	switch {
+	case errors.Is(err, ErrDomainInvalid):
+		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Host harus melayani aplikasi, landing page, atau keduanya.")
 	case errors.Is(err, ErrBrandInvalid):
 		httpx.Error(w, http.StatusBadRequest, "VALIDATION", "Nama maks 60 karakter dan footer maks 200 karakter, tanpa karakter kontrol.")
 	case errors.Is(err, ErrGoogleClientInvalid):
@@ -488,4 +525,21 @@ func (h *Handler) DomainBranding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, p)
+}
+
+// DomainGate: dipanggil reverse proxy sebelum meneruskan halaman aplikasi (SPA). 204 = boleh; host berperan "landing saja"
+// dijawab 302 ke / (yang menampilkan landing page).
+func (h *Handler) DomainGate(w http.ResponseWriter, r *http.Request) {
+	var ok bool
+	if err := h.svc.Pool.QueryRow(r.Context(), `SELECT public_domain_app_allowed($1)`, strings.ToLower(strings.TrimSpace(r.URL.Query().Get("host")))).Scan(&ok); err != nil {
+		h.internal(w, r, "gate domain gagal", err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if ok {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Location", "/")
+	w.WriteHeader(http.StatusFound)
 }

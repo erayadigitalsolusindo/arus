@@ -192,6 +192,7 @@ export type DomainRow = {
   last_check_error: string;
   created_at: string;
   landing: boolean;
+  app: boolean;
   google_client_id: string;
   brand_name: string;
   brand_footer: string;
@@ -335,6 +336,7 @@ export const platformApi = {
   createDomain: (body: { tenant_id: string; host: string }) => papi<{ id: string }>('/platform/domains', { method: 'POST', body: json(body) }),
   verifyDomain: (id: string) => papi<DomainRow>(`/platform/domains/${id}/verify`, { method: 'POST' }),
   setDomainDisabled: (id: string, disabled: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ disabled }) }),
+  setDomainApp: (id: string, app: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ app }) }),
   setDomainLanding: (id: string, landing: boolean) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ landing }) }),
   setDomainGoogle: (id: string, google_client_id: string) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json({ google_client_id }) }),
   setDomainBrand: (id: string, body: { brand_name?: string; brand_footer?: string }) => papi<void>(`/platform/domains/${id}`, { method: 'PATCH', body: json(body) }),

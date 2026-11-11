@@ -68,6 +68,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(httpx.RateLimit(h.Redis, "public-apk", 60, time.Hour)).Get("/public/mobile/apk", h.APKDownload)
 	// Domain kustom (white label): dipanggil reverse proxy (izin sertifikat TLS) dan halaman login di domain itu.
 	r.With(httpx.RateLimit(h.Redis, "public-domain-check", 6000, time.Hour)).Get("/public/domain-check", h.DomainCheck)
+	r.With(httpx.RateLimit(h.Redis, "public-domain-gate", 6000, time.Minute)).Get("/public/domain-gate", h.DomainGate)
 	r.With(httpx.RateLimit(h.Redis, "public-domain-branding", 600, time.Hour)).Get("/public/branding", h.DomainBranding)
 	r.With(httpx.RateLimit(h.Redis, "public-brand-asset", 3000, time.Hour)).Get("/public/brand-asset", h.BrandAsset)
 	r.With(httpx.RateLimit(h.Redis, "platform-setup", 10, time.Hour)).Post("/platform/setup", h.Setup)

@@ -162,7 +162,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	posshortcut.NewHandler(posshortcut.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	voucherSvc := voucher.NewService(d.Pool)
 	voucher.NewHandler(voucherSvc, perms, tokens, d.Log).Routes(r)
-	storefront.NewHandler(storefrontSvc, perms, tokens, d.Redis, uploads, d.Log).Routes(r)
+	storefront.NewHandler(storefrontSvc, perms, tokens, d.Redis, uploads, d.Log).WithDomainTarget(d.Cfg.DomainTarget).Routes(r)
 	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
 	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
 	subSvc := subscription.NewService(d.Pool, d.Cfg.EraPayBaseURL, d.Cfg.EraPayPlatformKey)

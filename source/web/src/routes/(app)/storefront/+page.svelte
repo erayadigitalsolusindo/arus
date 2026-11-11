@@ -5,6 +5,7 @@
   import { can } from '#lib/auth/session.svelte.ts';
   import { t, tryT, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
+  import StorefrontDomains from '#lib/storefront/StorefrontDomains.svelte';
 
   let loading = $state(true);
   let loadError = $state('');
@@ -294,6 +295,8 @@
   {#if loading}
     <div class="surface-card p-8 text-center text-[13px] text-[var(--text-tertiary)]">{t('storefront.loading')}</div>
   {:else if !loadError}
+    <StorefrontDomains />
+
     <!-- Pengaturan ringkas satu baris -->
     <section class="surface-card p-3 lg:p-4 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] items-end">
       <div>

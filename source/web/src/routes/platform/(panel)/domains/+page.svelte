@@ -230,6 +230,11 @@
       await platformApi.setDomainLanding(d.id, on);
       return on ? t('platform.domains.landingOnMsg') : t('platform.domains.landingOffMsg');
     });
+  const setApp = (d: DomainRow, on: boolean) =>
+    run(d.id, async () => {
+      await platformApi.setDomainApp(d.id, on);
+      return on ? t('platform.domains.appOnMsg') : t('platform.domains.appOffMsg');
+    });
   // Client ID Google per domain: draf yang sedang diketik (kunci = id domain); tanpa draf = nilai tersimpan.
   let googleDraft = $state<Record<string, string>>({});
   const googleValue = (d: DomainRow) => googleDraft[d.id] ?? d.google_client_id;
@@ -489,7 +494,7 @@
                 role="switch"
                 aria-checked={d.landing}
                 aria-label={t('platform.domains.landingTitle')}
-                disabled={busy === d.id || (d.status === 'disabled' && !d.landing)}
+                disabled={busy === d.id || (d.status === 'disabled' && !d.landing) || (d.landing && !d.app)}
                 class="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50"
                 style="background:{d.landing ? 'var(--color-success-500)' : 'var(--border-subtle)'}"
                 onclick={() => setLanding(d, !d.landing)}
@@ -497,6 +502,32 @@
                 <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-all" style="inset-inline-start:{d.landing ? '22px' : '2px'}"></span>
               </button>
             </div>
+          </div>
+
+          <!-- aplikasi di host ini (mati + landing nyala = host "landing saja") -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-4 py-3">
+            <div class="flex min-w-0 items-start gap-3">
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-600)]"><i class="icon-app-window text-[16px]"></i></span>
+              <div class="min-w-0">
+                <p class="text-[12.5px] font-semibold">{t('platform.domains.appTitle')}</p>
+                <p class="text-[12px] text-[var(--text-tertiary)]">
+                  {d.app ? t('platform.domains.appHelpOn', { host: d.host }) : t('platform.domains.appHelpOff', { host: d.host })}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={d.app}
+              aria-label={t('platform.domains.appTitle')}
+              title={!d.landing && d.app ? t('platform.domains.appNeedLanding') : undefined}
+              disabled={busy === d.id || (!d.landing && d.app)}
+              class="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50"
+              style="background:{d.app ? 'var(--color-success-500)' : 'var(--border-subtle)'}"
+              onclick={() => setApp(d, !d.app)}
+            >
+              <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-all" style="inset-inline-start:{d.app ? '22px' : '2px'}"></span>
+            </button>
           </div>
 
           <!-- white label + login Google: akordion, tertutup secara default -->
