@@ -63,7 +63,9 @@ export default {
     activating: 'Menghubungkan…',
     ownerConnected: 'Tenant ini terhubung ke EraPay sebagai Merchant Owner.',
     reviewPending: 'Status merchant EraPay masih menunggu verifikasi email dan persetujuan EraPay. Status AKTIF di sini berarti koneksi tenant berhasil.',
-    retry: 'Coba lagi'
+    retry: 'Coba lagi',
+    enter: 'Masuk ke ERAPAY',
+    entering: 'Membuka EraPay…'
   },
   signOut: 'Keluar',
   currentOutlet: 'Outlet Sekarang',

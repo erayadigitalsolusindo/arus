@@ -64,3 +64,23 @@ func TestProvisioningClientReportsAmbiguousLegacyMerchant(t *testing.T) {
 		t.Fatalf("error = %v, want ambiguous merchant error", err)
 	}
 }
+
+func TestProvisioningClientSSO(t *testing.T) {
+	tenantID := uuid.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/integrations/arus/tenants/"+tenantID.String()+"/sso" || r.Header.Get("Authorization") != "Bearer server-token" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write([]byte(`{"url":"https://pay.test/sso?code=abc","expires_in":60}`))
+	}))
+	defer server.Close()
+
+	client := NewProvisioningClient(server.URL, "server-token")
+	if url, err := client.SSO(context.Background(), tenantID); err != nil || url != "https://pay.test/sso?code=abc" {
+		t.Fatalf("sso = %q, err = %v", url, err)
+	}
+	if _, err := client.SSO(context.Background(), uuid.New()); !errors.Is(err, ErrEcosystemSSO) {
+		t.Fatalf("unlinked tenant error = %v, want ErrEcosystemSSO", err)
+	}
+}

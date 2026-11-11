@@ -65,7 +65,9 @@ const shell: Messages['shell'] = {
     activating: 'Connecting…',
     ownerConnected: 'This tenant is connected to EraPay as Merchant Owner.',
     reviewPending: 'The EraPay merchant is still awaiting email verification and EraPay approval. ACTIVE here means the tenant link succeeded.',
-    retry: 'Retry'
+    retry: 'Retry',
+    enter: 'Go to ERAPAY',
+    entering: 'Opening EraPay…'
   },
   signOut: 'Sign out',
   currentOutlet: 'Current Outlet',

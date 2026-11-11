@@ -65,7 +65,9 @@ const shell: Messages['shell'] = {
     activating: '接続中…',
     ownerConnected: 'このテナントはマーチャントオーナーとしてEraPayに接続されています。',
     reviewPending: 'EraPayマーチャントはメール確認とEraPayの承認を待っています。ここでの「アクティブ」はテナント接続が成功したことを意味します。',
-    retry: 'もう一度試す'
+    retry: 'もう一度試す',
+    enter: 'ERAPAYへ移動',
+    entering: 'EraPayを開いています…'
   },
   signOut: 'ログアウト',
   currentOutlet: '現在の店舗',

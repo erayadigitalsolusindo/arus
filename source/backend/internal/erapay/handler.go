@@ -34,6 +34,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		r.Get("/status", h.ecosystemStatus)
 		r.Post("/activate", h.activateEcosystem)
+		r.Post("/sso", h.ecosystemSSO)
 	})
 	r.Route("/payments/erapay", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
@@ -87,6 +88,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "EMAIL_NOT_VERIFIED", "Verifikasi email akun Anda sebelum mengaktifkan EraPay.")
 	case errors.Is(err, ErrEcosystemTerms):
 		httpx.Error(w, http.StatusBadRequest, "ERAPAY_TERMS_REQUIRED", "Setujui syarat EraPay untuk melanjutkan.")
+	case errors.Is(err, ErrEcosystemSSO):
+		httpx.Error(w, http.StatusConflict, "ERAPAY_SSO_UNAVAILABLE", "Masuk otomatis tidak tersedia (akun EraPay memakai verifikasi 2 langkah atau belum tertaut). Masuk manual di EraPay.")
 	case errors.Is(err, ErrEcosystemAmbiguous):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_ECOSYSTEM_AMBIGUOUS", "Lebih dari satu merchant EraPay cocok. Hubungi dukungan EraPay sebelum mengaktifkan.")
 	default:
@@ -117,6 +120,15 @@ func (h *Handler) activateEcosystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, status)
+}
+
+func (h *Handler) ecosystemSSO(w http.ResponseWriter, r *http.Request) {
+	url, err := h.svc.EcosystemLogin(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]string{"url": url})
 }
 
 func (h *Handler) config(w http.ResponseWriter, r *http.Request) {

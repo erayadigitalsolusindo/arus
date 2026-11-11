@@ -41,6 +41,7 @@ var (
 	ErrEcosystemEmail         = errors.New("email Owner harus diverifikasi sebelum aktivasi EraPay")
 	ErrEcosystemTerms         = errors.New("syarat EraPay harus disetujui")
 	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
+	ErrEcosystemSSO           = errors.New("masuk otomatis ke EraPay tidak tersedia untuk akun ini")
 	ErrBadKey                 = errors.New("format API key EraPay tidak valid")
 	ErrKeyScope               = errors.New("API key EraPay harus punya izin payment:create dan payment:read")
 	ErrKeyEnvironment         = errors.New("API key sandbox tidak boleh dipakai di server production")

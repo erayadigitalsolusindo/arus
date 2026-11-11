@@ -7,6 +7,7 @@
   import { initials } from '#lib/auth/initials.ts';
   import { me } from '#lib/profile/me.svelte.ts';
   import Modal from '#lib/components/Modal.svelte';
+  import ErapayLogo from '#lib/components/ErapayLogo.svelte';
   import { api } from '#lib/api/client.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
 
@@ -26,6 +27,7 @@
   let ecosystemOpen = $state(false);
   let ecosystemLoading = $state(false);
   let ecosystemActivating = $state(false);
+  let ecosystemEntering = $state(false);
   let ecosystemStatus = $state<EcosystemStatus | null>(null);
   let ecosystemError = $state('');
   let acceptedErapayTerms = $state(false);
@@ -82,6 +84,26 @@
       ecosystemError = errorMessage(error);
     } finally {
       ecosystemActivating = false;
+    }
+  }
+
+  // Jendela dibuka sinkron (saat klik) agar tidak diblokir pop-up blocker; URL masuk-sekali menyusul.
+  async function enterErapay() {
+    ecosystemEntering = true;
+    ecosystemError = '';
+    const win = window.open('', '_blank');
+    try {
+      const { url } = await api<{ url: string }>('/ecosystem/erapay/sso', { method: 'POST' });
+      if (win) {
+        win.opener = null;
+        win.location.href = url;
+      }
+      else window.location.href = url;
+    } catch (error) {
+      win?.close();
+      ecosystemError = errorMessage(error);
+    } finally {
+      ecosystemEntering = false;
     }
   }
 </script>
@@ -204,7 +226,7 @@
   <Modal title={t('shell.ecosystem.title')} onclose={() => (ecosystemOpen = false)}>
     <div class="surface-card p-4 sm:p-5">
       <div class="flex items-center justify-between gap-4">
-        <img src="/erapay-logo.svg" alt="EraPay" class="h-12 w-44 object-contain object-left" />
+        <ErapayLogo class="h-12 w-44" />
         {#if ecosystemLoading}
           <span class="badge">{t('shell.ecosystem.checking')}</span>
         {:else if ecosystemStatus}
@@ -218,7 +240,7 @@
 
       {#if ecosystemLoading}
         <p class="mt-4 text-sm text-[var(--text-secondary)]">{t('shell.ecosystem.checkingDetails')}</p>
-      {:else if ecosystemError}
+      {:else if ecosystemError && !ecosystemStatus?.active}
         <div class="mt-4" role="alert">
           <p class="text-sm text-[var(--color-danger-600)]">{ecosystemError}</p>
           <button type="button" class="btn btn-secondary mt-3" onclick={() => void refreshEcosystem()}>
@@ -230,6 +252,10 @@
         {#if ecosystemStatus.merchant_status !== 'approved'}
           <p class="mt-2 text-xs text-[var(--text-secondary)]">{t('shell.ecosystem.reviewPending')}</p>
         {/if}
+        {#if ecosystemError}<p class="mt-3 text-sm text-[var(--color-danger-600)]" role="alert">{ecosystemError}</p>{/if}
+        <button type="button" class="btn btn-primary mt-4 w-full" disabled={ecosystemEntering} onclick={() => void enterErapay()}>
+          {#if ecosystemEntering}<i class="icon-loader-circle me-1.5 animate-spin"></i>{t('shell.ecosystem.entering')}{:else}<i class="icon-external-link me-1.5"></i>{t('shell.ecosystem.enter')}{/if}
+        </button>
       {:else if ecosystemStatus}
         <p class="mt-4 text-sm text-[var(--text-secondary)]">{t('shell.ecosystem.intro')}</p>
         <label class="mt-4 flex items-start gap-2.5 text-xs leading-5">

@@ -124,6 +124,32 @@ func (c *ProvisioningClient) Ensure(ctx context.Context, tenantID uuid.UUID, bus
 	return link, nil
 }
 
+// SSO meminta URL masuk-sekali (berlaku 60 detik) ke dashboard EraPay untuk Owner tenant ini.
+func (c *ProvisioningClient) SSO(ctx context.Context, tenantID uuid.UUID) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/sso", c.baseURL, tenantID), nil)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return "", ErrEcosystemSSO
+	}
+	var out struct {
+		URL string `json:"url"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out) != nil || out.URL == "" {
+		logRemote("sso", resp)
+		return "", ErrUnavailable
+	}
+	return out.URL, nil
+}
+
 func (s *Service) WithProvisioningToken(token string) *Service {
 	s.provisioner = NewProvisioningClient(s.baseURL, token)
 	return s
@@ -179,4 +205,18 @@ func (s *Service) ActivateEcosystem(ctx context.Context, a authz.Actor, accepted
 		return EcosystemStatus{}, err
 	}
 	return EcosystemStatus{Active: true, MerchantStatus: link.MerchantStatus, OwnerRole: link.OwnerRole}, nil
+}
+
+// EcosystemLogin: hanya Owner (Perms.All), karena sesi EraPay yang dibuka berperan Merchant Owner.
+func (s *Service) EcosystemLogin(ctx context.Context, a authz.Actor) (string, error) {
+	if a.Impersonator != uuid.Nil {
+		return "", ErrImpersonating
+	}
+	if !a.Perms.All {
+		return "", ErrEcosystemOwner
+	}
+	if s.provisioner == nil {
+		return "", ErrEcosystemNotConfigured
+	}
+	return s.provisioner.SSO(ctx, a.TenantID)
 }
