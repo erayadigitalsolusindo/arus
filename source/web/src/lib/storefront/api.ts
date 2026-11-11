@@ -35,5 +35,8 @@ export const storefront = {
   version: (v: number) => api<StorefrontConfig>(`/storefront/versions/${v}`)
 };
 
-/** Alamat publik halaman. Di domain kustom, `API_URL` kosong sehingga memakai origin yang sama. */
-export const publicUrl = (slug: string) => `${API_URL || location.origin}/s/${slug}`;
+/**
+ * Alamat publik halaman. Di domain kustom, `API_URL` kosong sehingga memakai origin yang sama. Di host utama, bawaannya alamat API;
+ * isi `VITE_PUBLIC_PAGE_ORIGIN` (mis. https://arus.erayadigital.co.id) setelah nginx situs web meneruskan /s/ dan /public/s ke API.
+ */
+export const publicUrl = (slug: string) => `${import.meta.env.VITE_PUBLIC_PAGE_ORIGIN || API_URL || location.origin}/s/${slug}`;
