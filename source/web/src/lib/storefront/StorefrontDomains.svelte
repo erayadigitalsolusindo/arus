@@ -103,6 +103,19 @@
       {/each}
     </ul>
 
+    {#if target}
+      <details class="rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-[12.5px]">
+        <summary class="cursor-pointer font-semibold">{t('storefront.domains.dnsTitle')}</summary>
+        <ul class="mt-2 list-disc space-y-1 ps-5 text-[var(--text-secondary)]">
+          <li>{t('storefront.domains.dnsSub')} <code class="font-mono">CNAME &nbsp;<em>{t('storefront.domains.dnsName')}</em> → {target}</code></li>
+          <li>{t('storefront.domains.dnsWildcard')} <code class="font-mono">CNAME &nbsp;* → {target}</code></li>
+          <li>{t('storefront.domains.dnsApex', { target })}</li>
+          <li>{t('storefront.domains.dnsCloudflare')}</li>
+          <li>{t('storefront.domains.dnsWait')}</li>
+        </ul>
+      </details>
+    {/if}
+
     {#if canEdit && parents.length > 0}
       <div class="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px]">
         <span class="text-[var(--text-secondary)]">{t('storefront.domains.parentHelp')}</span>
