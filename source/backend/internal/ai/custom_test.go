@@ -188,9 +188,9 @@ func TestCustomProviderFlow(t *testing.T) {
 	if got := sawAuth[len(sawAuth)-1]; got != "Bearer KEY-OPENKEY-123" {
 		t.Fatalf("Authorization = %q", got)
 	}
-	// Foto nota tidak didukung penyedia kustom.
-	if _, err := e.svc.Chat(ctx, e.cashier, []ChatMessage{{Role: "user", Content: "x", Images: []ChatImage{{MediaType: "image/png", Data: tinyPNG}}}}); err != ErrImageProvider {
-		t.Fatalf("foto di penyedia kustom: %v", err)
+	// Foto nota diteruskan ke penyedia kustom (format image_url); bukan lagi ditolak di sisi kita.
+	if _, err := e.svc.Chat(ctx, e.cashier, []ChatMessage{{Role: "user", Content: "x", Images: []ChatImage{{MediaType: "image/png", Data: tinyPNG}}}}); err == ErrImageProvider {
+		t.Fatalf("foto di penyedia kustom ditolak: %v", err)
 	}
 
 	// Ubah model tanpa key (base sama) boleh; ganti base URL tanpa key baru ditolak (key lama tak boleh pindah host).

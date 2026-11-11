@@ -1,6 +1,10 @@
 package ai
 
-import "github.com/shopspring/decimal"
+import (
+	"strings"
+
+	"github.com/shopspring/decimal"
+)
 
 // subDec = a − b untuk string desimal (kosong/rusak dianggap 0).
 func subDec(a, b string) string {
@@ -18,10 +22,13 @@ const stockFrom = `FROM stock_balances b
 	LEFT JOIN item_outlet_costs oc ON oc.tenant_id = b.tenant_id AND oc.outlet_id = b.outlet_id AND oc.item_id = b.item_id
 	WHERE b.tenant_id = $1 AND b.outlet_id = ANY($2::uuid[])`
 
+// stockFromPriced = stockFrom + harga jual efektif (harga outlet menimpa harga barang).
+var stockFromPriced = strings.Replace(stockFrom, "WHERE b.tenant_id", "LEFT JOIN item_outlet_prices op ON op.tenant_id = b.tenant_id AND op.outlet_id = b.outlet_id AND op.item_id = b.item_id WHERE b.tenant_id", 1)
+
 func toolStockOverview() tool {
 	return tool{
 		name: "stock_overview", module: "stock_card",
-		desc:   "Inventory health per outlet: tracked items, items out of stock, negative stock, low stock (at or below the item's minimum) and, only if the user may see costs, the stock value at average cost.",
+		desc:   "Inventory totals and health per outlet: tracked_items (distinct goods with a stock record), total_qty (units on hand, base units, negatives excluded), retail_value (qty x selling price), items out of stock, negative stock, low stock (at or below the item's minimum) and, only if the user may see costs, stock_value at average cost (capital). Use this for \"how much stock / what is my inventory worth\"; report total_qty and BOTH values, say which is cost and which is selling price, and never estimate from item lists.",
 		schema: schema(map[string]any{"outlet_id": pOutlet}),
 		run: func(e *env, p params) (any, error) {
 			outs, err := e.outlets(p)
@@ -33,14 +40,15 @@ func toolStockOverview() tool {
 				val = `coalesce(sum(x.total * x.cost) FILTER (WHERE x.total > 0), 0)`
 			}
 			rows, tr, err := e.rows(`
-				SELECT o.name AS outlet, count(*) AS tracked_items, count(*) FILTER (WHERE x.total = 0) AS empty,
+				SELECT o.name AS outlet, count(*) AS tracked_items, coalesce(sum(x.total) FILTER (WHERE x.total > 0), 0) AS total_qty,
+				       coalesce(sum(x.total * x.price) FILTER (WHERE x.total > 0), 0) AS retail_value, count(*) FILTER (WHERE x.total = 0) AS empty,
 				       count(*) FILTER (WHERE x.total < 0 OR x.disp < 0) AS negative,
 				       count(*) FILTER (WHERE x.min > 0 AND x.total > 0 AND x.total <= x.min) AS low, `+val+` AS stock_value
 				FROM (
 				  SELECT b.outlet_id, b.item_id, sum(b.qty) AS total, coalesce(sum(b.qty) FILTER (WHERE b.bucket = 'display'), 0) AS disp,
-				         i.min_stock AS min, coalesce(oc.avg_cost, i.avg_cost) AS cost
-				  `+stockFrom+`
-				  GROUP BY b.outlet_id, b.item_id, i.min_stock, oc.avg_cost, i.avg_cost
+				         i.min_stock AS min, coalesce(oc.avg_cost, i.avg_cost) AS cost, coalesce(op.sell_price, i.sell_price) AS price
+				  `+stockFromPriced+`
+				  GROUP BY b.outlet_id, b.item_id, i.min_stock, oc.avg_cost, i.avg_cost, op.sell_price, i.sell_price
 				) x JOIN outlets o ON o.tenant_id = $1 AND o.id = x.outlet_id
 				GROUP BY o.name ORDER BY o.name`, e.a.TenantID, outs)
 			if err == nil && !e.canCost {
@@ -162,7 +170,7 @@ const agingBucket = `CASE WHEN days_over IS NULL THEN 'no_due_date' WHEN days_ov
 func toolReceivables() tool {
 	return tool{
 		name: "receivables_summary", module: "member_receivables",
-		desc:   "Customer receivables (piutang) still outstanding, with aging buckets (not_due, overdue_1_30, 31_60, 61_90, 90_plus, no_due_date) and the 10 largest debtors ANONYMISED as 'Pelanggan N' (balance, open documents, days overdue). Use for collection priorities and credit-risk advice.",
+		desc:   "Customer receivables (piutang) still outstanding: `total` (total_balance, open_documents, debtors) first, then aging buckets (not_due, overdue_1_30, 31_60, 61_90, 90_plus, no_due_date) and the 10 largest debtors ANONYMISED as 'Pelanggan N' (balance, open documents, days overdue). Use for collection priorities and credit-risk advice.",
 		schema: schema(map[string]any{"outlet_id": pOutlet}),
 		run: func(e *env, p params) (any, error) {
 			outs, err := e.outlets(p)
@@ -190,8 +198,12 @@ func toolReceivables() tool {
 			if err != nil {
 				return nil, err
 			}
+			tot, _, err := e.rows(cte+` SELECT count(*) AS open_documents, count(DISTINCT member_id) AS debtors, coalesce(sum(bal), 0) AS total_balance FROM ob`, e.a.TenantID, outs)
+			if err != nil {
+				return nil, err
+			}
 			anonymize(top)
-			return map[string]any{"aging": aging, "top_debtors": top}, nil
+			return map[string]any{"total": tot[0], "aging": aging, "top_debtors": top}, nil
 		},
 	}
 }
@@ -199,7 +211,7 @@ func toolReceivables() tool {
 func toolPayables() tool {
 	return tool{
 		name: "payables_summary", module: "supplier_payables",
-		desc:   "Supplier payables (hutang) still outstanding with aging buckets by due date and the 10 largest suppliers by balance (supplier business names are shown). Use for cash-flow planning and payment priorities.",
+		desc:   "Supplier payables (hutang) still outstanding: `total` (total_balance, open_documents, suppliers), aging buckets by due date and the 10 largest suppliers by balance (supplier business names are shown). Use for cash-flow planning and payment priorities.",
 		schema: schema(map[string]any{"outlet_id": pOutlet}),
 		run: func(e *env, p params) (any, error) {
 			outs, err := e.outlets(p)
@@ -223,7 +235,11 @@ func toolPayables() tool {
 			if err != nil {
 				return nil, err
 			}
-			return map[string]any{"aging": aging, "top_suppliers": top}, nil
+			tot, _, err := e.rows(cte+` SELECT count(*) AS open_documents, count(DISTINCT supplier_id) AS suppliers, coalesce(sum(bal), 0) AS total_balance FROM ob WHERE bal > 0`, e.a.TenantID, outs)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"total": tot[0], "aging": aging, "top_suppliers": top}, nil
 		},
 	}
 }

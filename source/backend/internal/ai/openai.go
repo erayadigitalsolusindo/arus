@@ -47,7 +47,7 @@ type oaToolCall struct {
 
 type oaMessage struct {
 	Role       string       `json:"role"`
-	Content    *string      `json:"content"`
+	Content    any          `json:"content"` // *string, atau []oaPart bila ada foto
 	ToolCalls  []oaToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string       `json:"tool_call_id,omitempty"`
 }
@@ -67,6 +67,15 @@ type oaRequest struct {
 	Tools               []oaTool    `json:"tools,omitempty"`
 	MaxTokens           int         `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int         `json:"max_completion_tokens,omitempty"`
+}
+
+// oaPart = potongan isi pesan multimodal (format chat-completions: text / image_url berisi data URL).
+type oaPart struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL *struct {
+		URL string `json:"url"`
+	} `json:"image_url,omitempty"`
 }
 
 func strp(s string) *string { return &s }
@@ -103,13 +112,25 @@ func (c *openaiClient) toRequest(req apiRequest) oaRequest {
 			out.Messages = append(out.Messages, am)
 			continue
 		}
+		var parts []oaPart // teks + foto dalam satu pesan user
 		for _, b := range m.Content {
 			switch b.Type {
 			case "tool_result":
 				out.Messages = append(out.Messages, oaMessage{Role: "tool", ToolCallID: b.ToolUseID, Content: strp(b.Content)})
 			case "text":
-				out.Messages = append(out.Messages, oaMessage{Role: "user", Content: strp(b.Text)})
+				parts = append(parts, oaPart{Type: "text", Text: b.Text})
+			case "image":
+				p := oaPart{Type: "image_url", ImageURL: &struct {
+					URL string `json:"url"`
+				}{URL: "data:" + b.Source.MediaType + ";base64," + b.Source.Data}}
+				parts = append(parts, p)
 			}
+		}
+		switch {
+		case len(parts) == 1 && parts[0].Type == "text":
+			out.Messages = append(out.Messages, oaMessage{Role: "user", Content: strp(parts[0].Text)})
+		case len(parts) > 0:
+			out.Messages = append(out.Messages, oaMessage{Role: "user", Content: parts})
 		}
 	}
 	for _, t := range req.Tools {

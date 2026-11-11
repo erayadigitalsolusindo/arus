@@ -13,6 +13,7 @@ package ai
 //   - Eksekusi memakai service resmi dengan hak pengguna (izin modul, audit, batas paket) dan memuat ulang data saat disetujui.
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -112,6 +113,7 @@ const (
 	vBool  = "bool"
 	vDate  = "date"
 	vEnum  = "enum"
+	vCode  = "code" // HTML/CSS halaman: apa adanya (disaring storefront.Save), maks 60 rb karakter
 )
 
 var fieldKind = map[string]string{
@@ -120,7 +122,7 @@ var fieldKind = map[string]string{
 	"description": vText, "note": vText, "notes": vText, "address": vText, "find": vText, "replace": vText,
 	"sell_price": vMoney, "cost": vMoney, "credit_limit": vMoney, "value": vMoney, "max_discount": vMoney, "min_spend": vMoney,
 	"min_stock": vQty, "due_days": vInt, "max_uses": vInt, "enabled": vBool, "valid_until": vDate, "starts_on": vDate, "ends_on": vDate,
-	"kind": vEnum,
+	"kind": vEnum, "slug": vName, "html": vCode, "css": vCode,
 }
 
 var enumValues = map[string][]string{
@@ -144,6 +146,11 @@ func normField(key, raw string) (string, error) {
 			return "", bad
 		}
 		return v, nil
+	case vCode:
+		if len(raw) > 60000 {
+			return "", bad
+		}
+		return raw, nil
 	case vText:
 		if raw == "" {
 			return "", nil
@@ -210,7 +217,7 @@ type masterEntity struct {
 	createKeys            []string
 	updateKeys            []string
 	required              []string
-	noID                  bool // satu data per tenant (storefront): tanpa id, hanya `update`
+	noID                  bool // satu data per tenant (storefront): tanpa id; `update`, dan `create` bila `create` diisi (hanya saat belum ada)
 	lookup                func(ctx context.Context, a authz.Actor, q string) ([]map[string]string, error)
 	show                  func(ctx context.Context, a authz.Actor, id uuid.UUID) (target string, cur map[string]string, active bool, err error)
 	create                func(ctx context.Context, a authz.Actor, f map[string]string) error
@@ -263,7 +270,10 @@ func masterToolDefs(ents map[string]masterEntity) []toolDef {
 				"member: {code,name,gender(male|female),phone,email,address,district,city,province,postal_code,credit_limit,due_days,valid_until,notes}; " +
 				"supplier: {code,name,contact_name,phone,email,address,note}; " +
 				"voucher: {code,name,kind(percent|fixed),value,max_discount,min_spend,starts_on,ends_on,max_uses}; " +
-				"storefront (op=update only, no id): {title, enabled(true|false), find+replace = replace ONE exact plain-text phrase in the page}. " +
+				"storefront (no id; one landing page per tenant): create{slug(3-40 lowercase letters/digits/dashes),title,html,css} only when none exists yet — saved DISABLED, publish with a later update enabled=true; " +
+				"update{title, enabled(true|false), html and/or css = REPLACE the whole page (you cannot read the current html, so only when the user wants a full redesign; the old version stays in version history), find+replace = replace ONE exact plain-text phrase in the page}. " +
+				"Landing page html: body-level HTML only, Tailwind utility classes, NO script/style/form/iframe/on* attributes, links http(s)/mailto/tel only, css optional and must not use url()/@import. " +
+				"Markers (filled by the server): {namatoko} {tahun} {kategori1..} {namabarang} {harga} {gambar}; loops {#barang kategori=1 limit=8 urut=terbaru}…{/barang} and {#kategori limit=6}{namakategori}…{/kategori}. The domain/host is set by the platform operator, not you. " +
 				"Money = digits with optional 2 decimals, no thousand separators; dates = YYYY-MM-DD.",
 			InputSchema: schema(map[string]any{
 				"entity": enum("Which master data.", names...),
@@ -297,7 +307,10 @@ func (s *Service) masterEnabled() bool {
 func (e masterEntity) allowed(a authz.Actor, op string) bool {
 	switch op {
 	case "create":
-		return !e.noID && a.Perms.Has(e.module, authz.ActCreate)
+		if e.noID { // satu data per tenant: membuat = menyimpan pertama kali, izinnya sama dengan mengubah
+			return e.create != nil && a.Perms.Has(e.module, authz.ActUpdate)
+		}
+		return a.Perms.Has(e.module, authz.ActCreate)
 	default:
 		return a.Perms.Has(e.module, authz.ActUpdate)
 	}
@@ -359,8 +372,8 @@ func (s *Service) proposeMaster(ctx context.Context, a authz.Actor, p params) (s
 	if err != nil || op == "" {
 		return storedAction{}, nil, errors.New("`op` wajib: create, update, atau set_active")
 	}
-	if ent.noID && op != "update" {
-		return storedAction{}, nil, fmt.Errorf("%s hanya mendukung op=update", name)
+	if ent.noID && op != "update" && (op != "create" || ent.create == nil) {
+		return storedAction{}, nil, fmt.Errorf("%s hanya mendukung op=update atau create", name)
 	}
 	if op == "set_active" && ent.setActive == nil {
 		return storedAction{}, nil, fmt.Errorf("%s tidak bisa diaktifkan/dinonaktifkan", name)
@@ -394,11 +407,16 @@ func (s *Service) proposeMaster(ctx context.Context, a authz.Actor, p params) (s
 				return storedAction{}, nil, fmt.Errorf("kolom %q wajib untuk membuat data baru", r)
 			}
 		}
+		if ent.noID {
+			if _, _, _, err := ent.show(ctx, a, uuid.Nil); err == nil {
+				return storedAction{}, nil, fmt.Errorf("%s sudah ada; pakai op=update", name)
+			}
+		}
 		pl.Fields = f
-		fields["target"] = f["name"]
+		fields["target"] = cmp.Or(f["name"], f["title"], f["slug"])
 		for _, k := range sortedKeys(f) {
 			if f[k] != "" {
-				fields["chg."+k] = f[k]
+				fields["chg."+k] = codeSummary(k, f[k])
 				changed = append(changed, k)
 			}
 		}
@@ -420,7 +438,7 @@ func (s *Service) proposeMaster(ctx context.Context, a authz.Actor, p params) (s
 			if cur[k] == f[k] {
 				continue
 			}
-			fields["chg."+k] = displayVal(cur[k]) + " → " + displayVal(f[k])
+			fields["chg."+k] = displayVal(codeSummary(k, cur[k])) + " → " + displayVal(codeSummary(k, f[k]))
 			changed = append(changed, k)
 		}
 		if len(changed) == 0 {
@@ -450,6 +468,14 @@ func (s *Service) proposeMaster(ctx context.Context, a authz.Actor, p params) (s
 		target = "(pelanggan terpilih)" // nama pelanggan tidak dikirim ke model
 	}
 	return st, map[string]any{"entity": name, "op": op, "target": target, "changed_fields": changed}, nil
+}
+
+// codeSummary: HTML/CSS tidak ditampilkan utuh di kartu persetujuan (puluhan ribu karakter).
+func codeSummary(k, v string) string {
+	if fieldKind[k] == vCode {
+		return fmt.Sprintf("(%d karakter)", len(v))
+	}
+	return v
 }
 
 func displayVal(s string) string {
@@ -865,9 +891,20 @@ func (s *Service) voucherEntity(svc *voucher.Service) masterEntity {
 // Alamat halaman (slug), HTML mentah, dan CSS tidak bisa diganti bebas oleh AI: hanya judul, saklar tayang, dan satu penggantian
 // teks persis (find → replace) yang harus ada tepat sekali di halaman. Penyimpanan tetap lewat Save (sanitasi HTML + versi).
 func (s *Service) storefrontEntity(svc *storefront.Service) masterEntity {
-	keys := []string{"title", "enabled", "find", "replace"}
+	keys := []string{"title", "enabled", "html", "css", "find", "replace"}
 	return masterEntity{
 		module: "storefront", noID: true, updateKeys: keys,
+		createKeys: []string{"slug", "title", "html", "css"}, required: []string{"slug", "html"},
+		// Halaman pertama selalu dibuat nonaktif; menayangkannya = usulan update enabled=true tersendiri.
+		create: func(ctx context.Context, a authz.Actor, f map[string]string) error {
+			if c, err := svc.Get(ctx, a); err != nil {
+				return err
+			} else if c != nil {
+				return &MasterError{Status: 409, Code: "CONFLICT", Msg: "Landing page sudah ada; ubah lewat op=update."}
+			}
+			_, _, err := svc.Save(ctx, a, storefront.SaveInput{Slug: f["slug"], Title: f["title"], HTML: f["html"], CSS: f["css"]})
+			return err
+		},
 		show: func(ctx context.Context, a authz.Actor, _ uuid.UUID) (string, map[string]string, bool, error) {
 			c, err := svc.Get(ctx, a)
 			if err != nil {
@@ -876,7 +913,7 @@ func (s *Service) storefrontEntity(svc *storefront.Service) masterEntity {
 			if c == nil {
 				return "", nil, false, errors.New("storefront belum dibuat; buat dulu lewat menu Storefront")
 			}
-			return c.Title, map[string]string{"title": c.Title, "enabled": strconv.FormatBool(c.Enabled), "find": "", "replace": ""}, c.Enabled, nil
+			return c.Title, map[string]string{"title": c.Title, "enabled": strconv.FormatBool(c.Enabled), "html": c.HTML, "css": c.CSS, "find": "", "replace": ""}, c.Enabled, nil
 		},
 		update: func(ctx context.Context, a authz.Actor, _ uuid.UUID, f map[string]string) error {
 			c, err := svc.Get(ctx, a)
@@ -892,6 +929,12 @@ func (s *Service) storefrontEntity(svc *storefront.Service) masterEntity {
 			}
 			if v, ok := f["enabled"]; ok {
 				in.Enabled = v == "true"
+			}
+			if v, ok := f["html"]; ok {
+				in.HTML = v
+			}
+			if v, ok := f["css"]; ok {
+				in.CSS = v
 			}
 			if find := f["find"]; find != "" {
 				if n := strings.Count(in.HTML, find); n != 1 {

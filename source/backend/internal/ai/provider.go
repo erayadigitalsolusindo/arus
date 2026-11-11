@@ -27,11 +27,20 @@ type providerSpec struct {
 	custom bool
 }
 
+// imageCapable: penyedia/model yang menerima foto. Qwen hanya model VL; penyedia kustom/ARUS dicoba apa adanya
+// (model tak diketahui; galat dari gateway muncul sebagai galat penyedia).
+func imageCapable(provider, model string) bool {
+	if provider == ProviderQwen {
+		return strings.Contains(model, "vl")
+	}
+	return true
+}
+
 var providerSpecs = []providerSpec{
 	{ID: ProviderAnthropic, Models: Models, keyOK: func(k string) bool { return strings.HasPrefix(k, "sk-ant-") }},
 	{ID: ProviderOpenAI, Models: []string{"gpt-5", "gpt-5-mini", "gpt-5.6-sol"}, keyOK: func(k string) bool { return strings.HasPrefix(k, "sk-") }},
 	{ID: ProviderGemini, Models: []string{"gemini-2.5-pro", "gemini-2.5-flash", "gemini-3-flash-preview"}, keyOK: func(k string) bool { return strings.HasPrefix(k, "AIza") }},
-	{ID: ProviderQwen, Models: []string{"qwen3-max", "qwen-plus", "qwen-flash"}, keyOK: func(k string) bool { return strings.HasPrefix(k, "sk-") }},
+	{ID: ProviderQwen, Models: []string{"qwen3-max", "qwen-plus", "qwen-flash", "qwen3-vl-plus"}, keyOK: func(k string) bool { return strings.HasPrefix(k, "sk-") }},
 }
 
 func specOf(id string) (providerSpec, bool) {

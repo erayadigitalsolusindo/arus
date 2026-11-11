@@ -232,7 +232,7 @@ func toolReturnsSummary() tool {
 func toolMemberOverview() tool {
 	return tool{
 		name: "member_overview", module: "members",
-		desc: "Customer (member) overview, ANONYMISED: active members, new members in the range, outstanding loyalty points, total deposit balance, " +
+		desc: "Customer (member) overview, ANONYMISED: total_members, active_members (flag), inactive_members, distinct_members who bought in the range (revenue_member_vs_walkin),  new members in the range, outstanding loyalty points, total deposit balance, " +
 			"and (if the user may see sales) the share of revenue from members vs walk-ins and the top spenders identified ONLY by member ID (member code, e.g. 'M-000123') with spend and invoice count. " +
 			"Names, phones, addresses and emails are never available; refer to a member by ID.",
 		schema: schema(map[string]any{"from": pFrom, "to": pTo, "outlet_id": pOutlet}),
@@ -241,7 +241,7 @@ func toolMemberOverview() tool {
 			if err != nil {
 				return nil, err
 			}
-			head, _, err := e.rows(`SELECT count(*) FILTER (WHERE active) AS active_members,
+			head, _, err := e.rows(`SELECT count(*) AS total_members, count(*) FILTER (WHERE active) AS active_members, count(*) FILTER (WHERE NOT active) AS inactive_members,
 					count(*) FILTER (WHERE created_at >= $2::date::timestamptz AND created_at < ($3::date + 1)::timestamptz) AS new_members,
 					coalesce(sum(points) FILTER (WHERE active), 0) AS points_outstanding
 				FROM members WHERE tenant_id = $1`, e.a.TenantID, from, to)
@@ -255,7 +255,7 @@ func toolMemberOverview() tool {
 			}
 			out := map[string]any{"members": head[0], "deposit": dep[0]}
 			if e.a.Perms.Has("sales_list", authz.ActView) {
-				share, _, err := e.rows(`SELECT (s.member_id IS NOT NULL) AS is_member, count(*) AS invoices, sum(s.total) AS revenue
+				share, _, err := e.rows(`SELECT (s.member_id IS NOT NULL) AS is_member, count(*) AS invoices, count(DISTINCT s.member_id) AS distinct_members, sum(s.total) AS revenue
 					FROM sales s JOIN outlets o ON o.tenant_id = s.tenant_id AND o.id = s.outlet_id
 					WHERE `+saleWin+` GROUP BY 1 ORDER BY 1`, e.a.TenantID, outs, from, to)
 				if err != nil {

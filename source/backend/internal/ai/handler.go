@@ -82,7 +82,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrTooManyCustom):
 		httpx.Error(w, http.StatusUnprocessableEntity, "AI_CUSTOM_LIMIT", "Jumlah penyedia kustom sudah mencapai batas; hapus salah satu dulu.")
 	case errors.Is(err, ErrImageProvider):
-		httpx.Error(w, http.StatusUnprocessableEntity, "AI_IMAGE_UNSUPPORTED", "Foto nota hanya bisa dibaca dengan penyedia Claude (Anthropic).")
+		httpx.Error(w, http.StatusUnprocessableEntity, "AI_IMAGE_UNSUPPORTED", "Penyedia AI ini tidak bisa membaca foto. Ganti ke penyedia yang mendukung gambar (Claude, OpenAI/GPT, Gemini, atau model Qwen-VL) atau kirim tanpa foto.")
 	case errors.Is(err, ErrTOTPRequired):
 		httpx.Error(w, http.StatusUnprocessableEntity, "TOTP_REQUIRED", "Kode 2FA wajib diisi.")
 	case errors.Is(err, ErrTOTPInvalid):

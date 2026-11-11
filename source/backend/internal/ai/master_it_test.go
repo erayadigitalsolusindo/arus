@@ -206,9 +206,25 @@ func TestMasterMemberVoucherSupplierStorefront(t *testing.T) {
 		t.Fatal("voucher harus tercatat")
 	}
 
-	// Storefront: tanpa id, hanya update; teks yang dicari harus persis sekali.
+	// Storefront: tanpa id; create hanya bila belum ada (tersimpan NONAKTIF), lalu update; teks yang dicari harus persis sekali.
 	if _, _, err := m.master(t, m.editor, `{"entity":"storefront","op":"create","fields":{"title":"x"}}`); err == nil {
-		t.Error("storefront tidak boleh create")
+		t.Error("create storefront tanpa slug/html harus ditolak")
+	}
+	cp, _, err := m.master(t, m.editor, `{"entity":"storefront","op":"create","fields":{"slug":"uji-`+m.tenant.String()[:8]+`","title":"Toko","html":"<h1>{namatoko}</h1>"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cp.Fields["chg.html"]; got != "(19 karakter)" {
+		t.Errorf("html di kartu = %q, want ringkasan", got)
+	}
+	if err := m.approve(t, m.editor, cp.ID); err != nil {
+		t.Fatal(err)
+	}
+	if m.count(t, `SELECT count(*) FROM storefronts WHERE tenant_id = $1 AND NOT enabled AND html = '<h1>{namatoko}</h1>'`, m.tenant) != 1 {
+		t.Fatal("landing page baru harus tersimpan nonaktif")
+	}
+	if _, _, err := m.master(t, m.editor, `{"entity":"storefront","op":"create","fields":{"slug":"lain-aja","html":"x"}}`); err == nil {
+		t.Error("create saat landing page sudah ada harus ditolak")
 	}
 	if _, _, err := storefront.NewService(m.app).Save(ctx, m.editor, storefront.SaveInput{Slug: "uji-" + m.tenant.String()[:8], Enabled: true, Title: "Toko", HTML: "<h1>Halo Toko</h1><p>Selamat datang</p>"}); err != nil {
 		t.Fatal(err)
@@ -222,6 +238,16 @@ func TestMasterMemberVoucherSupplierStorefront(t *testing.T) {
 	}
 	if m.count(t, `SELECT count(*) FROM storefronts WHERE tenant_id = $1 AND html LIKE '%Promo Akhir Tahun%' AND html NOT LIKE '%Halo Toko%'`, m.tenant) != 1 {
 		t.Fatal("teks halaman harus terganti")
+	}
+	rp, _, err := m.master(t, m.editor, `{"entity":"storefront","op":"update","fields":{"html":"<h1>Desain Baru</h1>"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.approve(t, m.editor, rp.ID); err != nil {
+		t.Fatal(err)
+	}
+	if m.count(t, `SELECT count(*) FROM storefronts WHERE tenant_id = $1 AND html = '<h1>Desain Baru</h1>' AND version >= 3`, m.tenant) != 1 {
+		t.Fatal("html halaman harus terganti utuh dan versi naik")
 	}
 	bad, _, err := m.master(t, m.editor, `{"entity":"storefront","op":"update","fields":{"find":"tidak-ada","replace":"x"}}`)
 	if err != nil {

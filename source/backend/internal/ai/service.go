@@ -40,7 +40,7 @@ var (
 	ErrTooManySteps  = errors.New("analisis terlalu panjang")
 	ErrImpersonating = errors.New("tidak tersedia pada sesi masuk-sebagai")
 	ErrFreeQuota     = errors.New("kuota akun gratis hari ini habis")
-	ErrImageProvider = errors.New("foto nota hanya didukung penyedia Claude (Anthropic)")
+	ErrImageProvider = errors.New("penyedia/model AI ini tidak bisa membaca foto")
 )
 
 const (
@@ -479,7 +479,7 @@ func (s *Service) ChatWith(ctx context.Context, a authz.Actor, in []ChatMessage,
 	if err != nil {
 		return nil, err
 	}
-	if hasImages(msgs) && provider != ProviderAnthropic {
+	if hasImages(msgs) && !imageCapable(provider, model) {
 		if free {
 			s.refundFree(ctx, a)
 		}

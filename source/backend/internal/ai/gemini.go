@@ -41,6 +41,10 @@ type gmPart struct {
 	ThoughtSignature string    `json:"thoughtSignature,omitempty"`
 	FunctionCall     *gmCall   `json:"functionCall,omitempty"`
 	FunctionResponse *gmResult `json:"functionResponse,omitempty"`
+	InlineData       *struct {
+		MimeType string `json:"mimeType"`
+		Data     string `json:"data"`
+	} `json:"inlineData,omitempty"`
 }
 
 type gmContent struct {
@@ -85,6 +89,11 @@ func (c *geminiClient) toRequest(req apiRequest) gmRequest {
 				if b.Text != "" {
 					ct.Parts = append(ct.Parts, gmPart{Text: b.Text})
 				}
+			case "image":
+				ct.Parts = append(ct.Parts, gmPart{InlineData: &struct {
+					MimeType string `json:"mimeType"`
+					Data     string `json:"data"`
+				}{MimeType: b.Source.MediaType, Data: b.Source.Data}})
 			case "tool_use":
 				args := b.Input
 				if len(args) == 0 {
