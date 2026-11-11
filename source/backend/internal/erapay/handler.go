@@ -89,7 +89,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrEcosystemTerms):
 		httpx.Error(w, http.StatusBadRequest, "ERAPAY_TERMS_REQUIRED", "Setujui syarat EraPay untuk melanjutkan.")
 	case errors.Is(err, ErrEcosystemSSO):
-		httpx.Error(w, http.StatusConflict, "ERAPAY_SSO_UNAVAILABLE", "Masuk otomatis tidak tersedia (akun EraPay memakai verifikasi 2 langkah atau belum tertaut). Masuk manual di EraPay.")
+		httpx.Error(w, http.StatusConflict, "ERAPAY_SSO_UNAVAILABLE", "Masuk otomatis tidak tersedia (akun EraPay belum tertaut). Masuk manual di EraPay.")
 	case errors.Is(err, ErrEcosystemAmbiguous):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_ECOSYSTEM_AMBIGUOUS", "Lebih dari satu merchant EraPay cocok. Hubungi dukungan EraPay sebelum mengaktifkan.")
 	default:
