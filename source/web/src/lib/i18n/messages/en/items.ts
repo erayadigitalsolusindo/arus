@@ -181,6 +181,54 @@ const items: Messages['items'] = {
     close: 'Close',
     view: 'View images'
   },
+  import: {
+    action: 'Import Excel/CSV',
+    docTitle: 'Import Items | ACIRABA',
+    title: 'Import Items',
+    subtitle: 'Add many items at once from Excel or CSV, including opening stock.',
+    step1: '1. Download the template',
+    step1Hint: 'Fill in the template columns. Name and Unit are required. Unit, Category, and Brand must already exist in the master data (same name, case-insensitive). Write numbers plainly without thousands separators, with a dot for decimals. An empty Code is generated automatically. Opening Stock is recorded at the currently active outlet.',
+    downloadXlsx: 'Excel template (.xlsx)',
+    downloadCsv: 'CSV template',
+    step2: '2. Choose a file and check it',
+    fileHint: 'An .xlsx or .csv file, up to 5 MB and 3,000 rows. Nothing is saved until you confirm.',
+    choose: 'Choose file',
+    check: 'Check file',
+    checking: 'Checking…',
+    tooLarge: 'The file is larger than 5 MB.',
+    step3: '3. Check results',
+    total: 'Data rows',
+    valid: 'Ready to save',
+    invalid: 'With problems',
+    problems: 'Rows with problems',
+    moreProblems: 'Only the first {shown} rows are shown; download the report to see them all.',
+    line: 'Row',
+    column: 'Column',
+    problem: 'Problem',
+    downloadErrors: 'Download problem report (.csv)',
+    save: 'Save {count} valid items',
+    saving: 'Saving…',
+    saveHint: 'Rows with problems are skipped. Fix them in the file and import again; codes already saved are rejected as duplicates.',
+    noneValid: 'There are no valid rows to save.',
+    done: 'Import finished',
+    doneCreated: '{count} items added.',
+    doneSkipped: '{count} rows were not saved. Download the report, fix them, and import that part again.',
+    toList: 'View Items',
+    again: 'Import another file',
+    col: {
+      sku: 'Code', barcode: 'Barcode', name: 'Name', unit: 'Unit', category: 'Category', brand: 'Brand',
+      cost: 'Cost', sell_price: 'Selling Price', min_stock: 'Minimum Stock', opening_stock: 'Opening Stock'
+    },
+    code: {
+      DUPLICATE_IN_FILE: 'Duplicate code within the file',
+      NOT_FOUND: 'Not in the master data (create it first or fix the name)',
+      CODE_TAKEN: 'Code is already used by another item',
+      FORBIDDEN: 'No permission to set opening stock',
+      LOCKED: 'Opening stock for this outlet is already locked',
+      FAILED: 'Item saved, but opening stock could not be recorded; enter it manually in Opening Stock',
+      PLAN_ITEM_LIMIT_REACHED: 'Plan item limit reached'
+    }
+  },
   readOnly: 'You can only view this item.'
 };
 

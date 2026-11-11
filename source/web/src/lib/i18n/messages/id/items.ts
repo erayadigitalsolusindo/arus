@@ -180,5 +180,53 @@ export default {
     close: 'Tutup',
     view: 'Lihat gambar'
   },
+  import: {
+    action: 'Impor Excel/CSV',
+    docTitle: 'Impor Barang | ACIRABA',
+    title: 'Impor Barang',
+    subtitle: 'Masukkan banyak barang sekaligus dari Excel atau CSV, lengkap dengan saldo awal stok.',
+    step1: '1. Unduh template',
+    step1Hint: 'Isi sesuai kolom template. Kolom Nama dan Satuan wajib. Satuan, Kategori, dan Merek harus sudah ada di master (namanya sama, huruf besar/kecil tidak berpengaruh). Angka ditulis polos tanpa pemisah ribuan, desimal dengan titik. Kode kosong = dibuatkan otomatis. Saldo Awal dicatat di cabang yang sedang aktif.',
+    downloadXlsx: 'Template Excel (.xlsx)',
+    downloadCsv: 'Template CSV',
+    step2: '2. Pilih berkas dan periksa',
+    fileHint: 'Berkas .xlsx atau .csv, maksimal 5 MB dan 3.000 baris. Tidak ada yang disimpan sebelum Anda mengonfirmasi.',
+    choose: 'Pilih berkas',
+    check: 'Periksa berkas',
+    checking: 'Memeriksa…',
+    tooLarge: 'Berkas lebih dari 5 MB.',
+    step3: '3. Hasil pemeriksaan',
+    total: 'Baris data',
+    valid: 'Siap disimpan',
+    invalid: 'Bermasalah',
+    problems: 'Baris bermasalah',
+    moreProblems: 'Hanya {shown} baris pertama yang ditampilkan; unduh laporan untuk melihatnya.',
+    line: 'Baris',
+    column: 'Kolom',
+    problem: 'Masalah',
+    downloadErrors: 'Unduh laporan masalah (.csv)',
+    save: 'Simpan {count} barang valid',
+    saving: 'Menyimpan…',
+    saveHint: 'Baris bermasalah dilewati. Perbaiki di berkas lalu impor ulang; kode yang sudah tersimpan akan ditolak sebagai duplikat.',
+    noneValid: 'Tidak ada baris yang valid untuk disimpan.',
+    done: 'Impor selesai',
+    doneCreated: '{count} barang ditambahkan.',
+    doneSkipped: '{count} baris tidak tersimpan. Unduh laporan, perbaiki, lalu impor ulang bagian itu.',
+    toList: 'Lihat Daftar Item',
+    again: 'Impor berkas lain',
+    col: {
+      sku: 'Kode', barcode: 'Barcode', name: 'Nama', unit: 'Satuan', category: 'Kategori', brand: 'Merek',
+      cost: 'HPP', sell_price: 'Harga Jual', min_stock: 'Stok Minimum', opening_stock: 'Saldo Awal'
+    },
+    code: {
+      DUPLICATE_IN_FILE: 'Kode ganda di dalam berkas',
+      NOT_FOUND: 'Belum ada di master (buat dulu atau perbaiki namanya)',
+      CODE_TAKEN: 'Kode sudah dipakai barang lain',
+      FORBIDDEN: 'Tidak punya izin mengisi saldo awal stok',
+      LOCKED: 'Saldo awal cabang ini sudah dikunci',
+      FAILED: 'Barang tersimpan, tetapi saldo awal gagal dicatat; isi manual di Saldo Awal Stok',
+      PLAN_ITEM_LIMIT_REACHED: 'Batas jumlah barang paket tercapai'
+    }
+  },
   readOnly: 'Anda hanya dapat melihat item ini.'
 };

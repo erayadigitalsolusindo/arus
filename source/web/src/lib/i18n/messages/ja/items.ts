@@ -181,6 +181,54 @@ const items: Messages['items'] = {
     close: '閉じる',
     view: '画像を表示'
   },
+  import: {
+    action: 'Excel/CSVインポート',
+    docTitle: '商品インポート | ACIRABA',
+    title: '商品インポート',
+    subtitle: 'ExcelまたはCSVから多数の商品を一括登録します（期首在庫を含む）。',
+    step1: '1. テンプレートをダウンロード',
+    step1Hint: 'テンプレートの列に入力してください。名称と単位は必須です。単位・カテゴリ・ブランドはマスタに登録済みである必要があります（同じ名前、大文字小文字は区別しません）。数値は桁区切りなし、小数はドットで入力します。コードが空の場合は自動採番されます。期首在庫は現在選択中の店舗に記録されます。',
+    downloadXlsx: 'Excelテンプレート (.xlsx)',
+    downloadCsv: 'CSVテンプレート',
+    step2: '2. ファイルを選択して確認',
+    fileHint: '.xlsx または .csv、最大5 MB・3,000行。確定するまで何も保存されません。',
+    choose: 'ファイルを選択',
+    check: 'ファイルを確認',
+    checking: '確認中…',
+    tooLarge: 'ファイルが5 MBを超えています。',
+    step3: '3. 確認結果',
+    total: 'データ行',
+    valid: '保存可能',
+    invalid: '問題あり',
+    problems: '問題のある行',
+    moreProblems: '最初の{shown}行のみ表示しています。全件はレポートをダウンロードしてください。',
+    line: '行',
+    column: '列',
+    problem: '問題',
+    downloadErrors: '問題レポートをダウンロード (.csv)',
+    save: '有効な{count}件の商品を保存',
+    saving: '保存中…',
+    saveHint: '問題のある行はスキップされます。ファイルを修正して再度インポートしてください。保存済みのコードは重複として拒否されます。',
+    noneValid: '保存できる有効な行がありません。',
+    done: 'インポート完了',
+    doneCreated: '{count}件の商品を追加しました。',
+    doneSkipped: '{count}行は保存されませんでした。レポートをダウンロードし、修正して該当部分を再インポートしてください。',
+    toList: '商品一覧を見る',
+    again: '別のファイルをインポート',
+    col: {
+      sku: 'コード', barcode: 'バーコード', name: '名称', unit: '単位', category: 'カテゴリ', brand: 'ブランド',
+      cost: '原価', sell_price: '販売価格', min_stock: '最小在庫', opening_stock: '期首在庫'
+    },
+    code: {
+      DUPLICATE_IN_FILE: 'ファイル内でコードが重複しています',
+      NOT_FOUND: 'マスタに存在しません（先に作成するか名前を修正してください）',
+      CODE_TAKEN: 'コードは他の商品で使用されています',
+      FORBIDDEN: '期首在庫を登録する権限がありません',
+      LOCKED: 'この店舗の期首在庫はロック済みです',
+      FAILED: '商品は保存されましたが期首在庫を記録できませんでした。期首在庫画面で手入力してください',
+      PLAN_ITEM_LIMIT_REACHED: 'プランの商品数上限に達しました'
+    }
+  },
   readOnly: 'この商品は表示のみ可能です。'
 };
 

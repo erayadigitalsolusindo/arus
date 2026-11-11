@@ -177,6 +177,16 @@ export type PriceReportQuery = { from?: string; to?: string; q?: string; outlet?
 /** Hasil cari kasir: exact = kode/barcode persis (hanya halaman pertama, boleh juga ada di data). */
 export type SearchPage = { data: Row[]; exact: Row[]; next_cursor: string };
 
+/** Satu baris impor yang bermasalah. errors: kolom kanonik (sku, name, unit, …) → kode galat. */
+export type ImportRow = { line: number; sku: string; name: string; errors: Record<string, string> };
+export type ImportResult = { total: number; valid: number; invalid: number; created: number; errors: ImportRow[] };
+
+function importCall(step: 'preview' | 'commit', file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return api<ImportResult>(`/items/import/${step}`, { method: 'POST', body: form });
+}
+
 export const items = {
   priceReport: (p: PriceReportQuery = {}) => {
     const sp = new URLSearchParams({ limit: '50' });
@@ -200,6 +210,11 @@ export const items = {
   /** Barang yang memakai barcode ini (barcode boleh kembar). exclude = id item yang sedang diubah. */
   byBarcode: (code: string, exclude?: string) =>
     api<{ data: BarcodeMatch[] }>(`/items/by-barcode?code=${encodeURIComponent(code)}${exclude ? `&exclude_id=${exclude}` : ''}`).then((r) => r.data),
+
+  /** Impor Excel/CSV: pratinjau memvalidasi tanpa menyimpan; simpan memasukkan baris valid (+ saldo awal stok). */
+  importPreview: (file: File) => importCall('preview', file),
+  importCommit: (file: File) => importCall('commit', file),
+  importTemplate: (format: 'xlsx' | 'csv') => apiBlob(`/items/import/template?format=${format}`),
 
   /** Unggah satu gambar (multipart). Server memvalidasi isi, mengecilkan, dan mengubahnya menjadi JPG. */
   uploadImage: (id: string, file: File) => {

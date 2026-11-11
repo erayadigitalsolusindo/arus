@@ -164,7 +164,10 @@
       <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('items.subtitle')}</p>
     </div>
     {#if can('items', 'create')}
-      <a href="/items/new" class="btn btn-primary !text-[12.5px]"><i class="icon-plus text-[13px]"></i>{t('items.add')}</a>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="/items/import" class="btn btn-outline !text-[12.5px]"><i class="icon-upload text-[13px]"></i>{t('items.import.action')}</a>
+        <a href="/items/new" class="btn btn-primary !text-[12.5px]"><i class="icon-plus text-[13px]"></i>{t('items.add')}</a>
+      </div>
     {/if}
   </div>
 

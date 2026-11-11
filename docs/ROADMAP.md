@@ -26,7 +26,7 @@ Aturan: kerjakan berurutan; jangan lompat fase tanpa persetujuan pengguna. Setia
 - [ ] 3.2 Barang + harga + grosir + diskon (UI `products-list.html`, `product-add.html`) — **sebagian: irisan B + C + D selesai 2026-10-08** (B: item inti + harga per cabang, `00012`; C: gambar, `00013`; D: grosir + konversi satuan, `00014`); sisa: diskon item
 - [x] 3.3 Customer/member + poin — selesai 2026-10-08 (`00023_members.sql`, `internal/member`, halaman `/members` + `/member-levels`, member di kasir). Deposit member selesai 2026-10-10 (`00049`, `internal/wallet`)
 - [x] 3.3b Metode pembayaran (master per tenant) — selesai 2026-10-08 (`00029_payment_methods.sql`, `internal/paymentmethod`, halaman `/payment-methods`, pilihan metode di layar bayar kasir)
-- [ ] 3.4 Import barang & master pendukung dari Excel/CSV: template unduhan, pratinjau, validasi per baris, laporan error (PRD FR-ONB-01/02)
+- [ ] 3.4 Import barang & master pendukung dari Excel/CSV: template unduhan, pratinjau, validasi per baris, laporan error (PRD FR-ONB-01/02) — **barang + saldo awal stok selesai 2026-11-12** (`/items/import`, FR-ONB-01/03); master pendukung (kategori/satuan/supplier/member, FR-ONB-02) belum
 
 **Fase 4 — Stok (inti)**
 - [x] 4.1 `stock_balances` + `stock_movements` (3 bucket), service + test konkuren (2 kasir jual barang sama) — selesai 2026-10-08 (`00016_stock.sql`, `internal/stock`; belum ada endpoint/UI)
