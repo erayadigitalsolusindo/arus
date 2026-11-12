@@ -20,6 +20,7 @@ import (
 	"aciraba/internal/auth"
 	"aciraba/internal/backup"
 	"aciraba/internal/extapi"
+	"aciraba/internal/live"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 	"aciraba/internal/platform/sanitize"
@@ -48,6 +49,8 @@ type HandlerDeps struct {
 	AI           *ai.Service         // uji aturan HalloArus (opsional; nil = fitur uji nonaktif)
 	Storefront   *storefront.Service // pustaka template landing page (opsional; nil = fitur nonaktif)
 	Backup       *backup.Service     // backup ke Google Drive (opsional; nil = fitur nonaktif)
+	Live         *live.Hub           // pantauan penjualan real-time lintas tenant (opsional)
+	Presence     *live.Presence
 }
 
 type Handler struct {
@@ -108,6 +111,9 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Put("/platform/admins/{id}/password", h.SetPassword)
 
 			r.Get("/platform/audit", h.Audit)
+			r.Get("/platform/live/summary", h.LiveSummary)
+			r.Get("/platform/live/feed", h.LiveFeed)
+			r.Get("/platform/live/stream", h.LiveStream)
 			r.Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
 
 			r.Put("/platform/mobile/apk", h.APKUpload)

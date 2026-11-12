@@ -34,6 +34,7 @@ type Access struct {
 type Resolver struct {
 	pool     *pgxpool.Pool
 	platform PlatformChecker
+	onSeen   func(tenant, user uuid.UUID) // dipanggil tiap request terautentikasi (presence); harus murah
 	ttl      time.Duration
 	now      func() time.Time
 

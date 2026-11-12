@@ -165,7 +165,7 @@ async function withRefresh<T>(path: string, run: () => Promise<T>): Promise<T> {
 }
 
 /** Aliran SSE yang butuh autentikasi (EventSource tidak bisa mengirim header Authorization, jadi memakai fetch). */
-async function requestStream(path: string, signal: AbortSignal, token: string | null = accessToken): Promise<Response> {
+export async function requestStream(path: string, signal: AbortSignal, token: string | null = accessToken): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {

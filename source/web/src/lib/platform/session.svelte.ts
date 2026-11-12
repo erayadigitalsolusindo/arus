@@ -2,7 +2,7 @@
 // httpOnly `platform_refresh` (Path /platform/auth). Otorisasi sebenarnya di server.
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { ApiError, CSRF_HEADERS, request } from '#lib/api/client.ts';
+import { ApiError, CSRF_HEADERS, request, requestStream } from '#lib/api/client.ts';
 
 export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean };
 export type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
@@ -55,6 +55,18 @@ export async function papi<T>(path: string, init: RequestInit = {}): Promise<T> 
     if (!(err instanceof ApiError) || err.status !== 401 || sent === null) throw err;
     if (token === sent && !(await refresh())) throw err;
     return request<T>(path, init, token);
+  }
+}
+
+/** Aliran SSE dengan token platform; satu kali refresh bila 401 (pola sama dengan papi). */
+export async function pstream(path: string, signal: AbortSignal): Promise<Response> {
+  const sent = token;
+  try {
+    return await requestStream(path, signal, token);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401 || sent === null) throw err;
+    if (token === sent && !(await refresh())) throw err;
+    return requestStream(path, signal, token);
   }
 }
 

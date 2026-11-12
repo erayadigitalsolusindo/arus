@@ -66,6 +66,11 @@ export type LanguageRow = {
   created_at: string;
 };
 
+export type LiveSale = { id: string; created_at: string; doc_no: string; tenant_id: string; tenant_name: string; outlet_name: string; cashier: string; line_count: number; total: string };
+export type LiveFeed = { items: LiveSale[]; next_at?: string; next_id?: string };
+export type LivePerson = { tenant_id: string; tenant_name: string; user_id: string; user_name: string; seen_at: string; last_sale_at: string | null; selling: boolean };
+export type LiveSummary = { since: string; sales_count: number; sales_total: string; tenant_count: number; online: LivePerson[] };
+
 const json = (v: unknown) => JSON.stringify(v);
 
 export type ExtCredential = {
@@ -284,6 +289,10 @@ export const platformApi = {
   createAdmin: (body: { name: string; email: string; password: string }) => papi<{ id: string }>('/platform/admins', { method: 'POST', body: json(body) }),
   setAdminActive: (id: string, active: boolean) => papi<void>(`/platform/admins/${id}`, { method: 'PATCH', body: json({ active }) }),
   setAdminPassword: (id: string, password: string) => papi<void>(`/platform/admins/${id}/password`, { method: 'PUT', body: json({ password }) }),
+
+  liveSummary: () => papi<LiveSummary>('/platform/live/summary'),
+  liveFeed: (before?: { at: string; id: string }) =>
+    papi<LiveFeed>(`/platform/live/feed${before ? `?${new URLSearchParams({ before_at: before.at, before_id: before.id })}` : ''}`),
 
   audit: (f: { tenant_id?: string; admin_id?: string; action?: string; before?: number }) => {
     const q = new URLSearchParams({ limit: '50' });

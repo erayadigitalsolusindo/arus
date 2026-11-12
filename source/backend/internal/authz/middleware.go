@@ -41,6 +41,12 @@ type PlatformChecker interface {
 	Admin(ctx context.Context, id uuid.UUID) (PlatformAdmin, error)
 }
 
+// WithPresence memasang pengait "pengguna terlihat aktif" (live pantauan platform). Pengait wajib cepat dan tidak memblokir.
+func (r *Resolver) WithPresence(fn func(tenant, user uuid.UUID)) *Resolver {
+	r.onSeen = fn
+	return r
+}
+
 // WithPlatform mengaktifkan penerimaan token "masuk sebagai". Tanpa ini token tersebut ditolak (401).
 func (r *Resolver) WithPlatform(c PlatformChecker) *Resolver {
 	r.platform = c
@@ -101,6 +107,9 @@ func (r *Resolver) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 		a := Actor{TenantID: tid, UserID: uid, OutletID: oid, Name: access.Name, Perms: access.Perms, Outlets: access.Outlets}
+		if r.onSeen != nil {
+			r.onSeen(tid, uid)
+		}
 		next.ServeHTTP(w, req.WithContext(WithActor(req.Context(), a)))
 	})
 }

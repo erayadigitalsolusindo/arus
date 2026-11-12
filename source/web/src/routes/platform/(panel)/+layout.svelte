@@ -15,6 +15,7 @@
     {
       titleKey: 'platform.nav.groupMain',
       items: [
+        { href: '/platform/live', key: 'platform.nav.live', icon: 'activity' },
         { href: '/platform/tenants', key: 'platform.nav.tenants', icon: 'store' },
         { href: '/platform/admins', key: 'platform.nav.admins', icon: 'shield-check' },
         { href: '/platform/plans', key: 'platform.nav.plans', icon: 'badge-dollar-sign' },

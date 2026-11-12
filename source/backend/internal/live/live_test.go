@@ -137,3 +137,43 @@ func TestStreamDeliversSignal(t *testing.T) {
 	cancel()
 	_ = res.Body.Close()
 }
+
+// Pantauan platform (SubscribeAll) menerima sinyal dari tenant mana pun.
+func TestHubSubscribeAll(t *testing.T) {
+	h := testHub(t)
+	sig, stop, _ := h.SubscribeAll()
+	defer stop()
+	h.Notify(uuid.New(), uuid.New())
+	if !recv(sig, time.Second) {
+		t.Fatal("SubscribeAll harus menerima sinyal tenant mana pun")
+	}
+}
+
+// Presence: pengguna terlihat online, kedaluwarsa di luar jendela, dan Touch beruntun tidak menulis berulang.
+func TestPresenceOnline(t *testing.T) {
+	h := testHub(t)
+	p := NewPresence(h.rdb)
+	tn, u1, u2 := uuid.New(), uuid.New(), uuid.New()
+	ctx := context.Background()
+	t.Cleanup(func() { h.rdb.ZRem(ctx, presenceKey, tn.String()+":"+u1.String(), tn.String()+":"+u2.String()) })
+	p.Touch(tn, u1)
+	p.Touch(tn, u1)
+	// u2 terakhir terlihat 10 menit lalu → di luar jendela.
+	h.rdb.ZAdd(ctx, presenceKey, redis.Z{Score: float64(time.Now().Add(-10 * time.Minute).Unix()), Member: tn.String() + ":" + u2.String()})
+	var got []Online
+	for i := 0; i < 50; i++ { // Touch menulis di goroutine
+		got, _ = p.Online(ctx)
+		if len(got) > 0 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	var seenU1, seenU2 bool
+	for _, o := range got {
+		seenU1 = seenU1 || (o.Tenant == tn && o.User == u1)
+		seenU2 = seenU2 || (o.Tenant == tn && o.User == u2)
+	}
+	if !seenU1 || seenU2 {
+		t.Fatalf("u1 harus online dan u2 tidak: %+v", got)
+	}
+}

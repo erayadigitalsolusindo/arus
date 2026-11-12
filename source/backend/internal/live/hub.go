@@ -96,7 +96,7 @@ func (h *Hub) broadcast(m message) {
 	defer h.mu.Unlock()
 	for s := range h.set {
 		// m kosong (tenant Nil) = sambungan Redis baru pulih: bangunkan semua.
-		if m.Tenant != uuid.Nil && (s.tenant != m.Tenant || (m.Outlet != uuid.Nil && s.outlet != m.Outlet)) {
+		if m.Tenant != uuid.Nil && s.tenant != uuid.Nil && (s.tenant != m.Tenant || (m.Outlet != uuid.Nil && s.outlet != m.Outlet)) {
 			continue
 		}
 		select {
@@ -104,6 +104,12 @@ func (h *Hub) broadcast(m message) {
 		default: // sudah ada sinyal tertunda
 		}
 	}
+}
+
+// SubscribeAll = pantauan Platform Admin: sinyal dari SEMUA tenant dan outlet. Done ditutup saat hub berhenti.
+func (h *Hub) SubscribeAll() (sig <-chan struct{}, stop func(), done <-chan struct{}) {
+	sig, stop = h.subscribe(uuid.Nil, uuid.Nil)
+	return sig, stop, h.done
 }
 
 // subscribe mengembalikan kanal sinyal dan fungsi berhenti.

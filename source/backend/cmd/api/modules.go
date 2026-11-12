@@ -74,6 +74,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	perms := authz.NewResolver(d.Pool)
 
 	liveHub := live.NewHub(d.Redis, d.Log)
+	presence := live.NewPresence(d.Redis)
+	perms.WithPresence(presence.Touch)
 	go liveHub.Run(d.Ctx)
 
 	approvalSvc := approval.NewService(d.Pool, d.Redis, d.Cfg.JWTSecret)
@@ -130,6 +132,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc, Backup: backupSvc,
+		Live: liveHub, Presence: presence,
 	})
 	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
