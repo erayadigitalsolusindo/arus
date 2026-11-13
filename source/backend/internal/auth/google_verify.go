@@ -68,11 +68,12 @@ func NewGoogleVerifierWith(audiences []string, extra AudienceSource) GoogleVerif
 	if len(aud) == 0 && extra == nil {
 		return nil
 	}
-	return &googleVerifier{audiences: aud, extra: extra, client: &http.Client{Timeout: 10 * time.Second}, url: googleJWKSURL, now: time.Now}
+	return &googleVerifier{audiences: aud, issuers: []string{"https://accounts.google.com", "accounts.google.com"}, extra: extra, client: &http.Client{Timeout: 10 * time.Second}, url: googleJWKSURL, now: time.Now}
 }
 
 type googleVerifier struct {
 	audiences []string
+	issuers   []string
 	extra     AudienceSource
 	extraAud  []string
 	extraAt   time.Time
@@ -100,7 +101,7 @@ func (v *googleVerifier) Verify(ctx context.Context, idToken string) (GoogleClai
 		}
 		return GoogleClaims{}, ErrGoogleInvalidToken
 	}
-	if iss, _ := claims["iss"].(string); iss != "https://accounts.google.com" && iss != "accounts.google.com" {
+	if iss, _ := claims["iss"].(string); !slices.Contains(v.issuers, iss) {
 		return GoogleClaims{}, ErrGoogleInvalidToken
 	}
 	auds, _ := claims.GetAudience()

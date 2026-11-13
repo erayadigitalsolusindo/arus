@@ -75,5 +75,13 @@ export default {
     orManual: 'atau daftar dengan email',
     notRegistered: 'Akun Google ini belum terdaftar. Lengkapi data usaha untuk mendaftar.',
     loadFailed: 'Tombol Google gagal dimuat. Periksa koneksi lalu muat ulang halaman.'
+  },
+  eraya: {
+    signIn: 'Masuk dengan Eraya',
+    signUp: 'Daftar dengan Eraya',
+    signupHint: 'Mendaftar dengan akun Eraya {email}. Lengkapi data usaha di bawah.',
+    notRegistered: 'Akun Eraya ini belum terdaftar. Lengkapi data usaha untuk mendaftar.',
+    working: 'Menyelesaikan masuk dengan Eraya…',
+    backToLogin: 'Kembali ke halaman masuk'
   }
 };

@@ -8,8 +8,10 @@
   import LoginBackdrop from '#lib/components/LoginBackdrop.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
   import GoogleButton from '#lib/components/GoogleButton.svelte';
+  import ErayaMark from '#lib/components/ErayaMark.svelte';
   import { onMount } from 'svelte';
   import { decodeCredential, googleEnabled, initGoogleForHost, PENDING_KEY, type GoogleProfile } from '#lib/auth/google.ts';
+  import { erayaEnabled, startEraya, takeErayaPending } from '#lib/auth/eraya.ts';
 
   type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm' | 'accept_terms';
 
@@ -32,13 +34,16 @@
   let googleToken = $state('');
   let googleProfile = $state<GoogleProfile | null>(null);
   let fromLogin = $state(false);
+  // Penyedia id_token yang sedang dipakai ('google' atau 'eraya'); jalur daftarnya sama, hanya endpoint dan teks yang beda.
+  let idProvider = $state<'google' | 'eraya'>('google');
 
-  function useGoogle(credential: string) {
+  function useGoogle(credential: string, provider: 'google' | 'eraya' = 'google') {
     const p = decodeCredential(credential);
     if (!p) {
-      formError = errorMessage(new ApiError(401, 'GOOGLE_INVALID_TOKEN', ''));
+      formError = errorMessage(new ApiError(401, `${provider.toUpperCase()}_INVALID_TOKEN`, ''));
       return;
     }
+    idProvider = provider;
     googleToken = credential;
     googleProfile = p;
     errors = {};
@@ -57,6 +62,12 @@
   }
 
   onMount(async () => {
+    const eraya = takeErayaPending('register');
+    if (eraya) {
+      useGoogle(eraya.token, 'eraya');
+      fromLogin = !!eraya.fromLogin && googleProfile !== null;
+      return;
+    }
     if (!(await initGoogleForHost())) return;
     try {
       const pending = sessionStorage.getItem(PENDING_KEY);
@@ -91,7 +102,7 @@
     }
     loading = true;
     try {
-      const res = await api<AuthResponse>('/auth/google/register', {
+      const res = await api<AuthResponse>(`/auth/${idProvider}/register`, {
         method: 'POST',
         body: JSON.stringify({ id_token: googleToken, business_name: biz.value, outlet_name: outlet.value, phone: tel.value, accept_terms: acceptTerms })
       });
@@ -105,7 +116,7 @@
         for (const [k, code] of Object.entries(err.fields)) errors[k as Field] = fieldMessage(code);
         if (!Object.keys(errors).length) formError = errorMessage(err);
       } else {
-        if (err instanceof ApiError && err.code === 'GOOGLE_INVALID_TOKEN') leaveGoogle();
+        if (err instanceof ApiError && err.code === `${idProvider.toUpperCase()}_INVALID_TOKEN`) leaveGoogle();
         formError = errorMessage(err);
       }
     } finally {
@@ -221,9 +232,14 @@
       <h1 class="font-display font-bold text-[22px]">{t('auth.register.title')}</h1>
       <p class="text-[12.5px] mt-1.5 text-tertiary">{t('auth.register.subtitle')}</p>
 
-      {#if $googleEnabled && !googleToken}
-        <div class="mt-6">
-          <GoogleButton text="signup_with" onCredential={useGoogle} />
+      {#if ($googleEnabled || erayaEnabled) && !googleToken}
+        <div class="mt-6 grid gap-3 {$googleEnabled && erayaEnabled ? 'sm:grid-cols-2' : ''}">
+          {#if $googleEnabled}<GoogleButton text="signup_with" onCredential={useGoogle} />{/if}
+          {#if erayaEnabled}
+            <button type="button" class="btn btn-outline w-full h-10 !text-[12.5px] justify-center" onclick={() => startEraya('register')}>
+              <ErayaMark class="h-4 w-auto" />{t('auth.eraya.signUp')}
+            </button>
+          {/if}
         </div>
         <div class="flex items-center gap-3 mt-6">
           <span class="flex-1 h-px bg-border-subtle"></span>
@@ -234,9 +250,9 @@
 
       {#if googleProfile}
         <div class="mt-6 flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] bg-sunken-bordered">
-          <i class="fa-brands fa-google text-[14px] mt-px shrink-0"></i>
+          <i class={idProvider === 'eraya' ? 'icon-log-in text-[14px] mt-px shrink-0' : 'fa-brands fa-google text-[14px] mt-px shrink-0'}></i>
           <div class="flex-1">
-            <p>{fromLogin ? t('auth.google.notRegistered') : t('auth.google.signupHint', { email: googleProfile.email })}</p>
+            <p>{fromLogin ? t(`auth.${idProvider}.notRegistered`) : t(`auth.${idProvider}.signupHint`, { email: googleProfile.email })}</p>
             <button type="button" class="font-semibold text-primary-600 mt-1" onclick={leaveGoogle}>{t('auth.google.useEmail')}</button>
           </div>
         </div>

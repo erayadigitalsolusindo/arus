@@ -39,8 +39,18 @@ type RegisterInput struct {
 // CleanRegister = input yang sudah divalidasi dan dinormalkan.
 type CleanRegister struct {
 	BusinessName, OwnerName, Email, Phone, OutletName, Password string
-	// GoogleSub != "" = pendaftaran lewat Google: email sudah terverifikasi Google dan identitas ditautkan.
+	// GoogleSub != "" = pendaftaran lewat Google/Eraya: email sudah terverifikasi penyedia dan identitas ditautkan.
 	GoogleSub string
+	// IdentityProvider = penyedia GoogleSub ("google" bila kosong, atau "eraya").
+	IdentityProvider string
+}
+
+// provider = penyedia identitas untuk GoogleSub.
+func (in CleanRegister) provider() string {
+	if in.IdentityProvider != "" {
+		return in.IdentityProvider
+	}
+	return googleProviderID
 }
 
 // ValidateRegister menormalkan semua field dan mengumpulkan kode galat per field.
@@ -144,7 +154,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 			return err
 		}
 		if in.GoogleSub != "" {
-			if err := linkGoogle(ctx, tx, in.GoogleSub, tenant.ID, user.ID); err != nil {
+			if err := linkIdentity(ctx, tx, in.provider(), in.GoogleSub, tenant.ID, user.ID); err != nil {
 				return err
 			}
 			if _, err := q.AuthMarkEmailVerified(ctx, gen.AuthMarkEmailVerifiedParams{TenantID: tenant.ID, ID: user.ID}); err != nil {

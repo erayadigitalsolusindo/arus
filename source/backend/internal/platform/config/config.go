@@ -62,6 +62,10 @@ type Config struct {
 	// Kosong = login/daftar Google mati.
 	GoogleClientIDs []string
 
+	// ErayaIssuer/ErayaClientID/ErayaClientSecret = client OIDC untuk login SSO Eraya. Issuer atau client ID kosong = mati.
+	// Secret kosong = client publik (PKCE saja).
+	ErayaIssuer, ErayaClientID, ErayaClientSecret string
+
 	// AppBaseURL = alamat SPA yang dipakai membentuk tautan di email (verifikasi, reset password), tanpa slash akhir.
 	AppBaseURL string
 	// DomainTarget = host yang dituju CNAME domain kustom (white label) tenant. Bawaan: host dari APP_BASE_URL.
@@ -108,6 +112,7 @@ func Load() (Config, error) {
 			c.GoogleClientIDs = append(c.GoogleClientIDs, id)
 		}
 	}
+	c.ErayaIssuer, c.ErayaClientID, c.ErayaClientSecret = os.Getenv("ERAYA_ISSUER"), os.Getenv("ERAYA_CLIENT_ID"), os.Getenv("ERAYA_CLIENT_SECRET")
 	c.DomainTarget = strings.ToLower(strings.TrimSpace(os.Getenv("CUSTOM_DOMAIN_TARGET")))
 	if c.DomainTarget == "" {
 		if u, err := url.Parse(c.AppBaseURL); err == nil {

@@ -77,6 +77,14 @@ const auth: Messages['auth'] = {
     orManual: 'またはメールで登録',
     notRegistered: 'このGoogleアカウントは未登録です。事業情報を入力して登録してください。',
     loadFailed: 'Googleボタンを読み込めませんでした。接続を確認してページを再読み込みしてください。'
+  },
+  eraya: {
+    signIn: 'Eraya でログイン',
+    signUp: 'Eraya で登録',
+    signupHint: 'Eraya アカウント {email} で登録します。以下の事業情報を入力してください。',
+    notRegistered: 'この Eraya アカウントは未登録です。事業情報を入力して登録してください。',
+    working: 'Eraya でのログインを完了しています…',
+    backToLogin: 'ログイン画面に戻る'
   }
 };
 

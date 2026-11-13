@@ -77,6 +77,14 @@ const auth: Messages['auth'] = {
     orManual: 'or sign up with email',
     notRegistered: 'This Google account is not registered yet. Complete your business details to sign up.',
     loadFailed: 'The Google button failed to load. Check your connection and reload the page.'
+  },
+  eraya: {
+    signIn: 'Sign in with Eraya',
+    signUp: 'Sign up with Eraya',
+    signupHint: 'Signing up with Eraya account {email}. Complete your business details below.',
+    notRegistered: 'This Eraya account is not registered yet. Complete your business details to sign up.',
+    working: 'Completing sign-in with Eraya…',
+    backToLogin: 'Back to sign in'
   }
 };
 

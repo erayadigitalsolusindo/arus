@@ -13,10 +13,10 @@ import (
 	"aciraba/internal/platform/sanitize"
 )
 
-// linkGoogle menautkan identitas Google ke pengguna (di dalam transaksi pemanggil).
-func linkGoogle(ctx context.Context, tx pgx.Tx, subject string, tenantID, userID uuid.UUID) error {
+// linkIdentity menautkan identitas pihak ketiga (google/eraya) ke pengguna (di dalam transaksi pemanggil).
+func linkIdentity(ctx context.Context, tx pgx.Tx, provider, subject string, tenantID, userID uuid.UUID) error {
 	var ok bool
-	if err := tx.QueryRow(ctx, "SELECT auth_identity_link($1, $2, $3, $4)", googleProviderID, subject, tenantID, userID).Scan(&ok); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT auth_identity_link($1, $2, $3, $4)", provider, subject, tenantID, userID).Scan(&ok); err != nil {
 		return err
 	}
 	if !ok {
@@ -28,12 +28,17 @@ func linkGoogle(ctx context.Context, tx pgx.Tx, subject string, tenantID, userID
 // GoogleLogin masuk dengan ID token Google yang sudah diverifikasi. Urutan: identitas tertaut → email yang sama
 // (Google sudah memverifikasi email, jadi tertaut otomatis) → ErrGoogleNotRegistered.
 func (s *Service) GoogleLogin(ctx context.Context, c GoogleClaims, remember bool) (*Session, error) {
+	return s.IdentityLogin(ctx, googleProviderID, c, remember)
+}
+
+// IdentityLogin = GoogleLogin untuk penyedia mana pun yang email-nya sudah diverifikasi (google, eraya).
+func (s *Service) IdentityLogin(ctx context.Context, provider string, c GoogleClaims, remember bool) (*Session, error) {
 	email, code := sanitize.Email(c.Email)
 	if code != "" {
 		return nil, ErrGoogleInvalidToken
 	}
 	var uid uuid.UUID
-	err := s.Pool.QueryRow(ctx, "SELECT auth_identity_user($1, $2)", googleProviderID, c.Subject).Scan(&uid)
+	err := s.Pool.QueryRow(ctx, "SELECT auth_identity_user($1, $2)", provider, c.Subject).Scan(&uid)
 	if err != nil {
 		return nil, err
 	}
@@ -56,12 +61,12 @@ func (s *Service) GoogleLogin(ctx context.Context, c GoogleClaims, remember bool
 
 	if uid == uuid.Nil {
 		err = db.WithTenant(ctx, s.Pool, acc.TenantID, func(tx pgx.Tx) error {
-			if err := linkGoogle(ctx, tx, c.Subject, acc.TenantID, acc.UserID); err != nil {
+			if err := linkIdentity(ctx, tx, provider, c.Subject, acc.TenantID, acc.UserID); err != nil {
 				return err
 			}
 			return audit.Record(ctx, tx, auditActor(acc), audit.Entry{
 				Action: audit.ActionLogin, Entity: audit.EntityUser, EntityID: acc.UserID.String(),
-				Details: map[string]any{"google_linked": true},
+				Details: map[string]any{provider + "_linked": true},
 			})
 		})
 		if err != nil {
@@ -69,7 +74,7 @@ func (s *Service) GoogleLogin(ctx context.Context, c GoogleClaims, remember bool
 		}
 	}
 	if !acc.EmailVerified && strings.EqualFold(acc.Email, email) {
-		// Google membuktikan pemilik email ini.
+		// Penyedia membuktikan pemilik email ini.
 		if err := db.WithTenant(ctx, s.Pool, acc.TenantID, func(tx pgx.Tx) error {
 			_, err := gen.New(tx).AuthMarkEmailVerified(ctx, gen.AuthMarkEmailVerifiedParams{TenantID: acc.TenantID, ID: acc.UserID})
 			return err
@@ -91,6 +96,11 @@ type GoogleRegisterInput struct {
 
 // ValidateGoogleRegister menormalkan isian dan menggabungkannya dengan klaim Google.
 func ValidateGoogleRegister(in GoogleRegisterInput, c GoogleClaims) (CleanRegister, map[string]string) {
+	return ValidateIdentityRegister(googleProviderID, in, c)
+}
+
+// ValidateIdentityRegister = ValidateGoogleRegister untuk penyedia mana pun (google, eraya).
+func ValidateIdentityRegister(provider string, in GoogleRegisterInput, c GoogleClaims) (CleanRegister, map[string]string) {
 	var out CleanRegister
 	f := map[string]string{}
 	set := func(field, code string) {
@@ -122,14 +132,14 @@ func ValidateGoogleRegister(in GoogleRegisterInput, c GoogleClaims) (CleanRegist
 	if len(f) > 0 {
 		return CleanRegister{}, f
 	}
-	out.GoogleSub = c.Subject
+	out.GoogleSub, out.IdentityProvider = c.Subject, provider
 	return out, nil
 }
 
 // GoogleRegister membuat tenant baru untuk identitas Google. ErrEmailTaken bila email sudah dipakai akun lain.
 func (s *Service) GoogleRegister(ctx context.Context, in CleanRegister, lang string) (*Session, error) {
 	var uid uuid.UUID
-	if err := s.Pool.QueryRow(ctx, "SELECT auth_identity_user($1, $2)", googleProviderID, in.GoogleSub).Scan(&uid); err != nil {
+	if err := s.Pool.QueryRow(ctx, "SELECT auth_identity_user($1, $2)", in.provider(), in.GoogleSub).Scan(&uid); err != nil {
 		return nil, err
 	}
 	if uid != uuid.Nil {

@@ -12,7 +12,9 @@
   import BarcodeScanner from '#lib/components/BarcodeScanner.svelte';
   import LoginFooter from '#lib/components/LoginFooter.svelte';
   import GoogleButton from '#lib/components/GoogleButton.svelte';
+  import ErayaMark from '#lib/components/ErayaMark.svelte';
   import { googleEnabled, initGoogleForHost, PENDING_KEY } from '#lib/auth/google.ts';
+  import { erayaEnabled, putErayaPending, startEraya, takeErayaPending } from '#lib/auth/eraya.ts';
 
   // Respons login: sesi penuh, atau tantangan 2FA bila akun memakai TOTP (belum ada sesi).
   type LoginResponse = AuthResponse | { mfa_required: true; mfa_token: string };
@@ -29,6 +31,8 @@
   let brand = $state('');
   onMount(() => {
     void initGoogleForHost();
+    const eraya = takeErayaPending('login');
+    if (eraya) void erayaLogin(eraya.token);
     if (isCustomDomain) {
       request<{ tenant_name: string }>(`/public/branding?host=${encodeURIComponent(location.hostname)}`, {}, null)
         .then((r) => (brand = r.tenant_name))
@@ -97,6 +101,30 @@
           /* sessionStorage diblokir: pengguna login ulang dari halaman daftar */
         }
         await goto('/register?google=1');
+        return;
+      }
+      formError = errorMessage(err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // id_token Eraya dari /auth/eraya/callback; belum terdaftar → lanjut ke pendaftaran dengan token yang sama.
+  async function erayaLogin(token: string) {
+    formError = '';
+    loading = true;
+    try {
+      const res = await api<LoginResponse>('/auth/eraya/login', { method: 'POST', body: JSON.stringify({ id_token: token, remember }) });
+      if (isMfa(res)) {
+        mfaToken = res.mfa_token;
+        return;
+      }
+      startSession(res);
+      await goto(safeNext(new URL(location.href).searchParams.get('next')) ?? homePath());
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'ERAYA_NOT_REGISTERED') {
+        putErayaPending({ token, mode: 'register', fromLogin: true });
+        await goto('/register');
         return;
       }
       formError = errorMessage(err);
@@ -221,11 +249,16 @@
           <button type="button" class="w-full text-center text-[12.5px] font-semibold text-primary-600" onclick={backToLogin}>{t('auth.mfa.back')}</button>
         </form>
       {:else}
-      <div class="mt-6">
+      <div class="mt-6 grid gap-3 {erayaEnabled ? 'sm:grid-cols-2' : ''}">
         {#if $googleEnabled}
           <GoogleButton onCredential={googleLogin} />
         {:else}
           <button type="button" class="btn btn-outline w-full !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
+        {/if}
+        {#if erayaEnabled}
+          <button type="button" class="btn btn-outline w-full h-10 !text-[12.5px] justify-center" disabled={loading} onclick={() => startEraya('login', safeNext(new URL(location.href).searchParams.get('next')) ?? '')}>
+            <ErayaMark class="h-4 w-auto" />{t('auth.eraya.signIn')}
+          </button>
         {/if}
       </div>
 

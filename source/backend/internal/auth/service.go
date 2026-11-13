@@ -50,6 +50,8 @@ type Deps struct {
 	Approvals *approval.Service
 	// Google memverifikasi ID token login/daftar Google; nil = fitur mati (GOOGLE_DISABLED).
 	Google GoogleVerifier
+	// Eraya = login SSO Eraya (OIDC); nil = fitur mati (ERAYA_DISABLED).
+	Eraya *Eraya
 	// MFA memeriksa 2FA TOTP pengguna saat login; nil = 2FA tidak dipakai.
 	MFA *usermfa.Service
 	// BaseURL = alamat SPA untuk tautan di email, tanpa slash akhir (mis. https://app.contoh.id).

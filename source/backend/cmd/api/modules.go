@@ -88,6 +88,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Pool: d.Pool, Tokens: tokens, Sessions: sessions, OneTime: pauth.NewOneTime(d.Redis), Perms: perms,
 		Mailer: d.Mailer, Jobs: d.Jobs, BaseURL: d.Cfg.AppBaseURL, Approvals: approvalSvc,
 		Google: auth.NewGoogleVerifierWith(d.Cfg.GoogleClientIDs, domainGoogleIDs(d.Pool)), MFA: userMFA,
+		Eraya: auth.NewEraya(d.Cfg.ErayaIssuer, d.Cfg.ErayaClientID, d.Cfg.ErayaClientSecret),
 	})
 	auth.NewHandler(auth.HandlerDeps{
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
