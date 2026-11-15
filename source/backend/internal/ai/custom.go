@@ -114,7 +114,8 @@ func validateBaseURL(raw string) (string, error) {
 	if p := u.Port(); p != "" && (len(p) > 5 || p == "0") {
 		return "", ErrBadBaseURL
 	}
-	u.Path = strings.TrimRight(u.Path, "/")
+	// operator sering menempel URL penuh dari contoh kode; klien menambahkan /chat/completions sendiri
+	u.Path = strings.TrimSuffix(strings.TrimRight(u.Path, "/"), "/chat/completions")
 	return u.String(), nil
 }
 
