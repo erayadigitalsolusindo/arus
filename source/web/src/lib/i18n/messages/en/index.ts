@@ -2,6 +2,7 @@ import type { Messages } from '../../types.ts';
 import common from './common.ts';
 import errors from './errors.ts';
 import auth from './auth.ts';
+import onboarding from './onboarding.ts';
 import nav from './nav.ts';
 import shell from './shell.ts';
 import dashboard from './dashboard.ts';
@@ -34,6 +35,6 @@ import subscription from './subscription.ts';
 import profile from './profile.ts';
 import storefront from './storefront.ts';
 
-const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile, storefront };
+const en: Messages = { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile, storefront, onboarding };
 
 export default en;

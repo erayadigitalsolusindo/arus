@@ -1,6 +1,7 @@
 import common from './common.ts';
 import errors from './errors.ts';
 import auth from './auth.ts';
+import onboarding from './onboarding.ts';
 import nav from './nav.ts';
 import shell from './shell.ts';
 import dashboard from './dashboard.ts';
@@ -34,4 +35,4 @@ import profile from './profile.ts';
 import storefront from './storefront.ts';
 
 // Kamus Indonesia = sumber kebenaran bentuk pesan. Modul baru: buat file domain di sini dan di `en/`, lalu daftarkan.
-export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile, storefront };
+export default { common, errors, auth, nav, shell, dashboard, iam, account, outlets, audit, legal, platform, catalog, items, stock, pos, members, vouchers, sales, receivables, payables, settle, purchases, purchaseReturns, deposits, supplierCredits, shift, accounting, ai, reports, extapi, subscription, profile, storefront, onboarding };

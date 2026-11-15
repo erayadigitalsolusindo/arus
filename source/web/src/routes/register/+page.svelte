@@ -108,7 +108,7 @@
       });
       leaveGoogle();
       startSession(res);
-      await goto('/dashboard');
+      await goto('/onboarding');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
         formError = errorMessage(err);
@@ -167,7 +167,7 @@
       });
       startSession(res);
       password = confirm = '';
-      await goto('/dashboard');
+      await goto('/onboarding');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
         errors = { email: errorMessage(err) };

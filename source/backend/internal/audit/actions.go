@@ -17,6 +17,7 @@ const (
 	ActionEmailVerified  = "auth.email_verified"
 	ActionOutletSwitch   = "auth.outlet_switch"
 	ActionTermsAccepted  = "auth.terms_accepted"
+	ActionOnboardingDone = "onboarding.complete" // wizard penyiapan awal selesai/dilewati
 
 	// Pengguna & role
 	ActionUserCreate        = "user.create"

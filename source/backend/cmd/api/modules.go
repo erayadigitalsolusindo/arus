@@ -28,6 +28,7 @@ import (
 	"aciraba/internal/member"
 	"aciraba/internal/outlet"
 	"aciraba/internal/payable"
+	"aciraba/internal/onboarding"
 	"aciraba/internal/paymentmethod"
 	"aciraba/internal/plan"
 	pauth "aciraba/internal/platform/auth"
@@ -182,6 +183,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	shift.NewHandler(shiftSvc, perms, tokens, d.Log).Routes(r)
 	accSvc := accounting.NewService(d.Pool)
 	accounting.NewHandler(accSvc, perms, tokens, d.Log).Routes(r)
+	onboarding.NewHandler(onboarding.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
 	reportsSalesSvc := reports_sales.NewService(d.Pool)
 	reports_sales.NewHandler(reportsSalesSvc, perms, tokens, d.Log).Routes(r)
 	reports_stock.NewHandler(reports_stock.NewService(d.Pool), perms, tokens, d.Log).Routes(r)
