@@ -2,7 +2,7 @@
 import type { MessageKey } from '#lib/i18n/index.ts';
 import type { AiPolicyValues } from '#lib/platform/api.ts';
 
-export type BoolKey = 'enabled' | 'allow_write' | 'allow_cost' | 'allow_images' | 'allow_history' | 'allow_mcp' | 'allow_byok' | 'allow_custom' | 'free_enabled';
+export type BoolKey = 'enabled' | 'allow_write' | 'allow_cost' | 'allow_images' | 'allow_history' | 'allow_mcp' | 'allow_byok' | 'allow_custom' | 'free_enabled' | 'topic_strict';
 export type NumKey = 'chat_limit' | 'max_range_days' | 'free_daily_limit';
 
 export const FEATURES: { key: BoolKey; icon: string; label: MessageKey; hint: MessageKey; short: MessageKey; can: MessageKey; risky?: boolean }[] = [
@@ -14,7 +14,8 @@ export const FEATURES: { key: BoolKey; icon: string; label: MessageKey; hint: Me
   { key: 'allow_mcp', icon: 'plug', label: 'platform.ai.fMcp', hint: 'platform.ai.fMcpHint', short: 'platform.ai.shMcp', can: 'platform.ai.cMcp', risky: true },
   { key: 'allow_byok', icon: 'key-round', label: 'platform.ai.fByok', hint: 'platform.ai.fByokHint', short: 'platform.ai.shByok', can: 'platform.ai.cByok' },
   { key: 'allow_custom', icon: 'terminal', label: 'platform.ai.fCustom', hint: 'platform.ai.fCustomHint', short: 'platform.ai.shCustom', can: 'platform.ai.cCustom' },
-  { key: 'free_enabled', icon: 'gift', label: 'platform.ai.fFree', hint: 'platform.ai.fFreeHint', short: 'platform.ai.shFree', can: 'platform.ai.cFree' }
+  { key: 'free_enabled', icon: 'gift', label: 'platform.ai.fFree', hint: 'platform.ai.fFreeHint', short: 'platform.ai.shFree', can: 'platform.ai.cFree' },
+  { key: 'topic_strict', icon: 'target', label: 'platform.ai.fTopic', hint: 'platform.ai.fTopicHint', short: 'platform.ai.shTopic', can: 'platform.ai.cTopic' }
 ];
 
 export const DOMAIN_META: Record<string, { icon: string; label: MessageKey }> = {
@@ -27,7 +28,7 @@ export const DOMAIN_META: Record<string, { icon: string; label: MessageKey }> = 
   accounting: { icon: 'landmark', label: 'platform.ai.dAccounting' }
 };
 
-export const KEYS = ['enabled', 'domains', 'allow_write', 'allow_cost', 'allow_byok', 'allow_custom', 'allow_images', 'allow_history', 'allow_mcp', 'free_enabled', 'free_daily_limit', 'free_model', 'chat_limit', 'max_range_days'] as const;
+export const KEYS = ['enabled', 'domains', 'allow_write', 'allow_cost', 'allow_byok', 'allow_custom', 'allow_images', 'allow_history', 'allow_mcp', 'free_enabled', 'free_daily_limit', 'free_model', 'chat_limit', 'max_range_days', 'topic_strict'] as const;
 
 export const pick = (r: Partial<AiPolicyValues>): AiPolicyValues => Object.fromEntries(KEYS.map((k) => [k, r[k] ?? null])) as AiPolicyValues;
 export const emptyPolicy = (): AiPolicyValues => pick({});

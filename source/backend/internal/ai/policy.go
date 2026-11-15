@@ -80,7 +80,7 @@ func (s *Service) bundle(ctx context.Context, tenantID uuid.UUID) (aipolicy.Effe
 	eff := aipolicy.Default()
 	err := db.WithTenant(ctx, s.pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT enabled, domains, allow_write, allow_cost, allow_byok, allow_custom, allow_images,
-			allow_history, allow_mcp, free_enabled, free_daily_limit, free_model, chat_limit, max_range_days
+			allow_history, allow_mcp, free_enabled, free_daily_limit, free_model, chat_limit, max_range_days, topic_strict
 			FROM ai_policies WHERE tenant_id IS NULL OR tenant_id = $1 ORDER BY (tenant_id IS NULL) DESC`, tenantID)
 		if err != nil {
 			return err
@@ -89,7 +89,7 @@ func (s *Service) bundle(ctx context.Context, tenantID uuid.UUID) (aipolicy.Effe
 		for rows.Next() {
 			var v aipolicy.Values
 			if err := rows.Scan(&v.Enabled, &v.Domains, &v.AllowWrite, &v.AllowCost, &v.AllowBYOK, &v.AllowCustom, &v.AllowImages,
-				&v.AllowHistory, &v.AllowMCP, &v.FreeEnabled, &v.FreeDailyLimit, &v.FreeModel, &v.ChatLimit, &v.MaxRangeDays); err != nil {
+				&v.AllowHistory, &v.AllowMCP, &v.FreeEnabled, &v.FreeDailyLimit, &v.FreeModel, &v.ChatLimit, &v.MaxRangeDays, &v.TopicStrict); err != nil {
 				return err
 			}
 			eff = eff.Apply(v)
@@ -196,12 +196,15 @@ func policyInfo(p aipolicy.Effective) PolicyInfo {
 
 // policyPrompt = catatan untuk model tentang batasan dari operator platform (kosong bila tak ada batasan relevan).
 func policyPrompt(p aipolicy.Effective) string {
-	b := p.Blocked()
-	if len(b) == 0 {
-		return ""
+	out := ""
+	if b := p.Blocked(); len(b) > 0 {
+		out += "\n\nBATASAN OPERATOR: data berikut dinonaktifkan oleh operator platform dan tidak bisa dianalisis: " + strings.Join(b, ", ") +
+			". Bila pengguna menanyakannya, katakan fiturnya tidak tersedia untuk akun ini; jangan menebak angkanya."
 	}
-	return "\n\nBATASAN OPERATOR: data berikut dinonaktifkan oleh operator platform dan tidak bisa dianalisis: " + strings.Join(b, ", ") +
-		". Bila pengguna menanyakannya, katakan fiturnya tidak tersedia untuk akun ini; jangan menebak angkanya."
+	if p.TopicStrict {
+		out += "\n\nRUANG LINGKUP (WAJIB): HANYA bahas data usaha pengguna di ARUS dan cara memakai ARUS. Pertanyaan di luar itu (pengetahuan umum, geografi, sejarah, berita, coding, PR sekolah, dll.) jangan dijawab sama sekali, meski singkat: tolak dengan sopan dalam satu kalimat dan tawarkan analisis usaha mereka."
+	}
+	return out
 }
 
 const rulesOpen, rulesClose = "<<<ATURAN_OPERATOR", "ATURAN_OPERATOR>>>"

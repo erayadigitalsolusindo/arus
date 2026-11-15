@@ -35,7 +35,7 @@ func TestValidate(t *testing.T) {
 		t.Error("global kosong harus ditolak")
 	}
 	full := Values{Enabled: ptr(true), Domains: []string{DomainSales}, AllowWrite: ptr(true), AllowCost: ptr(true), AllowBYOK: ptr(true), AllowCustom: ptr(true),
-		AllowImages: ptr(true), AllowHistory: ptr(true), AllowMCP: ptr(true), FreeEnabled: ptr(true), ChatLimit: ptr(20), MaxRangeDays: ptr(30)}
+		AllowImages: ptr(true), AllowHistory: ptr(true), AllowMCP: ptr(true), FreeEnabled: ptr(true), ChatLimit: ptr(20), MaxRangeDays: ptr(30), TopicStrict: ptr(true)}
 	if f := full.Validate(true, ok); len(f) != 0 {
 		t.Errorf("global lengkap harus valid: %v", f)
 	}

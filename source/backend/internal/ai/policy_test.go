@@ -37,9 +37,12 @@ func TestEveryToolHasPolicyDomain(t *testing.T) {
 }
 
 func TestPolicyPromptAndFreeDefaults(t *testing.T) {
-	all := aipolicy.Default()
+	all := aipolicy.Default().Apply(aipolicy.Values{TopicStrict: new(bool)})
 	if policyPrompt(all) != "" {
 		t.Error("tanpa batasan, prompt tidak perlu catatan")
+	}
+	if got := policyPrompt(aipolicy.Default()); !strings.Contains(got, "RUANG LINGKUP") {
+		t.Errorf("topic_strict harus menambah aturan ruang lingkup: %q", got)
 	}
 	p := all.Apply(aipolicy.Values{Domains: []string{"sales"}})
 	if got := policyPrompt(p); !strings.Contains(got, "stock") || strings.Contains(got, "sales,") {

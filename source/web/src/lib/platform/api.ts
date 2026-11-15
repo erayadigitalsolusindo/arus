@@ -158,6 +158,7 @@ export type AiPolicyValues = {
   free_model: string | null;
   chat_limit: number | null;
   max_range_days: number | null;
+  topic_strict: boolean | null;
 };
 export type AiPolicyRow = AiPolicyValues & { tenant_id: string | null; tenant_code?: string; tenant_name?: string; note: string; updated_at: string };
 export type AiProvider = { configured: boolean; base_url: string; model: string; key_hint: string; updated_at: string; author: string };

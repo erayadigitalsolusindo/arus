@@ -41,7 +41,7 @@ type AIPolicies struct {
 
 func (s *Service) ListAIPolicies(ctx context.Context, a Actor) (AIPolicies, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT tenant_id, COALESCE(tenant_code, ''), COALESCE(tenant_name, ''), enabled, domains, allow_write, allow_cost,
-		allow_byok, allow_custom, allow_images, allow_history, allow_mcp, free_enabled, free_daily_limit, free_model, chat_limit, max_range_days, note, updated_at
+		allow_byok, allow_custom, allow_images, allow_history, allow_mcp, free_enabled, free_daily_limit, free_model, chat_limit, max_range_days, topic_strict, note, updated_at
 		FROM platform_ai_policy_list($1)`, a.ID)
 	if err != nil {
 		return AIPolicies{}, mapPolicyErr(err)
@@ -51,7 +51,7 @@ func (s *Service) ListAIPolicies(ctx context.Context, a Actor) (AIPolicies, erro
 	for rows.Next() {
 		var r AIPolicyRow
 		if err := rows.Scan(&r.TenantID, &r.TenantCode, &r.TenantName, &r.Enabled, &r.Domains, &r.AllowWrite, &r.AllowCost, &r.AllowBYOK, &r.AllowCustom,
-			&r.AllowImages, &r.AllowHistory, &r.AllowMCP, &r.FreeEnabled, &r.FreeDailyLimit, &r.FreeModel, &r.ChatLimit, &r.MaxRangeDays, &r.Note, &r.UpdatedAt); err != nil {
+			&r.AllowImages, &r.AllowHistory, &r.AllowMCP, &r.FreeEnabled, &r.FreeDailyLimit, &r.FreeModel, &r.ChatLimit, &r.MaxRangeDays, &r.TopicStrict, &r.Note, &r.UpdatedAt); err != nil {
 			return AIPolicies{}, err
 		}
 		if r.TenantID == nil {

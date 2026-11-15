@@ -75,12 +75,13 @@ type Effective struct {
 	FreeModel      string // "" = model murah bawaan
 	ChatLimit      int
 	MaxRangeDays   int
+	TopicStrict    bool // tolak pertanyaan di luar data usaha/ARUS
 }
 
 // Default = tanpa pembatasan (perilaku sebelum kebijakan ada); dipakai bila baris global belum terbaca.
 func Default() Effective {
 	return Effective{Enabled: true, Domains: slices.Clone(Domains), AllowWrite: true, AllowCost: true, AllowBYOK: true, AllowCustom: true,
-		AllowImages: true, AllowHistory: true, AllowMCP: true, FreeEnabled: true, ChatLimit: DefaultChatLimit, MaxRangeDays: DefaultMaxRangeDays}
+		AllowImages: true, AllowHistory: true, AllowMCP: true, FreeEnabled: true, ChatLimit: DefaultChatLimit, MaxRangeDays: DefaultMaxRangeDays, TopicStrict: true}
 }
 
 // Values = satu baris kebijakan; pada pengecualian tenant, nil = ikut global.
@@ -99,6 +100,7 @@ type Values struct {
 	FreeModel      *string  `json:"free_model"`
 	ChatLimit      *int     `json:"chat_limit"`
 	MaxRangeDays   *int     `json:"max_range_days"`
+	TopicStrict    *bool    `json:"topic_strict"`
 }
 
 // Apply menimpa field Effective dengan field Values yang terisi.
@@ -117,6 +119,7 @@ func (e Effective) Apply(v Values) Effective {
 	set(&e.AllowHistory, v.AllowHistory)
 	set(&e.AllowMCP, v.AllowMCP)
 	set(&e.FreeEnabled, v.FreeEnabled)
+	set(&e.TopicStrict, v.TopicStrict)
 	if v.Domains != nil {
 		e.Domains = slices.Clone(v.Domains)
 	}
@@ -161,7 +164,7 @@ func (v Values) Validate(global bool, validFreeModel func(string) bool) map[stri
 			"enabled": v.Enabled == nil, "allow_write": v.AllowWrite == nil, "allow_cost": v.AllowCost == nil, "allow_byok": v.AllowBYOK == nil,
 			"allow_custom": v.AllowCustom == nil, "allow_images": v.AllowImages == nil, "allow_history": v.AllowHistory == nil,
 			"allow_mcp": v.AllowMCP == nil, "free_enabled": v.FreeEnabled == nil, "domains": v.Domains == nil,
-			"chat_limit": v.ChatLimit == nil, "max_range_days": v.MaxRangeDays == nil,
+			"chat_limit": v.ChatLimit == nil, "max_range_days": v.MaxRangeDays == nil, "topic_strict": v.TopicStrict == nil,
 		} {
 			if nilBool {
 				f[name] = "REQUIRED"
