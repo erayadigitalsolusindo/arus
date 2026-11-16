@@ -18,7 +18,7 @@ const auth: Messages['auth'] = {
     submit: 'Sign In',
     noAccount: "Don't have an account?",
     createOne: 'Create one',
-    downloadApk: 'DOWNLOAD CASHIER APK',
+    downloadApk: 'GET IT ON GOOGLE PLAY',
     emailRequired: 'Email is required.',
     emailInvalid: 'Invalid email format.',
     passwordRequired: 'Password is required.'

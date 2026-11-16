@@ -18,7 +18,7 @@ const auth: Messages['auth'] = {
     submit: 'ログイン',
     noAccount: 'アカウントがありませんか?',
     createOne: 'アカウントを作成',
-    downloadApk: 'レジAPKをダウンロード',
+    downloadApk: 'Google Playで入手',
     emailRequired: 'メールアドレスは必須です。',
     emailInvalid: 'メールアドレスの形式が無効です。',
     passwordRequired: 'パスワードは必須です。'

@@ -3,7 +3,7 @@
   import { z } from 'zod';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { api, API_URL, ApiError, isCustomDomain, request, type AuthResponse } from '#lib/api/client.ts';
+  import { api, ApiError, isCustomDomain, request, type AuthResponse } from '#lib/api/client.ts';
   import { homePath, safeNext, startSession } from '#lib/auth/session.svelte.ts';
   import { t, type MessageKey } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -24,9 +24,7 @@
   let mfaCode = $state('');
   let mfaError = $state('');
 
-  // APK Kasir yang diunggah Platform Admin; tombol hanya tampil bila sudah ada.
-  const APK_URL = `${API_URL}/public/mobile/apk`;
-  let apk = $state<{ available: boolean; version?: string } | null>(null);
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=id.co.erayadigital.arus';
   // Domain white label: tampilkan nama tenant pemilik domain (endpoint publik, hanya nama).
   let brand = $state('');
   onMount(() => {
@@ -38,9 +36,6 @@
         .then((r) => (brand = r.tenant_name))
         .catch(() => (brand = ''));
     }
-    request<{ available: boolean; version?: string }>('/public/mobile/apk/info', {}, null)
-      .then((r) => (apk = r))
-      .catch(() => (apk = null));
   });
 
   // Dibuat per submit agar pesan validasi mengikuti bahasa aktif.
@@ -331,15 +326,14 @@
         {t('auth.login.noAccount')} <a href="/register" class="font-semibold text-primary-600">{t('auth.login.createOne')}</a>
       </p>
 
-      {#if apk?.available}
       <a
-        href={APK_URL}
-        download
+        href={PLAY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         class="btn btn-outline w-full justify-center !text-[12.5px] mt-4 font-bold tracking-wide"
       >
-        <i class="icon-smartphone text-[14px]"></i>{t('auth.login.downloadApk')}
+        <svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" aria-hidden="true"><path fill="#00D7FE" d="M3.6 1.6c-.3.3-.5.8-.5 1.4v18c0 .6.2 1.1.5 1.4l.1.1L13.8 12.4v-.2L3.7 1.5z"/><path fill="#FFCE00" d="M17.2 15.8l-3.4-3.4v-.2l3.4-3.4.1.1 4 2.3c1.1.6 1.1 1.7 0 2.4l-4 2.2z"/><path fill="#FF3A44" d="M17.3 15.7l-3.5-3.5L3.6 22.4c.4.4 1 .4 1.7.1l12-6.8"/><path fill="#00F076" d="M17.3 8.7L5.3 1.9c-.7-.4-1.3-.3-1.7.1l10.2 10.2z"/></svg>{t('auth.login.downloadApk')}
       </a>
-      {/if}
     </div>
 
     <div class="relative w-full max-w-[400px] mx-auto">
