@@ -327,20 +327,14 @@ class PosRepository {
         .toList();
   });
 
-  /// Penjualan kasir ini pada rentang waktu. [from]/[to] = `YYYY-MM-DDTHH:MM` (waktu outlet; menit akhir ikut);
-  /// kosong = hari ini menurut zona waktu outlet.
+  /// Penjualan kasir ini pada satu shift ([shiftId]; jendela waktunya dihitung server).
   Future<SalesToday> salesToday({
+    required String shiftId,
     String q = '',
-    String from = '',
-    String to = '',
   }) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/sales/',
-      queryParameters: {
-        if (q.isNotEmpty) 'q': q,
-        if (from.isNotEmpty) 'from': from,
-        if (to.isNotEmpty) 'to': to,
-      },
+      queryParameters: {'shift_id': shiftId, if (q.isNotEmpty) 'q': q},
     );
     return SalesToday.fromJson(r.data!);
   });
@@ -451,6 +445,7 @@ class PosRepository {
       price: dec(j['sell_price']),
       stockDisplay: stock,
       isGoods: isGoods,
+      allowNegativeStock: isGoods && allowNegativeStock,
     );
   });
 

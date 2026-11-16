@@ -749,6 +749,37 @@ func TestLineDiscountNeedsApproverPin(t *testing.T) {
 	}
 }
 
+// ListShift: hanya nota dalam jendela waktu shift kasir ini; shift milik orang lain/ngawur ditolak.
+func TestListShiftWindow(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	it := e.item(t, "goods", "1000", "0", 10, false)
+	a := e.actor(e.tenant)
+	var ids []uuid.UUID
+	for i := 0; i < 2; i++ {
+		s, _, err := e.svc.Create(ctx, a, key(), Request{Lines: []LineIn{line(it, "1")}, Payments: []PaymentIn{pay("cash", "1000")}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, s.ID)
+	}
+	e.exec(t, `UPDATE sales SET created_at = now() - interval '3 hours' WHERE id = $1`, ids[0])
+	shiftID := uuid.New()
+	e.exec(t, `INSERT INTO cash_shifts (id, tenant_id, outlet_id, user_id, doc_no, opening_cash, opened_at) VALUES ($1, $2, $3, $4, 'SH-T1', 0, now() - interval '1 hour')`,
+		shiftID, a.TenantID, a.OutletID, a.UserID)
+	res, err := e.svc.ListShift(ctx, a, shiftID.String(), "")
+	if err != nil || len(res.Data) != 1 || res.Data[0].ID != ids[1] {
+		t.Fatalf("shift: %+v %v", res, err)
+	}
+	if _, err := e.svc.ListShift(ctx, a, uuid.NewString(), ""); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("shift asing: %v", err)
+	}
+	var fe FieldErrors
+	if _, err := e.svc.ListShift(ctx, a, "bukan-uuid", ""); !errors.As(err, &fe) {
+		t.Fatalf("shift rusak: %v", err)
+	}
+}
+
 // Daftar penjualan kasir: default hari ini di outlet aktif, rentang tanggal, cari no. nota, total per metode (tunai bersih).
 func TestListRangeSearchAndTotals(t *testing.T) {
 	e := newEnv(t)

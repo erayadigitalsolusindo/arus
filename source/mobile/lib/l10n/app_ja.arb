@@ -315,7 +315,7 @@
   "errorShiftDiffNote": "差額にはメモと承認が必要です。",
   "errorShiftClosed": "このシフトはすでに閉じています。",
   "errorShiftAlreadyOpen": "この店舗のシフトはすでに開いています。",
-  "salesTodayTitle": "売上",
+  "salesTodayTitle": "現在のシフトの売上",
   "salesTodaySummary": "{count} ノート、{total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -1021,6 +1021,7 @@
     }
   },
   "menuItems": "商品",
+  "menuSales": "売上",
   "menuPurchases": "仕入",
   "itemsTitle": "商品",
   "itemsSearch": "名前・コード・バーコードで検索",

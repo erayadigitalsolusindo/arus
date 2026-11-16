@@ -190,6 +190,8 @@ class PlayUpdateController extends Notifier<PlayUpdateState> {
       final show = manual || next.forced || !_autoPrompted;
       if (!manual) _autoPrompted = true;
       state = next.copyWith(showCard: show);
+      // Cek manual yang menemukan versi baru langsung memperbarui (layar penuh Play), tanpa tombol "Nanti".
+      if (manual) await start(immediate: true);
     } catch (_) {
       // Play tak tersedia (APK biasa, tanpa Play Store) atau jaringan: diam saat otomatis, kabari saat manual.
       state = manual
@@ -227,12 +229,14 @@ class PlayUpdateController extends Notifier<PlayUpdateState> {
   }
 
   /// Mulai memperbarui: wajib atau tak bisa fleksibel → layar penuh Play; selain itu unduh di latar belakang.
-  Future<void> start() async {
+  Future<void> start({bool immediate = false}) async {
     final o = state.offer;
     if (o == null) return;
     final client = ref.read(playUpdateClientProvider);
     try {
-      if (state.forced || !o.flexibleAllowed) {
+      if (state.forced ||
+          !o.flexibleAllowed ||
+          (immediate && o.immediateAllowed)) {
         await client.performImmediate();
         return;
       }

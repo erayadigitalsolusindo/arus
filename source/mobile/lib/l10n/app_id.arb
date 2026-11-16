@@ -315,7 +315,7 @@
   "errorShiftDiffNote": "Selisih wajib disertai catatan dan persetujuan.",
   "errorShiftClosed": "Shift ini sudah ditutup.",
   "errorShiftAlreadyOpen": "Shift Anda di cabang ini sudah terbuka.",
-  "salesTodayTitle": "Penjualan",
+  "salesTodayTitle": "Penjualan shift aktif",
   "salesTodaySummary": "{count} nota, {total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -997,6 +997,7 @@
     }
   },
   "menuItems": "Barang",
+  "menuSales": "Penjualan",
   "menuPurchases": "Pembelian",
   "itemsTitle": "Barang",
   "itemsSearch": "Cari nama, kode, atau barcode",

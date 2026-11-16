@@ -231,7 +231,7 @@
   "errorShiftDiffNote": "A difference requires a note and approval.",
   "errorShiftClosed": "This shift is already closed.",
   "errorShiftAlreadyOpen": "Your shift at this outlet is already open.",
-  "salesTodayTitle": "Sales",
+  "salesTodayTitle": "Active shift sales",
   "salesTodaySummary": "{count} sales, {total}",
   "@salesTodaySummary": {
     "placeholders": {
@@ -909,6 +909,7 @@
     }
   },
   "menuItems": "Items",
+  "menuSales": "Sales",
   "menuPurchases": "Purchases",
   "itemsTitle": "Items",
   "itemsSearch": "Search name, code, or barcode",

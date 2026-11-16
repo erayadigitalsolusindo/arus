@@ -1,5 +1,6 @@
 import '../../core/settings/app_mode.dart';
 import '../../core/settings/settings_button.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -313,10 +314,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        actions: [
-          const ModeButton(),
-          const SettingsButton(),
-        ],
+        actions: [const ModeButton(), const SettingsButton()],
       ),
       body: wide
           ? Row(
@@ -911,9 +909,8 @@ class _ProductCardState extends ConsumerState<_ProductCard>
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
-    // Mode Penjualan + stok boleh minus: sisa stok disembunyikan (tampil satuan saja).
-    final hideStock =
-        item.allowNegativeStock && ref.watch(appModeProvider) == AppMode.sales;
+    // Stok boleh minus: sisa stok disembunyikan (tampil satuan saja).
+    final hideStock = item.allowNegativeStock;
     final showStock = item.isGoods && !hideStock;
     final out = showStock && item.stockDisplay <= Decimal.zero;
     return AnimatedBuilder(
@@ -1008,14 +1005,22 @@ class _ProductCardState extends ConsumerState<_ProductCard>
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  child: Text(
-                    item.name,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      height: 1.25,
+                  // Nama utuh: bila terlalu panjang, huruf mengecil mengikuti ruang kartu (tidak dipotong).
+                  child: LayoutBuilder(
+                    builder: (context, box) => FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topLeft,
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        child: Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1698,8 +1703,6 @@ class _CartRow extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     line.item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13.5,
@@ -1884,11 +1887,7 @@ class _QtyDialogState extends State<_QtyDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        widget.line.item.name,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(widget.line.item.name),
       content: TextField(
         controller: _c,
         autofocus: true,

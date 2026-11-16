@@ -588,7 +588,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorShiftAlreadyOpen => 'Shift Anda di cabang ini sudah terbuka.';
 
   @override
-  String get salesTodayTitle => 'Penjualan';
+  String get salesTodayTitle => 'Penjualan shift aktif';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1677,6 +1677,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get menuItems => 'Barang';
+
+  @override
+  String get menuSales => 'Penjualan';
 
   @override
   String get menuPurchases => 'Pembelian';

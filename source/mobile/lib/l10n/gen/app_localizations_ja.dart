@@ -573,7 +573,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorShiftAlreadyOpen => 'この店舗のシフトはすでに開いています。';
 
   @override
-  String get salesTodayTitle => '売上';
+  String get salesTodayTitle => '現在のシフトの売上';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1639,6 +1639,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get menuItems => '商品';
+
+  @override
+  String get menuSales => '売上';
 
   @override
   String get menuPurchases => '仕入';

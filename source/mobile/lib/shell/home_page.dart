@@ -139,11 +139,17 @@ class HomePage extends ConsumerWidget {
                                   l.menuItems,
                                   () => showItemManagePage(context),
                                 ),
-                              if (p.permissions.can(
-                                    'purchase_invoices',
-                                    'view',
-                                  ) ||
-                                  p.permissions.can('purchase_list', 'view'))
+                              // Mode Penjualan: Pembelian disembunyikan (tampil di Mode Persediaan).
+                              if (ref.watch(appModeProvider) ==
+                                      AppMode.inventory &&
+                                  (p.permissions.can(
+                                        'purchase_invoices',
+                                        'view',
+                                      ) ||
+                                      p.permissions.can(
+                                        'purchase_list',
+                                        'view',
+                                      )))
                                 _MenuEntry(
                                   Icons.local_shipping_outlined,
                                   l.menuPurchases,
@@ -165,7 +171,7 @@ class HomePage extends ConsumerWidget {
                               if (p.permissions.can('sales_reports', 'view'))
                                 _MenuEntry(
                                   Icons.bar_chart_rounded,
-                                  l.reportTitle,
+                                  l.menuSales,
                                   () => showSalesReportPage(context),
                                 ),
                             ],

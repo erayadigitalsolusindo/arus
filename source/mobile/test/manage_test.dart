@@ -210,19 +210,30 @@ void main() {
     expect(find.text('Kasir'), findsOneWidget);
     expect(find.text('Barang'), findsNothing);
     expect(find.text('Pembelian'), findsNothing);
-    expect(find.text('Laporan penjualan'), findsNothing);
+    expect(find.text('Penjualan'), findsNothing);
   });
 
   testWidgets('beranda admin: semua menu muncul dalam ubin kecil', (
     tester,
   ) async {
-    await pt.boot(tester, manageServer(permissions: _admin));
+    await pt.boot(
+      tester,
+      manageServer(permissions: _admin),
+      inventoryMode: true,
+    );
     await pt.settle(tester);
-    for (final t in ['Kasir', 'Barang', 'Pembelian', 'Laporan penjualan']) {
+    for (final t in ['Kasir', 'Barang', 'Pembelian', 'Penjualan']) {
       expect(find.text(t), findsOneWidget);
     }
     // Ubin kecil, bukan tombol besar.
     expect(tester.getSize(find.text('Barang')).height, lessThan(24));
+  });
+
+  testWidgets('mode penjualan: menu Pembelian disembunyikan', (tester) async {
+    await pt.boot(tester, manageServer(permissions: _admin));
+    await pt.settle(tester);
+    expect(find.text('Barang'), findsOneWidget);
+    expect(find.text('Pembelian'), findsNothing);
   });
 
   testWidgets('hanya izin lihat pembelian: tanpa tombol pembelian baru', (
@@ -235,6 +246,7 @@ void main() {
           'purchase_list': ['view'],
         },
       ),
+      inventoryMode: true,
     );
     await pt.settle(tester);
     await tester.tap(find.text('Pembelian'));
@@ -310,7 +322,11 @@ void main() {
     tester,
   ) async {
     final calls = <RequestOptions>[];
-    await pt.boot(tester, manageServer(permissions: _admin, calls: calls));
+    await pt.boot(
+      tester,
+      manageServer(permissions: _admin, calls: calls),
+      inventoryMode: true,
+    );
     await pt.settle(tester);
     await tester.tap(find.text('Pembelian'));
     await tester.pumpAndSettle();

@@ -587,7 +587,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your shift at this outlet is already open.';
 
   @override
-  String get salesTodayTitle => 'Sales';
+  String get salesTodayTitle => 'Active shift sales';
 
   @override
   String salesTodaySummary(String count, String total) {
@@ -1673,6 +1673,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get menuItems => 'Items';
+
+  @override
+  String get menuSales => 'Sales';
 
   @override
   String get menuPurchases => 'Purchases';

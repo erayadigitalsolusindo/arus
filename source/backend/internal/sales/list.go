@@ -289,6 +289,37 @@ func listRange(today time.Time, tz, from, to string) (t0, t1 time.Time, fe Field
 
 // List = nota outlet aktif milik KASIR YANG SEDANG LOGIN (untuk mencocokkan uang fisik di lacinya; kasir lain tak terlihat) pada rentang tanggal (zona waktu outlet; kosong = hari ini), terbaru dulu, opsional cari no. nota.
 func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (ListResult, error) {
+	return s.list(ctx, a, from, to, q, "")
+}
+
+// shiftWindow = [dibuka, ditutup atau sekarang) milik shift di outlet aktif; shift lain/asing = ErrNotFound.
+func shiftWindow(ctx context.Context, tx pgx.Tx, a authz.Actor, shiftID string) (t0, t1 time.Time, err error) {
+	id, perr := uuid.Parse(shiftID)
+	if perr != nil {
+		return t0, t1, FieldErrors{"shift_id": "INVALID"}
+	}
+	var closed pgtype.Timestamptz
+	err = tx.QueryRow(ctx, `SELECT opened_at, closed_at FROM cash_shifts WHERE tenant_id = $1 AND outlet_id = $2 AND id = $3 AND user_id = $4`,
+		a.TenantID, a.OutletID, id, a.UserID).Scan(&t0, &closed)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return t0, t1, ErrNotFound
+	}
+	if err != nil {
+		return t0, t1, err
+	}
+	t1 = time.Now()
+	if closed.Valid {
+		t1 = closed.Time
+	}
+	return t0, t1.Add(time.Second), nil // t1 eksklusif: nota pada detik penutupan ikut
+}
+
+// ListShift = seperti List, tetapi hanya nota pada jendela waktu satu shift milik kasir ini.
+func (s *Service) ListShift(ctx context.Context, a authz.Actor, shiftID, q string) (ListResult, error) {
+	return s.list(ctx, a, "", "", q, shiftID)
+}
+
+func (s *Service) list(ctx context.Context, a authz.Actor, from, to, q, shiftID string) (ListResult, error) {
 	res := ListResult{Data: []ListRow{}, Totals: map[string]string{}, ByMethod: []MethodAmount{}, Flows: []Flow{}, Drawer: []MethodAmount{}}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		qr := gen.New(tx)
@@ -299,9 +330,21 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 		if err != nil {
 			return err
 		}
-		t0, t1, fe := listRange(o.LocalDay.Time, o.Timezone, from, to)
-		if len(fe) > 0 {
-			return fe
+		var t0, t1 time.Time
+		if shiftID != "" {
+			if t0, t1, err = shiftWindow(ctx, tx, a, shiftID); err != nil {
+				return err
+			}
+			loc, lerr := time.LoadLocation(o.Timezone)
+			if lerr != nil {
+				loc = time.UTC
+			}
+			from, to = t0.In(loc).Format("2006-01-02T15:04"), t1.In(loc).Format("2006-01-02T15:04")
+		} else {
+			var fe FieldErrors
+			if t0, t1, fe = listRange(o.LocalDay.Time, o.Timezone, from, to); len(fe) > 0 {
+				return fe
+			}
 		}
 		q = strings.TrimSpace(q)
 		if len(q) > 60 {
@@ -403,7 +446,13 @@ func (s *Service) List(ctx context.Context, a authz.Actor, from, to, q string) (
 // List: GET /sales/?from=&to=&q=<no. nota>; from/to = YYYY-MM-DD atau YYYY-MM-DDTHH:MM (waktu outlet, menit akhir ikut).
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
-	res, err := h.svc.List(r.Context(), actor(r), qs.Get("from"), qs.Get("to"), qs.Get("q"))
+	var res ListResult
+	var err error
+	if sid := qs.Get("shift_id"); sid != "" {
+		res, err = h.svc.ListShift(r.Context(), actor(r), sid, qs.Get("q"))
+	} else {
+		res, err = h.svc.List(r.Context(), actor(r), qs.Get("from"), qs.Get("to"), qs.Get("q"))
+	}
 	if err != nil {
 		h.fail(w, r, err)
 		return

@@ -1135,7 +1135,7 @@ abstract class AppLocalizations {
   /// No description provided for @salesTodayTitle.
   ///
   /// In id, this message translates to:
-  /// **'Penjualan'**
+  /// **'Penjualan shift aktif'**
   String get salesTodayTitle;
 
   /// No description provided for @salesTodaySummary.
@@ -3045,6 +3045,12 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Barang'**
   String get menuItems;
+
+  /// No description provided for @menuSales.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjualan'**
+  String get menuSales;
 
   /// No description provided for @menuPurchases.
   ///

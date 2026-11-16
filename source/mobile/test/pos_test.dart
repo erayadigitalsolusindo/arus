@@ -475,9 +475,14 @@ Future<void> boot(
   FakeAdapter server, {
   Size size = const Size(400, 900),
   bool resetPrefs = true,
+  bool inventoryMode = false,
 }) async {
   // Penyimpanan lokal (keranjang tersimpan) tidak boleh bocor antar test.
-  if (resetPrefs) SharedPreferences.setMockInitialValues({});
+  if (resetPrefs) {
+    SharedPreferences.setMockInitialValues({
+      if (inventoryMode) 'arus.app_mode': 'inventory',
+    });
+  }
   tester.platformDispatcher.localesTestValue = const [Locale('id')];
   addTearDown(tester.platformDispatcher.clearLocalesTestValue);
   tester.view.devicePixelRatio = 1;
@@ -1307,7 +1312,7 @@ void main() {
   ) async {
     await boot(tester, posServer());
     await settle(tester);
-    expect(find.text('Laporan penjualan'), findsNothing);
+    expect(find.text('Penjualan'), findsNothing);
   });
 
   testWidgets(
@@ -1325,8 +1330,8 @@ void main() {
         ),
       );
       await settle(tester);
-      await tester.ensureVisible(find.text('Laporan penjualan'));
-      await tester.tap(find.text('Laporan penjualan'));
+      await tester.ensureVisible(find.text('Penjualan'));
+      await tester.tap(find.text('Penjualan'));
       await tester.pumpAndSettle();
       expect(reports.last.queryParameters['hide_empty'], true);
       expect(reports.last.queryParameters.containsKey('all_outlets'), isFalse);
@@ -1365,36 +1370,23 @@ void main() {
     expect(find.text('Kasir Budi'), findsOneWidget);
   });
 
-  testWidgets('penjualan: filter tanggal + jam + menit dikirim ke server', (
-    tester,
-  ) async {
-    final lists = <RequestOptions>[];
-    await boot(tester, posServer(salesLists: lists));
-    await tester.tap(find.text('Kasir'));
-    await settle(tester);
-    await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Penjualan'));
-    await tester.pumpAndSettle();
-    // Awal: hari ini menurut server (tanpa from/to).
-    expect(lists.last.queryParameters.containsKey('from'), isFalse);
-    expect(find.text('10/10/26 00:00'), findsOneWidget);
-    expect(find.text('10/10/26 23:59'), findsOneWidget);
-
-    // Pilih awal: tanggal lalu jam & menit (OK = nilai awal), lalu daftar dimuat ulang dengan rentang berjam-menit.
-    await tester.tap(find.text('10/10/26 00:00'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('OKE'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('OKE'));
-    await tester.pumpAndSettle();
-    expect(lists.last.queryParameters['from'], '2026-10-10T00:00');
-    expect(lists.last.queryParameters['to'], '2026-10-10T23:59');
-    // Kembali ke "Hari ini" menghapus rentang manual.
-    await tester.tap(find.text('Hari ini'));
-    await tester.pumpAndSettle();
-    expect(lists.last.queryParameters.containsKey('from'), isFalse);
-  });
+  testWidgets(
+    'penjualan: hanya shift berjalan (shift_id), tanpa rentang manual',
+    (tester) async {
+      final lists = <RequestOptions>[];
+      await boot(tester, posServer(salesLists: lists));
+      await tester.tap(find.text('Kasir'));
+      await settle(tester);
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Penjualan'));
+      await tester.pumpAndSettle();
+      expect(lists.last.queryParameters['shift_id'], 's1');
+      expect(lists.last.queryParameters.containsKey('from'), isFalse);
+      expect(lists.last.queryParameters.containsKey('to'), isFalse);
+      expect(find.text('Hari ini'), findsNothing);
+    },
+  );
 
   testWidgets('kasir: tambah barang sederhana lalu langsung dijual', (
     tester,
