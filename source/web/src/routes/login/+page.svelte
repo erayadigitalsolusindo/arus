@@ -208,9 +208,9 @@
 
 <svelte:head><title>{t('auth.login.docTitle')}</title></svelte:head>
 
-<div class="min-h-screen grid lg:grid-cols-2 bg-base">
+<div class="min-h-dvh grid lg:grid-cols-2 bg-base">
   <!-- Left: form -->
-  <div class="relative flex flex-col px-6 sm:px-10 lg:px-16 py-10 overflow-hidden">
+  <div class="relative flex flex-col px-6 sm:px-10 lg:px-16 py-6 sm:py-8 overflow-hidden">
     <LoginBackdrop />
     <div class="relative flex-1 flex flex-col justify-center w-full max-w-[400px] mx-auto">
       <BarcodeScanner />

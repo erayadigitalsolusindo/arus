@@ -42,7 +42,7 @@
   });
 </script>
 
-<footer class="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-6 text-[11.5px] text-tertiary">
+<footer class="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4 text-[11.5px] text-tertiary">
   <LegalLinks />
 
   <div class="flex items-center gap-3.5">
