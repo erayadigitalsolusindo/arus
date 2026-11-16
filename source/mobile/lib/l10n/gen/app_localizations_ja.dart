@@ -2109,4 +2109,16 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorErayaDisabled => 'Eraya ログインは有効化されていません。';
+
+  @override
+  String get halloArusEmpty => '売上、在庫、仕入、小口現金など、事業について何でも聞いてください。';
+
+  @override
+  String get halloArusHint => '質問を入力…';
+
+  @override
+  String get halloArusThinking => '処理中';
+
+  @override
+  String get halloArusSubtitle => '事業データのためのAIアシスタント';
 }

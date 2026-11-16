@@ -1268,5 +1268,9 @@
   "errorErayaInvalidToken": "Eraya の認証に失敗したか期限切れです。もう一度お試しください。",
   "errorErayaEmailUnverified": "Eraya アカウントのメールが未確認です。",
   "errorErayaLinked": "このアカウントは別の Eraya アカウントに連携済みです。",
-  "errorErayaDisabled": "Eraya ログインは有効化されていません。"
+  "errorErayaDisabled": "Eraya ログインは有効化されていません。",
+  "halloArusEmpty": "売上、在庫、仕入、小口現金など、事業について何でも聞いてください。",
+  "halloArusHint": "質問を入力…",
+  "halloArusThinking": "処理中",
+  "halloArusSubtitle": "事業データのためのAIアシスタント"
 }

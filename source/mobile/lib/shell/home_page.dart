@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/locale/locale_controller.dart';
-import '../core/money/money.dart';
 import '../core/outlet/outlet_switcher.dart';
 import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
@@ -16,18 +15,13 @@ import '../core/widgets/ocean_background.dart';
 import '../features/pos/pos_controller.dart';
 import '../features/pos/petty_cash_page.dart';
 import '../features/pos/pos_repository.dart';
-import '../features/pos/sales_models.dart';
 import '../features/pos/shift_dialog.dart';
+import '../features/ai/halloarus_page.dart';
 import '../features/manage/item_manage_page.dart';
 import '../features/manage/purchase_pages.dart';
 import '../features/reports/erapay_settlement_page.dart';
 import '../features/reports/sales_report_page.dart';
 import '../l10n/gen/app_localizations.dart';
-
-/// Penjualan kasir ini hari ini untuk ringkasan beranda. Dimuat ulang tiap beranda dibuka.
-final homeTodayProvider = FutureProvider.autoDispose<SalesToday>(
-  (ref) => ref.read(posRepositoryProvider).salesToday(),
-);
 
 /// EraPay terpasang di toko ini? (menu Settlement hanya tampil bila ya; galat dianggap tidak).
 final eraConfiguredProvider = FutureProvider.autoDispose<bool>(
@@ -91,12 +85,7 @@ class HomePage extends ConsumerWidget {
           child: RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(shiftProvider);
-              ref.invalidate(homeTodayProvider);
-              try {
-                await ref.read(homeTodayProvider.future);
-              } catch (_) {
-                // Galat ditampilkan di papan ("–"); penarikan tetap selesai.
-              }
+              ref.invalidate(eraConfiguredProvider);
             },
             // Sapaan di atas; papan hari ini dan menu di dasar layar supaya langit, gunung, dan laut terlihat.
             child: LayoutBuilder(
@@ -110,14 +99,19 @@ class HomePage extends ConsumerWidget {
                     children: [
                       _Banner(
                         greeting: greeting,
-                        place: '${p.tenant.name} · ${p.outlet.name}',
+                        store: p.tenant.name,
+                        branch: p.outlet.name,
                         onSwitch: () => showOutletSwitcher(context),
-                        switchLabel: l.outletSwitch,
                       ),
                       const SizedBox(height: 24),
                       Column(
                         children: [
-                          const _TodayBoard(),
+                          if (p.permissions.can('ai_assistant', 'view')) ...[
+                            _HalloArusButton(
+                              subtitle: l.halloArusSubtitle,
+                              onTap: () => showHalloArusPage(context),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           _MenuGrid(
                             entries: [
@@ -194,28 +188,28 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// Kartu sapaan semi-transparan di atas latar pantai.
+/// Kartu sapaan semi-transparan di atas latar pantai: sapaan + nama, lalu baris toko dan cabang (ketuk untuk ganti cabang).
 class _Banner extends StatelessWidget {
   const _Banner({
     required this.greeting,
-    required this.place,
+    required this.store,
+    required this.branch,
     required this.onSwitch,
-    required this.switchLabel,
   });
 
   final String greeting;
-  final String place;
+  final String store;
+  final String branch;
   final VoidCallback onSwitch;
-  final String switchLabel;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: pal.surface.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: pal.border),
       ),
       child: Column(
@@ -223,212 +217,132 @@ class _Banner extends StatelessWidget {
         children: [
           Text(
             greeting,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  place,
-                  style: TextStyle(fontSize: 16, color: pal.textTertiary),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: onSwitch,
-                icon: const Icon(Icons.swap_horiz, size: 20),
-                label: Text(switchLabel),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Papan ringkasan hari ini, gaya informasi keranjang POS tetapi dengan huruf besar:
-/// total penjualan, jumlah nota, status shift, dan total per metode bayar.
-class _TodayBoard extends ConsumerStatefulWidget {
-  const _TodayBoard();
-
-  @override
-  ConsumerState<_TodayBoard> createState() => _TodayBoardState();
-}
-
-class _TodayBoardState extends ConsumerState<_TodayBoard> {
-  bool _open = false; // default tertutup
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final pal = context.pal;
-    final today = ref.watch(homeTodayProvider);
-    final shift = ref.watch(shiftProvider);
-    final data = today.asData?.value;
-    final active = data?.rows.where((r) => !r.isVoid).length;
-
-    final shiftText = shift.when(
-      data: (s) => s == null
-          ? l.posShiftNone
-          : l.posShiftOpenedAt(
-              MaterialLocalizations.of(context).formatTimeOfDay(
-                TimeOfDay.fromDateTime(s.openedAt),
-                alwaysUse24HourFormat: true,
-              ),
-            ),
-      loading: () => '…',
-      error: (_, _) => '–',
-    );
-    final shiftOpen = shift.asData?.value != null;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: pal.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: pal.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => setState(() => _open = !_open),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l.homeTodayTitle,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Icon(
-                  _open ? Icons.expand_less : Icons.expand_more,
-                  size: 32,
-                  color: pal.textTertiary,
-                ),
-              ],
-            ),
-          ),
-          if (_open) ...[
-            const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                data == null
-                    ? (today.hasError ? '–' : '…')
-                    : formatMoney(data.total),
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: pal.accent,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _Stat(
-                    label: l.homeTodayNotes,
-                    value: active == null ? '–' : '$active',
-                    color: pal.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: _Stat(
-                    label: l.homeShiftLabel,
-                    value: shiftText,
-                    color: shiftOpen ? pal.success : pal.warningText,
-                    small: true,
-                  ),
-                ),
-              ],
-            ),
-            if (data != null && data.byMethod.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Divider(height: 1, color: pal.border),
-              const SizedBox(height: 8),
-              for (final m in data.byMethod)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          m.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: pal.textTertiary,
+          const SizedBox(height: 12),
+          Material(
+            color: pal.primarySoft,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onSwitch,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, color: pal.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            store,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: pal.textTertiary,
+                            ),
                           ),
-                        ),
+                          Text(
+                            branch,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        formatMoney(m.amount),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    Icon(Icons.swap_horiz, color: pal.primary),
+                  ],
                 ),
-            ],
-          ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.label,
-    required this.value,
-    required this.color,
-    this.small = false,
-  });
+/// Tombol HalloArus (asisten AI): kartu gelap bergradien cyan→ungu, membuka halaman chat.
+class _HalloArusButton extends StatelessWidget {
+  const _HalloArusButton({required this.subtitle, required this.onTap});
 
-  final String label;
-  final String value;
-  final Color color;
-  final bool small;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final pal = context.pal;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: pal.sunken,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: pal.textTertiary)),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: small ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: small ? 20 : 30,
-              fontWeight: FontWeight.w800,
-              color: color,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0B1224), Color(0xFF1E1B4B)],
             ),
+            border: Border.all(
+              color: const Color(0xFF22D3EE).withValues(alpha: 0.6),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF22D3EE).withValues(alpha: 0.25),
+                blurRadius: 16,
+              ),
+            ],
           ),
-        ],
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF22D3EE), Color(0xFFA78BFA)],
+                  ),
+                ),
+                child: const Icon(Icons.auto_awesome, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'HalloArus',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF22D3EE)),
+            ],
+          ),
+        ),
       ),
     );
   }

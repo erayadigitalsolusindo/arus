@@ -3921,6 +3921,30 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Login dengan Eraya belum diaktifkan.'**
   String get errorErayaDisabled;
+
+  /// No description provided for @halloArusEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanya apa saja soal usaha Anda: omzet, stok, pembelian, kas kecil.'**
+  String get halloArusEmpty;
+
+  /// No description provided for @halloArusHint.
+  ///
+  /// In id, this message translates to:
+  /// **'ketik pertanyaan…'**
+  String get halloArusHint;
+
+  /// No description provided for @halloArusThinking.
+  ///
+  /// In id, this message translates to:
+  /// **'memproses'**
+  String get halloArusThinking;
+
+  /// No description provided for @halloArusSubtitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Asisten AI untuk data usaha Anda'**
+  String get halloArusSubtitle;
 }
 
 class _AppLocalizationsDelegate

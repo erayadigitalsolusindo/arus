@@ -2163,4 +2163,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorErayaDisabled => 'Sign-in with Eraya is not enabled.';
+
+  @override
+  String get halloArusEmpty =>
+      'Ask anything about your business: sales, stock, purchases, petty cash.';
+
+  @override
+  String get halloArusHint => 'type a question…';
+
+  @override
+  String get halloArusThinking => 'processing';
+
+  @override
+  String get halloArusSubtitle => 'AI assistant for your business data';
 }

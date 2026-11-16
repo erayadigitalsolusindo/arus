@@ -1244,5 +1244,9 @@
   "errorErayaInvalidToken": "Verifikasi Eraya gagal atau kedaluwarsa. Coba lagi.",
   "errorErayaEmailUnverified": "Email akun Eraya Anda belum terverifikasi.",
   "errorErayaLinked": "Akun ini sudah tertaut ke akun Eraya lain.",
-  "errorErayaDisabled": "Login dengan Eraya belum diaktifkan."
+  "errorErayaDisabled": "Login dengan Eraya belum diaktifkan.",
+  "halloArusEmpty": "Tanya apa saja soal usaha Anda: omzet, stok, pembelian, kas kecil.",
+  "halloArusHint": "ketik pertanyaan…",
+  "halloArusThinking": "memproses",
+  "halloArusSubtitle": "Asisten AI untuk data usaha Anda"
 }

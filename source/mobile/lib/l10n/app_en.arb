@@ -1156,5 +1156,9 @@
   "errorErayaInvalidToken": "Eraya verification failed or expired. Please try again.",
   "errorErayaEmailUnverified": "Your Eraya account email is not verified.",
   "errorErayaLinked": "This account is already linked to another Eraya account.",
-  "errorErayaDisabled": "Sign-in with Eraya is not enabled."
+  "errorErayaDisabled": "Sign-in with Eraya is not enabled.",
+  "halloArusEmpty": "Ask anything about your business: sales, stock, purchases, petty cash.",
+  "halloArusHint": "type a question…",
+  "halloArusThinking": "processing",
+  "halloArusSubtitle": "AI assistant for your business data"
 }

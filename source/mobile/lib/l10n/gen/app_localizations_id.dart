@@ -2164,4 +2164,17 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get errorErayaDisabled => 'Login dengan Eraya belum diaktifkan.';
+
+  @override
+  String get halloArusEmpty =>
+      'Tanya apa saja soal usaha Anda: omzet, stok, pembelian, kas kecil.';
+
+  @override
+  String get halloArusHint => 'ketik pertanyaan…';
+
+  @override
+  String get halloArusThinking => 'memproses';
+
+  @override
+  String get halloArusSubtitle => 'Asisten AI untuk data usaha Anda';
 }
