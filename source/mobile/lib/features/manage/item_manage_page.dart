@@ -9,9 +9,11 @@ import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../pos/add_item_sheet.dart';
+import '../pos/item_thumb.dart';
 import '../pos/pos_controller.dart';
 import '../pos/pos_models.dart';
 import '../pos/pos_repository.dart';
+import 'item_photos_sheet.dart';
 import 'manage_repository.dart';
 
 /// Kelola barang ringkas: cari, tambah, ubah, arsipkan/aktifkan kembali. Tombol mengikuti izin `items`
@@ -136,6 +138,17 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
     if (r == null || !mounted) return;
     ref.read(catalogVersionProvider.notifier).bump();
     _snack(l.itemsUpdated(r.item.name));
+    _load();
+  }
+
+  Future<void> _photos(String id, String name) async {
+    final changed = await showItemPhotosSheet(
+      context,
+      itemId: id,
+      name: name,
+    );
+    if (!changed || !mounted) return;
+    ref.read(catalogVersionProvider.notifier).bump();
     _load();
   }
 
@@ -317,6 +330,8 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
                           }
                           final it = _items[i];
                           return _Tile(
+                            itemId: it.id,
+                            imageId: it.mainImageId,
                             name: it.name,
                             sub: [
                               if (it.sku.isNotEmpty) it.sku,
@@ -332,6 +347,11 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
                                       l.itemsEdit,
                                       Icons.edit_outlined,
                                       () => _edit(it.id),
+                                    ),
+                                    _Act(
+                                      l.itemsPhoto,
+                                      Icons.add_a_photo_outlined,
+                                      () => _photos(it.id, it.name),
                                     ),
                                     _Act(
                                       l.itemsArchive,
@@ -366,9 +386,14 @@ class _Tile extends StatelessWidget {
     required this.sub,
     required this.price,
     required this.menu,
+    this.itemId,
+    this.imageId,
     this.onTap,
     this.muted = false,
   });
+
+  final String? itemId;
+  final String? imageId;
 
   final String name;
   final String sub;
@@ -383,6 +408,20 @@ class _Tile extends StatelessWidget {
     return ListTile(
       dense: true,
       onTap: onTap,
+      leading: itemId == null
+          ? null
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: ItemThumb(
+                  itemId: itemId!,
+                  imageId: imageId,
+                  name: name,
+                ),
+              ),
+            ),
       title: Text(
         name,
         maxLines: 1,

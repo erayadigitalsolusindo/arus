@@ -1,15 +1,13 @@
+import '../core/settings/app_mode.dart';
+import '../core/settings/settings_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/locale/locale_controller.dart';
 import '../core/outlet/outlet_switcher.dart';
 import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
-import '../core/theme/text_scale_controller.dart';
-import '../core/theme/theme_controller.dart';
-import '../core/update/update_check.dart';
 import '../core/widgets/beach_background.dart';
 import '../core/widgets/ocean_background.dart';
 import '../features/pos/pos_controller.dart';
@@ -68,10 +66,8 @@ class HomePage extends ConsumerWidget {
           ),
         ),
         actions: [
-          const UpdateCheckButton(),
-          const LanguageButton(),
-          const TextScaleButton(),
-          const ThemeToggleButton(),
+          const ModeButton(),
+          const SettingsButton(),
           IconButton(
             tooltip: l.logout,
             icon: const Icon(Icons.logout),

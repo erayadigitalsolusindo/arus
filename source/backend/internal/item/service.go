@@ -102,17 +102,19 @@ type Item struct {
 
 // Row = baris daftar item. Price = harga efektif untuk outlet aktif sesi (harga cabang bila ada, selain itu default).
 type Row struct {
-	ID       uuid.UUID `json:"id"`
-	SKU      string    `json:"sku"`
-	Barcode  string    `json:"barcode"`
-	Origin   string    `json:"origin"`
-	Name     string    `json:"name"`
-	Kind     string    `json:"kind"`
-	Active   bool      `json:"active"`
-	Unit     string    `json:"unit"`
-	Category string    `json:"category"`
-	Brand    string    `json:"brand"`
-	Price    string    `json:"price"`
+	ID      uuid.UUID `json:"id"`
+	SKU     string    `json:"sku"`
+	Barcode string    `json:"barcode"`
+	Origin  string    `json:"origin"`
+	Name    string    `json:"name"`
+	Kind    string    `json:"kind"`
+	Active  bool      `json:"active"`
+	// AllowNegativeStock terisi di pencarian kasir: stok boleh minus, jadi klien tidak perlu menampilkan sisa stok.
+	AllowNegativeStock bool   `json:"allow_negative_stock"`
+	Unit               string `json:"unit"`
+	Category           string `json:"category"`
+	Brand              string `json:"brand"`
+	Price              string `json:"price"`
 	// PriceMax terisi hanya pada mode semua cabang: Price = termurah, PriceMax = termahal antar cabang (sama bila seragam).
 	PriceMax      string     `json:"price_max,omitempty"`
 	PriceOverride bool       `json:"price_override"`

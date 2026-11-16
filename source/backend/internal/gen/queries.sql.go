@@ -3142,7 +3142,7 @@ func (q *Queries) ItemRefState(ctx context.Context, arg ItemRefStateParams) (Ite
 }
 
 const itemRowsByIDs = `-- name: ItemRowsByIDs :many
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active, i.allow_negative_stock,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,
@@ -3173,24 +3173,25 @@ type ItemRowsByIDsParams struct {
 }
 
 type ItemRowsByIDsRow struct {
-	ID             uuid.UUID
-	Sku            string
-	Barcode        pgtype.Text
-	Name           string
-	Origin         string
-	Kind           string
-	Active         bool
-	DefaultPrice   decimal.Decimal
-	OutletPrice    pgtype.Numeric
-	AvgCost        decimal.Decimal
-	LastCost       decimal.Decimal
-	UnitName       string
-	CategoryName   pgtype.Text
-	BrandName      pgtype.Text
-	MainImageID    pgtype.UUID
-	StockDisplay   decimal.Decimal
-	StockWarehouse decimal.Decimal
-	StockReturns   decimal.Decimal
+	ID                 uuid.UUID
+	Sku                string
+	Barcode            pgtype.Text
+	Name               string
+	Origin             string
+	Kind               string
+	Active             bool
+	AllowNegativeStock bool
+	DefaultPrice       decimal.Decimal
+	OutletPrice        pgtype.Numeric
+	AvgCost            decimal.Decimal
+	LastCost           decimal.Decimal
+	UnitName           string
+	CategoryName       pgtype.Text
+	BrandName          pgtype.Text
+	MainImageID        pgtype.UUID
+	StockDisplay       decimal.Decimal
+	StockWarehouse     decimal.Decimal
+	StockReturns       decimal.Decimal
 }
 
 // Baris daftar untuk sekumpulan id hasil item_search()/item_find_exact() (00051); urutan dikembalikan pemanggil.
@@ -3212,6 +3213,7 @@ func (q *Queries) ItemRowsByIDs(ctx context.Context, arg ItemRowsByIDsParams) ([
 			&i.Origin,
 			&i.Kind,
 			&i.Active,
+			&i.AllowNegativeStock,
 			&i.DefaultPrice,
 			&i.OutletPrice,
 			&i.AvgCost,

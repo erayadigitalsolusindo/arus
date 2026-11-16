@@ -2177,4 +2177,88 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get halloArusSubtitle => 'Asisten AI untuk data usaha Anda';
+
+  @override
+  String get itemsPhoto => 'Foto barang';
+
+  @override
+  String get itemsPhotoCamera => 'Ambil foto';
+
+  @override
+  String get itemsPhotoGallery => 'Pilih dari galeri';
+
+  @override
+  String itemsPhotoSaved(String name) {
+    return 'Foto $name tersimpan';
+  }
+
+  @override
+  String get itemsPhotoFailed => 'Foto gagal diunggah';
+
+  @override
+  String get settingsTooltip => 'Pengaturan';
+
+  @override
+  String get settingsTitle => 'Pengaturan';
+
+  @override
+  String get settingsLanguage => 'Bahasa';
+
+  @override
+  String get settingsTextSize => 'Ukuran teks';
+
+  @override
+  String get settingsTheme => 'Tampilan';
+
+  @override
+  String get settingsUpdateHint => 'Periksa versi terbaru aplikasi';
+
+  @override
+  String get modeTooltip => 'Mode';
+
+  @override
+  String get modeTitle => 'Mode kerja';
+
+  @override
+  String get modeSalesName => 'Mode Penjualan';
+
+  @override
+  String get modeSalesDesc =>
+      'Fokus berjualan: barang baru otomatis boleh stok minus dan sisa stok disembunyikan di kasir.';
+
+  @override
+  String get modeStockName => 'Mode Persediaan';
+
+  @override
+  String get modeStockDesc =>
+      'Fokus stok: stok dijaga tidak minus dan sisa stok ditampilkan di kasir.';
+
+  @override
+  String get itemsPhotoAdd => 'Tambah foto';
+
+  @override
+  String get itemsPhotoReplace => 'Ganti foto';
+
+  @override
+  String get itemsPhotoDelete => 'Hapus foto';
+
+  @override
+  String get itemsPhotoMain => 'Jadikan utama';
+
+  @override
+  String get itemsPhotoMainBadge => 'Utama';
+
+  @override
+  String itemsPhotoDeleteAsk(String name) {
+    return 'Hapus foto ini dari barang $name?';
+  }
+
+  @override
+  String get itemsPhotoDeleted => 'Foto dihapus';
+
+  @override
+  String get itemsPhotoLimit => 'Maksimal 5 foto per barang';
+
+  @override
+  String get itemsPhotoEmpty => 'Belum ada foto';
 }

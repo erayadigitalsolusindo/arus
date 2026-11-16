@@ -33,7 +33,7 @@ LIMIT @page_limit OFFSET @page_offset;
 -- name: ItemRowsByIDs :many
 -- Baris daftar untuk sekumpulan id hasil item_search()/item_find_exact() (00051); urutan dikembalikan pemanggil.
 -- Sama dengan ItemList tanpa count(*) OVER () sehingga biayanya sebanding jumlah id, bukan jumlah barang tenant.
-SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active,
+SELECT i.id, i.sku, i.barcode, i.name, i.origin, i.kind, i.active, i.allow_negative_stock,
        i.sell_price AS default_price, op.sell_price AS outlet_price,
        coalesce(oc.avg_cost, i.avg_cost)::numeric AS avg_cost, coalesce(oc.last_cost, i.last_cost)::numeric AS last_cost,
        u.name AS unit_name, c.name AS category_name, b.name AS brand_name,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../l10n/gen/app_localizations.dart';
 import '../money/money.dart';
 import '../session/session_controller.dart';
 
@@ -50,28 +49,3 @@ class LocaleController extends Notifier<Locale?> {
   }
 }
 
-/// Tombol pemilih bahasa (Ikuti HP / Indonesia / English).
-class LanguageButton extends ConsumerWidget {
-  const LanguageButton({super.key, this.color});
-
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
-    final current = ref.watch(localeProvider)?.languageCode ?? '';
-    return PopupMenuButton<String>(
-      tooltip: l.languageTooltip,
-      icon: Icon(Icons.translate, color: color),
-      initialValue: current,
-      onSelected: (v) =>
-          ref.read(localeProvider.notifier).set(v.isEmpty ? null : Locale(v)),
-      itemBuilder: (_) => [
-        PopupMenuItem(value: '', child: Text(l.languageSystem)),
-        const PopupMenuItem(value: 'id', child: Text('Bahasa Indonesia')),
-        const PopupMenuItem(value: 'en', child: Text('English')),
-        const PopupMenuItem(value: 'ja', child: Text('日本語')),
-      ],
-    );
-  }
-}

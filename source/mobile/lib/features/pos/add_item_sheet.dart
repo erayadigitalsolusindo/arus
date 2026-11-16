@@ -1,3 +1,4 @@
+import '../../core/settings/app_mode.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -71,6 +72,8 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
   @override
   void initState() {
     super.initState();
+    // Mode Penjualan: barang baru otomatis boleh stok minus (ubah lewat saklar di bawah).
+    _negative = ref.read(appModeProvider) == AppMode.sales;
     _loadLookups();
   }
 

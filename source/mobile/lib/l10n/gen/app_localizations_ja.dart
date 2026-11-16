@@ -2121,4 +2121,86 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get halloArusSubtitle => '事業データのためのAIアシスタント';
+
+  @override
+  String get itemsPhoto => '商品写真';
+
+  @override
+  String get itemsPhotoCamera => '写真を撮る';
+
+  @override
+  String get itemsPhotoGallery => 'ギャラリーから選択';
+
+  @override
+  String itemsPhotoSaved(String name) {
+    return '$nameの写真を保存しました';
+  }
+
+  @override
+  String get itemsPhotoFailed => '写真のアップロードに失敗しました';
+
+  @override
+  String get settingsTooltip => '設定';
+
+  @override
+  String get settingsTitle => '設定';
+
+  @override
+  String get settingsLanguage => '言語';
+
+  @override
+  String get settingsTextSize => '文字サイズ';
+
+  @override
+  String get settingsTheme => '表示';
+
+  @override
+  String get settingsUpdateHint => 'アプリの最新バージョンを確認';
+
+  @override
+  String get modeTooltip => 'モード';
+
+  @override
+  String get modeTitle => '作業モード';
+
+  @override
+  String get modeSalesName => '販売モード';
+
+  @override
+  String get modeSalesDesc => '販売重視：新規商品は自動でマイナス在庫を許可し、レジでは残り在庫を非表示にします。';
+
+  @override
+  String get modeStockName => '在庫モード';
+
+  @override
+  String get modeStockDesc => '在庫重視：在庫がマイナスにならないよう管理し、レジで残り在庫を表示します。';
+
+  @override
+  String get itemsPhotoAdd => '写真を追加';
+
+  @override
+  String get itemsPhotoReplace => '写真を変更';
+
+  @override
+  String get itemsPhotoDelete => '写真を削除';
+
+  @override
+  String get itemsPhotoMain => 'メインにする';
+
+  @override
+  String get itemsPhotoMainBadge => 'メイン';
+
+  @override
+  String itemsPhotoDeleteAsk(String name) {
+    return '$nameのこの写真を削除しますか？';
+  }
+
+  @override
+  String get itemsPhotoDeleted => '写真を削除しました';
+
+  @override
+  String get itemsPhotoLimit => '1商品につき最大5枚です';
+
+  @override
+  String get itemsPhotoEmpty => '写真はまだありません';
 }

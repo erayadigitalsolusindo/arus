@@ -12,10 +12,18 @@ final itemThumbProvider = FutureProvider.family<Uint8List, (String, String)>(
 );
 
 class ItemThumb extends ConsumerWidget {
-  const ItemThumb({super.key, required this.itemId, required this.imageId});
+  const ItemThumb({
+    super.key,
+    required this.itemId,
+    required this.imageId,
+    this.name = '',
+  });
 
   final String itemId;
   final String? imageId;
+
+  /// Nama barang: tanpa gambar, tampil sebagai inisial (maks 2 huruf).
+  final String name;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,7 +34,26 @@ class ItemThumb extends ConsumerWidget {
     );
     final id = imageId;
     if (id == null || id.isEmpty) {
-      return placeholder(Icons.inventory_2_outlined);
+      final ini = _initials(name);
+      if (ini.isEmpty) return placeholder(Icons.inventory_2_outlined);
+      return ColoredBox(
+        color: pal.primarySoft,
+        child: Center(
+          child: FittedBox(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                ini,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: pal.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     }
     return ref
         .watch(itemThumbProvider((itemId, id)))
@@ -41,4 +68,17 @@ class ItemThumb extends ConsumerWidget {
           error: (_, _) => placeholder(Icons.broken_image_outlined),
         );
   }
+}
+
+/// Inisial dari dua kata pertama nama ("Kopi Susu" → "KS"); satu kata → dua huruf awal.
+String _initials(String name) {
+  final w = name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+  if (w.isEmpty) return '';
+  if (w.length == 1) {
+    final r = w.first.runes.take(2);
+    return String.fromCharCodes(r).toUpperCase();
+  }
+  return (String.fromCharCode(w[0].runes.first) +
+          String.fromCharCode(w[1].runes.first))
+      .toUpperCase();
 }

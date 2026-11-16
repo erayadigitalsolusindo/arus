@@ -1,3 +1,5 @@
+import '../../core/settings/app_mode.dart';
+import '../../core/settings/settings_button.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -15,10 +17,7 @@ import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/text_scale_controller.dart';
-import '../../core/theme/theme_controller.dart';
 import '../../l10n/gen/app_localizations.dart';
-import '../../core/locale/locale_controller.dart';
 import '../../core/outlet/outlet_switcher.dart';
 import '../../core/printing/printer_service.dart';
 import '../../core/printing/printer_sheet.dart';
@@ -315,9 +314,8 @@ class _PosPageState extends ConsumerState<PosPage> {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         actions: [
-          const LanguageButton(),
-          const TextScaleButton(),
-          const ThemeToggleButton(),
+          const ModeButton(),
+          const SettingsButton(),
         ],
       ),
       body: wide
@@ -913,7 +911,11 @@ class _ProductCardState extends ConsumerState<_ProductCard>
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
-    final out = item.isGoods && item.stockDisplay <= Decimal.zero;
+    // Mode Penjualan + stok boleh minus: sisa stok disembunyikan (tampil satuan saja).
+    final hideStock =
+        item.allowNegativeStock && ref.watch(appModeProvider) == AppMode.sales;
+    final showStock = item.isGoods && !hideStock;
+    final out = showStock && item.stockDisplay <= Decimal.zero;
     return AnimatedBuilder(
       animation: _fx,
       builder: (context, child) {
@@ -1000,6 +1002,7 @@ class _ProductCardState extends ConsumerState<_ProductCard>
                     child: ItemThumb(
                       itemId: item.id,
                       imageId: item.mainImageId,
+                      name: item.name,
                     ),
                   ),
                 ),
@@ -1026,7 +1029,7 @@ class _ProductCardState extends ConsumerState<_ProductCard>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  item.isGoods
+                  showStock
                       ? l.posStock(formatQty(item.stockDisplay))
                       : item.unit,
                   style: TextStyle(

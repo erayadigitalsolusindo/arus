@@ -114,6 +114,7 @@ class _ShortcutTile extends ConsumerWidget {
                     child: ItemThumb(
                       itemId: s.item.id,
                       imageId: s.item.mainImageId,
+                      name: s.item.name,
                     ),
                   ),
                 ),

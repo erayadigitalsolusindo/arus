@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../l10n/gen/app_localizations.dart';
 
 /// Pilihan tampilan per perangkat: ikut sistem (bawaan), terang, atau gelap. Disimpan di SharedPreferences.
 final themeModeProvider = NotifierProvider<ThemeController, ThemeMode>(
@@ -45,26 +44,3 @@ class ThemeController extends Notifier<ThemeMode> {
   });
 }
 
-/// Tombol ikon pengganti tema; ikon menunjukkan pilihan sekarang.
-class ThemeToggleButton extends ConsumerWidget {
-  const ThemeToggleButton({super.key, this.color});
-
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
-    final mode = ref.watch(themeModeProvider);
-    final (icon, label) = switch (mode) {
-      ThemeMode.system => (Icons.brightness_auto, l.themeSystem),
-      ThemeMode.light => (Icons.light_mode_outlined, l.themeLight),
-      ThemeMode.dark => (Icons.dark_mode_outlined, l.themeDark),
-    };
-    return IconButton(
-      tooltip: l.themeTooltip(label),
-      icon: Icon(icon),
-      color: color,
-      onPressed: () => ref.read(themeModeProvider.notifier).cycle(),
-    );
-  }
-}

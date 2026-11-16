@@ -1,3 +1,4 @@
+import '../../core/settings/settings_button.dart';
 import 'dart:async';
 
 import '../../core/config/app_config.dart';
@@ -14,9 +15,6 @@ import '../../core/auth/google_auth.dart';
 import '../../core/config/server_url.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/locale/locale_controller.dart';
-import '../../core/theme/text_scale_controller.dart';
-import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/ocean_background.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'google_register_sheet.dart';
@@ -501,9 +499,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 right: 4,
                 child: Row(
                   children: [
-                    LanguageButton(),
-                    TextScaleButton(),
-                    ThemeToggleButton(),
+                    SettingsButton(),
                   ],
                 ),
               ),

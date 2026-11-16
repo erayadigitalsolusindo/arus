@@ -2176,4 +2176,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get halloArusSubtitle => 'AI assistant for your business data';
+
+  @override
+  String get itemsPhoto => 'Item photo';
+
+  @override
+  String get itemsPhotoCamera => 'Take photo';
+
+  @override
+  String get itemsPhotoGallery => 'Choose from gallery';
+
+  @override
+  String itemsPhotoSaved(String name) {
+    return 'Photo of $name saved';
+  }
+
+  @override
+  String get itemsPhotoFailed => 'Photo upload failed';
+
+  @override
+  String get settingsTooltip => 'Settings';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsTextSize => 'Text size';
+
+  @override
+  String get settingsTheme => 'Appearance';
+
+  @override
+  String get settingsUpdateHint => 'Check for the latest app version';
+
+  @override
+  String get modeTooltip => 'Mode';
+
+  @override
+  String get modeTitle => 'Work mode';
+
+  @override
+  String get modeSalesName => 'Sales Mode';
+
+  @override
+  String get modeSalesDesc =>
+      'Focus on selling: new items automatically allow negative stock and the remaining stock is hidden at the cashier.';
+
+  @override
+  String get modeStockName => 'Inventory Mode';
+
+  @override
+  String get modeStockDesc =>
+      'Focus on stock: stock is kept from going negative and the remaining stock is shown at the cashier.';
+
+  @override
+  String get itemsPhotoAdd => 'Add photo';
+
+  @override
+  String get itemsPhotoReplace => 'Replace photo';
+
+  @override
+  String get itemsPhotoDelete => 'Delete photo';
+
+  @override
+  String get itemsPhotoMain => 'Set as main';
+
+  @override
+  String get itemsPhotoMainBadge => 'Main';
+
+  @override
+  String itemsPhotoDeleteAsk(String name) {
+    return 'Delete this photo from $name?';
+  }
+
+  @override
+  String get itemsPhotoDeleted => 'Photo deleted';
+
+  @override
+  String get itemsPhotoLimit => 'Maximum 5 photos per item';
+
+  @override
+  String get itemsPhotoEmpty => 'No photos yet';
 }

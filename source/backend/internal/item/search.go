@@ -176,7 +176,7 @@ func rowsByIDs(ctx context.Context, tx pgx.Tx, a authz.Actor, ids []uuid.UUID) (
 		if op, ok := numeric(r.OutletPrice); ok {
 			price, override = op, true
 		}
-		byID[r.ID] = Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name, Kind: r.Kind, Active: r.Active,
+		byID[r.ID] = Row{ID: r.ID, SKU: r.Sku, Barcode: r.Barcode.String, Origin: r.Origin, Name: r.Name, Kind: r.Kind, Active: r.Active, AllowNegativeStock: r.AllowNegativeStock,
 			Unit: r.UnitName, Category: r.CategoryName.String, Brand: r.BrandName.String,
 			Price: price.StringFixed(2), PriceOverride: override, MainImageID: uuidPtr(r.MainImageID),
 			AvgCost: r.AvgCost.StringFixed(2), LastCost: r.LastCost.StringFixed(2),

@@ -277,6 +277,31 @@ class ManageRepository {
         await _dio.put<Map<String, dynamic>>('/items/$id', data: body);
       });
 
+  /// Unggah satu foto barang (multipart); server memvalidasi, mengecilkan, dan menjadikannya utama bila foto pertama.
+  Future<void> uploadItemImage(String id, String path) => _guard(() async {
+    await _dio.post<dynamic>(
+      '/items/$id/images',
+      data: FormData.fromMap({'file': await MultipartFile.fromFile(path)}),
+    );
+  });
+
+  /// Foto barang (id + utama?) dari detail barang.
+  Future<List<({String id, bool isMain})>> itemImages(String id) async {
+    final raw = await getItem(id);
+    return [
+      for (final e in (raw['images'] as List? ?? const []))
+        (id: '${(e as Map)['id']}', isMain: e['is_main'] == true),
+    ];
+  }
+
+  Future<void> deleteItemImage(String id, String imageId) => _guard(() async {
+    await _dio.delete<dynamic>('/items/$id/images/$imageId');
+  });
+
+  Future<void> setMainItemImage(String id, String imageId) => _guard(() async {
+    await _dio.put<dynamic>('/items/$id/images/$imageId/main');
+  });
+
   Future<void> setItemActive(String id, bool active) => _guard(() async {
     await _dio.put<Map<String, dynamic>>(
       '/items/$id/active',

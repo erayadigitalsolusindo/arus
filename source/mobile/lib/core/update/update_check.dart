@@ -39,22 +39,3 @@ Future<void> checkForUpdates(BuildContext context, WidgetRef ref) async {
     ..showSnackBar(SnackBar(content: Text(l.updUpToDate)));
 }
 
-/// Tombol ikon Cek pembaruan (bilah atas beranda) dengan titik merah bila ada versi baru.
-class UpdateCheckButton extends ConsumerWidget {
-  const UpdateCheckButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
-    final has = ref.watch(updateAvailableProvider);
-    return IconButton(
-      tooltip: has ? l.updAvailableBadge : l.updCheckTitle,
-      icon: Badge(
-        isLabelVisible: has,
-        smallSize: 9,
-        child: const Icon(Icons.system_update_alt),
-      ),
-      onPressed: () => checkForUpdates(context, ref),
-    );
-  }
-}

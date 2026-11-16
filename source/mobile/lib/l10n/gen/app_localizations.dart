@@ -3945,6 +3945,162 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Asisten AI untuk data usaha Anda'**
   String get halloArusSubtitle;
+
+  /// No description provided for @itemsPhoto.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto barang'**
+  String get itemsPhoto;
+
+  /// No description provided for @itemsPhotoCamera.
+  ///
+  /// In id, this message translates to:
+  /// **'Ambil foto'**
+  String get itemsPhotoCamera;
+
+  /// No description provided for @itemsPhotoGallery.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih dari galeri'**
+  String get itemsPhotoGallery;
+
+  /// No description provided for @itemsPhotoSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto {name} tersimpan'**
+  String itemsPhotoSaved(String name);
+
+  /// No description provided for @itemsPhotoFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto gagal diunggah'**
+  String get itemsPhotoFailed;
+
+  /// No description provided for @settingsTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Pengaturan'**
+  String get settingsTooltip;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Pengaturan'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In id, this message translates to:
+  /// **'Bahasa'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsTextSize.
+  ///
+  /// In id, this message translates to:
+  /// **'Ukuran teks'**
+  String get settingsTextSize;
+
+  /// No description provided for @settingsTheme.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilan'**
+  String get settingsTheme;
+
+  /// No description provided for @settingsUpdateHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Periksa versi terbaru aplikasi'**
+  String get settingsUpdateHint;
+
+  /// No description provided for @modeTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Mode'**
+  String get modeTooltip;
+
+  /// No description provided for @modeTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Mode kerja'**
+  String get modeTitle;
+
+  /// No description provided for @modeSalesName.
+  ///
+  /// In id, this message translates to:
+  /// **'Mode Penjualan'**
+  String get modeSalesName;
+
+  /// No description provided for @modeSalesDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Fokus berjualan: barang baru otomatis boleh stok minus dan sisa stok disembunyikan di kasir.'**
+  String get modeSalesDesc;
+
+  /// No description provided for @modeStockName.
+  ///
+  /// In id, this message translates to:
+  /// **'Mode Persediaan'**
+  String get modeStockName;
+
+  /// No description provided for @modeStockDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Fokus stok: stok dijaga tidak minus dan sisa stok ditampilkan di kasir.'**
+  String get modeStockDesc;
+
+  /// No description provided for @itemsPhotoAdd.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah foto'**
+  String get itemsPhotoAdd;
+
+  /// No description provided for @itemsPhotoReplace.
+  ///
+  /// In id, this message translates to:
+  /// **'Ganti foto'**
+  String get itemsPhotoReplace;
+
+  /// No description provided for @itemsPhotoDelete.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus foto'**
+  String get itemsPhotoDelete;
+
+  /// No description provided for @itemsPhotoMain.
+  ///
+  /// In id, this message translates to:
+  /// **'Jadikan utama'**
+  String get itemsPhotoMain;
+
+  /// No description provided for @itemsPhotoMainBadge.
+  ///
+  /// In id, this message translates to:
+  /// **'Utama'**
+  String get itemsPhotoMainBadge;
+
+  /// No description provided for @itemsPhotoDeleteAsk.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus foto ini dari barang {name}?'**
+  String itemsPhotoDeleteAsk(String name);
+
+  /// No description provided for @itemsPhotoDeleted.
+  ///
+  /// In id, this message translates to:
+  /// **'Foto dihapus'**
+  String get itemsPhotoDeleted;
+
+  /// No description provided for @itemsPhotoLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Maksimal 5 foto per barang'**
+  String get itemsPhotoLimit;
+
+  /// No description provided for @itemsPhotoEmpty.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum ada foto'**
+  String get itemsPhotoEmpty;
 }
 
 class _AppLocalizationsDelegate

@@ -15,6 +15,7 @@ class PosItem {
     required this.isGoods,
     this.origin = '',
     this.mainImageId,
+    this.allowNegativeStock = false,
   });
 
   final String id;
@@ -28,6 +29,9 @@ class PosItem {
   final String origin;
   final String? mainImageId;
 
+  /// Stok boleh minus: di Mode Penjualan sisa stok tidak ditampilkan di kasir.
+  final bool allowNegativeStock;
+
   factory PosItem.fromJson(Map<String, dynamic> j) => PosItem(
     id: '${j['id']}',
     sku: '${j['sku'] ?? ''}',
@@ -39,6 +43,7 @@ class PosItem {
     isGoods: j['kind'] != 'service',
     origin: '${j['origin'] ?? ''}',
     mainImageId: j['main_image_id'] as String?,
+    allowNegativeStock: j['allow_negative_stock'] == true,
   );
 }
 
@@ -55,6 +60,7 @@ extension PosItemJson on PosItem {
     'kind': isGoods ? 'goods' : 'service',
     'origin': origin,
     'main_image_id': mainImageId,
+    'allow_negative_stock': allowNegativeStock,
   };
 }
 
