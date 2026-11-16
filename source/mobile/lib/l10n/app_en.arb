@@ -1147,5 +1147,14 @@
   "errorGoogleEmailUnverified": "Your Google account email is not verified.",
   "errorGoogleLinked": "This account is already linked to another Google account.",
   "errorGoogleDisabled": "Sign-in with Google is not enabled.",
-  "errorEmailTaken": "This email is already registered. Please sign in."
+  "errorEmailTaken": "This email is already registered. Please sign in.",
+  "loginEraya": "Sign in with Eraya",
+  "erayaCancelled": "Eraya sign-in was cancelled.",
+  "erayaFailed": "Could not sign in with Eraya. Please try again.",
+  "erayaRegTitle": "Sign up with Eraya",
+  "errorErayaNotRegistered": "This Eraya account is not registered yet.",
+  "errorErayaInvalidToken": "Eraya verification failed or expired. Please try again.",
+  "errorErayaEmailUnverified": "Your Eraya account email is not verified.",
+  "errorErayaLinked": "This account is already linked to another Eraya account.",
+  "errorErayaDisabled": "Sign-in with Eraya is not enabled."
 }

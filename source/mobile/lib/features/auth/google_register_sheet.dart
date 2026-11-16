@@ -7,19 +7,30 @@ import '../../l10n/gen/app_localizations.dart';
 
 /// Lembar pendaftaran untuk akun Google yang belum terdaftar. Nama pemilik dan email diambil server dari ID token;
 /// di sini hanya data usaha. Berhasil → sesi terbentuk (router mengalihkan ke beranda) dan lembar menutup.
-Future<void> showGoogleRegisterSheet(BuildContext context, String idToken) {
+Future<void> showGoogleRegisterSheet(
+  BuildContext context,
+  String idToken, {
+  String provider = 'google',
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => GoogleRegisterSheet(idToken: idToken),
+    builder: (_) => GoogleRegisterSheet(idToken: idToken, provider: provider),
   );
 }
 
 class GoogleRegisterSheet extends ConsumerStatefulWidget {
-  const GoogleRegisterSheet({super.key, required this.idToken});
+  const GoogleRegisterSheet({
+    super.key,
+    required this.idToken,
+    this.provider = 'google',
+  });
 
   final String idToken;
+
+  /// `google` atau `eraya`: menentukan endpoint daftar dan judul lembar.
+  final String provider;
 
   @override
   ConsumerState<GoogleRegisterSheet> createState() =>
@@ -56,6 +67,7 @@ class _GoogleRegisterSheetState extends ConsumerState<GoogleRegisterSheet> {
       await ref
           .read(sessionProvider.notifier)
           .googleRegister(
+            provider: widget.provider,
             idToken: widget.idToken,
             businessName: _business.text.trim(),
             outletName: _outlet.text.trim(),
@@ -89,7 +101,7 @@ class _GoogleRegisterSheetState extends ConsumerState<GoogleRegisterSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                l.googleRegTitle,
+                widget.provider == 'eraya' ? l.erayaRegTitle : l.googleRegTitle,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,

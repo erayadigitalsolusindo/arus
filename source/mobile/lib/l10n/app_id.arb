@@ -1235,5 +1235,14 @@
   "errorGoogleEmailUnverified": "Email akun Google Anda belum terverifikasi.",
   "errorGoogleLinked": "Akun ini sudah tertaut ke akun Google lain.",
   "errorGoogleDisabled": "Login dengan Google belum diaktifkan.",
-  "errorEmailTaken": "Email ini sudah terdaftar. Silakan masuk."
+  "errorEmailTaken": "Email ini sudah terdaftar. Silakan masuk.",
+  "loginEraya": "Masuk dengan Eraya",
+  "erayaCancelled": "Login Eraya dibatalkan.",
+  "erayaFailed": "Gagal masuk dengan Eraya. Coba lagi.",
+  "erayaRegTitle": "Daftar dengan Eraya",
+  "errorErayaNotRegistered": "Akun Eraya ini belum terdaftar.",
+  "errorErayaInvalidToken": "Verifikasi Eraya gagal atau kedaluwarsa. Coba lagi.",
+  "errorErayaEmailUnverified": "Email akun Eraya Anda belum terverifikasi.",
+  "errorErayaLinked": "Akun ini sudah tertaut ke akun Eraya lain.",
+  "errorErayaDisabled": "Login dengan Eraya belum diaktifkan."
 }

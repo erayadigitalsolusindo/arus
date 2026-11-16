@@ -3867,6 +3867,60 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Email ini sudah terdaftar. Silakan masuk.'**
   String get errorEmailTaken;
+
+  /// No description provided for @loginEraya.
+  ///
+  /// In id, this message translates to:
+  /// **'Masuk dengan Eraya'**
+  String get loginEraya;
+
+  /// No description provided for @erayaCancelled.
+  ///
+  /// In id, this message translates to:
+  /// **'Login Eraya dibatalkan.'**
+  String get erayaCancelled;
+
+  /// No description provided for @erayaFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal masuk dengan Eraya. Coba lagi.'**
+  String get erayaFailed;
+
+  /// No description provided for @erayaRegTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Daftar dengan Eraya'**
+  String get erayaRegTitle;
+
+  /// No description provided for @errorErayaNotRegistered.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun Eraya ini belum terdaftar.'**
+  String get errorErayaNotRegistered;
+
+  /// No description provided for @errorErayaInvalidToken.
+  ///
+  /// In id, this message translates to:
+  /// **'Verifikasi Eraya gagal atau kedaluwarsa. Coba lagi.'**
+  String get errorErayaInvalidToken;
+
+  /// No description provided for @errorErayaEmailUnverified.
+  ///
+  /// In id, this message translates to:
+  /// **'Email akun Eraya Anda belum terverifikasi.'**
+  String get errorErayaEmailUnverified;
+
+  /// No description provided for @errorErayaLinked.
+  ///
+  /// In id, this message translates to:
+  /// **'Akun ini sudah tertaut ke akun Eraya lain.'**
+  String get errorErayaLinked;
+
+  /// No description provided for @errorErayaDisabled.
+  ///
+  /// In id, this message translates to:
+  /// **'Login dengan Eraya belum diaktifkan.'**
+  String get errorErayaDisabled;
 }
 
 class _AppLocalizationsDelegate

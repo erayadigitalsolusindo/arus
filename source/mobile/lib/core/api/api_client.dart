@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../auth/eraya_auth.dart';
 import '../config/app_config.dart';
 import '../session/session_models.dart';
 import '../session/token_store.dart';
@@ -101,15 +102,33 @@ class ApiClient {
   Future<AuthSession> googleLogin({
     required String idToken,
     required bool remember,
+    String provider = 'google',
   }) async {
     final s = await _call(
       () => _raw.post<Map<String, dynamic>>(
-        '/auth/google/login',
+        '/auth/$provider/login',
         data: {'id_token': idToken, 'remember': remember},
       ),
     );
     await _adopt(s);
     return s;
+  }
+
+  /// Menukar code SSO Eraya (PKCE) dengan id_token; token itu dipakai ke [googleLogin]/[googleRegister] `provider: 'eraya'`.
+  Future<String> erayaExchange(ErayaGrant g) async {
+    try {
+      final r = await _raw.post<Map<String, dynamic>>(
+        '/auth/eraya/exchange',
+        data: {
+          'code': g.code,
+          'code_verifier': g.verifier,
+          'redirect_uri': AppConfig.erayaRedirectUri,
+        },
+      );
+      return r.data!['id_token'] as String;
+    } on DioException catch (e) {
+      throw ApiError.fromDio(e);
+    }
   }
 
   /// Mendaftar tenant baru dengan akun Google (nama pemilik + email diambil server dari token).
@@ -118,10 +137,11 @@ class ApiClient {
     required String businessName,
     required String outletName,
     required String phone,
+    String provider = 'google',
   }) async {
     final s = await _call(
       () => _raw.post<Map<String, dynamic>>(
-        '/auth/google/register',
+        '/auth/$provider/register',
         data: {
           'id_token': idToken,
           'business_name': businessName,

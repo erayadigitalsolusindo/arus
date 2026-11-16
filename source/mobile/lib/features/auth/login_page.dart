@@ -9,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/api_error.dart';
+import '../../core/auth/eraya_auth.dart';
 import '../../core/auth/google_auth.dart';
 import '../../core/config/server_url.dart';
 import '../../core/session/session_controller.dart';
@@ -144,6 +145,44 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
+  Future<void> _eraya() async {
+    if (_loading) return;
+    final l = AppLocalizations.of(context);
+    setState(() {
+      _error = null;
+      _googleMessage = null;
+      _loading = true;
+    });
+    String? token;
+    try {
+      final grant = await ref.read(erayaAuthProvider).authorize();
+      if (grant == null) {
+        if (mounted) setState(() => _googleMessage = l.erayaCancelled);
+        return;
+      }
+      token = await ref.read(apiClientProvider).erayaExchange(grant);
+      await ref
+          .read(sessionProvider.notifier)
+          .googleLogin(idToken: token, remember: _remember, provider: 'eraya');
+    } on ErayaAuthFailure {
+      if (mounted) setState(() => _googleMessage = l.erayaFailed);
+    } on MfaRequired catch (m) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      await showMfaDialog(context, m.token);
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      if (e.code == 'ERAYA_NOT_REGISTERED' && token != null) {
+        setState(() => _loading = false);
+        await showGoogleRegisterSheet(context, token, provider: 'eraya');
+        return;
+      }
+      setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _editServer() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -233,12 +272,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            if (ref.watch(googleAuthProvider).enabled) ...[
-                              OutlinedButton.icon(
-                                onPressed: _loading || locked ? null : _google,
-                                icon: const Icon(Icons.g_mobiledata, size: 28),
-                                label: Text(l.loginGoogle),
-                              ),
+                            if (ref.watch(googleAuthProvider).enabled ||
+                                ref.watch(erayaAuthProvider).enabled) ...[
+                              if (ref.watch(googleAuthProvider).enabled)
+                                OutlinedButton.icon(
+                                  onPressed: _loading || locked
+                                      ? null
+                                      : _google,
+                                  icon: const Icon(
+                                    Icons.g_mobiledata,
+                                    size: 28,
+                                  ),
+                                  label: Text(l.loginGoogle),
+                                ),
+                              if (ref.watch(googleAuthProvider).enabled &&
+                                  ref.watch(erayaAuthProvider).enabled)
+                                const SizedBox(height: 10),
+                              if (ref.watch(erayaAuthProvider).enabled)
+                                OutlinedButton.icon(
+                                  onPressed: _loading || locked ? null : _eraya,
+                                  icon: const Icon(Icons.waves, size: 20),
+                                  label: Text(l.loginEraya),
+                                ),
                               const SizedBox(height: 14),
                               Row(
                                 children: [

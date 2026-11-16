@@ -84,8 +84,13 @@ class SessionController extends Notifier<SessionState> {
   Future<void> googleLogin({
     required String idToken,
     required bool remember,
+    String provider = 'google',
   }) async {
-    final s = await _api.googleLogin(idToken: idToken, remember: remember);
+    final s = await _api.googleLogin(
+      idToken: idToken,
+      remember: remember,
+      provider: provider,
+    );
     state = SessionSignedIn(s.profile);
   }
 
@@ -94,8 +99,10 @@ class SessionController extends Notifier<SessionState> {
     required String businessName,
     required String outletName,
     required String phone,
+    String provider = 'google',
   }) async {
     final s = await _api.googleRegister(
+      provider: provider,
       idToken: idToken,
       businessName: businessName,
       outletName: outletName,

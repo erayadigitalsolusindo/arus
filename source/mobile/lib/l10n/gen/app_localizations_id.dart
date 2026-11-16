@@ -2135,4 +2135,33 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get errorEmailTaken => 'Email ini sudah terdaftar. Silakan masuk.';
+
+  @override
+  String get loginEraya => 'Masuk dengan Eraya';
+
+  @override
+  String get erayaCancelled => 'Login Eraya dibatalkan.';
+
+  @override
+  String get erayaFailed => 'Gagal masuk dengan Eraya. Coba lagi.';
+
+  @override
+  String get erayaRegTitle => 'Daftar dengan Eraya';
+
+  @override
+  String get errorErayaNotRegistered => 'Akun Eraya ini belum terdaftar.';
+
+  @override
+  String get errorErayaInvalidToken =>
+      'Verifikasi Eraya gagal atau kedaluwarsa. Coba lagi.';
+
+  @override
+  String get errorErayaEmailUnverified =>
+      'Email akun Eraya Anda belum terverifikasi.';
+
+  @override
+  String get errorErayaLinked => 'Akun ini sudah tertaut ke akun Eraya lain.';
+
+  @override
+  String get errorErayaDisabled => 'Login dengan Eraya belum diaktifkan.';
 }

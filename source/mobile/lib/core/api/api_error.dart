@@ -91,6 +91,16 @@ class ApiError implements Exception {
         return l.errorGoogleLinked;
       case 'GOOGLE_DISABLED':
         return l.errorGoogleDisabled;
+      case 'ERAYA_NOT_REGISTERED':
+        return l.errorErayaNotRegistered;
+      case 'ERAYA_INVALID_TOKEN':
+        return l.errorErayaInvalidToken;
+      case 'ERAYA_EMAIL_UNVERIFIED':
+        return l.errorErayaEmailUnverified;
+      case 'ERAYA_LINKED':
+        return l.errorErayaLinked;
+      case 'ERAYA_DISABLED':
+        return l.errorErayaDisabled;
       case 'EMAIL_TAKEN':
         return l.errorEmailTaken;
       case 'RATE_LIMITED':

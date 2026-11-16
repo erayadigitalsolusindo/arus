@@ -2132,4 +2132,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorEmailTaken =>
       'This email is already registered. Please sign in.';
+
+  @override
+  String get loginEraya => 'Sign in with Eraya';
+
+  @override
+  String get erayaCancelled => 'Eraya sign-in was cancelled.';
+
+  @override
+  String get erayaFailed => 'Could not sign in with Eraya. Please try again.';
+
+  @override
+  String get erayaRegTitle => 'Sign up with Eraya';
+
+  @override
+  String get errorErayaNotRegistered =>
+      'This Eraya account is not registered yet.';
+
+  @override
+  String get errorErayaInvalidToken =>
+      'Eraya verification failed or expired. Please try again.';
+
+  @override
+  String get errorErayaEmailUnverified =>
+      'Your Eraya account email is not verified.';
+
+  @override
+  String get errorErayaLinked =>
+      'This account is already linked to another Eraya account.';
+
+  @override
+  String get errorErayaDisabled => 'Sign-in with Eraya is not enabled.';
 }

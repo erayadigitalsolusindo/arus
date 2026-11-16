@@ -1259,5 +1259,14 @@
   "errorGoogleEmailUnverified": "Googleアカウントのメールが未確認です。",
   "errorGoogleLinked": "このアカウントは既に別のGoogleアカウントに連携されています。",
   "errorGoogleDisabled": "Googleログインは有効化されていません。",
-  "errorEmailTaken": "このメールアドレスは既に登録されています。ログインしてください。"
+  "errorEmailTaken": "このメールアドレスは既に登録されています。ログインしてください。",
+  "loginEraya": "Eraya でログイン",
+  "erayaCancelled": "Eraya ログインをキャンセルしました。",
+  "erayaFailed": "Eraya でログインできませんでした。もう一度お試しください。",
+  "erayaRegTitle": "Eraya で登録",
+  "errorErayaNotRegistered": "この Eraya アカウントは未登録です。",
+  "errorErayaInvalidToken": "Eraya の認証に失敗したか期限切れです。もう一度お試しください。",
+  "errorErayaEmailUnverified": "Eraya アカウントのメールが未確認です。",
+  "errorErayaLinked": "このアカウントは別の Eraya アカウントに連携済みです。",
+  "errorErayaDisabled": "Eraya ログインは有効化されていません。"
 }

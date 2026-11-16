@@ -2082,4 +2082,31 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorEmailTaken => 'このメールアドレスは既に登録されています。ログインしてください。';
+
+  @override
+  String get loginEraya => 'Eraya でログイン';
+
+  @override
+  String get erayaCancelled => 'Eraya ログインをキャンセルしました。';
+
+  @override
+  String get erayaFailed => 'Eraya でログインできませんでした。もう一度お試しください。';
+
+  @override
+  String get erayaRegTitle => 'Eraya で登録';
+
+  @override
+  String get errorErayaNotRegistered => 'この Eraya アカウントは未登録です。';
+
+  @override
+  String get errorErayaInvalidToken => 'Eraya の認証に失敗したか期限切れです。もう一度お試しください。';
+
+  @override
+  String get errorErayaEmailUnverified => 'Eraya アカウントのメールが未確認です。';
+
+  @override
+  String get errorErayaLinked => 'このアカウントは別の Eraya アカウントに連携済みです。';
+
+  @override
+  String get errorErayaDisabled => 'Eraya ログインは有効化されていません。';
 }

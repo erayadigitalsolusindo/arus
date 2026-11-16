@@ -26,6 +26,20 @@ class AppConfig {
     defaultValue: googleClientIdDefault,
   );
 
+  /// SSO Eraya (OIDC + PKCE): issuer & client ID publik, harus sama dengan ERAYA_ISSUER/ERAYA_CLIENT_ID di server.
+  /// Daftarkan [erayaRedirectUri] sebagai redirect URI pada client itu di Eraya. Kosong = tombol disembunyikan.
+  static const String erayaIssuer = String.fromEnvironment(
+    'ERAYA_ISSUER',
+    defaultValue: 'https://erayadigital.co.id',
+  );
+  static const String erayaClientId = String.fromEnvironment(
+    'ERAYA_CLIENT_ID',
+    defaultValue: 'c_16ca4457ba364862efe4bf72',
+  );
+  static const String erayaCallbackScheme = 'id.co.erayadigital.arus';
+  static const String erayaRedirectUri =
+      '$erayaCallbackScheme://eraya/callback';
+
   /// Penanda klien native: server mengirim/menerima refresh token lewat badan JSON, bukan cookie.
   static const String clientHeader = 'X-Client';
   static const String clientValue = 'mobile';
