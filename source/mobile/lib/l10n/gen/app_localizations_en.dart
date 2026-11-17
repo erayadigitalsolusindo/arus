@@ -1558,6 +1558,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get itemCategoryNone => 'No category';
 
   @override
+  String get itemAddUnit => 'Add unit';
+
+  @override
+  String get itemAddCategory => 'Add category';
+
+  @override
+  String get itemMasterName => 'Name';
+
+  @override
   String get itemBarcode => 'Barcode (optional)';
 
   @override

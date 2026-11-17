@@ -1,4 +1,5 @@
 import '../../core/settings/app_mode.dart';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -124,6 +125,54 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
           _loading = false;
         });
       }
+    }
+  }
+
+  /// Dialog nama → buat satuan/kategori baru lalu langsung dipilih.
+  Future<void> _addMaster(bool unit) async {
+    final l = AppLocalizations.of(context);
+    final c = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(unit ? l.itemAddUnit : l.itemAddCategory),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: l.itemMasterName),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: Text(l.commonSave),
+          ),
+        ],
+      ),
+    );
+    c.dispose();
+    if (name == null || name.isEmpty) return;
+    try {
+      final e = await ref
+          .read(posRepositoryProvider)
+          .createMaster(unit ? 'units' : 'categories', name);
+      if (!mounted) return;
+      setState(() {
+        if (unit) {
+          _units = [..._units, e];
+          _unitId = e.id;
+        } else {
+          _categories = [..._categories, e];
+          _categoryId = e.id;
+        }
+      });
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = e);
     }
   }
 
@@ -344,39 +393,73 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    if (noUnits)
-                      Text(l.itemNoUnits, style: TextStyle(color: pal.danger))
-                    else
-                      DropdownButtonFormField<String>(
-                        initialValue: _unitId,
-                        isExpanded: true,
-                        decoration: InputDecoration(labelText: l.itemUnit),
-                        items: [
-                          for (final u in _units)
-                            DropdownMenuItem(value: u.id, child: Text(u.name)),
-                        ],
-                        onChanged: (v) => setState(() => _unitId = v),
-                      ),
-                    if (_categories.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String?>(
-                        initialValue: _categoryId,
-                        isExpanded: true,
-                        decoration: InputDecoration(labelText: l.itemCategory),
-                        items: [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text(l.itemCategoryNone),
-                          ),
-                          for (final c in _categories)
-                            DropdownMenuItem<String?>(
-                              value: c.id,
-                              child: Text(c.name),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: noUnits
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 14),
+                                  child: Text(
+                                    l.itemNoUnits,
+                                    style: TextStyle(color: pal.danger),
+                                  ),
+                                )
+                              : DropdownButtonFormField<String>(
+                                  initialValue: _unitId,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText: l.itemUnit,
+                                  ),
+                                  items: [
+                                    for (final u in _units)
+                                      DropdownMenuItem(
+                                        value: u.id,
+                                        child: Text(u.name),
+                                      ),
+                                  ],
+                                  onChanged: (v) => setState(() => _unitId = v),
+                                ),
+                        ),
+                        IconButton(
+                          tooltip: l.itemAddUnit,
+                          onPressed: () => _addMaster(true),
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String?>(
+                            initialValue: _categoryId,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: l.itemCategory,
                             ),
-                        ],
-                        onChanged: (v) => setState(() => _categoryId = v),
-                      ),
-                    ],
+                            items: [
+                              DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text(l.itemCategoryNone),
+                              ),
+                              for (final c in _categories)
+                                DropdownMenuItem<String?>(
+                                  value: c.id,
+                                  child: Text(c.name),
+                                ),
+                            ],
+                            onChanged: (v) => setState(() => _categoryId = v),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: l.itemAddCategory,
+                          onPressed: () => _addMaster(false),
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _barcode,

@@ -17,6 +17,7 @@ import (
 	gen "aciraba/internal/gen"
 	"aciraba/internal/member"
 	"aciraba/internal/paymentmethod"
+	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 )
@@ -88,12 +89,8 @@ func ValidateRegister(in RegisterInput) (CleanRegister, map[string]string) {
 // (setelah commit) mengirim email verifikasi. Input harus sudah lolos ValidateRegister. lang = bahasa email.
 func (s *Service) Register(ctx context.Context, in CleanRegister, lang string) (*Session, error) {
 	if in.GoogleSub != "" && in.Password == "" {
-		// Akun Google tidak punya password yang diketahui siapa pun; "lupa password" tetap bisa membuatkannya.
-		b := make([]byte, 32)
-		if _, err := rand.Read(b); err != nil {
-			return nil, fmt.Errorf("acak: %w", err)
-		}
-		in.Password = hex.EncodeToString(b)
+		// Akun Google/Eraya diberi password awal bawaan (login dengannya ditolak, hanya untuk ubah password).
+		in.Password = pauth.DefaultIdentityPassword
 	}
 	hash, err := s.hash(ctx, in.Password)
 	if err != nil {
@@ -167,6 +164,16 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		if err := paymentmethod.SeedDefaults(ctx, tx, tenant.ID); err != nil { // metode pembayaran bawaan
 			return err
 		}
+		// Master dasar wizard (satu pernyataan per Exec: pgx tidak mengizinkan multi-pernyataan berparameter).
+		for _, q := range []string{
+			`INSERT INTO units (tenant_id, name) VALUES ($1, 'PCS')`,
+			`INSERT INTO categories (tenant_id, name) VALUES ($1, 'Makanan'), ($1, 'Minuman')`,
+			`INSERT INTO brands (tenant_id, name) VALUES ($1, 'Tidak ada brand')`,
+		} {
+			if _, err := tx.Exec(ctx, q, tenant.ID); err != nil {
+				return err
+			}
+		}
 		return audit.Record(ctx, tx, audit.Actor{TenantID: tenant.ID, UserID: user.ID, OutletID: outlet.ID, Name: user.Name}, audit.Entry{
 			Action: audit.ActionRegister, Entity: audit.EntityUser, EntityID: user.ID.String(),
 			Details: map[string]any{"tenant": tenant.Code, "terms_version": TermsVersion, "google": in.GoogleSub != ""},
@@ -179,7 +186,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 	acc := account{
 		UserID: user.ID, UserName: user.Name, Email: user.Email, RoleName: role.Name, UserActive: true,
 		EmailVerified: in.GoogleSub != "",
-		TenantID: tenant.ID, TenantCode: tenant.Code, TenantName: tenant.Name, TenantActive: true,
+		TenantID:      tenant.ID, TenantCode: tenant.Code, TenantName: tenant.Name, TenantActive: true,
 		OutletID: outlet.ID, OutletCode: outlet.Code, OutletName: outlet.Name,
 	}
 	access, err := s.issueAccess(acc, s.now())

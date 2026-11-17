@@ -56,3 +56,7 @@ func VerifyPassword(password, encoded string) (bool, error) {
 	got := argon2.IDKey([]byte(password), salt, uint32(t), uint32(m), uint8(th), uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
+
+// DefaultIdentityPassword = password awal akun yang mendaftar lewat Google/Eraya (agar "password saat ini" di ubah
+// password punya nilai). Nilainya publik, jadi login dengan password ini ditolak; hanya berlaku untuk ubah password.
+const DefaultIdentityPassword = "Salam1JiwaIndonesia1945"

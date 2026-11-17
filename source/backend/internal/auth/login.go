@@ -46,7 +46,7 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !found || !ok {
+	if !found || !ok || in.Password == pauth.DefaultIdentityPassword {
 		return nil, ErrInvalidCredentials
 	}
 	if !acc.UserActive || !acc.TenantActive {

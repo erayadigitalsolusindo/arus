@@ -1561,6 +1561,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get itemCategoryNone => 'Tanpa kategori';
 
   @override
+  String get itemAddUnit => 'Tambah satuan';
+
+  @override
+  String get itemAddCategory => 'Tambah kategori';
+
+  @override
+  String get itemMasterName => 'Nama';
+
+  @override
   String get itemBarcode => 'Barcode (opsional)';
 
   @override

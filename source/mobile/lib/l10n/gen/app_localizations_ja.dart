@@ -1526,6 +1526,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get itemCategoryNone => 'カテゴリなし';
 
   @override
+  String get itemAddUnit => '単位を追加';
+
+  @override
+  String get itemAddCategory => 'カテゴリを追加';
+
+  @override
+  String get itemMasterName => '名前';
+
+  @override
   String get itemBarcode => 'バーコード（任意）';
 
   @override

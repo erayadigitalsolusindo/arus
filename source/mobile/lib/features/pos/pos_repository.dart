@@ -415,6 +415,16 @@ class PosRepository {
         .toList();
   });
 
+  /// Membuat satuan/kategori baru ([kind] = `units` | `categories`); butuh izin tambah master itu.
+  Future<Salesperson> createMaster(String kind, String name) =>
+      _guard(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/catalog/$kind/',
+          data: {'name': name},
+        );
+        return Salesperson.fromJson(r.data!);
+      });
+
   /// Saldo awal stok outlet aktif masih boleh diisi (belum dikunci)?
   Future<bool> openingOpen() async {
     try {

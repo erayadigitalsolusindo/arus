@@ -2824,6 +2824,24 @@ abstract class AppLocalizations {
   /// **'Tanpa kategori'**
   String get itemCategoryNone;
 
+  /// No description provided for @itemAddUnit.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah satuan'**
+  String get itemAddUnit;
+
+  /// No description provided for @itemAddCategory.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah kategori'**
+  String get itemAddCategory;
+
+  /// No description provided for @itemMasterName.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama'**
+  String get itemMasterName;
+
   /// No description provided for @itemBarcode.
   ///
   /// In id, this message translates to:
