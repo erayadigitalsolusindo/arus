@@ -8,6 +8,8 @@ import '../../core/money/money.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../pos/pos_repository.dart';
+import '../pos/sales_models.dart';
+import '../pos/sales_today_page.dart';
 import 'sales_report_models.dart';
 
 /// Laporan penjualan ringkas untuk admin (izin `sales_reports.view`): omzet, nota, retur, per metode bayar, dan per hari.
@@ -241,6 +243,12 @@ class _SalesReportPageState extends ConsumerState<SalesReportPage> {
                           day.total,
                           formatMoney(day.total),
                           sub: l.reportDayNotes('${day.saleCount}'),
+                          onTap: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  _DayInvoicesPage(date: day.date, all: _all),
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -381,8 +389,9 @@ class _Section extends StatelessWidget {
 }
 
 class _BarItem {
-  const _BarItem(this.label, this.value, this.text, {this.sub});
+  const _BarItem(this.label, this.value, this.text, {this.sub, this.onTap});
 
+  final VoidCallback? onTap;
   final String label;
   final Decimal value;
   final String text;
@@ -405,41 +414,184 @@ class _Bars extends StatelessWidget {
     return Column(
       children: [
         for (final i in items)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        i.sub == null ? i.label : '${i.label} · ${i.sub}',
-                        overflow: TextOverflow.ellipsis,
+          InkWell(
+            onTap: i.onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          i.sub == null ? i.label : '${i.label} · ${i.sub}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    Text(
-                      i.text,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    minHeight: 6,
-                    value: max > Decimal.zero
-                        ? (i.value / max).toDouble().clamp(0.0, 1.0)
-                        : 0,
-                    backgroundColor: pal.sunken,
-                    color: pal.primary,
+                      Text(
+                        i.text,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      minHeight: 6,
+                      value: max > Decimal.zero
+                          ? (i.value / max).toDouble().clamp(0.0, 1.0)
+                          : 0,
+                      backgroundColor: pal.sunken,
+                      color: pal.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Daftar nota satu hari; ketuk nota untuk melihat rinciannya.
+class _DayInvoicesPage extends ConsumerStatefulWidget {
+  const _DayInvoicesPage({required this.date, required this.all});
+
+  final String date;
+  final bool all;
+
+  @override
+  ConsumerState<_DayInvoicesPage> createState() => _DayInvoicesPageState();
+}
+
+class _DayInvoicesPageState extends ConsumerState<_DayInvoicesPage> {
+  late final Future<List<ReportInvoice>> _f = _fetch();
+
+  Future<List<ReportInvoice>> _fetch() => ref
+      .read(posRepositoryProvider)
+      .salesInvoices(date: widget.date, allOutlets: widget.all);
+
+  void _open(ReportInvoice r) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                r.docNo,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder<SaleDetailInfo>(
+                future: ref.read(posRepositoryProvider).saleDetail(r.id),
+                builder: (context, snap) {
+                  if (snap.hasError) {
+                    final e = snap.error;
+                    return Text(
+                      e is ApiError ? e.message(l) : l.errorUnknown,
+                      style: TextStyle(color: pal.danger),
+                    );
+                  }
+                  if (!snap.hasData) {
+                    return const LinearProgressIndicator(minHeight: 2);
+                  }
+                  return SaleDetailBody(d: snap.data!, saleId: r.id);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final pal = context.pal;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          DateFormat(
+            'EEE, dd MMM yyyy',
+            l.localeName,
+          ).format(DateTime.parse(widget.date)),
+        ),
+      ),
+      body: SafeArea(
+        child: FutureBuilder<List<ReportInvoice>>(
+          future: _f,
+          builder: (context, snap) {
+            if (snap.hasError) {
+              final e = snap.error;
+              return Center(
+                child: Text(
+                  e is ApiError ? e.message(l) : l.errorUnknown,
+                  style: TextStyle(color: pal.danger),
+                ),
+              );
+            }
+            final list = snap.data;
+            if (list == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (list.isEmpty) {
+              return Center(
+                child: Text(
+                  l.salesTodayEmpty,
+                  style: TextStyle(color: pal.textTertiary),
+                ),
+              );
+            }
+            return ListView.separated(
+              itemCount: list.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (_, i) {
+                final r = list[i];
+                return ListTile(
+                  onTap: () => _open(r),
+                  title: Text(
+                    r.docNo,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      decoration: r.isVoid ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  subtitle: Text(
+                    [
+                      r.time,
+                      if (r.cashier.isNotEmpty) r.cashier,
+                      ...r.methods,
+                      if (r.isVoid) l.saleVoidBadge,
+                    ].join(' · '),
+                    style: TextStyle(color: pal.textTertiary, fontSize: 12),
+                  ),
+                  trailing: Text(
+                    formatMoney(r.total),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: r.isVoid ? pal.textTertiary : null,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 }

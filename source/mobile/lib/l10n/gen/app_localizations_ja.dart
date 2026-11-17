@@ -1641,7 +1641,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuItems => '商品';
 
   @override
-  String get menuSales => '売上';
+  String get menuSales => 'レポート';
 
   @override
   String get menuPurchases => '仕入';

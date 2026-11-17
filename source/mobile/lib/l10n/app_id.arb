@@ -997,7 +997,7 @@
     }
   },
   "menuItems": "Barang",
-  "menuSales": "Penjualan",
+  "menuSales": "Laporan",
   "menuPurchases": "Pembelian",
   "itemsTitle": "Barang",
   "itemsSearch": "Cari nama, kode, atau barcode",

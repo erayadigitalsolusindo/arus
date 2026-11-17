@@ -1021,7 +1021,7 @@
     }
   },
   "menuItems": "商品",
-  "menuSales": "売上",
+  "menuSales": "レポート",
   "menuPurchases": "仕入",
   "itemsTitle": "商品",
   "itemsSearch": "名前・コード・バーコードで検索",

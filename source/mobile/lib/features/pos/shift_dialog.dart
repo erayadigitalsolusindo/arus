@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error.dart';
@@ -67,9 +66,7 @@ class _OpenShiftDialogState extends ConsumerState<_OpenShiftDialog> {
             controller: _cash,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
+            inputFormatters: [const MoneyInputFormatter()],
             decoration: InputDecoration(labelText: l.shiftOpeningCash),
             onSubmitted: (_) => _busy ? null : _submit(),
           ),

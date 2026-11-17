@@ -109,3 +109,39 @@ class SalesReport {
         .toList(),
   );
 }
+
+/// Satu nota pada daftar nota sehari (`GET /reports/sales/invoices`).
+class ReportInvoice {
+  const ReportInvoice({
+    required this.id,
+    required this.docNo,
+    required this.time,
+    required this.status,
+    required this.cashier,
+    required this.total,
+    required this.methods,
+  });
+
+  final String id;
+  final String docNo;
+  final String time;
+  final String status;
+  final String cashier;
+  final Decimal total;
+  final List<String> methods;
+
+  bool get isVoid => status == 'void';
+
+  factory ReportInvoice.fromJson(Map<String, dynamic> j) => ReportInvoice(
+    id: '${j['id'] ?? ''}',
+    docNo: '${j['doc_no'] ?? ''}',
+    time: '${j['time'] ?? ''}',
+    status: '${j['status'] ?? ''}',
+    cashier: '${j['cashier_name'] ?? ''}',
+    total: dec(j['total']),
+    methods: (j['methods'] as List? ?? const [])
+        .map((e) => '${(e as Map)['name'] ?? ''}')
+        .where((n) => n.isNotEmpty)
+        .toList(),
+  );
+}

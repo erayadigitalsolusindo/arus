@@ -1675,7 +1675,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuItems => 'Items';
 
   @override
-  String get menuSales => 'Sales';
+  String get menuSales => 'Reports';
 
   @override
   String get menuPurchases => 'Purchases';

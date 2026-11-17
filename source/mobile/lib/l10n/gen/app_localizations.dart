@@ -3049,7 +3049,7 @@ abstract class AppLocalizations {
   /// No description provided for @menuSales.
   ///
   /// In id, this message translates to:
-  /// **'Penjualan'**
+  /// **'Laporan'**
   String get menuSales;
 
   /// No description provided for @menuPurchases.

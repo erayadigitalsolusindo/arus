@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -45,6 +46,7 @@ class PlatformGoogleAuth implements GoogleAuth {
       }
       return token;
     } on GoogleSignInException catch (e) {
+      debugPrint('GoogleSignInException: ${e.code} ${e.description}');
       if (e.code == GoogleSignInExceptionCode.canceled ||
           e.code == GoogleSignInExceptionCode.interrupted) {
         return null;

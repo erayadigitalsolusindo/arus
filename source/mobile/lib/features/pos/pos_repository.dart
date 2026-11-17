@@ -328,15 +328,40 @@ class PosRepository {
   });
 
   /// Penjualan kasir ini pada satu shift ([shiftId]; jendela waktunya dihitung server).
-  Future<SalesToday> salesToday({
-    required String shiftId,
-    String q = '',
+  Future<SalesToday> salesToday({required String shiftId, String q = ''}) =>
+      _guard(() async {
+        final r = await _dio.get<Map<String, dynamic>>(
+          '/sales/',
+          queryParameters: {'shift_id': shiftId, if (q.isNotEmpty) 'q': q},
+        );
+        return SalesToday.fromJson(r.data!);
+      });
+
+  /// Semua nota satu hari ([date] = `YYYY-MM-DD`), terbaru dulu; halaman berikutnya diikuti sampai habis.
+  Future<List<ReportInvoice>> salesInvoices({
+    required String date,
+    bool allOutlets = false,
   }) => _guard(() async {
-    final r = await _dio.get<Map<String, dynamic>>(
-      '/sales/',
-      queryParameters: {'shift_id': shiftId, if (q.isNotEmpty) 'q': q},
-    );
-    return SalesToday.fromJson(r.data!);
+    final out = <ReportInvoice>[];
+    String cursor = '';
+    do {
+      final r = await _dio.get<Map<String, dynamic>>(
+        '/reports/sales/invoices',
+        queryParameters: {
+          'from': date,
+          'to': date,
+          'all_outlets': allOutlets,
+          if (cursor.isNotEmpty) 'cursor': cursor,
+        },
+      );
+      out.addAll(
+        (r.data!['data'] as List? ?? const []).map(
+          (e) => ReportInvoice.fromJson((e as Map).cast<String, dynamic>()),
+        ),
+      );
+      cursor = '${r.data!['next_cursor'] ?? ''}';
+    } while (cursor.isNotEmpty);
+    return out;
   });
 
   /// Laporan penjualan per tanggal (izin `sales_reports.view`). [from]/[to] = `YYYY-MM-DD`; [allOutlets] menjumlah

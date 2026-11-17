@@ -1679,7 +1679,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get menuItems => 'Barang';
 
   @override
-  String get menuSales => 'Penjualan';
+  String get menuSales => 'Laporan';
 
   @override
   String get menuPurchases => 'Pembelian';

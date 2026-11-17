@@ -553,7 +553,7 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
                   child: LinearProgressIndicator(minHeight: 2),
                 );
               }
-              return _DetailBody(d: snap.data!, saleId: r.id);
+              return SaleDetailBody(d: snap.data!, saleId: r.id);
             },
           ),
       ],
@@ -561,8 +561,8 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
   }
 }
 
-class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.d, required this.saleId});
+class SaleDetailBody extends StatelessWidget {
+  const SaleDetailBody({super.key, required this.d, required this.saleId});
 
   final SaleDetailInfo d;
   final String saleId;

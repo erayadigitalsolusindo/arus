@@ -137,7 +137,7 @@ class _CloseShiftPageState extends ConsumerState<_CloseShiftPage> {
       for (final c in _rows) {
         _counted[c.methodId]!.text = c.expected < Decimal.zero
             ? '0'
-            : decToApi(c.expected, scale: 2);
+            : formatMoney(c.expected, symbol: false);
       }
     });
   }
@@ -457,9 +457,7 @@ class _CloseShiftPageState extends ConsumerState<_CloseShiftPage> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  ],
+                  inputFormatters: [const MoneyInputFormatter()],
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     labelText: l.shiftColCounted,

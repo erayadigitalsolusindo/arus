@@ -909,7 +909,7 @@
     }
   },
   "menuItems": "Items",
-  "menuSales": "Sales",
+  "menuSales": "Reports",
   "menuPurchases": "Purchases",
   "itemsTitle": "Items",
   "itemsSearch": "Search name, code, or barcode",

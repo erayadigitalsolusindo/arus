@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -251,7 +250,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       (m) => m.isCash,
       orElse: () => methods.first,
     );
-    _rows.add(_PayRow(method: cash, amount: decToApi(_total, scale: 2)));
+    _rows.add(_PayRow(method: cash, amount: formatMoney(_total, symbol: false)));
   }
 
   Future<void> _submit() async {
@@ -512,7 +511,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                                     _rows.add(
                                       _PayRow(
                                         method: next,
-                                        amount: decToApi(_short, scale: 2),
+                                        amount: formatMoney(_short, symbol: false),
                                       ),
                                     );
                                     _edited();
@@ -979,9 +978,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
+                inputFormatters: [const MoneyInputFormatter()],
                 decoration: InputDecoration(labelText: l.payAmount),
                 onChanged: (_) => _edited(),
               ),
@@ -1036,9 +1033,9 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                                 (a, x) => a + parseInput(x.amount.text),
                               );
                           final need = _total - others;
-                          r.amount.text = decToApi(
+                          r.amount.text = formatMoney(
                             need > Decimal.zero ? need : Decimal.zero,
-                            scale: 2,
+                            symbol: false,
                           );
                           _edited();
                         },
@@ -1049,7 +1046,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                     onPressed: _busy
                         ? null
                         : () {
-                            r.amount.text = decToApi(v, scale: 2);
+                            r.amount.text = formatMoney(v, symbol: false);
                             _edited();
                           },
                   ),

@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:flutter/services.dart';
 
 /// Uang dan qty memakai [Decimal] (tidak pernah double). API mengirim/menerima string desimal.
 /// Nilai uang di server selalu Rupiah; simbol mata uang tampilan ikut bahasa (opsi "simbol ikut bahasa").
@@ -77,4 +78,27 @@ Decimal parseInput(String raw) {
     s = s.replaceAll('.', '');
   }
   return Decimal.tryParse(s) ?? Decimal.zero;
+}
+
+/// Isian uang: ribuan diberi titik saat mengetik ("40000" → "40.000"); koma = desimal. [parseInput] membacanya kembali.
+class MoneyInputFormatter extends TextInputFormatter {
+  const MoneyInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue v) {
+    final raw = v.text.replaceAll('.', '');
+    final c = raw.indexOf(',');
+    final intPart = (c < 0 ? raw : raw.substring(0, c)).replaceAll(
+      RegExp(r'\D'),
+      '',
+    );
+    final frac = c < 0
+        ? ''
+        : ',${raw.substring(c + 1).replaceAll(RegExp(r'\D'), '')}';
+    final out = '${_group(intPart)}$frac';
+    return TextEditingValue(
+      text: out,
+      selection: TextSelection.collapsed(offset: out.length),
+    );
+  }
 }

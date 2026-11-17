@@ -1,6 +1,5 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -227,9 +226,7 @@ class _PettyCashPageState extends ConsumerState<_PettyCashPage> {
             controller: _amount,
             enabled: !_busy,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
+            inputFormatters: [const MoneyInputFormatter()],
             onChanged: (_) => setState(() => _saved = false),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             decoration: InputDecoration(

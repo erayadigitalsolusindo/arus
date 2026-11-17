@@ -909,9 +909,9 @@ class _ProductCardState extends ConsumerState<_ProductCard>
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
-    // Stok boleh minus: sisa stok disembunyikan (tampil satuan saja).
-    final hideStock = item.allowNegativeStock;
-    final showStock = item.isGoods && !hideStock;
+    // Sisa stok hanya tampil di Mode Persediaan; Mode Penjualan menampilkan satuan saja.
+    final showStock =
+        item.isGoods && ref.watch(appModeProvider) == AppMode.inventory;
     final out = showStock && item.stockDisplay <= Decimal.zero;
     return AnimatedBuilder(
       animation: _fx,
@@ -1005,21 +1005,17 @@ class _ProductCardState extends ConsumerState<_ProductCard>
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  // Nama utuh: bila terlalu panjang, huruf mengecil mengikuti ruang kartu (tidak dipotong).
-                  child: LayoutBuilder(
-                    builder: (context, box) => FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.topLeft,
-                      child: SizedBox(
-                        width: box.maxWidth,
-                        child: Text(
-                          item.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            height: 1.25,
-                          ),
-                        ),
+                  // Nama maksimal 2 baris, selebihnya "...".
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        height: 1.25,
                       ),
                     ),
                   ),

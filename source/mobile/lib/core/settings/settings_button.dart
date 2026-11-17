@@ -34,7 +34,11 @@ class SettingsButton extends ConsumerWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.icon, required this.title, required this.child});
+  const _Section({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
 
   final IconData icon;
   final String title;
@@ -99,24 +103,28 @@ class _SettingsDialog extends ConsumerWidget {
             _Section(
               icon: Icons.translate,
               title: l.settingsLanguage,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (final (code, label) in [
-                    ('', l.languageSystem),
-                    ('id', 'Indonesia'),
-                    ('en', 'English'),
-                    ('ja', '日本語'),
-                  ])
-                    ChoiceChip(
-                      label: Text(label),
-                      selected: lang == code,
-                      onSelected: (_) => ref
-                          .read(localeProvider.notifier)
-                          .set(code.isEmpty ? null : Locale(code)),
-                    ),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final (code, label) in [
+                      ('', l.languageSystem),
+                      ('id', 'Indonesia'),
+                      ('en', 'English'),
+                      ('ja', '日本語'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(label),
+                          selected: lang == code,
+                          onSelected: (_) => ref
+                              .read(localeProvider.notifier)
+                              .set(code.isEmpty ? null : Locale(code)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             _Section(
@@ -149,6 +157,11 @@ class _SettingsDialog extends ConsumerWidget {
                 width: double.infinity,
                 child: SegmentedButton<ThemeMode>(
                   showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   segments: [
                     ButtonSegment(
                       value: ThemeMode.system,
