@@ -7,8 +7,8 @@ class AppConfig {
 
   static const String productionUrl = 'https://arus-api.erayadigital.co.id';
 
-  /// Localhost komputer dari dalam emulator Android.
-  static const String emulatorUrl = 'http://10.0.2.2:8080';
+  /// Backend dev di WSL, dilihat dari emulator (LDPlayer di Windows); alamat host WSL bisa berubah setelah restart.
+  static const String emulatorUrl = 'http://172.21.192.1:8080';
 
   static const String apiUrl = String.fromEnvironment(
     'API_URL',
