@@ -53,6 +53,7 @@ type Config struct {
 	// EraPayPlatformKey: API key EraPay milik PLATFORM untuk menerima pembayaran paket langganan tenant (QRIS). Kosong = upgrade mandiri mati.
 	EraPayPlatformKey    string
 	EraPayProvisionToken string // shared server-to-server secret; never sent to the browser
+	EraPayKeyToken       string // secret TERPISAH untuk meminta ERAPAY menerbitkan API key tenant; kosong = fitur mati
 
 	// EraPayReconcile: penjadwal rekonsiliasi nota yang disimpan paksa (erapay_pending) ke EraPay.
 	// Bawaan: nyala di luar development (di dev mati agar API yang dijalankan ulang tidak menulis ke data pengguna tanpa diminta).
@@ -100,6 +101,7 @@ func Load() (Config, error) {
 		AIHistoryKey:         strings.TrimSpace(os.Getenv("AI_HISTORY_KEY")),
 		EraPayBaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
 		EraPayProvisionToken: strings.TrimSpace(os.Getenv("ERAPAY_ARUS_PROVISION_TOKEN")),
+		EraPayKeyToken:       strings.TrimSpace(os.Getenv("ERAPAY_ARUS_KEY_TOKEN")),
 		EraPayPlatformKey:    strings.TrimSpace(os.Getenv("ERAPAY_PLATFORM_API_KEY")),
 		AppBaseURL:           strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
 		SMTPHost:             os.Getenv("SMTP_HOST"),
@@ -166,6 +168,9 @@ func Load() (Config, error) {
 	}
 	if c.EraPayProvisionToken != "" && len(c.EraPayProvisionToken) < 32 {
 		errs = append(errs, errors.New("ERAPAY_ARUS_PROVISION_TOKEN minimal 32 karakter bila diisi"))
+	}
+	if c.EraPayKeyToken != "" && (len(c.EraPayKeyToken) < 32 || c.EraPayKeyToken == c.EraPayProvisionToken) {
+		errs = append(errs, errors.New("ERAPAY_ARUS_KEY_TOKEN minimal 32 karakter dan harus berbeda dari ERAPAY_ARUS_PROVISION_TOKEN"))
 	}
 	if !c.IsDev() && c.SMTPHost == "" {
 		errs = append(errs, errors.New("SMTP_HOST wajib di luar development (email verifikasi dan reset password)"))

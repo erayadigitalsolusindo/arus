@@ -79,6 +79,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrImpersonating):
 		httpx.Error(w, http.StatusForbidden, "IMPERSONATING", "Tidak tersedia pada sesi masuk-sebagai.")
 	case errors.Is(err, ErrUnavailable):
+		h.log.Warn("erapay tidak tersedia", "err", err, "req_id", middleware.GetReqID(r.Context()))
 		httpx.Error(w, http.StatusBadGateway, "ERAPAY_UNAVAILABLE", "EraPay tidak dapat dihubungi, coba lagi.")
 	case errors.Is(err, ErrEcosystemNotConfigured):
 		httpx.Error(w, http.StatusServiceUnavailable, "ERAPAY_ECOSYSTEM_UNAVAILABLE", "Koneksi Ekosistem EraPay belum dikonfigurasi di server.")

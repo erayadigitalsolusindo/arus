@@ -279,3 +279,24 @@ func (s *Service) resetMFA(ctx context.Context, a Actor, target uuid.UUID) error
 	s.forget(target)
 	return s.Sessions.RevokeUser(ctx, target.String())
 }
+
+// ConfirmStepUp = verifikasi ulang untuk aksi sensitif: password + kode TOTP baru (kode pemulihan tidak diterima).
+func (s *Service) ConfirmStepUp(ctx context.Context, a Actor, password, code string) error {
+	row, err := s.adminRow(ctx, a.ID)
+	if err != nil {
+		return err
+	}
+	ok, err := s.verify(ctx, password, row.PasswordHash)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalidCredentials
+	}
+	if ok, err := s.secondFactor(ctx, row, code, false); err != nil {
+		return err
+	} else if !ok {
+		return ErrInvalidCode
+	}
+	return nil
+}

@@ -42,6 +42,8 @@ const (
 	ActionPlatformEditWindow   = "platform.tenant_edit_window" // batas hari edit/batal nota (diatur operator platform)
 	ActionPlatformTenantRename = "platform.tenant_rename"      // nama/kode (slug) tenant diganti operator platform
 	ActionPlatformTenantPlan   = "platform.tenant_plan"        // paket langganan tenant dipasang/diubah manual oleh operator platform
+	ActionPlatformERAPay       = "platform.erapay_activate"    // tenant didaftarkan ke ERAPAY oleh operator platform
+	ActionPlatformERAPayKey    = "platform.erapay_key"         // API key ERAPAY tenant dipasang oleh operator platform
 	ActionPlatformUserEmail    = "platform.user_email"         // email login pengguna tenant diganti operator platform
 )
 

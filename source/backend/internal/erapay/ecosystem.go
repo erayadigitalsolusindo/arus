@@ -19,8 +19,9 @@ import (
 )
 
 type ProvisioningClient struct {
-	baseURL string
-	token   string
+	baseURL  string
+	token    string
+	keyToken string // token terpisah khusus penerbitan API key; kosong = fitur mati
 	http    *http.Client
 }
 
@@ -155,14 +156,27 @@ func (s *Service) WithProvisioningToken(token string) *Service {
 	return s
 }
 
+// WithKeyToken mengaktifkan penerbitan API key otomatis; butuh provisioning aktif.
+func (s *Service) WithKeyToken(token string) *Service {
+	if s.provisioner != nil {
+		s.provisioner.keyToken = strings.TrimSpace(token)
+	}
+	return s
+}
+
 func (s *Service) EcosystemStatus(ctx context.Context, a authz.Actor) (EcosystemStatus, error) {
 	if a.Impersonator != uuid.Nil {
 		return EcosystemStatus{}, ErrImpersonating
 	}
+	return s.StatusForTenant(ctx, a.TenantID)
+}
+
+// StatusForTenant juga dipakai Platform Admin (otorisasi dilakukan pemanggil).
+func (s *Service) StatusForTenant(ctx context.Context, tenant uuid.UUID) (EcosystemStatus, error) {
 	if s.provisioner == nil {
 		return EcosystemStatus{}, ErrEcosystemNotConfigured
 	}
-	link, err := s.provisioner.Status(ctx, a.TenantID)
+	link, err := s.provisioner.Status(ctx, tenant)
 	if err != nil {
 		return EcosystemStatus{}, err
 	}
@@ -183,15 +197,27 @@ func (s *Service) ActivateEcosystem(ctx context.Context, a authz.Actor, accepted
 	if !acceptedTerms {
 		return EcosystemStatus{}, ErrEcosystemTerms
 	}
+	return s.activate(ctx, a.TenantID, a.UserID)
+}
+
+// ActivateForTenant: jalur Platform Admin (persetujuan syarat dikonfirmasi pemanggil). Pemilik = pengguna aktif
+// tertua berperan sistem, sama dengan kolom "owner" di daftar tenant platform.
+func (s *Service) ActivateForTenant(ctx context.Context, tenant uuid.UUID) (EcosystemStatus, error) {
+	return s.activate(ctx, tenant, uuid.Nil)
+}
+
+func (s *Service) activate(ctx context.Context, tenant, user uuid.UUID) (EcosystemStatus, error) {
 	if s.provisioner == nil {
 		return EcosystemStatus{}, ErrEcosystemNotConfigured
 	}
 	var business, owner, email, phone string
 	var verified bool
-	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT t.name, u.name, u.email, COALESCE(u.phone, ''), u.email_verified_at IS NOT NULL
 			FROM tenants t JOIN users u ON u.tenant_id = t.id
-			WHERE t.id = $1 AND u.id = $2 AND t.active AND u.active`, a.TenantID, a.UserID).
+			JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+			WHERE t.id = $1 AND t.active AND u.active AND ($2 = u.id OR ($2 = '00000000-0000-0000-0000-000000000000'::uuid AND r.is_system))
+			ORDER BY u.created_at LIMIT 1`, tenant, user).
 			Scan(&business, &owner, &email, &phone, &verified)
 	})
 	if err != nil {
@@ -200,7 +226,7 @@ func (s *Service) ActivateEcosystem(ctx context.Context, a authz.Actor, accepted
 	if !verified {
 		return EcosystemStatus{}, ErrEcosystemEmail
 	}
-	link, err := s.provisioner.Ensure(ctx, a.TenantID, business, owner, email, phone)
+	link, err := s.provisioner.Ensure(ctx, tenant, business, owner, email, phone)
 	if err != nil {
 		return EcosystemStatus{}, err
 	}
@@ -219,4 +245,67 @@ func (s *Service) EcosystemLogin(ctx context.Context, a authz.Actor) (string, er
 		return "", ErrEcosystemNotConfigured
 	}
 	return s.provisioner.SSO(ctx, a.TenantID)
+}
+
+// ConfigForTenant: status key untuk Platform Admin (otorisasi oleh pemanggil).
+func (s *Service) ConfigForTenant(ctx context.Context, tenant uuid.UUID) (Config, error) {
+	return s.Config(ctx, authz.Actor{TenantID: tenant})
+}
+
+// IssueKey meminta ERAPAY menerbitkan API key pembayaran (tanpa payout) untuk tenant. Secret hanya ada di respons ini.
+func (c *ProvisioningClient) IssueKey(ctx context.Context, tenantID uuid.UUID) (string, error) {
+	if c.keyToken == "" {
+		return "", ErrEcosystemNotConfigured
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/api-key", c.baseURL, tenantID), nil)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	req.Header.Set("Authorization", "Bearer "+c.keyToken)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "issue-key", "err", err)
+		return "", ErrUnavailable
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		var envelope struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		_ = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&envelope)
+		switch {
+		case resp.StatusCode == http.StatusNotFound:
+			return "", ErrEcosystemSSO // belum tertaut: pakai pesan "tidak tersedia untuk akun ini"
+		case envelope.Error.Code == "MERCHANT_NOT_APPROVED":
+			return "", ErrMerchantNotApproved
+		case envelope.Error.Code == "API_KEY_EXISTS":
+			return "", ErrKeyExists
+		}
+		slog.Warn("erapay provisioning ditolak", "op", "issue-key", "status", resp.StatusCode, "code", envelope.Error.Code) // tanpa body: bisa memuat secret
+		return "", ErrUnavailable
+	}
+	var out struct {
+		Secret string `json:"secret"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out) != nil || out.Secret == "" {
+		return "", ErrUnavailable
+	}
+	return out.Secret, nil
+}
+
+// IssueKeyForTenant: jalur Platform Admin (otorisasi + verifikasi ulang 2FA oleh pemanggil). Key diterbitkan ERAPAY lalu
+// langsung dipasang untuk tenant; tidak pernah dikembalikan ke pemanggil.
+// shortcut: bila pemasangan gagal setelah key terbit, key itu tertinggal di ERAPAY (retry dijawab ErrKeyExists); cabut dari dashboard ERAPAY.
+func (s *Service) IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName string) (Config, error) {
+	if s.provisioner == nil {
+		return Config{}, ErrEcosystemNotConfigured
+	}
+	secret, err := s.provisioner.IssueKey(ctx, tenant)
+	if err != nil {
+		return Config{}, err
+	}
+	return s.SaveKeyForTenant(ctx, tenant, adminName, secret)
 }

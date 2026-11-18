@@ -48,6 +48,62 @@
     }
   }
 
+  // ---- ERAPAY ----
+  let eraActive = $state<boolean | null>(null); // null = belum diketahui / ERAPAY tak terjangkau
+  let eraAgreed = $state(false);
+  let eraBusy = $state(false);
+  let eraDone = $state(false);
+  let eraKeyHint = $state(''); // '' = key belum dipasang
+  let eraKey = $state('');
+  let eraKeyBusy = $state(false);
+  let eraKeySaved = $state(false);
+  async function loadEra() {
+    try {
+      const st = await platformApi.erapayStatus(id);
+      eraActive = st.active;
+      eraKeyHint = st.key_configured ? st.key_hint : '';
+    } catch {
+      eraActive = null;
+    }
+  }
+  let eraPass = $state('');
+  let eraCode = $state('');
+  const eraStepOk = $derived(eraPass.length > 0 && /^\d{6}$/.test(eraCode.trim()));
+  // Satu jalur untuk key otomatis (apiKey kosong) dan key manual; password + TOTP baru diminta server.
+  async function saveEraKey(auto: boolean) {
+    if (eraKeyBusy || !eraStepOk || (!auto && !eraKey.trim())) return;
+    eraKeyBusy = true;
+    error = '';
+    eraKeySaved = false;
+    try {
+      const r = auto ? await platformApi.erapayIssueKey(id, eraPass, eraCode.trim()) : await platformApi.erapaySaveKey(id, eraKey.trim(), eraPass, eraCode.trim());
+      eraKeyHint = r.key_hint;
+      eraKey = '';
+      eraKeySaved = true;
+      await loadAudit();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      eraPass = '';
+      eraCode = '';
+      eraKeyBusy = false;
+    }
+  }
+  async function activateEra() {
+    if (!eraAgreed || eraBusy) return;
+    eraBusy = true;
+    error = '';
+    try {
+      eraActive = (await platformApi.erapayActivate(id)).active;
+      eraDone = true;
+      await loadAudit();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      eraBusy = false;
+    }
+  }
+
   // ---- Ubah email pengguna ----
   let emailUser = $state<string | null>(null);
   let emailValue = $state('');
@@ -95,6 +151,7 @@
       windowDays = String(tenant.sale_edit_window_days);
       idName = tenant.name;
       idCode = tenant.code;
+      void loadEra();
     } catch (err) {
       error = errorMessage(err);
     } finally {
@@ -488,6 +545,39 @@
             {#if idSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.identitySaved')}</p>{/if}
           </div>
         </form>
+      </section>
+
+      <section class="surface-card !p-0 overflow-hidden">
+        {@render cardHead('wallet', t('platform.tenant.erapayTitle'))}
+        <div class="p-5 space-y-3">
+          <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayHelp')}</p>
+          {#if eraActive}
+            <p class="text-[12.5px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{eraDone ? t('platform.tenant.erapayDone') : t('platform.tenant.erapayOn')}</p>
+          {:else}
+            <p class="text-[12.5px] font-semibold text-[var(--text-secondary)]">{t('platform.tenant.erapayOff')}</p>
+            <label class="flex items-start gap-2 text-[12.5px]">
+              <input type="checkbox" class="mt-0.5" bind:checked={eraAgreed} />
+              <span>{t('platform.tenant.erapayAgree')}</span>
+            </label>
+            <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!eraAgreed || eraBusy} onclick={activateEra}>{eraBusy ? t('platform.tenant.erapayBusy') : t('platform.tenant.erapayButton')}</button>
+          {/if}
+          <div class="border-t border-[var(--border-subtle)] pt-3 space-y-2">
+            <span class="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.tenant.erapayKeyLabel')}</span>
+            {#if eraKeyHint}<p class="text-[12.5px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.erapayKeySet')} ····{eraKeyHint}</p>{/if}
+            <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayStepHelp')}</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <input class="field-control" type="password" autocomplete="current-password" placeholder={t('platform.tenant.erapayPassword')} bind:value={eraPass} />
+              <input class="field-control font-mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder={t('platform.tenant.erapayTotp')} bind:value={eraCode} />
+            </div>
+            <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!eraStepOk || eraKeyBusy} onclick={() => saveEraKey(true)}>{eraKeyBusy ? t('platform.tenant.erapayBusy') : t('platform.tenant.erapayKeyAuto')}</button>
+            <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayKeyAutoHint')}</p>
+            <form class="flex flex-wrap gap-2" onsubmit={(e) => { e.preventDefault(); void saveEraKey(false); }}>
+              <input class="field-control min-w-0 flex-1 font-mono" type="password" autocomplete="off" placeholder={t('platform.tenant.erapayKeyPlaceholder')} bind:value={eraKey} oninput={() => (eraKeySaved = false)} />
+              <button type="submit" class="btn !text-[12.5px] disabled:opacity-60" disabled={!eraKey.trim() || !eraStepOk || eraKeyBusy}>{t('platform.tenant.erapayKeySave')}</button>
+            </form>
+            {#if eraKeySaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.erapayKeyDone')}</p>{/if}
+          </div>
+        </div>
       </section>
       </div>
     </div>

@@ -84,3 +84,34 @@ func TestProvisioningClientSSO(t *testing.T) {
 		t.Fatalf("unlinked tenant error = %v, want ErrEcosystemSSO", err)
 	}
 }
+
+func TestProvisioningClientIssueKey(t *testing.T) {
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	status, body := http.StatusCreated, `{"secret":"epk_prd_aaaaaaaa_x"}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/integrations/arus/tenants/"+tenant.String()+"/api-key" || r.Header.Get("Authorization") != "Bearer key-token" {
+			t.Errorf("path/token salah: %s %q", r.URL.Path, r.Header.Get("Authorization")) // harus token key, bukan provisioning
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	c := NewProvisioningClient(srv.URL, "provision-token")
+	if _, err := c.IssueKey(t.Context(), tenant); !errors.Is(err, ErrEcosystemNotConfigured) {
+		t.Fatalf("tanpa token key harus mati: %v", err)
+	}
+	c.keyToken = "key-token"
+	if got, err := c.IssueKey(t.Context(), tenant); err != nil || got != "epk_prd_aaaaaaaa_x" {
+		t.Fatalf("issue: %q %v", got, err)
+	}
+	for code, want := range map[string]error{"MERCHANT_NOT_APPROVED": ErrMerchantNotApproved, "API_KEY_EXISTS": ErrKeyExists} {
+		status, body = http.StatusConflict, `{"error":{"code":"`+code+`"}}`
+		if _, err := c.IssueKey(t.Context(), tenant); !errors.Is(err, want) {
+			t.Fatalf("%s: %v", code, err)
+		}
+	}
+	status, body = http.StatusNotFound, `{}`
+	if _, err := c.IssueKey(t.Context(), tenant); !errors.Is(err, ErrEcosystemSSO) {
+		t.Fatalf("404: %v", err)
+	}
+}

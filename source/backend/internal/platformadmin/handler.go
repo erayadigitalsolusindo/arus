@@ -51,6 +51,7 @@ type HandlerDeps struct {
 	Backup       *backup.Service     // backup ke Google Drive (opsional; nil = fitur nonaktif)
 	Live         *live.Hub           // pantauan penjualan real-time lintas tenant (opsional)
 	Presence     *live.Presence
+	ERAPay       ERAPay // pendaftaran tenant ke ERAPAY (opsional; nil = fitur nonaktif)
 }
 
 type Handler struct {
@@ -100,6 +101,10 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)
 			r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
 			r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
+			r.Get("/platform/tenants/{id}/erapay", h.ERAPayStatus)
+			r.Post("/platform/tenants/{id}/erapay", h.ERAPayActivate)
+			r.Put("/platform/tenants/{id}/erapay/key", h.ERAPaySaveKey)
+			r.Post("/platform/tenants/{id}/erapay/key/issue", h.ERAPayIssueKey)
 			r.Get("/platform/tenants/{id}/deletion", h.GetDeleteSchedule)
 			r.Put("/platform/tenants/{id}/deletion", h.ScheduleDelete)
 			r.Delete("/platform/tenants/{id}/deletion", h.CancelDelete)

@@ -280,6 +280,10 @@ export const platformApi = {
   cancelDelete: (id: string) => papi<void>(`/platform/tenants/${id}/deletion`, { method: 'DELETE' }),
   /** Hapus permanen sekarang (hanya bila jatuh tempo); `confirmName` harus sama persis dengan nama tenant. */
   purgeTenant: (id: string, confirmName: string) => papi<{ deleted: boolean }>(`/platform/tenants/${id}/purge`, { method: 'POST', body: json({ confirm_name: confirmName }) }),
+  erapayStatus: (id: string) => papi<{ active: boolean; key_configured: boolean; key_hint: string; environment: string }>(`/platform/tenants/${id}/erapay`),
+  erapayActivate: (id: string) => papi<{ active: boolean }>(`/platform/tenants/${id}/erapay`, { method: 'POST', body: json({ owner_agreed: true }) }),
+  erapaySaveKey: (id: string, apiKey: string, password: string, code: string) => papi<{ key_configured: boolean; key_hint: string }>(`/platform/tenants/${id}/erapay/key`, { method: 'PUT', body: json({ api_key: apiKey, password, code }) }),
+  erapayIssueKey: (id: string, password: string, code: string) => papi<{ key_configured: boolean; key_hint: string }>(`/platform/tenants/${id}/erapay/key/issue`, { method: 'POST', body: json({ password, code }) }),
   setTenantActive: (id: string, active: boolean) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ active }) }),
   tenantAudit: (id: string, cursor = '') =>
     papi<{ items: TenantAuditItem[]; next_cursor: string }>(`/platform/tenants/${id}/audit?${new URLSearchParams({ limit: '30', ...(cursor ? { cursor } : {}) })}`),

@@ -156,7 +156,8 @@ func mountModules(r chi.Router, d appDeps) error {
 	if err != nil {
 		return err
 	}
-	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken)
+	eraSvc.WithProvisioningToken(d.Cfg.EraPayProvisionToken).WithKeyToken(d.Cfg.EraPayKeyToken)
+	platformHandler.ERAPay = eraSvc // rute platform sudah terpasang; handler membaca field ini saat request
 	salesSvc := sales.NewService(d.Pool, approvalSvc).WithShiftGuard(shift.Guard).WithPlanGuard(plan.ConsumeTx).WithPayVerifier(eraSvc)
 	salesH := sales.NewHandler(salesSvc, perms, tokens, d.Log).WithNotifier(liveHub.Notify)
 	live.NewHandler(live.NewService(d.Pool), liveHub, perms, tokens, d.Log).Routes(r)

@@ -3,6 +3,7 @@ package erapay
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -42,6 +43,8 @@ var (
 	ErrEcosystemTerms         = errors.New("syarat EraPay harus disetujui")
 	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
 	ErrEcosystemSSO           = errors.New("masuk otomatis ke EraPay tidak tersedia untuk akun ini")
+	ErrMerchantNotApproved    = errors.New("merchant EraPay belum disetujui EraPay")
+	ErrKeyExists              = errors.New("API key otomatis untuk toko ini sudah ada di EraPay")
 	ErrBadKey                 = errors.New("format API key EraPay tidak valid")
 	ErrKeyScope               = errors.New("API key EraPay harus punya izin payment:create dan payment:read")
 	ErrKeyEnvironment         = errors.New("API key sandbox tidak boleh dipakai di server production")
@@ -161,6 +164,24 @@ func (s *Service) SaveKey(ctx context.Context, a authz.Actor, apiKey string) (Co
 	if a.Impersonator != uuid.Nil {
 		return Config{}, ErrImpersonating
 	}
+	return s.saveKey(ctx, a, apiKey)
+}
+
+// SaveKeyForTenant: jalur Platform Admin (otorisasi oleh pemanggil). Bertindak sebagai Owner tenant, seperti sesi
+// "masuk sebagai", agar FK pelaku (updated_by, pembuat metode pembayaran) valid.
+func (s *Service) SaveKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName, apiKey string) (Config, error) {
+	var owner uuid.UUID
+	err := db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT u.id FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
+			WHERE u.tenant_id = $1 AND u.active AND r.is_system ORDER BY u.created_at LIMIT 1`, tenant).Scan(&owner)
+	})
+	if err != nil {
+		return Config{}, err
+	}
+	return s.saveKey(ctx, authz.Actor{TenantID: tenant, UserID: owner, Name: "Platform: " + adminName, Perms: authz.Permissions{All: true}}, apiKey)
+}
+
+func (s *Service) saveKey(ctx context.Context, a authz.Actor, apiKey string) (Config, error) {
 	if s.baseURL == "" {
 		return Config{}, ErrDisabled
 	}
@@ -173,7 +194,7 @@ func (s *Service) SaveKey(ctx context.Context, a authz.Actor, apiKey string) (Co
 	case errors.Is(err, ErrKeyInvalid):
 		return Config{}, err
 	case err != nil:
-		return Config{}, ErrUnavailable
+		return Config{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	case !slices.Contains(info.Scopes, "payment:create") || !slices.Contains(info.Scopes, "payment:read"):
 		return Config{}, ErrKeyScope
 	case s.requireProd && info.Environment != "production":
@@ -294,7 +315,7 @@ func (s *Service) CreateCharge(ctx context.Context, a authz.Actor, key string, a
 			return Charge{}, err
 		}
 		if err != nil {
-			return Charge{}, ErrUnavailable
+			return Charge{}, fmt.Errorf("%w: %v", ErrUnavailable, err) // %v menyimpan sebab asli untuk log handler
 		}
 		if c, err = s.store(ctx, a.TenantID, c.ID, p); err != nil {
 			return Charge{}, err
