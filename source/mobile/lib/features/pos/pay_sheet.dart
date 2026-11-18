@@ -24,7 +24,9 @@ Future<SaleResult?> showPaySheet(BuildContext context) =>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      showDragHandle: true,
+      // Tidak tertutup karena ketuk area kosong / tarik ke bawah (QRIS yang sedang dibuat bisa hilang): pakai tombol tutup.
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => const _PaySheet(),
     );
 
@@ -123,9 +125,11 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       r.eraError = null;
     });
     try {
-      final c = await ref
-          .read(posRepositoryProvider)
-          .eraCreateCharge(amount, '$_eraKey-q${r.eraAttempt}');
+      final repo = ref.read(posRepositoryProvider);
+      // Pakai lagi QRIS yang sudah pernah dibuat untuk nominal ini (belum dibayar / sudah lunas, belum dipakai nota).
+      final c =
+          (r.charge == null ? await repo.eraRecover(amount) : null) ??
+          await repo.eraCreateCharge(amount, '$_eraKey-q${r.eraAttempt}');
       if (!mounted) return;
       r.ref.text = c
           .id; // dikirim sebagai ref_no; server mencocokkan dengan charge lunas
@@ -168,6 +172,34 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       r.dispose();
     }
     super.dispose();
+  }
+
+  /// Tutup layar bayar. Tidak saat menyimpan; bila ada QRIS menunggu bayar, minta konfirmasi dulu.
+  Future<void> _requestClose() async {
+    if (_busy) return;
+    final waiting = _rows.any((r) => r.charge != null && !r.charge!.isFinal);
+    if (waiting) {
+      final l = AppLocalizations.of(context);
+      final leave = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.payCloseTitle),
+          content: Text(l.payCloseBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l.payCloseStay),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l.payCloseLeave),
+            ),
+          ],
+        ),
+      );
+      if (leave != true) return;
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   Decimal get _total => ref.read(cartProvider).quote?.total ?? Decimal.zero;
@@ -250,7 +282,9 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       (m) => m.isCash,
       orElse: () => methods.first,
     );
-    _rows.add(_PayRow(method: cash, amount: formatMoney(_total, symbol: false)));
+    _rows.add(
+      _PayRow(method: cash, amount: formatMoney(_total, symbol: false)),
+    );
   }
 
   Future<void> _submit() async {
@@ -352,258 +386,284 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     final quote = ref.watch(cartProvider.select((c) => c.quote));
     final total = quote?.total ?? Decimal.zero;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: methodsAsync.when(
-        loading: () => const SizedBox(
-          height: 220,
-          child: Center(child: CircularProgressIndicator()),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _requestClose();
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        error: (e, _) => SizedBox(
-          height: 220,
-          child: Center(
-            child: Text(e is ApiError ? e.message(l) : l.errorUnknown),
+        child: methodsAsync.when(
+          loading: () => const SizedBox(
+            height: 220,
+            child: Center(child: CircularProgressIndicator()),
           ),
-        ),
-        data: (allMethods) {
-          // Deposit hanya bisa dipakai bila nota punya member.
-          final hasMember = quote?.member != null;
-          final methods = [
-            for (final m in allMethods)
-              if (!m.isDeposit || hasMember) m,
-          ];
-          _ensureDefaults(methods);
-          final deposit = quote?.member?.deposit ?? Decimal.zero;
-          final depositUsed = _rows
-              .where((r) => r.method.isDeposit)
-              .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
-          final depositOver = depositUsed > deposit;
-          final eraOk = _rows.every(
-            (r) =>
-                _eraSettled(r) ||
-                (_eraForceOn && _eraForceOk && _eraCanForce(r)),
-          );
-          final enough =
-              eraOk &&
-              (_credit
-                  ? hasMember &&
-                        _receivable > Decimal.zero &&
-                        _creditApprovalOk &&
-                        !depositOver
-                  : _paid >= total &&
-                        total > Decimal.zero &&
-                        _rows.isNotEmpty &&
-                        !depositOver);
-          _lastEnough = enough;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l.payTitle,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: pal.primarySoft,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          error: (e, _) => SizedBox(
+            height: 220,
+            child: Center(
+              child: Text(e is ApiError ? e.message(l) : l.errorUnknown),
+            ),
+          ),
+          data: (allMethods) {
+            // Deposit hanya bisa dipakai bila nota punya member.
+            final hasMember = quote?.member != null;
+            final methods = [
+              for (final m in allMethods)
+                if (!m.isDeposit || hasMember) m,
+            ];
+            _ensureDefaults(methods);
+            final deposit = quote?.member?.deposit ?? Decimal.zero;
+            final depositUsed = _rows
+                .where((r) => r.method.isDeposit)
+                .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
+            final depositOver = depositUsed > deposit;
+            final eraOk = _rows.every(
+              (r) =>
+                  _eraSettled(r) ||
+                  (_eraForceOn && _eraForceOk && _eraCanForce(r)),
+            );
+            final enough =
+                eraOk &&
+                (_credit
+                    ? hasMember &&
+                          _receivable > Decimal.zero &&
+                          _creditApprovalOk &&
+                          !depositOver
+                    : _paid >= total &&
+                          total > Decimal.zero &&
+                          _rows.isNotEmpty &&
+                          !depositOver);
+            _lastEnough = enough;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
                           children: [
-                            Flexible(
+                            Expanded(
                               child: Text(
-                                l.payTotalDue,
-                                style: TextStyle(color: pal.textTertiary),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  formatMoney(total),
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                l.payTitle,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
+                            IconButton(
+                              tooltip: l.payCloseTooltip,
+                              icon: const Icon(Icons.close),
+                              onPressed: _requestClose,
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      _ItemsSummary(
-                        lines: ref.watch(cartProvider.select((c) => c.lines)),
-                        quote: quote,
-                      ),
-                      if (quote?.member != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          '${ref.watch(cartProvider.select((c) => c.member?.name)) ?? ''} · ${l.memberPointsAndDeposit(quote!.member!.points, formatMoney(deposit))}',
-                          style: TextStyle(
-                            color: pal.textTertiary,
-                            fontSize: 12.5,
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: pal.primarySoft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  l.payTotalDue,
+                                  style: TextStyle(color: pal.textTertiary),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    formatMoney(total),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 12),
-                      SegmentedButton<bool>(
-                        segments: [
-                          ButtonSegment(
-                            value: false,
-                            label: Text(l.payModePay),
-                          ),
-                          ButtonSegment(
-                            value: true,
-                            enabled: hasMember,
-                            label: Text(l.payModeCredit),
-                          ),
-                        ],
-                        selected: {_credit},
-                        onSelectionChanged: _busy
-                            ? null
-                            : (s) => _setCredit(s.first),
-                      ),
-                      if (!hasMember)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            l.payCreditNoMember,
+                        const SizedBox(height: 10),
+                        _ItemsSummary(
+                          lines: ref.watch(cartProvider.select((c) => c.lines)),
+                          quote: quote,
+                        ),
+                        if (quote?.member != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '${ref.watch(cartProvider.select((c) => c.member?.name)) ?? ''} · ${l.memberPointsAndDeposit(quote!.member!.points, formatMoney(deposit))}',
                             style: TextStyle(
                               color: pal.textTertiary,
                               fontSize: 12.5,
                             ),
                           ),
+                        ],
+                        const SizedBox(height: 12),
+                        SegmentedButton<bool>(
+                          segments: [
+                            ButtonSegment(
+                              value: false,
+                              label: Text(l.payModePay),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              enabled: hasMember,
+                              label: Text(l.payModeCredit),
+                            ),
+                          ],
+                          selected: {_credit},
+                          onSelectionChanged: _busy
+                              ? null
+                              : (s) => _setCredit(s.first),
                         ),
-                      if (_credit) ..._creditPanel(context, quote),
-                      const SizedBox(height: 14),
-                      for (var i = 0; i < _rows.length; i++) ...[
-                        _row(context, i, methods),
-                        const SizedBox(height: 10),
-                      ],
-                      if (_rows.length < methods.length)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: _busy
-                                ? null
-                                : () {
-                                    final used = _rows
-                                        .map((r) => r.method.id)
-                                        .toSet();
-                                    final next = methods.firstWhere(
-                                      (m) => !used.contains(m.id),
-                                      orElse: () => methods.first,
-                                    );
-                                    _rows.add(
-                                      _PayRow(
-                                        method: next,
-                                        amount: formatMoney(_short, symbol: false),
-                                      ),
-                                    );
-                                    _edited();
-                                  },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: Text(
-                              _credit ? l.payCreditDpAdd : l.payAddMethod,
+                        if (!hasMember)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              l.payCreditNoMember,
+                              style: TextStyle(
+                                color: pal.textTertiary,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
-                        ),
-                      if (depositOver)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            l.payDepositOver(formatMoney(deposit)),
-                            style: TextStyle(
-                              color: pal.danger,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12.5,
+                        if (_credit) ..._creditPanel(context, quote),
+                        const SizedBox(height: 14),
+                        for (var i = 0; i < _rows.length; i++) ...[
+                          _row(context, i, methods),
+                          const SizedBox(height: 10),
+                        ],
+                        if (_rows.length < methods.length)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _busy
+                                  ? null
+                                  : () {
+                                      final used = _rows
+                                          .map((r) => r.method.id)
+                                          .toSet();
+                                      final next = methods.firstWhere(
+                                        (m) => !used.contains(m.id),
+                                        orElse: () => methods.first,
+                                      );
+                                      _rows.add(
+                                        _PayRow(
+                                          method: next,
+                                          amount: formatMoney(
+                                            _short,
+                                            symbol: false,
+                                          ),
+                                        ),
+                                      );
+                                      _edited();
+                                    },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(
+                                _credit ? l.payCreditDpAdd : l.payAddMethod,
+                              ),
                             ),
                           ),
-                        ),
-                      const Divider(height: 24),
-                      _kv(l.payPaid, formatMoney(_paid), pal),
-                      if (_surcharge > Decimal.zero) ...[
-                        _kv(l.paySurcharge, '+${formatMoney(_surcharge)}', pal),
-                        _kv(
-                          l.payCharged,
-                          formatMoney(total + _surcharge),
-                          pal,
-                          color: pal.danger,
-                          bold: true,
-                        ),
-                      ],
-                      if (_credit)
-                        _kv(
-                          l.payCreditReceivable,
-                          formatMoney(_receivable),
-                          pal,
-                          color: pal.danger,
-                          bold: true,
-                        )
-                      else if (_short > Decimal.zero)
-                        _kv(
-                          l.payShortBy(formatMoney(_short)),
-                          '',
-                          pal,
-                          color: pal.danger,
-                        ),
-                      if (_change > Decimal.zero)
-                        _kv(
-                          l.payChange,
-                          formatMoney(_change),
-                          pal,
-                          color: pal.success,
-                          bold: true,
-                        ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: pal.dangerSoft,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            _errorText(l),
-                            style: TextStyle(
-                              color: pal.dangerText,
-                              fontSize: 13,
+                        if (depositOver)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              l.payDepositOver(formatMoney(deposit)),
+                              style: TextStyle(
+                                color: pal.danger,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
-                        ),
+                        const Divider(height: 24),
+                        _kv(l.payPaid, formatMoney(_paid), pal),
+                        if (_surcharge > Decimal.zero) ...[
+                          _kv(
+                            l.paySurcharge,
+                            '+${formatMoney(_surcharge)}',
+                            pal,
+                          ),
+                          _kv(
+                            l.payCharged,
+                            formatMoney(total + _surcharge),
+                            pal,
+                            color: pal.danger,
+                            bold: true,
+                          ),
+                        ],
+                        if (_credit)
+                          _kv(
+                            l.payCreditReceivable,
+                            formatMoney(_receivable),
+                            pal,
+                            color: pal.danger,
+                            bold: true,
+                          )
+                        else if (_short > Decimal.zero)
+                          _kv(
+                            l.payShortBy(formatMoney(_short)),
+                            '',
+                            pal,
+                            color: pal.danger,
+                          ),
+                        if (_change > Decimal.zero)
+                          _kv(
+                            l.payChange,
+                            formatMoney(_change),
+                            pal,
+                            color: pal.success,
+                            bold: true,
+                          ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: pal.dangerSoft,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _errorText(l),
+                              style: TextStyle(
+                                color: pal.dangerText,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              // useSafeArea tidak mencakup sisi bawah: tanpa SafeArea tombol tertutup bar navigasi Android.
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                  child: FilledButton(
-                    onPressed: _busy || !enough ? null : _submit,
-                    child: Text(_busy ? l.payProcessing : l.paySubmit),
+                // useSafeArea tidak mencakup sisi bawah: tanpa SafeArea tombol tertutup bar navigasi Android.
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                    child: FilledButton(
+                      onPressed: _busy || !enough ? null : _submit,
+                      child: Text(_busy ? l.payProcessing : l.paySubmit),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

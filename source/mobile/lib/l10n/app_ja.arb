@@ -1319,5 +1319,11 @@
   "outboxRejected": "サーバーに拒否されました（{code}）— 要確認",
   "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
   "outboxSavedOffline": "オフラインで保存しました。ネットワーク復旧後に自動送信され、正式な伝票番号は後で付きます。",
-  "errorOutboxPending": "未送信のオフライン取引があります。インターネットに接続し、同期完了後にシフトを締めてください。"
+  "errorOutboxPending": "未送信のオフライン取引があります。インターネットに接続し、同期完了後にシフトを締めてください。",
+  "payCloseTitle": "支払い画面を閉じますか？",
+  "payCloseBody": "QRISコードを作成済みで、支払い待ちです。再度開けます。金額が同じであれば同じQRを再利用します。",
+  "payCloseStay": "このまま",
+  "payCloseLeave": "閉じる",
+  "payCloseTooltip": "閉じる",
+  "itemsOpname": "棚卸"
 }

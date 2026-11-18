@@ -1207,5 +1207,11 @@
   "outboxRejected": "Rejected by server ({code}) — needs review",
   "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
   "outboxSavedOffline": "Saved OFFLINE. It will be sent automatically when the network is back; the official receipt number follows.",
-  "errorOutboxPending": "Some offline transactions have not been sent yet. Connect to the internet and wait for sync to finish before closing the shift."
+  "errorOutboxPending": "Some offline transactions have not been sent yet. Connect to the internet and wait for sync to finish before closing the shift.",
+  "payCloseTitle": "Close payment screen?",
+  "payCloseBody": "A QRIS code was created and is waiting for payment. You can reopen it: the same QR is reused as long as the amount is the same.",
+  "payCloseStay": "Stay here",
+  "payCloseLeave": "Close",
+  "payCloseTooltip": "Close",
+  "itemsOpname": "Stock Opname"
 }

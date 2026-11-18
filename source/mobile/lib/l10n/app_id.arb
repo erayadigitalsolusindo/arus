@@ -1295,5 +1295,11 @@
   "outboxRejected": "Ditolak server ({code}) — perlu ditinjau",
   "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
   "outboxSavedOffline": "Tersimpan OFFLINE. Dikirim otomatis saat jaringan pulih; nomor nota resmi menyusul.",
-  "errorOutboxPending": "Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift."
+  "errorOutboxPending": "Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift.",
+  "payCloseTitle": "Tutup layar bayar?",
+  "payCloseBody": "QRIS sudah dibuat dan menunggu pembayaran. Anda bisa membukanya lagi: QR yang sama dipakai selama nominalnya sama.",
+  "payCloseStay": "Tetap di sini",
+  "payCloseLeave": "Tutup",
+  "payCloseTooltip": "Tutup",
+  "itemsOpname": "Stok Opname"
 }

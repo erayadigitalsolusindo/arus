@@ -2318,4 +2318,23 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get errorOutboxPending =>
       'Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift.';
+
+  @override
+  String get payCloseTitle => 'Tutup layar bayar?';
+
+  @override
+  String get payCloseBody =>
+      'QRIS sudah dibuat dan menunggu pembayaran. Anda bisa membukanya lagi: QR yang sama dipakai selama nominalnya sama.';
+
+  @override
+  String get payCloseStay => 'Tetap di sini';
+
+  @override
+  String get payCloseLeave => 'Tutup';
+
+  @override
+  String get payCloseTooltip => 'Tutup';
+
+  @override
+  String get itemsOpname => 'Stok Opname';
 }

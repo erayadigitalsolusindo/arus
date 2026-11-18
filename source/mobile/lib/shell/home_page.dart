@@ -20,7 +20,6 @@ import '../features/pos/shift_dialog.dart';
 import '../features/ai/halloarus_page.dart';
 import '../features/manage/item_manage_page.dart';
 import '../features/manage/purchase_pages.dart';
-import '../features/manage/quick_opname_page.dart';
 import '../features/reports/erapay_settlement_page.dart';
 import '../features/reports/sales_report_page.dart';
 import '../l10n/gen/app_localizations.dart';
@@ -162,15 +161,6 @@ class HomePage extends ConsumerWidget {
                                   Icons.local_shipping_outlined,
                                   l.menuPurchases,
                                   () => showPurchasesPage(context),
-                                ),
-                              // Opname cepat hanya di Mode Persediaan; endpoint butuh izin stock_opname approve.
-                              if (ref.watch(appModeProvider) ==
-                                      AppMode.inventory &&
-                                  p.permissions.can('stock_opname', 'approve'))
-                                _MenuEntry(
-                                  Icons.fact_check_outlined,
-                                  l.opnameTitle,
-                                  () => showQuickOpnamePage(context),
                                 ),
                               // Settlement hanya untuk admin dan hanya bila EraPay terpasang di toko ini.
                               if (p.permissions.can('sales_reports', 'view') &&

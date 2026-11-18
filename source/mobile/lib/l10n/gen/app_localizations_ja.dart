@@ -2259,4 +2259,23 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get errorOutboxPending =>
       '未送信のオフライン取引があります。インターネットに接続し、同期完了後にシフトを締めてください。';
+
+  @override
+  String get payCloseTitle => '支払い画面を閉じますか？';
+
+  @override
+  String get payCloseBody =>
+      'QRISコードを作成済みで、支払い待ちです。再度開けます。金額が同じであれば同じQRを再利用します。';
+
+  @override
+  String get payCloseStay => 'このまま';
+
+  @override
+  String get payCloseLeave => '閉じる';
+
+  @override
+  String get payCloseTooltip => '閉じる';
+
+  @override
+  String get itemsOpname => '棚卸';
 }

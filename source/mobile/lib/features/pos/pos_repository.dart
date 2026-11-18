@@ -336,15 +336,78 @@ class PosRepository {
   }
 
   /// Buat tagihan QRIS; kunci yang sama mengembalikan tagihan yang sama (aman diulang).
-  Future<EraCharge> eraCreateCharge(Decimal amount, String idempotencyKey) =>
-      _guard(() async {
-        final r = await _dio.post<Map<String, dynamic>>(
-          '/payments/erapay/charges',
-          data: {'amount': decToApi(amount, scale: 2)},
-          options: Options(headers: {'Idempotency-Key': idempotencyKey}),
-        );
-        return EraCharge.fromJson(r.data!);
-      });
+  Future<EraCharge> eraCreateCharge(
+    Decimal amount,
+    String idempotencyKey,
+  ) async {
+    final c = await _guard(() async {
+      final r = await _dio.post<Map<String, dynamic>>(
+        '/payments/erapay/charges',
+        data: {'amount': decToApi(amount, scale: 2)},
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+      );
+      return EraCharge.fromJson(r.data!);
+    });
+    await _rememberCharge(c);
+    return c;
+  }
+
+  // QRIS yang sudah dibuat disimpan di perangkat supaya tidak perlu dibuat ulang bila layar bayar/aplikasi tertutup.
+  static const _chargeKeep = Duration(hours: 12);
+
+  Future<List<Map<String, dynamic>>> _storedCharges() async {
+    final raw = await offlineBox.read('era_charges');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return [
+      if (raw is List)
+        for (final e in raw)
+          if (e is Map &&
+              now - ((e['at'] as num?)?.toInt() ?? 0) <
+                  _chargeKeep.inMilliseconds)
+            e.cast<String, dynamic>(),
+    ];
+  }
+
+  Future<void> _rememberCharge(EraCharge c) async {
+    final list = await _storedCharges();
+    list.removeWhere((e) => e['id'] == c.id);
+    list.add({
+      'id': c.id,
+      'amount': decToApi(c.amount, scale: 2),
+      'at': DateTime.now().millisecondsSinceEpoch,
+    });
+    await offlineBox.write(
+      'era_charges',
+      list.length > 10 ? list.sublist(list.length - 10) : list,
+    );
+  }
+
+  /// Lupakan tagihan yang sudah dipakai nota (ref_no = id tagihan) supaya tidak dipulihkan untuk nota lain.
+  Future<void> _forgetCharges(Iterable<String> ids) async {
+    final drop = ids.toSet();
+    if (drop.isEmpty) return;
+    final list = await _storedCharges();
+    list.removeWhere((e) => drop.contains(e['id']));
+    await offlineBox.write('era_charges', list.isEmpty ? null : list);
+  }
+
+  /// QRIS terakhir dengan nominal sama yang masih menunggu bayar (atau sudah lunas) dan belum dipakai nota.
+  /// Status diperiksa ke server; null bila tidak ada / offline.
+  Future<EraCharge?> eraRecover(Decimal amount) async {
+    final want = decToApi(amount, scale: 2);
+    for (final e in (await _storedCharges()).reversed) {
+      if (e['amount'] != want) continue;
+      try {
+        final c = await eraGetCharge('${e['id']}');
+        if ((c.status == 'pending' && c.qrValue.isNotEmpty) || c.isPaid) {
+          return c;
+        }
+      } on ApiError {
+        return null;
+      }
+    }
+    return null;
+  }
 
   /// Status tagihan (server memutakhirkan dari EraPay bila masih menunggu).
   Future<EraCharge> eraGetCharge(String id) => _guard(() async {
@@ -362,7 +425,7 @@ class PosRepository {
     final body = _saleBody(d)
       ..['payments'] = [for (final p in payments) p.toJson()];
     try {
-      return await _guard(() async {
+      final sale = await _guard(() async {
         final r = await _dio.post<Map<String, dynamic>>(
           '/sales/',
           data: body,
@@ -370,6 +433,8 @@ class PosRepository {
         );
         return SaleResult.fromJson(r.data!);
       });
+      unawaited(_forgetCharges(payments.map((p) => p.refNo)));
+      return sale;
     } on ApiError catch (e) {
       if (!e.isNetwork) rethrow;
       // Tanpa jaringan: simpan di antrean perangkat (kunci sama, jadi aman bila permintaan tadi sebenarnya sudah sampai).

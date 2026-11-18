@@ -2317,4 +2317,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorOutboxPending =>
       'Some offline transactions have not been sent yet. Connect to the internet and wait for sync to finish before closing the shift.';
+
+  @override
+  String get payCloseTitle => 'Close payment screen?';
+
+  @override
+  String get payCloseBody =>
+      'A QRIS code was created and is waiting for payment. You can reopen it: the same QR is reused as long as the amount is the same.';
+
+  @override
+  String get payCloseStay => 'Stay here';
+
+  @override
+  String get payCloseLeave => 'Close';
+
+  @override
+  String get payCloseTooltip => 'Close';
+
+  @override
+  String get itemsOpname => 'Stock Opname';
 }

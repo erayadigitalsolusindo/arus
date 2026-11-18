@@ -4197,6 +4197,42 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift.'**
   String get errorOutboxPending;
+
+  /// No description provided for @payCloseTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup layar bayar?'**
+  String get payCloseTitle;
+
+  /// No description provided for @payCloseBody.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS sudah dibuat dan menunggu pembayaran. Anda bisa membukanya lagi: QR yang sama dipakai selama nominalnya sama.'**
+  String get payCloseBody;
+
+  /// No description provided for @payCloseStay.
+  ///
+  /// In id, this message translates to:
+  /// **'Tetap di sini'**
+  String get payCloseStay;
+
+  /// No description provided for @payCloseLeave.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup'**
+  String get payCloseLeave;
+
+  /// No description provided for @payCloseTooltip.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup'**
+  String get payCloseTooltip;
+
+  /// No description provided for @itemsOpname.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok Opname'**
+  String get itemsOpname;
 }
 
 class _AppLocalizationsDelegate

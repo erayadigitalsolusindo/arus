@@ -123,4 +123,55 @@ void main() {
     expect(r.items.single.id, 'i1');
     expect((await off.searchPage('zzz')).items, isEmpty);
   });
+
+  test('QRIS yang sudah dibuat dipulihkan untuk nominal sama dan dilupakan setelah dipakai nota', () async {
+    const box = OfflineBox('u.o');
+    final srv = FakeAdapter((o) {
+      if (o.path == '/payments/erapay/charges') {
+        return json(201, {
+          'id': 'c1',
+          'status': 'pending',
+          'amount': '10000.00',
+          'qr_value': 'QR1',
+        });
+      }
+      if (o.path == '/payments/erapay/charges/c1') {
+        return json(200, {
+          'id': 'c1',
+          'status': 'pending',
+          'amount': '10000.00',
+          'qr_value': 'QR1',
+        });
+      }
+      return json(201, {
+        'id': 's1',
+        'doc_no': 'D1',
+        'total': '10000.00',
+        'change': '0.00',
+        'surcharge': '0.00',
+        'receivable': '0.00',
+      });
+    });
+    final repo = PosRepository(clientWith(srv), offlineBox: box);
+    await repo.eraCreateCharge(Decimal.fromInt(10000), 'k-1');
+
+    // Aplikasi "dibuka ulang": repo baru, data dari penyimpanan perangkat.
+    final again = PosRepository(clientWith(srv), offlineBox: box);
+    expect((await again.eraRecover(Decimal.fromInt(10000)))?.qrValue, 'QR1');
+    expect(await again.eraRecover(Decimal.fromInt(5000)), isNull);
+
+    await again.createSale(
+      _draft(),
+      payments: [
+        PaymentInput(
+          methodId: 'm1',
+          amount: Decimal.fromInt(10000),
+          refNo: 'c1',
+        ),
+      ],
+      idempotencyKey: 'abcdef12-key3',
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(await again.eraRecover(Decimal.fromInt(10000)), isNull);
+  });
 }

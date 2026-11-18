@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
 import '../../core/session/session_controller.dart';
+import '../../core/settings/app_mode.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../pos/add_item_sheet.dart';
@@ -13,6 +14,7 @@ import '../pos/item_thumb.dart';
 import '../pos/pos_controller.dart';
 import '../pos/pos_models.dart';
 import '../pos/pos_repository.dart';
+import 'item_opname_sheet.dart';
 import 'item_photos_sheet.dart';
 import 'manage_repository.dart';
 
@@ -142,13 +144,24 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
   }
 
   Future<void> _photos(String id, String name) async {
-    final changed = await showItemPhotosSheet(
+    final changed = await showItemPhotosSheet(context, itemId: id, name: name);
+    if (!changed || !mounted) return;
+    ref.read(catalogVersionProvider.notifier).bump();
+    _load();
+  }
+
+  Future<void> _opname(PosItem it) async {
+    final l = AppLocalizations.of(context);
+    final changed = await showItemOpnameSheet(
       context,
-      itemId: id,
-      name: name,
+      itemId: it.id,
+      name: it.name,
+      unit: it.unit,
+      stock: it.stockDisplay,
     );
     if (!changed || !mounted) return;
     ref.read(catalogVersionProvider.notifier).bump();
+    _snack(l.opnameDone(1));
     _load();
   }
 
@@ -195,6 +208,10 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
         : null;
     final canCreate = perms?.can('items', 'create') ?? false;
     final canUpdate = perms?.can('items', 'update') ?? false;
+    // Opname hanya di Mode Persediaan dan butuh izin stock_opname approve (sama dengan endpoint).
+    final canOpname =
+        ref.watch(appModeProvider) == AppMode.inventory &&
+        (perms?.can('stock_opname', 'approve') ?? false);
     final empty = _archived ? _old.isEmpty : _items.isEmpty;
     return Scaffold(
       appBar: AppBar(title: Text(l.itemsTitle)),
@@ -341,25 +358,32 @@ class _ItemManagePageState extends ConsumerState<ItemManagePage> {
                             ].join(' · '),
                             price: formatMoney(it.price),
                             onTap: canUpdate ? () => _edit(it.id) : null,
-                            menu: canUpdate
-                                ? [
-                                    _Act(
-                                      l.itemsEdit,
-                                      Icons.edit_outlined,
-                                      () => _edit(it.id),
-                                    ),
-                                    _Act(
-                                      l.itemsPhoto,
-                                      Icons.add_a_photo_outlined,
-                                      () => _photos(it.id, it.name),
-                                    ),
-                                    _Act(
-                                      l.itemsArchive,
-                                      Icons.archive_outlined,
-                                      () => _setActive(it.id, it.name, false),
-                                    ),
-                                  ]
-                                : const [],
+                            menu: [
+                              if (canUpdate) ...[
+                                _Act(
+                                  l.itemsEdit,
+                                  Icons.edit_outlined,
+                                  () => _edit(it.id),
+                                ),
+                                _Act(
+                                  l.itemsPhoto,
+                                  Icons.add_a_photo_outlined,
+                                  () => _photos(it.id, it.name),
+                                ),
+                              ],
+                              if (canOpname && it.isGoods)
+                                _Act(
+                                  l.itemsOpname,
+                                  Icons.fact_check_outlined,
+                                  () => _opname(it),
+                                ),
+                              if (canUpdate)
+                                _Act(
+                                  l.itemsArchive,
+                                  Icons.archive_outlined,
+                                  () => _setActive(it.id, it.name, false),
+                                ),
+                            ],
                           );
                         },
                       ),
@@ -415,11 +439,7 @@ class _Tile extends StatelessWidget {
               child: SizedBox(
                 width: 44,
                 height: 44,
-                child: ItemThumb(
-                  itemId: itemId!,
-                  imageId: imageId,
-                  name: name,
-                ),
+                child: ItemThumb(itemId: itemId!, imageId: imageId, name: name),
               ),
             ),
       title: Text(

@@ -88,10 +88,12 @@ class MoneyInputFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue v) {
     final raw = v.text.replaceAll('.', '');
     final c = raw.indexOf(',');
-    final intPart = (c < 0 ? raw : raw.substring(0, c)).replaceAll(
+    var intPart = (c < 0 ? raw : raw.substring(0, c)).replaceAll(
       RegExp(r'\D'),
       '',
     );
+    // "0" + ketik 5 → "5", bukan "05".
+    intPart = intPart.replaceFirst(RegExp(r'^0+(?=\d)'), '');
     final frac = c < 0
         ? ''
         : ',${raw.substring(c + 1).replaceAll(RegExp(r'\D'), '')}';
