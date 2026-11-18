@@ -2272,4 +2272,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get itemsPhotoEmpty => 'No photos yet';
+
+  @override
+  String get opnameTitle => 'Quick Stock Count';
+
+  @override
+  String get opnameHint =>
+      'Enter the physical shelf stock. Leave uncounted items blank.';
+
+  @override
+  String get opnameSave => 'Save count';
+
+  @override
+  String opnameSystem(String qty, String unit) {
+    return 'System stock: $qty $unit';
+  }
+
+  @override
+  String opnameDone(int n) {
+    return '$n items adjusted';
+  }
+
+  @override
+  String get outboxTitle => 'Transactions waiting to sync';
+
+  @override
+  String get outboxSendNow => 'Send now';
+
+  @override
+  String get outboxRetry => 'Retry sending';
+
+  @override
+  String get outboxDelete => 'Delete';
+
+  @override
+  String outboxRejected(String code) {
+    return 'Rejected by server ($code) — needs review';
+  }
+
+  @override
+  String get outboxSavedOffline =>
+      'Saved OFFLINE. It will be sent automatically when the network is back; the official receipt number follows.';
+
+  @override
+  String get errorOutboxPending =>
+      'Some offline transactions have not been sent yet. Connect to the internet and wait for sync to finish before closing the shift.';
 }

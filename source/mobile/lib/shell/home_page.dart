@@ -1,5 +1,6 @@
 import '../core/settings/app_mode.dart';
 import '../core/settings/settings_button.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -10,6 +11,8 @@ import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/beach_background.dart';
 import '../core/widgets/ocean_background.dart';
+import '../features/pos/outbox.dart';
+import '../features/pos/outbox_button.dart';
 import '../features/pos/pos_controller.dart';
 import '../features/pos/petty_cash_page.dart';
 import '../features/pos/pos_repository.dart';
@@ -17,6 +20,7 @@ import '../features/pos/shift_dialog.dart';
 import '../features/ai/halloarus_page.dart';
 import '../features/manage/item_manage_page.dart';
 import '../features/manage/purchase_pages.dart';
+import '../features/manage/quick_opname_page.dart';
 import '../features/reports/erapay_settlement_page.dart';
 import '../features/reports/sales_report_page.dart';
 import '../l10n/gen/app_localizations.dart';
@@ -36,6 +40,9 @@ class HomePage extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final session = ref.watch(sessionProvider);
     if (session is! SessionSignedIn) return const SizedBox.shrink();
+    ref.watch(
+      offlineSyncProvider,
+    ); // kirim nota offline & segarkan cache katalog
     final p = session.profile;
     final name = p.user.name;
     final hour = DateTime.now().hour;
@@ -66,6 +73,7 @@ class HomePage extends ConsumerWidget {
           ),
         ),
         actions: [
+          const OutboxButton(),
           const ModeButton(),
           const SettingsButton(),
           IconButton(
@@ -154,6 +162,15 @@ class HomePage extends ConsumerWidget {
                                   Icons.local_shipping_outlined,
                                   l.menuPurchases,
                                   () => showPurchasesPage(context),
+                                ),
+                              // Opname cepat hanya di Mode Persediaan; endpoint butuh izin stock_opname approve.
+                              if (ref.watch(appModeProvider) ==
+                                      AppMode.inventory &&
+                                  p.permissions.can('stock_opname', 'approve'))
+                                _MenuEntry(
+                                  Icons.fact_check_outlined,
+                                  l.opnameTitle,
+                                  () => showQuickOpnamePage(context),
                                 ),
                               // Settlement hanya untuk admin dan hanya bila EraPay terpasang di toko ini.
                               if (p.permissions.can('sales_reports', 'view') &&

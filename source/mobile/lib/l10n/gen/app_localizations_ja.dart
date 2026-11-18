@@ -2215,4 +2215,48 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get itemsPhotoEmpty => '写真はまだありません';
+
+  @override
+  String get opnameTitle => 'クイック棚卸';
+
+  @override
+  String get opnameHint => '棚の実在庫を入力してください。数えない商品は空欄のままにします。';
+
+  @override
+  String get opnameSave => '棚卸を保存';
+
+  @override
+  String opnameSystem(String qty, String unit) {
+    return 'システム在庫: $qty $unit';
+  }
+
+  @override
+  String opnameDone(int n) {
+    return '$n件を調整しました';
+  }
+
+  @override
+  String get outboxTitle => '同期待ちの取引';
+
+  @override
+  String get outboxSendNow => '今すぐ送信';
+
+  @override
+  String get outboxRetry => '再送信';
+
+  @override
+  String get outboxDelete => '削除';
+
+  @override
+  String outboxRejected(String code) {
+    return 'サーバーに拒否されました（$code）— 要確認';
+  }
+
+  @override
+  String get outboxSavedOffline =>
+      'オフラインで保存しました。ネットワーク復旧後に自動送信され、正式な伝票番号は後で付きます。';
+
+  @override
+  String get errorOutboxPending =>
+      '未送信のオフライン取引があります。インターネットに接続し、同期完了後にシフトを締めてください。';
 }

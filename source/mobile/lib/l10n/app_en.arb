@@ -1192,5 +1192,20 @@
   "@itemsPhotoDeleteAsk": {"placeholders": {"name": {"type": "String"}}},
   "itemsPhotoDeleted": "Photo deleted",
   "itemsPhotoLimit": "Maximum 5 photos per item",
-  "itemsPhotoEmpty": "No photos yet"
+  "itemsPhotoEmpty": "No photos yet",
+  "opnameTitle": "Quick Stock Count",
+  "opnameHint": "Enter the physical shelf stock. Leave uncounted items blank.",
+  "opnameSave": "Save count",
+  "opnameSystem": "System stock: {qty} {unit}",
+  "@opnameSystem": {"placeholders": {"qty": {"type": "String"}, "unit": {"type": "String"}}},
+  "opnameDone": "{n} items adjusted",
+  "@opnameDone": {"placeholders": {"n": {"type": "int"}}},
+  "outboxTitle": "Transactions waiting to sync",
+  "outboxSendNow": "Send now",
+  "outboxRetry": "Retry sending",
+  "outboxDelete": "Delete",
+  "outboxRejected": "Rejected by server ({code}) — needs review",
+  "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
+  "outboxSavedOffline": "Saved OFFLINE. It will be sent automatically when the network is back; the official receipt number follows.",
+  "errorOutboxPending": "Some offline transactions have not been sent yet. Connect to the internet and wait for sync to finish before closing the shift."
 }

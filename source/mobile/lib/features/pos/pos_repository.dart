@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:decimal/decimal.dart';
@@ -7,22 +8,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
+import '../../core/offline/offline_box.dart';
 import '../../core/session/session_controller.dart';
 import '../reports/erapay_settlement_models.dart';
 import '../reports/sales_report_models.dart';
+import 'outbox.dart';
 import 'pos_models.dart';
 import 'sales_models.dart';
 import 'shift_models.dart';
 
-final posRepositoryProvider = Provider<PosRepository>(
-  (ref) => PosRepository(ref.watch(apiClientProvider)),
-);
+final posRepositoryProvider = Provider<PosRepository>((ref) {
+  final s = ref.watch(sessionProvider);
+  final scope = s is SessionSignedIn
+      ? '${s.profile.user.id}.${s.profile.outlet.id}'
+      : null;
+  return PosRepository(
+    ref.watch(apiClientProvider),
+    offlineBox: OfflineBox(scope),
+    enqueue: (q) => ref.read(outboxProvider.notifier).add(q),
+  );
+});
 
 /// Akses API kasir. Tenant/outlet/kasir selalu dari token; di sini hanya barang, qty, dan pembayaran.
 class PosRepository {
-  PosRepository(this._api);
+  PosRepository(
+    this._api, {
+    this.offlineBox = const OfflineBox(null),
+    Future<void> Function(QueuedSale)? enqueue,
+  }) : _enqueue = enqueue;
 
   final ApiClient _api;
+  final OfflineBox offlineBox;
+  final Future<void> Function(QueuedSale)? _enqueue;
+
+  // Cache katalog untuk mode offline: terisi dari pencarian yang sukses + warmCatalog().
+  static const _maxCached = 3000;
+  final _items = <String, Map<String, dynamic>>{};
+  bool _itemsLoaded = false;
+  String? _taxSeen;
 
   Dio get _dio => _api.dio;
 
@@ -47,6 +70,30 @@ class PosRepository {
     int limit = 30,
     String? categoryId,
     String? cursor,
+  }) async {
+    try {
+      final r = await _searchOnline(
+        q,
+        limit: limit,
+        categoryId: categoryId,
+        cursor: cursor,
+      );
+      _remember(r.items);
+      return r;
+    } on ApiError catch (e) {
+      // Offline: cari di cache perangkat (filter kategori & halaman lanjutan hanya online).
+      if (!e.isNetwork || categoryId != null || cursor != null) rethrow;
+      final c = await _cachedSearch(q, limit);
+      if (c == null) rethrow;
+      return (items: c, nextCursor: '');
+    }
+  }
+
+  Future<({List<PosItem> items, String nextCursor})> _searchOnline(
+    String q, {
+    int limit = 30,
+    String? categoryId,
+    String? cursor,
   }) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/items/search',
@@ -64,15 +111,102 @@ class PosRepository {
   });
 
   /// Kode/barcode persis (halaman pertama pencarian membawa `exact`).
-  Future<List<PosItem>> exact(String q) => _guard(() async {
-    final r = await _dio.get<Map<String, dynamic>>(
-      '/items/search',
-      queryParameters: {'q': q, 'limit': 5},
-    );
-    return (r.data!['exact'] as List? ?? const [])
-        .map((e) => PosItem.fromJson((e as Map).cast<String, dynamic>()))
-        .toList();
-  });
+  Future<List<PosItem>> exact(String q) async {
+    try {
+      final list = await _guard(() async {
+        final r = await _dio.get<Map<String, dynamic>>(
+          '/items/search',
+          queryParameters: {'q': q, 'limit': 5},
+        );
+        return (r.data!['exact'] as List? ?? const [])
+            .map((e) => PosItem.fromJson((e as Map).cast<String, dynamic>()))
+            .toList();
+      });
+      _remember(list);
+      return list;
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+      await _loadItems();
+      final k = q.trim().toLowerCase();
+      final hit = [
+        for (final j in _items.values)
+          if ('${j['barcode']}'.toLowerCase() == k ||
+              '${j['sku']}'.toLowerCase() == k)
+            PosItem.fromJson(j),
+      ];
+      if (hit.isEmpty && _items.isEmpty) rethrow;
+      return hit;
+    }
+  }
+
+  Future<void> _loadItems() async {
+    if (_itemsLoaded) return;
+    _itemsLoaded = true;
+    final raw = await offlineBox.read('items');
+    if (raw is List) {
+      for (final e in raw) {
+        final m = (e as Map).cast<String, dynamic>();
+        _items['${m['id']}'] = m;
+      }
+    }
+  }
+
+  /// Simpan ke cache; ditulis ke disk hanya bila ada barang baru (pencarian berulang tidak menulis ulang).
+  void _remember(List<PosItem> items, {bool persist = true}) {
+    if (offlineBox.scope == null || items.isEmpty) return;
+    var added = false;
+    for (final it in items) {
+      added |= !_items.containsKey(it.id);
+      _items.remove(
+        it.id,
+      ); // pindah ke ujung: yang paling lama tak terlihat dibuang lebih dulu
+      _items[it.id] = it.toJson();
+    }
+    while (_items.length > _maxCached) {
+      _items.remove(_items.keys.first);
+    }
+    if (added && persist) _persistItems();
+  }
+
+  void _persistItems() => unawaited(() async {
+    await _loadItems(); // gabungkan dulu dengan isi disk supaya tidak menimpanya
+    await offlineBox.write('items', _items.values.toList());
+  }());
+
+  Future<List<PosItem>?> _cachedSearch(String q, int limit) async {
+    await _loadItems();
+    if (_items.isEmpty) return null;
+    final words = q
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty);
+    final hit = [
+      for (final j in _items.values)
+        if (words.every(
+          (w) => '${j['name']} ${j['sku']} ${j['barcode']}'
+              .toLowerCase()
+              .contains(w),
+        ))
+          PosItem.fromJson(j),
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return hit.take(limit).toList();
+  }
+
+  /// Isi cache katalog penuh saat online (dipanggil berkala dari sinkron beranda). Galat apa pun diabaikan.
+  Future<void> warmCatalog() async {
+    try {
+      String? cursor;
+      for (var i = 0; i < _maxCached ~/ 100; i++) {
+        final r = await _searchOnline('', limit: 100, cursor: cursor);
+        _remember(r.items, persist: false);
+        if (r.nextCursor.isEmpty) break;
+        cursor = r.nextCursor;
+      }
+    } on ApiError {
+      // offline / server sibuk: coba lagi pada putaran berikutnya
+    }
+    _persistItems();
+  }
 
   /// Cari member aktif (nama/kode/telepon); kosong = daftar awal.
   Future<List<MemberInfo>> memberLookup(String q) => _guard(() async {
@@ -114,22 +248,82 @@ class PosRepository {
   };
 
   /// Pratinjau hitung server. Tidak pernah membawa PIN penyetuju.
-  Future<Quote> quote(SaleDraft d) => _guard(() async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/sales/quote',
-      data: _saleBody(
-        SaleDraft(
-          lines: d.lines,
-          applyTax: d.applyTax,
-          member: d.member,
-          redeemPoints: d.redeemPoints,
-          costs: d.costs,
-          salesperson: d.salesperson,
+  Future<Quote> quote(SaleDraft d) async {
+    try {
+      final q = await _guard(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/sales/quote',
+          data: _saleBody(
+            SaleDraft(
+              lines: d.lines,
+              applyTax: d.applyTax,
+              member: d.member,
+              redeemPoints: d.redeemPoints,
+              costs: d.costs,
+              salesperson: d.salesperson,
+            ),
+          ),
+        );
+        return Quote.fromJson(r.data!);
+      });
+      final pct = '${q.taxStorePct}|${q.taxGovPct}';
+      if (pct != _taxSeen) {
+        _taxSeen = pct;
+        unawaited(
+          offlineBox.write('tax', [
+            q.taxStorePct.toString(),
+            q.taxGovPct.toString(),
+          ]),
+        );
+      }
+      return q;
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+      return await _localQuote(d) ?? (throw e);
+    }
+  }
+
+  /// Perkiraan total saat offline: hanya nota sederhana (tanpa member/ubah harga/potongan); pajak dari tarif quote terakhir.
+  /// Server tetap menghitung ulang saat nota dikirim.
+  Future<Quote?> _localQuote(SaleDraft d) async {
+    if (d.lines.isEmpty ||
+        d.member != null ||
+        d.redeemPoints > 0 ||
+        d.lines.any((l) => l.adjusted)) {
+      return null;
+    }
+    var sPct = Decimal.zero, gPct = Decimal.zero;
+    if (d.applyTax) {
+      final t = await offlineBox.read('tax');
+      if (t is! List || t.length != 2) return null;
+      sPct = dec(t[0]);
+      gPct = dec(t[1]);
+    }
+    final lines = [
+      for (final l in d.lines)
+        QuoteLine(
+          unitPrice: l.item.price,
+          lineTotal: l.item.price * l.qty,
+          listPrice: l.item.price,
         ),
-      ),
+    ];
+    final sub = lines.fold(Decimal.zero, (a, l) => a + l.lineTotal);
+    final other = d.costs.fold(Decimal.zero, (a, c) => a + c.amount);
+    Decimal tax(Decimal pct) => (sub * pct).shift(-2).round(scale: 2);
+    final ts = tax(sPct), tg = tax(gPct);
+    return Quote(
+      lines: lines,
+      subtotal: sub,
+      discount: Decimal.zero,
+      taxStore: ts,
+      taxGov: tg,
+      taxStorePct: sPct,
+      taxGovPct: gPct,
+      otherCost: other,
+      total: sub + ts + tg + other,
+      redeemAmount: Decimal.zero,
     );
-    return Quote.fromJson(r.data!);
-  });
+  }
 
   /// Status QRIS EraPay toko ini; galat apa pun dianggap "tidak aktif" (metode tampil biasa, server tetap menolak nota tanpa charge lunas).
   Future<EraPayConfig> eraPayConfig() async {
@@ -164,13 +358,78 @@ class PosRepository {
     SaleDraft d, {
     required List<PaymentInput> payments,
     required String idempotencyKey,
-  }) => _guard(() async {
+  }) async {
     final body = _saleBody(d)
       ..['payments'] = [for (final p in payments) p.toJson()];
+    try {
+      return await _guard(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/sales/',
+          data: body,
+          options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+        );
+        return SaleResult.fromJson(r.data!);
+      });
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+      // Tanpa jaringan: simpan di antrean perangkat (kunci sama, jadi aman bila permintaan tadi sebenarnya sudah sampai).
+      return await _queueOffline(d, payments, body, idempotencyKey) ??
+          (throw e);
+    }
+  }
+
+  /// Offline hanya untuk nota tunai sederhana: tanpa member, kredit, ubah harga/potongan, PIN, atau QRIS.
+  Future<SaleResult?> _queueOffline(
+    SaleDraft d,
+    List<PaymentInput> payments,
+    Map<String, dynamic> body,
+    String key,
+  ) async {
+    final enqueue = _enqueue;
+    if (enqueue == null ||
+        d.credit ||
+        d.forceEraPay ||
+        d.approval != null ||
+        payments.isEmpty) {
+      return null;
+    }
+    final methods = await _cachedMethods();
+    final cash = {
+      for (final m in methods ?? const <PayMethodInfo>[])
+        if (m.isCash) m.id,
+    };
+    if (!payments.every((p) => cash.contains(p.methodId))) return null;
+    final q = await _localQuote(d);
+    if (q == null) return null;
+    final paid = payments.fold(Decimal.zero, (a, p) => a + p.amount);
+    if (paid < q.total) return null;
+    final now = DateTime.now();
+    body['offline'] = true;
+    body['occurred_at'] = now.toUtc().toIso8601String();
+    final sale = QueuedSale(
+      key: key,
+      body: body,
+      at: now,
+      total: decToApi(q.total, scale: 2),
+    );
+    await enqueue(sale);
+    return SaleResult(
+      id: 'offline:$key',
+      docNo: sale.docNo,
+      total: q.total,
+      change: paid - q.total,
+      surcharge: Decimal.zero,
+      receivable: Decimal.zero,
+      offline: true,
+    );
+  }
+
+  /// Kirim satu nota antrean ke server (kunci idempotensi menjamin tidak ganda).
+  Future<SaleResult> sendQueued(QueuedSale q) => _guard(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/sales/',
-      data: body,
-      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+      data: q.body,
+      options: Options(headers: {'Idempotency-Key': q.key}),
     );
     return SaleResult.fromJson(r.data!);
   });
@@ -231,21 +490,47 @@ class PosRepository {
         .toList();
   });
 
-  Future<List<PayMethodInfo>> paymentMethods() => _guard(() async {
-    final r = await _dio.get<Map<String, dynamic>>(
-      '/payment-methods/lookup',
-      queryParameters: {'for': 'sale'},
-    );
-    return (r.data!['data'] as List? ?? const [])
-        .map((e) => PayMethodInfo.fromJson((e as Map).cast<String, dynamic>()))
-        .toList();
-  });
+  Future<List<PayMethodInfo>> paymentMethods() async {
+    try {
+      final raw = await _guard(() async {
+        final r = await _dio.get<Map<String, dynamic>>(
+          '/payment-methods/lookup',
+          queryParameters: {'for': 'sale'},
+        );
+        return r.data!['data'] as List? ?? const [];
+      });
+      unawaited(offlineBox.write('methods', raw));
+      return _methods(raw);
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+      return await _cachedMethods() ?? (throw e);
+    }
+  }
 
-  Future<ShiftInfo?> currentShift() => _guard(() async {
-    final r = await _dio.get<Map<String, dynamic>>('/shifts/current');
-    final s = r.data!['shift'];
-    return s is Map ? ShiftInfo.fromJson(s.cast<String, dynamic>()) : null;
-  });
+  List<PayMethodInfo> _methods(List raw) => raw
+      .map((e) => PayMethodInfo.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
+
+  Future<List<PayMethodInfo>?> _cachedMethods() async {
+    final raw = await offlineBox.read('methods');
+    return raw is List ? _methods(raw) : null;
+  }
+
+  Future<ShiftInfo?> currentShift() async {
+    try {
+      final s = await _guard(() async {
+        final r = await _dio.get<Map<String, dynamic>>('/shifts/current');
+        return r.data!['shift'];
+      });
+      unawaited(offlineBox.write('shift', s is Map ? s : null));
+      return s is Map ? ShiftInfo.fromJson(s.cast<String, dynamic>()) : null;
+    } on ApiError catch (e) {
+      // Offline: shift terakhir yang diketahui dianggap masih terbuka (nota offline dicek server saat dikirim).
+      final c = e.isNetwork ? await offlineBox.read('shift') : null;
+      if (c is Map) return ShiftInfo.fromJson(c.cast<String, dynamic>());
+      rethrow;
+    }
+  }
 
   /// Gambar utama barang (JPEG kecil). Butuh token, jadi diunduh lewat dio.
   Future<Uint8List> itemThumb(String itemId, String imageId) =>
@@ -285,6 +570,7 @@ class PosRepository {
       },
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
+    unawaited(offlineBox.write('shift', null));
     return ShiftRecap.fromJson(r.data!);
   });
 
@@ -494,6 +780,7 @@ class PosRepository {
       '/shifts/open',
       data: {'opening_cash': openingCash},
     );
+    unawaited(offlineBox.write('shift', r.data));
     return ShiftInfo.fromJson(r.data!);
   });
 }

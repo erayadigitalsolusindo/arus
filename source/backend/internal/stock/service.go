@@ -66,6 +66,8 @@ type Movement struct {
 	RefID    uuid.UUID // dokumen sumber; uuid.Nil = tanpa dokumen
 	Note     string
 	ActorID  uuid.UUID // uuid.Nil = sistem
+	// ForceNegative: izinkan bucket display minus (nota offline yang barangnya sudah terlanjur terjual).
+	ForceNegative bool
 }
 
 // Result = saldo bucket setelah movement dan id baris ledger.
@@ -133,7 +135,7 @@ func Apply(ctx context.Context, tx pgx.Tx, m Movement) (Result, error) {
 		return Result{}, ErrNotStocked
 	}
 	var bal decimal.Decimal
-	if m.Delta.IsPositive() || (info.AllowNegativeStock && m.Bucket == BucketDisplay) {
+	if m.Delta.IsPositive() || ((info.AllowNegativeStock || m.ForceNegative) && m.Bucket == BucketDisplay) {
 		bal, err = q.StockAddDelta(ctx, gen.StockAddDeltaParams{TenantID: m.TenantID, OutletID: m.OutletID, ItemID: m.ItemID, Bucket: m.Bucket, Delta: m.Delta})
 	} else {
 		bal, err = q.StockSubtractGuarded(ctx, gen.StockSubtractGuardedParams{TenantID: m.TenantID, OutletID: m.OutletID, ItemID: m.ItemID, Bucket: m.Bucket, Delta: m.Delta})

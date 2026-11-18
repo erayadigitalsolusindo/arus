@@ -38,6 +38,7 @@ import (
 	"aciraba/internal/platform/db"
 	"aciraba/internal/platform/sanitize"
 	"aciraba/internal/receivable"
+	"aciraba/internal/shift"
 	"aciraba/internal/stock"
 	"aciraba/internal/voucher"
 	"aciraba/internal/wallet"
@@ -83,6 +84,8 @@ const (
 const (
 	maxRedeem   = 10_000_000
 	maxVouchers = 5
+	// maxOfflineAge = selisih terjauh waktu transaksi offline dari saat sinkron.
+	maxOfflineAge = 7 * 24 * time.Hour
 )
 
 var (
@@ -173,6 +176,10 @@ type Request struct {
 	// `erapay_pending` ("perlu dicek di EraPay") dan disimpan hanya dengan persetujuan PIN penyetuju berizin
 	// qris_force.approve; penjadwal rekonsiliasi akan memverifikasi ke EraPay dan membatalkan nota otomatis bila tak lunas.
 	ForceEraPay bool `json:"force_erapay"`
+	// Nota yang dibuat kasir saat offline lalu disinkronkan: OccurredAt = waktu transaksi di perangkat (jadi created_at,
+	// sehingga masuk shift & laporan yang benar); Offline mengizinkan stok display minus dan menandai nota.
+	OccurredAt *time.Time `json:"occurred_at"`
+	Offline    bool       `json:"offline"`
 }
 
 // ---- Hasil ----
@@ -375,6 +382,8 @@ type norm struct {
 	vouchers    []string // kode kupon (HURUF BESAR, tanpa duplikat)
 	credit      bool
 	forceEraPay bool
+	occurredAt  *time.Time
+	offline     bool
 	// keep (hanya edit nota): baris nota asli per item|satuan. Baris yang cocok mempertahankan harga, harga normal, dan HPP
 	// saat transaksi awal (tidak dihitung ulang dari master); hanya baris baru yang memakai harga/HPP sekarang.
 	keep map[string][]gen.SalesLinesRow
@@ -382,7 +391,14 @@ type norm struct {
 
 func normalize(in Request) (norm, FieldErrors) {
 	f := FieldErrors{}
-	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints, credit: in.Credit, forceEraPay: in.ForceEraPay}
+	n := norm{applyTax: in.ApplyTax, memberID: in.MemberID, redeem: in.RedeemPoints, credit: in.Credit, forceEraPay: in.ForceEraPay, offline: in.Offline}
+	if in.Offline && in.OccurredAt != nil {
+		now := time.Now()
+		if in.OccurredAt.After(now.Add(5*time.Minute)) || in.OccurredAt.Before(now.Add(-maxOfflineAge)) {
+			f["occurred_at"] = sanitize.Invalid
+		}
+		n.occurredAt = in.OccurredAt
+	}
 	if in.MemberID != nil && *in.MemberID == uuid.Nil {
 		n.memberID = nil
 	}
@@ -798,12 +814,12 @@ func resolvePayments(ctx context.Context, q *gen.Queries, a authz.Actor, n norm)
 			var r gen.SalesPaymentMethodByIDRow
 			r, err = q.SalesPaymentMethodByID(ctx, gen.SalesPaymentMethodByIDParams{TenantID: a.TenantID, ID: *p.methodID})
 			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
-				sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
+			sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
 		} else {
 			var r gen.SalesPaymentMethodByKindRow
 			r, err = q.SalesPaymentMethodByKind(ctx, gen.SalesPaymentMethodByKindParams{TenantID: a.TenantID, Kind: p.method})
 			id, name, kind, active, feePct, feeFlat, bearer = r.ID, r.Name, r.Kind, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer
-				sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
+			sLimit, sFlat = r.SmallTxLimit, r.SmallTxFlat
 		}
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -930,6 +946,17 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 	if ed == nil && s.shiftGuard != nil {
 		if err := s.shiftGuard(ctx, tx, a); err != nil {
 			return err
+		}
+		if n.occurredAt != nil {
+			// Waktu offline harus jatuh di dalam shift yang sedang terbuka (rekap shift dihitung dari created_at).
+			var ok bool
+			if err := tx.QueryRow(ctx, `SELECT opened_at <= $4 FROM cash_shifts WHERE tenant_id = $1 AND outlet_id = $2 AND user_id = $3 AND status = 'open'`,
+				a.TenantID, a.OutletID, a.UserID, *n.occurredAt).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok {
+				return shift.ErrRequired
+			}
 		}
 	}
 
@@ -1103,6 +1130,13 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		})
 		hdr = gen.SalesInsertRow{ID: r.ID, CreatedAt: r.CreatedAt}
 	}
+	if err == nil && ed == nil && n.offline {
+		if n.occurredAt == nil {
+			t := time.Now()
+			n.occurredAt = &t
+		}
+		_, err = tx.Exec(ctx, `UPDATE sales SET offline = true, created_at = $3 WHERE tenant_id = $1 AND id = $2`, a.TenantID, hdr.ID, *n.occurredAt)
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Pengiriman ganda bersamaan: yang lain menang. Batalkan transaksi ini (nomor tidak terpakai) lalu kembalikan nota itu.
 		ex, e2 := q.SalesByIdemKey(ctx, gen.SalesByIdemKeyParams{TenantID: a.TenantID, IdempotencyKey: key})
@@ -1138,7 +1172,7 @@ func (s *Service) save(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, ke
 		}
 		if l.item.row.Kind == "goods" {
 			moves = append(moves, stock.Movement{TenantID: a.TenantID, OutletID: a.OutletID, ItemID: l.item.row.ID,
-				Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID})
+				Bucket: stock.BucketDisplay, Delta: l.baseQty.Neg(), RefType: stock.RefSale, RefID: hdr.ID, Note: docNo, ActorID: a.UserID, ForceNegative: n.offline})
 		}
 	}
 	if t.receivable.IsPositive() {

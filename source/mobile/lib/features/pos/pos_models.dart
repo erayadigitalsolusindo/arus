@@ -464,7 +464,11 @@ class SaleResult {
     required this.receivable,
     this.dueDate,
     this.erapayPending = false,
+    this.offline = false,
   });
+
+  /// Nota dibuat tanpa jaringan dan masih di antrean perangkat (nomor sementara, belum ada di server).
+  final bool offline;
 
   final String id;
   final String docNo;

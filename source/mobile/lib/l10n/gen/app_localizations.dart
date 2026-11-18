@@ -4125,6 +4125,78 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Belum ada foto'**
   String get itemsPhotoEmpty;
+
+  /// No description provided for @opnameTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok Opname Cepat'**
+  String get opnameTitle;
+
+  /// No description provided for @opnameHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Isi stok fisik di rak. Kosongkan barang yang tidak dihitung.'**
+  String get opnameHint;
+
+  /// No description provided for @opnameSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan opname'**
+  String get opnameSave;
+
+  /// No description provided for @opnameSystem.
+  ///
+  /// In id, this message translates to:
+  /// **'Stok sistem: {qty} {unit}'**
+  String opnameSystem(String qty, String unit);
+
+  /// No description provided for @opnameDone.
+  ///
+  /// In id, this message translates to:
+  /// **'{n} barang disesuaikan'**
+  String opnameDone(int n);
+
+  /// No description provided for @outboxTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi menunggu sinkron'**
+  String get outboxTitle;
+
+  /// No description provided for @outboxSendNow.
+  ///
+  /// In id, this message translates to:
+  /// **'Kirim sekarang'**
+  String get outboxSendNow;
+
+  /// No description provided for @outboxRetry.
+  ///
+  /// In id, this message translates to:
+  /// **'Coba kirim ulang'**
+  String get outboxRetry;
+
+  /// No description provided for @outboxDelete.
+  ///
+  /// In id, this message translates to:
+  /// **'Hapus'**
+  String get outboxDelete;
+
+  /// No description provided for @outboxRejected.
+  ///
+  /// In id, this message translates to:
+  /// **'Ditolak server ({code}) — perlu ditinjau'**
+  String outboxRejected(String code);
+
+  /// No description provided for @outboxSavedOffline.
+  ///
+  /// In id, this message translates to:
+  /// **'Tersimpan OFFLINE. Dikirim otomatis saat jaringan pulih; nomor nota resmi menyusul.'**
+  String get outboxSavedOffline;
+
+  /// No description provided for @errorOutboxPending.
+  ///
+  /// In id, this message translates to:
+  /// **'Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift.'**
+  String get errorOutboxPending;
 }
 
 class _AppLocalizationsDelegate

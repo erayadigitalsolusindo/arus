@@ -1304,5 +1304,20 @@
   "@itemsPhotoDeleteAsk": {"placeholders": {"name": {"type": "String"}}},
   "itemsPhotoDeleted": "写真を削除しました",
   "itemsPhotoLimit": "1商品につき最大5枚です",
-  "itemsPhotoEmpty": "写真はまだありません"
+  "itemsPhotoEmpty": "写真はまだありません",
+  "opnameTitle": "クイック棚卸",
+  "opnameHint": "棚の実在庫を入力してください。数えない商品は空欄のままにします。",
+  "opnameSave": "棚卸を保存",
+  "opnameSystem": "システム在庫: {qty} {unit}",
+  "@opnameSystem": {"placeholders": {"qty": {"type": "String"}, "unit": {"type": "String"}}},
+  "opnameDone": "{n}件を調整しました",
+  "@opnameDone": {"placeholders": {"n": {"type": "int"}}},
+  "outboxTitle": "同期待ちの取引",
+  "outboxSendNow": "今すぐ送信",
+  "outboxRetry": "再送信",
+  "outboxDelete": "削除",
+  "outboxRejected": "サーバーに拒否されました（{code}）— 要確認",
+  "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
+  "outboxSavedOffline": "オフラインで保存しました。ネットワーク復旧後に自動送信され、正式な伝票番号は後で付きます。",
+  "errorOutboxPending": "未送信のオフライン取引があります。インターネットに接続し、同期完了後にシフトを締めてください。"
 }

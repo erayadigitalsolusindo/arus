@@ -30,6 +30,7 @@ import 'member_picker.dart';
 import 'pay_sheet.dart';
 import 'pending_controller.dart';
 import 'pending_sheet.dart';
+import 'outbox_button.dart';
 import 'pos_controller.dart';
 import 'pos_models.dart';
 import 'pos_repository.dart';
@@ -119,7 +120,7 @@ class _PosPageState extends ConsumerState<PosPage> {
     if (result == null || !mounted) return;
     // Stok berubah di server: muat ulang katalog supaya angka stok di kisi tidak basi.
     ref.read(catalogVersionProvider.notifier).bump();
-    unawaited(_autoPrint(result));
+    if (!result.offline) unawaited(_autoPrint(result));
     await _showSuccess(result);
   }
 
@@ -192,6 +193,14 @@ class _PosPageState extends ConsumerState<PosPage> {
                 ),
               ),
             ],
+            if (r.offline) ...[
+              const SizedBox(height: 10),
+              Text(
+                l.outboxSavedOffline,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.pal.warningText),
+              ),
+            ],
             if (r.erapayPending) ...[
               const SizedBox(height: 10),
               Text(
@@ -216,7 +225,7 @@ class _PosPageState extends ConsumerState<PosPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PrintReceiptButton(saleId: r.id),
+              if (!r.offline) PrintReceiptButton(saleId: r.id),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(),
@@ -314,7 +323,11 @@ class _PosPageState extends ConsumerState<PosPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        actions: [const ModeButton(), const SettingsButton()],
+        actions: [
+          const OutboxButton(),
+          const ModeButton(),
+          const SettingsButton(),
+        ],
       ),
       body: wide
           ? Row(

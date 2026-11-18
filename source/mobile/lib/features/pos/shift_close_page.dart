@@ -10,6 +10,7 @@ import '../../core/money/money.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'pos_controller.dart';
+import 'outbox.dart';
 import 'pos_repository.dart';
 import 'shift_models.dart';
 
@@ -151,6 +152,11 @@ class _CloseShiftPageState extends ConsumerState<_CloseShiftPage> {
       _notice = false;
     });
     try {
+      // Nota offline harus terkirim dulu supaya masuk rekap shift ini.
+      await ref.read(outboxProvider.notifier).flush();
+      if (ref.read(outboxProvider.notifier).pendingCount > 0) {
+        throw ApiError(code: 'OUTBOX_PENDING');
+      }
       final res = await ref
           .read(posRepositoryProvider)
           .closeShift(

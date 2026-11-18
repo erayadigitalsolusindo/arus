@@ -1280,5 +1280,20 @@
   "@itemsPhotoDeleteAsk": {"placeholders": {"name": {"type": "String"}}},
   "itemsPhotoDeleted": "Foto dihapus",
   "itemsPhotoLimit": "Maksimal 5 foto per barang",
-  "itemsPhotoEmpty": "Belum ada foto"
+  "itemsPhotoEmpty": "Belum ada foto",
+  "opnameTitle": "Stok Opname Cepat",
+  "opnameHint": "Isi stok fisik di rak. Kosongkan barang yang tidak dihitung.",
+  "opnameSave": "Simpan opname",
+  "opnameSystem": "Stok sistem: {qty} {unit}",
+  "@opnameSystem": {"placeholders": {"qty": {"type": "String"}, "unit": {"type": "String"}}},
+  "opnameDone": "{n} barang disesuaikan",
+  "@opnameDone": {"placeholders": {"n": {"type": "int"}}},
+  "outboxTitle": "Transaksi menunggu sinkron",
+  "outboxSendNow": "Kirim sekarang",
+  "outboxRetry": "Coba kirim ulang",
+  "outboxDelete": "Hapus",
+  "outboxRejected": "Ditolak server ({code}) — perlu ditinjau",
+  "@outboxRejected": {"placeholders": {"code": {"type": "String"}}},
+  "outboxSavedOffline": "Tersimpan OFFLINE. Dikirim otomatis saat jaringan pulih; nomor nota resmi menyusul.",
+  "errorOutboxPending": "Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift."
 }

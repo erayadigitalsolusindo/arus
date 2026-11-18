@@ -109,6 +109,8 @@ class ApiError implements Exception {
         return l.errorUnavailable;
       case 'SESSION_INVALID':
         return l.errorSessionInvalid;
+      case 'OUTBOX_PENDING':
+        return l.errorOutboxPending;
       case 'SHIFT_REQUIRED':
         return l.errorShiftRequired;
       case 'STOCK_INSUFFICIENT':

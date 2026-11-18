@@ -2273,4 +2273,49 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get itemsPhotoEmpty => 'Belum ada foto';
+
+  @override
+  String get opnameTitle => 'Stok Opname Cepat';
+
+  @override
+  String get opnameHint =>
+      'Isi stok fisik di rak. Kosongkan barang yang tidak dihitung.';
+
+  @override
+  String get opnameSave => 'Simpan opname';
+
+  @override
+  String opnameSystem(String qty, String unit) {
+    return 'Stok sistem: $qty $unit';
+  }
+
+  @override
+  String opnameDone(int n) {
+    return '$n barang disesuaikan';
+  }
+
+  @override
+  String get outboxTitle => 'Transaksi menunggu sinkron';
+
+  @override
+  String get outboxSendNow => 'Kirim sekarang';
+
+  @override
+  String get outboxRetry => 'Coba kirim ulang';
+
+  @override
+  String get outboxDelete => 'Hapus';
+
+  @override
+  String outboxRejected(String code) {
+    return 'Ditolak server ($code) — perlu ditinjau';
+  }
+
+  @override
+  String get outboxSavedOffline =>
+      'Tersimpan OFFLINE. Dikirim otomatis saat jaringan pulih; nomor nota resmi menyusul.';
+
+  @override
+  String get errorOutboxPending =>
+      'Masih ada transaksi offline yang belum terkirim. Sambungkan internet dan tunggu sinkron selesai sebelum menutup shift.';
 }
