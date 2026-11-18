@@ -53,6 +53,20 @@
   let eraAgreed = $state(false);
   let eraBusy = $state(false);
   let eraDone = $state(false);
+  let eraMerchant = $state(''); // status merchant di ERAPAY; selain 'approved' = form ACC tarif muncul
+  // Tarif ACC (input teks: persen untuk bps, rupiah untuk nominal). Tanpa nilai bawaan: keputusan bisnis.
+  let feeMdrPct = $state('');
+  let feePlatPct = $state('');
+  let feeMdrFix = $state('');
+  let feePlatFix = $state('');
+  let feeFlatUpTo = $state('');
+  let feeFlatFee = $state('');
+  const num = (v: string) => (v.trim() === '' ? 0 : Number(v.replace(',', '.')));
+  const needApprove = $derived(eraMerchant !== '' && eraMerchant !== 'approved');
+  const feesOk = $derived.by(() => {
+    const [a, b, c, d, e, f] = [feeMdrPct, feePlatPct, feeMdrFix, feePlatFix, feeFlatUpTo, feeFlatFee].map(num);
+    return [a, b, c, d, e, f].every((n) => Number.isFinite(n) && n >= 0) && [c, d, e, f].every(Number.isInteger) && feeMdrPct + feeMdrFix !== '' && feePlatPct + feePlatFix !== '' && (e > 0) === (f > 0);
+  });
   let eraKeyHint = $state(''); // '' = key belum dipasang
   let eraKey = $state('');
   let eraKeyBusy = $state(false);
@@ -61,6 +75,7 @@
     try {
       const st = await platformApi.erapayStatus(id);
       eraActive = st.active;
+      eraMerchant = st.merchant_status ?? '';
       eraKeyHint = st.key_configured ? st.key_hint : '';
     } catch {
       eraActive = null;
@@ -69,15 +84,17 @@
   let eraPass = $state('');
   let eraCode = $state('');
   const eraStepOk = $derived(eraPass.length > 0 && /^\d{6}$/.test(eraCode.trim()));
+  const feeBody = () => ({ mdr_bps: Math.round(num(feeMdrPct) * 100), platform_bps: Math.round(num(feePlatPct) * 100), mdr_fixed: num(feeMdrFix), platform_fixed: num(feePlatFix), mdr_flat_up_to: num(feeFlatUpTo), mdr_flat_fee: num(feeFlatFee) });
   // Satu jalur untuk key otomatis (apiKey kosong) dan key manual; password + TOTP baru diminta server.
   async function saveEraKey(auto: boolean) {
-    if (eraKeyBusy || !eraStepOk || (!auto && !eraKey.trim())) return;
+    if (eraKeyBusy || !eraStepOk || (!auto && !eraKey.trim()) || (auto && needApprove && !feesOk)) return;
     eraKeyBusy = true;
     error = '';
     eraKeySaved = false;
     try {
-      const r = auto ? await platformApi.erapayIssueKey(id, eraPass, eraCode.trim()) : await platformApi.erapaySaveKey(id, eraKey.trim(), eraPass, eraCode.trim());
+      const r = auto ? await platformApi.erapayIssueKey(id, eraPass, eraCode.trim(), needApprove ? feeBody() : undefined) : await platformApi.erapaySaveKey(id, eraKey.trim(), eraPass, eraCode.trim());
       eraKeyHint = r.key_hint;
+      if (auto) eraMerchant = 'approved';
       eraKey = '';
       eraKeySaved = true;
       await loadAudit();
@@ -569,7 +586,21 @@
               <input class="field-control" type="password" autocomplete="current-password" placeholder={t('platform.tenant.erapayPassword')} bind:value={eraPass} />
               <input class="field-control font-mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder={t('platform.tenant.erapayTotp')} bind:value={eraCode} />
             </div>
-            <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!eraStepOk || eraKeyBusy} onclick={() => saveEraKey(true)}>{eraKeyBusy ? t('platform.tenant.erapayBusy') : t('platform.tenant.erapayKeyAuto')}</button>
+            {#if needApprove}
+              <div class="space-y-2 rounded-lg border border-[var(--border-subtle)] p-3">
+                <p class="text-[12px] font-semibold text-[var(--text-secondary)]">{t('platform.tenant.erapayFeesTitle')}</p>
+                <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayFeesHelp')}</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <input class="field-control" inputmode="decimal" placeholder={t('platform.tenant.erapayFeeMdrPct')} bind:value={feeMdrPct} />
+                  <input class="field-control" inputmode="numeric" placeholder={t('platform.tenant.erapayFeeMdrFix')} bind:value={feeMdrFix} />
+                  <input class="field-control" inputmode="decimal" placeholder={t('platform.tenant.erapayFeePlatPct')} bind:value={feePlatPct} />
+                  <input class="field-control" inputmode="numeric" placeholder={t('platform.tenant.erapayFeePlatFix')} bind:value={feePlatFix} />
+                  <input class="field-control" inputmode="numeric" placeholder={t('platform.tenant.erapayFeeFlatUpTo')} bind:value={feeFlatUpTo} />
+                  <input class="field-control" inputmode="numeric" placeholder={t('platform.tenant.erapayFeeFlatFee')} bind:value={feeFlatFee} />
+                </div>
+              </div>
+            {/if}
+            <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!eraStepOk || eraKeyBusy || (needApprove && !feesOk)} onclick={() => saveEraKey(true)}>{eraKeyBusy ? t('platform.tenant.erapayBusy') : needApprove ? t('platform.tenant.erapayApproveAndKey') : t('platform.tenant.erapayKeyAuto')}</button>
             <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayKeyAutoHint')}</p>
             <form class="flex flex-wrap gap-2" onsubmit={(e) => { e.preventDefault(); void saveEraKey(false); }}>
               <input class="field-control min-w-0 flex-1 font-mono" type="password" autocomplete="off" placeholder={t('platform.tenant.erapayKeyPlaceholder')} bind:value={eraKey} oninput={() => (eraKeySaved = false)} />

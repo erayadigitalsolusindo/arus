@@ -44,6 +44,8 @@ var (
 	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
 	ErrEcosystemSSO           = errors.New("masuk otomatis ke EraPay tidak tersedia untuk akun ini")
 	ErrMerchantNotApproved    = errors.New("merchant EraPay belum disetujui EraPay")
+	ErrBadFees                = errors.New("tarif persetujuan EraPay tidak valid")
+	ErrMerchantState          = errors.New("merchant EraPay tidak bisa disetujui dari statusnya sekarang")
 	ErrKeyExists              = errors.New("API key otomatis untuk toko ini sudah ada di EraPay")
 	ErrBadKey                 = errors.New("format API key EraPay tidak valid")
 	ErrKeyScope               = errors.New("API key EraPay harus punya izin payment:create dan payment:read")

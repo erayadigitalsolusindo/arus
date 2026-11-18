@@ -92,6 +92,8 @@ export type ExtCredential = {
   rotating: boolean;
   created_at: string;
 };
+// bps: 100 = 1%; fixed dalam rupiah bulat; flat: transaksi <= flat_up_to dikenai MDR flat flat_fee.
+export type ErapayFees = { mdr_bps: number; platform_bps: number; mdr_fixed: number; platform_fixed: number; mdr_flat_up_to: number; mdr_flat_fee: number };
 export type ExtCreated = { id: string; key_id: string; secret: string };
 export type ExtActors = { users: { id: string; name: string; email: string; role: string }[]; outlets: { id: string; name: string }[] };
 export type ExtBrand = {
@@ -280,10 +282,10 @@ export const platformApi = {
   cancelDelete: (id: string) => papi<void>(`/platform/tenants/${id}/deletion`, { method: 'DELETE' }),
   /** Hapus permanen sekarang (hanya bila jatuh tempo); `confirmName` harus sama persis dengan nama tenant. */
   purgeTenant: (id: string, confirmName: string) => papi<{ deleted: boolean }>(`/platform/tenants/${id}/purge`, { method: 'POST', body: json({ confirm_name: confirmName }) }),
-  erapayStatus: (id: string) => papi<{ active: boolean; key_configured: boolean; key_hint: string; environment: string }>(`/platform/tenants/${id}/erapay`),
+  erapayStatus: (id: string) => papi<{ active: boolean; merchant_status?: string; key_configured: boolean; key_hint: string; environment: string }>(`/platform/tenants/${id}/erapay`),
   erapayActivate: (id: string) => papi<{ active: boolean }>(`/platform/tenants/${id}/erapay`, { method: 'POST', body: json({ owner_agreed: true }) }),
   erapaySaveKey: (id: string, apiKey: string, password: string, code: string) => papi<{ key_configured: boolean; key_hint: string }>(`/platform/tenants/${id}/erapay/key`, { method: 'PUT', body: json({ api_key: apiKey, password, code }) }),
-  erapayIssueKey: (id: string, password: string, code: string) => papi<{ key_configured: boolean; key_hint: string }>(`/platform/tenants/${id}/erapay/key/issue`, { method: 'POST', body: json({ password, code }) }),
+  erapayIssueKey: (id: string, password: string, code: string, fees?: ErapayFees) => papi<{ key_configured: boolean; key_hint: string }>(`/platform/tenants/${id}/erapay/key/issue`, { method: 'POST', body: json({ password, code, fees }) }),
   setTenantActive: (id: string, active: boolean) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ active }) }),
   tenantAudit: (id: string, cursor = '') =>
     papi<{ items: TenantAuditItem[]; next_cursor: string }>(`/platform/tenants/${id}/audit?${new URLSearchParams({ limit: '30', ...(cursor ? { cursor } : {}) })}`),

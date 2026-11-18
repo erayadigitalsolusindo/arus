@@ -141,6 +141,8 @@ const errors: Messages['errors'] = {
   ERAPAY_TERMS_REQUIRED: '続行するにはEraPayの規約に同意してください。',
   ERAPAY_ECOSYSTEM_AMBIGUOUS: '一致するEraPayマーチャントが複数あります。正しいテナントをリンクするにはEraPayサポートに連絡してください。',
   MERCHANT_NOT_APPROVED: 'マーチャントはERAPAYで未承認です。承認後にキーを作成できます。',
+  ERAPAY_FEES_INVALID: '料金が正しくありません。割合と金額を確認してください（整数、少額取引ルールは両方の値が必要）。',
+  ERAPAY_STATE: '現在のステータスでは承認できません（却下・停止中など）。ERAPAYのダッシュボードで対応してください。',
   API_KEY_EXISTS: '自動キーは既にERAPAYに存在します。ERAPAYのダッシュボードで取り消し・更新するか、手動で貼り付けてください。',
   ERAPAY_NOT_LINKED: 'このテナントはERAPAY未登録です。',
   OWNER_EMAIL_UNVERIFIED: '店舗オーナーのメールアドレスが未確認です。先にオーナーに確認してもらってください。',

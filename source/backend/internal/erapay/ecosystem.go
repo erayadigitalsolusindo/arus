@@ -22,7 +22,7 @@ type ProvisioningClient struct {
 	baseURL  string
 	token    string
 	keyToken string // token terpisah khusus penerbitan API key; kosong = fitur mati
-	http    *http.Client
+	http     *http.Client
 }
 
 type remoteTenantLink struct {
@@ -296,12 +296,78 @@ func (c *ProvisioningClient) IssueKey(ctx context.Context, tenantID uuid.UUID) (
 	return out.Secret, nil
 }
 
+// Fees: tarif yang ditetapkan saat merchant disetujui (bps: 100 = 1%; fixed: rupiah bulat).
+// Aturan transaksi kecil: transaksi <= FlatUpTo dikenai MDR flat FlatFee (0/0 = tidak dipakai).
+type Fees struct {
+	MDRBPS        int   `json:"mdr_bps"`
+	PlatformBPS   int   `json:"platform_bps"`
+	MDRFixed      int64 `json:"mdr_fixed"`
+	PlatformFixed int64 `json:"platform_fixed"`
+	MDRFlatUpTo   int64 `json:"mdr_flat_up_to"`
+	MDRFlatFee    int64 `json:"mdr_flat_fee"`
+}
+
+// Approve meminta ERAPAY menyetujui merchant tertaut (cek email/KYC dilewati ERAPAY untuk jalur ini).
+func (c *ProvisioningClient) Approve(ctx context.Context, tenantID uuid.UUID, f Fees, adminName string) error {
+	if c.keyToken == "" {
+		return ErrEcosystemNotConfigured
+	}
+	body, _ := json.Marshal(struct {
+		Fees
+		Admin string `json:"admin"`
+	}{f, adminName})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/approve", c.baseURL, tenantID), bytes.NewReader(body))
+	if err != nil {
+		return ErrUnavailable
+	}
+	req.Header.Set("Authorization", "Bearer "+c.keyToken)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "approve", "err", err)
+		return ErrUnavailable
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+	var envelope struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	_ = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&envelope)
+	switch {
+	case resp.StatusCode == http.StatusNotFound:
+		return ErrEcosystemSSO
+	case envelope.Error.Code == "INVALID_STATE":
+		return ErrMerchantState
+	case envelope.Error.Code == "VALIDATION_ERROR":
+		return ErrBadFees
+	}
+	logRemote("approve", resp)
+	return ErrUnavailable
+}
+
 // IssueKeyForTenant: jalur Platform Admin (otorisasi + verifikasi ulang 2FA oleh pemanggil). Key diterbitkan ERAPAY lalu
-// langsung dipasang untuk tenant; tidak pernah dikembalikan ke pemanggil.
+// langsung dipasang untuk tenant; tidak pernah dikembalikan ke pemanggil. fees != nil: merchant yang belum disetujui
+// disetujui dulu dengan tarif itu (ACC dari platform); sudah disetujui = langkah ini dilewati.
 // shortcut: bila pemasangan gagal setelah key terbit, key itu tertinggal di ERAPAY (retry dijawab ErrKeyExists); cabut dari dashboard ERAPAY.
-func (s *Service) IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName string) (Config, error) {
+func (s *Service) IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName string, fees *Fees) (Config, error) {
 	if s.provisioner == nil {
 		return Config{}, ErrEcosystemNotConfigured
+	}
+	if fees != nil {
+		link, err := s.provisioner.Status(ctx, tenant)
+		if err != nil {
+			return Config{}, err
+		}
+		if link.MerchantStatus != "approved" {
+			if err := s.provisioner.Approve(ctx, tenant, *fees, adminName); err != nil {
+				return Config{}, err
+			}
+		}
 	}
 	secret, err := s.provisioner.IssueKey(ctx, tenant)
 	if err != nil {

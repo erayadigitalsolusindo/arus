@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -113,5 +115,39 @@ func TestProvisioningClientIssueKey(t *testing.T) {
 	status, body = http.StatusNotFound, `{}`
 	if _, err := c.IssueKey(t.Context(), tenant); !errors.Is(err, ErrEcosystemSSO) {
 		t.Fatalf("404: %v", err)
+	}
+}
+
+func TestProvisioningClientApprove(t *testing.T) {
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	status, body := http.StatusOK, `{}`
+	var sent string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		sent = string(b)
+		if r.URL.Path != "/v1/integrations/arus/tenants/"+tenant.String()+"/approve" || r.Header.Get("Authorization") != "Bearer key-token" {
+			t.Errorf("path/token salah: %s %q", r.URL.Path, r.Header.Get("Authorization"))
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	c := NewProvisioningClient(srv.URL, "provision-token")
+	fees := Fees{MDRBPS: 70, PlatformBPS: 30, MDRFlatUpTo: 100000, MDRFlatFee: 500}
+	if err := c.Approve(t.Context(), tenant, fees, "A"); !errors.Is(err, ErrEcosystemNotConfigured) {
+		t.Fatalf("tanpa token key harus mati: %v", err)
+	}
+	c.keyToken = "key-token"
+	if err := c.Approve(t.Context(), tenant, fees, "A"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sent, `"mdr_flat_fee":500`) || !strings.Contains(sent, `"admin":"A"`) {
+		t.Fatalf("body: %s", sent)
+	}
+	for code, want := range map[string]error{"INVALID_STATE": ErrMerchantState, "VALIDATION_ERROR": ErrBadFees} {
+		status, body = http.StatusConflict, `{"error":{"code":"`+code+`"}}`
+		if err := c.Approve(t.Context(), tenant, fees, "A"); !errors.Is(err, want) {
+			t.Fatalf("%s: %v", code, err)
+		}
 	}
 }
