@@ -15,6 +15,8 @@
   import ErayaMark from '#lib/components/ErayaMark.svelte';
   import { googleEnabled, initGoogleForHost, PENDING_KEY } from '#lib/auth/google.ts';
   import { erayaEnabled, putErayaPending, startEraya, takeErayaPending } from '#lib/auth/eraya.ts';
+  import Turnstile from '#lib/components/Turnstile.svelte';
+  import { captchaHeaders, captchaOn } from '#lib/captcha.ts';
 
   // Respons login: sesi penuh, atau tantangan 2FA bila akun memakai TOTP (belum ada sesi).
   type LoginResponse = AuthResponse | { mfa_required: true; mfa_token: string };
@@ -58,6 +60,8 @@
   let remember = $state(true);
   let showPassword = $state(false);
   let loading = $state(false);
+  let cap = $state('');
+  let capEl = $state<Turnstile>();
   let formError = $state('');
   let attemptsLeft = $state(0); // >0 hanya bila pesan kesalahan memuat sisa percobaan
   let fieldErrors = $state<{ email?: string; password?: string }>({});
@@ -178,7 +182,7 @@
 
     loading = true;
     try {
-      const res = await api<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ ...parsed.data, remember }) });
+      const res = await api<LoginResponse>('/auth/login', { method: 'POST', headers: captchaHeaders(cap), body: JSON.stringify({ ...parsed.data, remember }) });
       if (isMfa(res)) {
         password = '';
         mfaToken = res.mfa_token;
@@ -202,6 +206,7 @@
       formError = errorMessage(err);
     } finally {
       loading = false;
+      capEl?.reset(); // token sekali pakai
     }
   }
 </script>
@@ -316,7 +321,8 @@
           {t('auth.login.remember')}
         </label>
 
-        <button type="submit" disabled={loading || lockedSeconds > 0} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+        <Turnstile bind:this={capEl} bind:token={cap} />
+        <button type="submit" disabled={loading || lockedSeconds > 0 || (captchaOn && !cap)} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
           {t('auth.login.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
         </button>
       </form>

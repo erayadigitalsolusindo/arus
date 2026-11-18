@@ -4,6 +4,8 @@
   import { startPlatformSession, type PlatformAuth } from '#lib/platform/session.svelte.ts';
   import { t } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import Turnstile from '#lib/components/Turnstile.svelte';
+  import { captchaHeaders, captchaOn } from '#lib/captcha.ts';
   import AuthCard from '#lib/components/AuthCard.svelte';
 
   let email = $state('');
@@ -11,6 +13,8 @@
   let remember = $state(false);
   let showPassword = $state(false);
   let loading = $state(false);
+  let cap = $state('');
+  let capEl = $state<Turnstile>();
   let error = $state('');
   // Langkah 2 (2FA): token tantangan dari server setelah password benar.
   let mfaToken = $state('');
@@ -38,7 +42,7 @@
     try {
       const res = await request<PlatformAuth & { mfa_required?: boolean; mfa_token?: string }>(
         '/platform/auth/login',
-        { method: 'POST', body: JSON.stringify({ email: email.trim(), password, remember }) },
+        { method: 'POST', headers: captchaHeaders(cap), body: JSON.stringify({ email: email.trim(), password, remember }) },
         null
       );
       password = '';
@@ -57,6 +61,7 @@
       error = err instanceof ApiError && err.code === 'INVALID_CREDENTIALS' && err.attemptsLeft > 0 ? t('errors.INVALID_CREDENTIALS_LEFT', { count: err.attemptsLeft }) : errorMessage(err);
     } finally {
       loading = false;
+      capEl?.reset(); // token sekali pakai
     }
   }
   async function submitCode() {
@@ -130,7 +135,8 @@
       <input type="checkbox" class="size-3.5 rounded" bind:checked={remember} />
       {t('platform.login.remember')}
     </label>
-    <button type="submit" disabled={loading || lockedSeconds > 0} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+    <Turnstile bind:this={capEl} bind:token={cap} />
+    <button type="submit" disabled={loading || lockedSeconds > 0 || (captchaOn && !cap)} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
       {t('platform.login.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
     </button>
     {/if}

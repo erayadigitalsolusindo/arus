@@ -97,6 +97,34 @@ func (s *Service) SetAdminActive(ctx context.Context, a Actor, target uuid.UUID,
 	return nil
 }
 
+var ErrAdminHasHistory = errors.New("admin punya riwayat checklist QA; nonaktifkan saja")
+
+// DeleteAdmin menghapus admin permanen (lihat fungsi DB untuk aturannya). Sesi dicabut sebelum baris hilang.
+func (s *Service) DeleteAdmin(ctx context.Context, a Actor, target uuid.UUID) error {
+	var ok bool
+	err := s.Pool.QueryRow(ctx, `SELECT platform_admin_delete($1, $2)`, a.ID, target).Scan(&ok)
+	switch {
+	case pgCode(err) == "42501":
+		return ErrInvalidSession
+	case pgCode(err) == "23503":
+		return ErrAdminHasHistory
+	case pgCode(err) == "P0001" && strings.Contains(err.Error(), "diri sendiri"):
+		return ErrSelf
+	case pgCode(err) == "P0001":
+		return ErrLastAdmin
+	case err != nil:
+		return err
+	case !ok:
+		return ErrNotFound
+	}
+	s.forget(target)
+	if err := s.Sessions.RevokeUser(ctx, target.String()); err != nil {
+		return err
+	}
+	s.record(ctx, a, ActionAdminDelete, uuid.Nil, "", map[string]any{"target_id": target.String()})
+	return nil
+}
+
 // SetAdminPassword mengganti password admin (termasuk diri sendiri) dan mencabut semua sesinya.
 func (s *Service) SetAdminPassword(ctx context.Context, a Actor, target uuid.UUID, password string) error {
 	hash, err := s.hash(ctx, password)

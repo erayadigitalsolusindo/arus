@@ -295,6 +295,7 @@ export const platformApi = {
   admins: () => papi<{ items: AdminRow[] }>('/platform/admins'),
   createAdmin: (body: { name: string; email: string; password: string }) => papi<{ id: string }>('/platform/admins', { method: 'POST', body: json(body) }),
   setAdminActive: (id: string, active: boolean) => papi<void>(`/platform/admins/${id}`, { method: 'PATCH', body: json({ active }) }),
+  deleteAdmin: (id: string, password: string, code: string) => papi<void>(`/platform/admins/${id}/delete`, { method: 'POST', body: json({ password, code }) }),
   setAdminPassword: (id: string, password: string) => papi<void>(`/platform/admins/${id}/password`, { method: 'PUT', body: json({ password }) }),
 
   liveSummary: () => papi<LiveSummary>('/platform/live/summary'),

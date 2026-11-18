@@ -357,6 +357,10 @@ export default {
     passwordChanged: 'Password diubah dan semua sesinya dicabut.',
     disableConfirm: 'Nonaktifkan {name}? Semua sesinya langsung dicabut.',
     resetMfa: 'Reset 2FA',
+    delete: 'Hapus permanen',
+    deleted: 'Admin dihapus permanen.',
+    deleteWarn: 'Akun ini dihapus permanen dan tidak bisa dikembalikan. Jejak audit tetap tersimpan. Admin yang punya riwayat checklist QA tidak bisa dihapus (nonaktifkan saja). Masukkan password dan kode 2FA Anda.',
+    deleteConfirmBtn: 'Hapus',
     resetMfaConfirm: 'Reset 2FA milik {name}? Sesinya dicabut dan ia wajib mendaftarkan 2FA lagi. Lakukan hanya bila perangkatnya hilang.',
     mfaReset: '2FA direset.',
     selfPasswordNote: 'Mengganti password Anda sendiri akan mengeluarkan Anda dari semua perangkat.'

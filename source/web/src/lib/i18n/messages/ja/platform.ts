@@ -359,6 +359,10 @@ const platform: Messages['platform'] = {
     passwordChanged: 'パスワードが変更され、すべてのセッションが失効しました。',
     disableConfirm: '{name} を無効化しますか? すべてのセッションが直ちに失効します。',
     resetMfa: '2FAをリセット',
+    delete: '完全に削除',
+    deleted: '管理者を完全に削除しました。',
+    deleteWarn: 'このアカウントは完全に削除され、元に戻せません。監査ログは保持されます。QAチェックリストの履歴がある管理者は削除できません（無効化してください）。パスワードと2FAコードを入力してください。',
+    deleteConfirmBtn: '削除',
     resetMfaConfirm: '{name} の2FAをリセットしますか? セッションが失効し、2FAを再度登録する必要があります。デバイスを紛失した場合のみ行ってください。',
     mfaReset: '2FAがリセットされました。',
     selfPasswordNote: '自分のパスワードを変更すると、すべてのデバイスからログアウトされます。'

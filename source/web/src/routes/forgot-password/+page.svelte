@@ -2,12 +2,16 @@
   import { api } from '#lib/api/client.ts';
   import { t } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
+  import Turnstile from '#lib/components/Turnstile.svelte';
+  import { captchaHeaders, captchaOn } from '#lib/captcha.ts';
   import { checkEmail } from '#lib/validation.ts';
   import { fieldMessage } from '#lib/i18n/errors.ts';
   import AuthCard from '#lib/components/AuthCard.svelte';
 
   let email = $state('');
   let loading = $state(false);
+  let cap = $state('');
+  let capEl = $state<Turnstile>();
   let sent = $state(false);
   let error = $state('');
   let fieldError = $state('');
@@ -23,12 +27,13 @@
     loading = true;
     try {
       // Server selalu menjawab 202 (tidak membocorkan apakah email terdaftar); kita tampilkan hal yang sama.
-      await api('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: mail.value }) });
+      await api('/auth/forgot-password', { method: 'POST', headers: captchaHeaders(cap), body: JSON.stringify({ email: mail.value }) });
       sent = true;
     } catch (err) {
       error = errorMessage(err);
     } finally {
       loading = false;
+      capEl?.reset(); // token sekali pakai
     }
   }
 </script>
@@ -60,7 +65,8 @@
         </div>
         {#if fieldError}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{fieldError}</p>{/if}
       </div>
-      <button type="submit" disabled={loading} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+      <Turnstile bind:this={capEl} bind:token={cap} />
+      <button type="submit" disabled={loading || (captchaOn && !cap)} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
         {loading ? t('account.forgot.sending') : t('account.forgot.submit')}
       </button>
       <a href="/login" class="block text-center text-[12.5px] font-semibold text-primary-600">{t('account.forgot.back')}</a>

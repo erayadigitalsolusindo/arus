@@ -48,6 +48,9 @@ type Config struct {
 	// (memutar JWT_SECRET lalu membuat riwayat lama tak terbaca); set nilai sendiri agar rotasi JWT tidak ikut berdampak.
 	AIHistoryKey string
 
+	// TurnstileSecret: secret Cloudflare Turnstile (anti-robot di login/daftar/lupa password web + login platform). Kosong = mati.
+	TurnstileSecret string
+
 	// EraPay (QRIS): alamat API EraPay (sama untuk semua tenant); kosong = integrasi mati. API key dipasang PER TENANT oleh owner (disimpan terenkripsi di DB).
 	EraPayBaseURL string
 	// EraPayPlatformKey: API key EraPay milik PLATFORM untuk menerima pembayaran paket langganan tenant (QRIS). Kosong = upgrade mandiri mati.
@@ -101,6 +104,7 @@ func Load() (Config, error) {
 		AIHistoryKey:         strings.TrimSpace(os.Getenv("AI_HISTORY_KEY")),
 		EraPayBaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("ERAPAY_BASE_URL")), "/"),
 		EraPayProvisionToken: strings.TrimSpace(os.Getenv("ERAPAY_ARUS_PROVISION_TOKEN")),
+		TurnstileSecret:      strings.TrimSpace(os.Getenv("TURNSTILE_SECRET_KEY")),
 		EraPayKeyToken:       strings.TrimSpace(os.Getenv("ERAPAY_ARUS_KEY_TOKEN")),
 		EraPayPlatformKey:    strings.TrimSpace(os.Getenv("ERAPAY_PLATFORM_API_KEY")),
 		AppBaseURL:           strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),

@@ -362,6 +362,10 @@ const platform: Messages['platform'] = {
     passwordChanged: 'Password changed and all sessions revoked.',
     disableConfirm: 'Deactivate {name}? All their sessions are revoked immediately.',
     resetMfa: 'Reset 2FA',
+    delete: 'Delete permanently',
+    deleted: 'Admin deleted permanently.',
+    deleteWarn: 'This account is deleted permanently and cannot be restored. The audit trail is kept. Admins with QA checklist history cannot be deleted (disable instead). Enter your password and 2FA code.',
+    deleteConfirmBtn: 'Delete',
     resetMfaConfirm: 'Reset {name}\x27s 2FA? Their sessions are revoked and they must enroll 2FA again. Only do this if their device is lost.',
     mfaReset: '2FA reset.',
     selfPasswordNote: 'Changing your own password signs you out of all devices.'

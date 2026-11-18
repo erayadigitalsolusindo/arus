@@ -51,7 +51,8 @@ type HandlerDeps struct {
 	Backup       *backup.Service     // backup ke Google Drive (opsional; nil = fitur nonaktif)
 	Live         *live.Hub           // pantauan penjualan real-time lintas tenant (opsional)
 	Presence     *live.Presence
-	ERAPay       ERAPay // pendaftaran tenant ke ERAPAY (opsional; nil = fitur nonaktif)
+	Captcha      *httpx.Turnstile // nil = mati; berlaku untuk login platform (tanpa pengecualian)
+	ERAPay       ERAPay           // pendaftaran tenant ke ERAPAY (opsional; nil = fitur nonaktif)
 }
 
 type Handler struct {
@@ -76,7 +77,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(httpx.RateLimit(h.Redis, "public-domain-branding", 600, time.Hour)).Get("/public/branding", h.DomainBranding)
 	r.With(httpx.RateLimit(h.Redis, "public-brand-asset", 3000, time.Hour)).Get("/public/brand-asset", h.BrandAsset)
 	r.With(httpx.RateLimit(h.Redis, "platform-setup", 10, time.Hour)).Post("/platform/setup", h.Setup)
-	r.With(httpx.RateLimit(h.Redis, "platform-login", 30, 15*time.Minute)).Post("/platform/auth/login", h.Login)
+	r.With(h.Captcha.Guard(nil), httpx.RateLimit(h.Redis, "platform-login", 30, 15*time.Minute)).Post("/platform/auth/login", h.Login)
 	r.With(httpx.RateLimit(h.Redis, "platform-login-mfa", 30, 15*time.Minute)).Post("/platform/auth/login/mfa", h.LoginMFA)
 	r.With(csrf, httpx.RateLimit(h.Redis, "platform-refresh", 600, time.Hour)).Post("/platform/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/platform/auth/logout", h.Logout)
@@ -120,6 +121,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/platform/live/feed", h.LiveFeed)
 			r.Get("/platform/live/stream", h.LiveStream)
 			r.Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
+			r.Post("/platform/admins/{id}/delete", h.DeleteAdmin)
 
 			r.Put("/platform/mobile/apk", h.APKUpload)
 			r.Delete("/platform/mobile/apk", h.APKDelete)
@@ -678,6 +680,41 @@ func (h *Handler) PatchAdmin(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi tidak valid.")
 	case err != nil:
 		h.internal(w, r, "ubah status admin gagal", err)
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// DeleteAdmin: hapus permanen; wajib verifikasi ulang password + TOTP baru milik admin yang menghapus.
+func (h *Handler) DeleteAdmin(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &req, 2<<10) {
+		return
+	}
+	a := actor(r)
+	if !h.stepUp(w, r, a, req.Password, req.Code) {
+		return
+	}
+	switch err := h.svc.DeleteAdmin(r.Context(), a, id); {
+	case errors.Is(err, ErrNotFound):
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Admin tidak ditemukan.")
+	case errors.Is(err, ErrSelf):
+		httpx.Error(w, http.StatusConflict, "CANNOT_DELETE_SELF", "Tidak dapat menghapus akun sendiri.")
+	case errors.Is(err, ErrLastAdmin):
+		httpx.Error(w, http.StatusConflict, "LAST_ADMIN", "Harus tersisa minimal satu Platform Admin aktif.")
+	case errors.Is(err, ErrAdminHasHistory):
+		httpx.Error(w, http.StatusConflict, "ADMIN_HAS_HISTORY", "Admin ini punya riwayat checklist QA dan tidak bisa dihapus. Nonaktifkan saja.")
+	case errors.Is(err, ErrInvalidSession):
+		httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi tidak valid.")
+	case err != nil:
+		h.internal(w, r, "hapus admin gagal", err)
 	default:
 		w.WriteHeader(http.StatusNoContent)
 	}

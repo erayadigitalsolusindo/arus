@@ -12,6 +12,8 @@
   import { onMount } from 'svelte';
   import { decodeCredential, googleEnabled, initGoogleForHost, PENDING_KEY, type GoogleProfile } from '#lib/auth/google.ts';
   import { erayaEnabled, startEraya, takeErayaPending } from '#lib/auth/eraya.ts';
+  import Turnstile from '#lib/components/Turnstile.svelte';
+  import { captchaHeaders, captchaOn } from '#lib/captcha.ts';
 
   type Field = 'business_name' | 'owner_name' | 'outlet_name' | 'email' | 'phone' | 'password' | 'confirm' | 'accept_terms';
 
@@ -27,6 +29,8 @@
   let showPassword = $state(false);
   let acceptTerms = $state(false);
   let loading = $state(false);
+  let cap = $state('');
+  let capEl = $state<Turnstile>();
   let formError = $state('');
   let errors = $state<Partial<Record<Field, string>>>({});
 
@@ -155,6 +159,7 @@
     try {
       const res = await api<AuthResponse>('/auth/register', {
         method: 'POST',
+        headers: captchaHeaders(cap),
         body: JSON.stringify({
           business_name: biz.value,
           owner_name: owner.value,
@@ -179,6 +184,7 @@
       }
     } finally {
       loading = false;
+      capEl?.reset(); // token sekali pakai
     }
   }
 </script>
@@ -338,7 +344,8 @@
           {#if errors.accept_terms}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{errors.accept_terms}</p>{/if}
         </div>
 
-        <button type="submit" disabled={loading} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
+        <Turnstile bind:this={capEl} bind:token={cap} />
+        <button type="submit" disabled={loading || (captchaOn && !cap)} class="btn btn-primary w-full justify-center !text-[13px] disabled:opacity-60">
           {t('auth.register.submit')}<i class={loading ? 'icon-loader-circle animate-spin text-[13px]' : 'icon-arrow-right text-[13px]'}></i>
         </button>
       </form>

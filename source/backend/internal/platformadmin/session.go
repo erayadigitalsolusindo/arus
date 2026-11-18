@@ -25,6 +25,7 @@ const (
 	ActionLogin         = "platform.login"
 	ActionAdminCreate   = "platform.admin_create"
 	ActionAdminStatus   = "platform.admin_status"
+	ActionAdminDelete   = "platform.admin_delete"
 	ActionAdminPassword = "platform.admin_password"
 	ActionTenantStatus  = "platform.tenant_status"
 	ActionEditWindow    = "platform.tenant_edit_window"

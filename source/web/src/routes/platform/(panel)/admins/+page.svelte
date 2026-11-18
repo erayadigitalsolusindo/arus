@@ -79,6 +79,29 @@
     }
   }
 
+  // ---- Hapus permanen: verifikasi ulang password + TOTP ----
+  let del = $state<{ target: AdminRow; password: string; code: string; saving: boolean; error: string } | null>(null);
+  async function submitDelete(e: SubmitEvent) {
+    e.preventDefault();
+    if (!del || del.saving) return;
+    del.saving = true;
+    del.error = '';
+    try {
+      await platformApi.deleteAdmin(del.target.id, del.password, del.code.trim());
+      notice = t('platform.admins.deleted');
+      del = null;
+      await load();
+    } catch (err) {
+      if (del) del.error = errorMessage(err);
+    } finally {
+      if (del) {
+        del.saving = false;
+        del.password = '';
+        del.code = '';
+      }
+    }
+  }
+
   async function resetMfa(a: AdminRow) {
     if (!confirm(t('platform.admins.resetMfaConfirm', { name: a.name }))) return;
     busyId = a.id;
@@ -148,6 +171,7 @@
                 <button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60 {a.active ? '!text-[var(--color-danger-600)]' : ''}" disabled={busyId === a.id} onclick={() => toggle(a)}>
                   {a.active ? t('platform.admins.disable') : t('platform.admins.enable')}
                 </button>
+                <button type="button" class="btn btn-outline !text-[12px] !py-1 !text-[var(--color-danger-600)]" onclick={() => (del = { target: a, password: '', code: '', saving: false, error: '' })}>{t('platform.admins.delete')}</button>
               {/if}
             </td>
           </tr>
@@ -187,6 +211,23 @@
       <div class="flex items-center gap-2 pt-1">
         <button type="button" class="btn btn-outline !text-[12.5px] flex-1" onclick={() => (form = null)}>{t('platform.admins.cancel')}</button>
         <button type="submit" class="btn btn-primary !text-[12.5px] flex-1 disabled:opacity-60" disabled={form.saving}>{t('platform.admins.save')}</button>
+      </div>
+    </form>
+  </Modal>
+{/if}
+
+{#if del}
+  <Modal title={`${t('platform.admins.delete')}: ${del.target.name}`} onclose={() => (del = null)}>
+    <form class="space-y-3.5" onsubmit={submitDelete} novalidate>
+      <p class="text-[12.5px] text-[var(--text-secondary)]">{t('platform.admins.deleteWarn')}</p>
+      {#if del.error}
+        <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] mt-px shrink-0"></i><span>{del.error}</span></div>
+      {/if}
+      <input type="password" class={inputClass} autocomplete="current-password" placeholder={t('platform.tenant.erapayPassword')} bind:value={del.password} />
+      <input class="{inputClass} font-mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder={t('platform.tenant.erapayTotp')} bind:value={del.code} />
+      <div class="flex items-center gap-2 pt-1">
+        <button type="button" class="btn btn-outline !text-[12.5px] flex-1" onclick={() => (del = null)}>{t('platform.admins.cancel')}</button>
+        <button type="submit" class="btn btn-primary !text-[12.5px] flex-1 disabled:opacity-60" disabled={del.saving || !del.password || !/^\d{6}$/.test(del.code.trim())}>{t('platform.admins.deleteConfirmBtn')}</button>
       </div>
     </form>
   </Modal>

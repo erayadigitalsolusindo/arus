@@ -30,6 +30,7 @@ type HandlerDeps struct {
 	Redis        *redis.Client
 	Lockout      *Lockout
 	RateLimits   *RateLimitLoader // nil = batas bawaan
+	Captcha      *httpx.Turnstile // nil = mati; klien native (mobile) dilewati
 	Tokens       *pauth.TokenIssuer
 	Perms        *authz.Resolver
 	Origins      []string // dipakai CSRFGuard (endpoint ber-cookie)
@@ -51,8 +52,9 @@ func (h *Handler) Routes(r chi.Router) {
 	csrf := nativeOr(httpx.CSRFGuardWith(h.Origins, h.OriginOK))
 	authed := []func(http.Handler) http.Handler{httpx.RequireAuth(h.Tokens), h.Perms.Authenticate}
 
-	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/register", h.Register)
-	r.With(httpx.RateLimit(h.Redis, "login", loginIPLimit, loginWindow)).Post("/auth/login", h.Login)
+	captcha := h.Captcha.Guard(isNative)
+	r.With(captcha, h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/register", h.Register)
+	r.With(captcha, httpx.RateLimit(h.Redis, "login", loginIPLimit, loginWindow)).Post("/auth/login", h.Login)
 	r.With(httpx.RateLimit(h.Redis, "login-mfa", 30, 15*time.Minute)).Post("/auth/login/mfa", h.LoginMFA)
 	r.With(httpx.RateLimit(h.Redis, "login-google", loginIPLimit, loginWindow)).Post("/auth/google/login", h.GoogleLogin)
 	r.With(h.limit("register", func(p RateLimitPolicy) int { return p.RegisterPerIP })).Post("/auth/google/register", h.GoogleRegister)
@@ -65,7 +67,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(authed...).Get("/auth/feature-shortcuts", h.GetFeatureShortcuts)
 	r.With(authed...).Put("/auth/feature-shortcuts", h.PutFeatureShortcuts)
 
-	r.With(h.limit("forgot", func(p RateLimitPolicy) int { return p.ForgotPerIP })).Post("/auth/forgot-password", h.ForgotPassword)
+	r.With(captcha, h.limit("forgot", func(p RateLimitPolicy) int { return p.ForgotPerIP })).Post("/auth/forgot-password", h.ForgotPassword)
 	r.With(h.limit("reset", func(p RateLimitPolicy) int { return p.ResetPerIP })).Post("/auth/reset-password", h.ResetPassword)
 	r.With(h.limit("verify", func(p RateLimitPolicy) int { return p.VerifyPerIP })).Post("/auth/verify-email", h.VerifyEmail)
 	r.With(authed...).Post("/auth/resend-verification", h.ResendVerification)

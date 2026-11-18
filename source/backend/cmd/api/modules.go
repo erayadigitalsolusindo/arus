@@ -34,6 +34,7 @@ import (
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/background"
 	"aciraba/internal/platform/config"
+	"aciraba/internal/platform/httpx"
 	"aciraba/internal/platform/mailer"
 	"aciraba/internal/platform/storage"
 	"aciraba/internal/platformadmin"
@@ -94,7 +95,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	auth.NewHandler(auth.HandlerDeps{
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
 		Lockout:    auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
-		RateLimits: auth.NewRateLimitLoader(d.Pool, d.Log),
+		RateLimits: auth.NewRateLimitLoader(d.Pool, d.Log), Captcha: httpx.NewTurnstile(d.Cfg.TurnstileSecret),
 		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, OriginOK: domainOriginOK(d.Pool), SecureCookie: !d.Cfg.IsDev(),
 	}).Routes(r)
 
@@ -134,7 +135,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc, Backup: backupSvc,
-		Live: liveHub, Presence: presence,
+		Live: liveHub, Presence: presence, Captcha: httpx.NewTurnstile(d.Cfg.TurnstileSecret),
 	})
 	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
