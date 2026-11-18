@@ -21,16 +21,16 @@
 
 ```console
 $ arus status
-  backend   Go modular monolith ........ ±30 modul · ±270 endpoint · 89 migration
+  backend   Go modular monolith ........ ±37 modul · ±290 endpoint · 117 migration
   database  PostgreSQL + RLS per tenant . tanpa stored procedure bisnis
   web       SvelteKit 3 SPA ............. kasir modern + klasik · laporan · SIAK
-  mobile    Flutter (Android) ........... kasir lengkap · struk Bluetooth · rilis Play
+  mobile    Flutter (Android) ........... kasir lengkap · offline tunai · struk Bluetooth · rilis Play
   printer   print-agent Go (ESC/POS) .... kurir RAW di PC kasir
-  go-live   pilot 1 toko ritel .......... rencana mulai 1 November 2026
+  go-live   pilot 1 toko ritel .......... sedang disiapkan
 ```
 
 > [!NOTE]
-> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel**. Kasir web praktis lengkap, kasir Android sudah bisa dipakai berjualan (termasuk cetak struk Bluetooth). Sisa jalur kritis ada di luar layar kasir: import katalog, backup teruji, spec test, dan CI. Lihat [Status & Roadmap](#-status--roadmap).
+> **ARUS sedang dikembangkan aktif.** Target pertama: go-live **pilot di satu toko ritel**. Kasir web praktis lengkap, kasir Android sudah bisa dipakai berjualan (cetak struk Bluetooth, transaksi tunai offline). Import katalog, wizard onboarding, dan backup ke Google Drive sudah ada. Sisa jalur kritis: spec test, CI, dan gladi bersih di toko pilot. Lihat [Status & Roadmap](#-status--roadmap).
 
 ## Apa itu ARUS?
 
@@ -60,6 +60,7 @@ Dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Node.js 
 - **Shift kasir**: modal awal, hitung fisik per metode, selisih wajib catatan + PIN
 - **Kas kecil** per shift, struk 58/80 mm, struk tutup shift, rekap harian
 - Edit/batal nota lewat **revisi**, retur penjualan
+- **Onboarding** tenant baru: wizard profil → cabang → master dasar → **import barang + saldo awal stok dari Excel/CSV** (template, pratinjau, laporan masalah)
 
 </td><td valign="top">
 
@@ -117,19 +118,22 @@ Dibangun ulang dari nol untuk menggantikan sistem lama (CodeIgniter 4 + Node.js 
 </td><td valign="top">
 
 **🔐 Akses & keamanan**
-- Login argon2id, refresh token berotasi, kunci login bertahap, lupa/reset password, verifikasi email
+- Login argon2id, refresh token berotasi, kunci login bertahap, lupa/reset password, verifikasi email; masuk dengan **Google** atau **Eraya (SSO)**; 2FA TOTP opsional
+- Captcha **Cloudflare Turnstile** di login, daftar, dan lupa password (opsional, aktif bila kunci diisi)
 - Role & izin per menu (view/create/update/delete/approve), anti-eskalasi, akses per outlet
 - **Audit log append-only** + tampilan konsol (level, cari, live tail, ekspor NDJSON)
 
 **🛰️ Platform Admin** (terpisah, wajib 2FA TOTP)
-- Tenant, paket, bahasa, "masuk sebagai" (diaudit), **hapus tenant permanen** dengan masa tunggu
+- Tenant, paket, bahasa, "masuk sebagai" (diaudit), **hapus tenant permanen** dengan masa tunggu, kelola/hapus admin platform, **Live Penjualan** lintas tenant
+- **ERAPAY**: daftarkan tenant, setujui merchant dengan tarif (MDR, platform, transaksi kecil), pasang/buat API key (verifikasi ulang password + TOTP)
+- **Backup ke Google Drive** (terenkripsi, jadwal harian, uji restore)
 - **Domain kustom / white label** per tenant (TLS on-demand), kredensial API eksternal
 - **Checklist QA/QC** lintas aplikasi (web, platform, developer, mobile, print-agent)
 
 </td></tr>
 </table>
 
-Antarmuka: tema Dreams Core (Tailwind v4), terang/gelap, **Indonesia · English · 日本語** (bahasa baru bisa ditambah dari Platform Admin), tab halaman yang menyimpan draf form. Simbol mata uang mengikuti bahasa; nilai tetap Rupiah.
+Antarmuka: tema Dreams Core (Tailwind v4), terang/gelap, **Indonesia · English · 日本語** (bahasa baru bisa ditambah dari Platform Admin), tab halaman yang menyimpan draf form. Setiap tenant juga punya **landing page toko online** publik di `/s/nama-toko` (HTML + Tailwind, template siap pakai, penanda data katalog/kupon/outlet, disaring tanpa JavaScript, riwayat 20 versi; bisa dibuatkan HalloArus). Simbol mata uang mengikuti bahasa; nilai tetap Rupiah.
 
 ## 🏗️ Arsitektur
 
@@ -238,6 +242,8 @@ Buka <http://localhost:5200> → **Register** untuk membuat tenant dan Owner per
 | `TRUST_PROXY` | `true` hanya di belakang reverse proxy tepercaya (mengaktifkan `X-Forwarded-For`; **wajib** agar allowlist IP API eksternal membaca IP asli) |
 | `PLATFORM_SETUP_TOKEN` | membuat Platform Admin pertama; hapus setelah dipakai |
 | `ERAPAY_PLATFORM_API_KEY` | kunci EraPay untuk checkout upgrade paket |
+| `ERAYA_ISSUER` / `ERAYA_CLIENT_ID` / `ERAYA_CLIENT_SECRET` | masuk dengan Eraya (SSO); kosong = tombol Eraya mati |
+| `TURNSTILE_SECRET_KEY` | captcha Cloudflare Turnstile; kosong = mati (pasangannya `VITE_TURNSTILE_SITE_KEY` di web) |
 | `CUSTOM_DOMAIN_TARGET` | target CNAME untuk domain kustom tenant (bawaan: host `APP_BASE_URL`) |
 
 Web (`source/web/.env`): `VITE_API_URL` = alamat API; `VITE_PRIMARY_HOSTS` = host utama (selain itu dianggap domain kustom, API lewat origin yang sama).
@@ -294,9 +300,12 @@ Kasir native (Flutter) dengan API Go yang sama dengan web.
 
 - **Kasir lengkap**: katalog bergambar, scan kamera + pemindai HID, keranjang dengan harga dari server, bayar tunai/non-tunai/split/**kredit**, **QRIS EraPay**, member & tukar poin, salesman, ubah harga dengan PIN penyetuju, biaya lain, nota pending, pintasan barang, filter kategori
 - **Shift**: buka/tutup dengan hitung fisik, kas kecil, Penjualan hari ini, pindah cabang
+- **Transaksi tunai offline**: nota masuk antrean di perangkat (Idempotency-Key tetap), katalog/metode bayar/shift di-cache, sinkron otomatis saat online; tutup shift menunggu antrean kosong
+- **Kelola barang** (foto, satuan, kategori, stok opname per barang), catat pembelian tunai, **laporan** penjualan per hari/metode bayar, **HalloArus**
+- Masuk dengan Google atau **Eraya (SSO)**, mode Penjualan/Persediaan
 - **Cetak struk Bluetooth** (SPP, ESC/POS 58/80 mm), cetak ulang tercatat
 - Tema terang/gelap/ikut sistem, latar lautan beranimasi, **id · en · ja**, skala teks
-- Belum: retur di mobile, kasir offline; printer BLE-only belum didukung
+- Belum: retur di mobile, offline untuk non-tunai/QRIS; printer BLE-only belum didukung
 
 **Dua jalur distribusi** (flavor Android):
 
@@ -344,25 +353,25 @@ Modul backend (`source/backend/internal/`): `auth` `authz` `iam` `audit` `outlet
 | 0 | Fondasi (repo, Docker, Go, migration, SPA shell) | ✅ |
 | 1 | Aturan bisnis tertulis & spec test yang disetujui | ⏳ Belum |
 | 2 | Auth, tenant, RLS, role & izin, audit | ✅ |
-| 3 | Master data, item, member, metode bayar | 🟡 Diskon item & **import Excel/CSV** belum |
+| 3 | Master data, item, member, metode bayar, import barang | 🟡 Diskon item & import master pendukung belum |
 | 4 | Stok: ledger, saldo awal, opname, mutasi, pecah satuan, kartu stok | ✅ |
-| 5 | Kasir: nota, kredit, revisi, retur, piutang, shift, struk | 🟡 Sisa catatan per baris, offline |
+| 5 | Kasir: nota, kredit, revisi, retur, piutang, shift, struk | 🟡 Sisa catatan per baris; offline baru di mobile (tunai) |
 | 6 | Pembelian, retur beli, hutang | 🟡 Saldo awal hutang, pembatalan pembayaran, PO belum |
 | 7 | Laporan | 🟡 Penjualan, pembelian, retur, hutang/piutang, master, persediaan sudah; sisanya bertahap |
 | 8 | Modul opsional: akuntansi, AI, payment gateway, API eksternal | 🟡 SIAK, HalloArus, EraPay QRIS, API HMAC berjalan; resto/KDS belum |
-| 9 | Wizard onboarding & go-live | ⏳ Belum |
-| 10 | Kasir mobile Android | 🟡 Berjalan + siap Play; sisa retur dan uji lapangan |
+| 9 | Wizard onboarding & go-live | 🟡 Wizard + import selesai; gladi bersih & go-live belum |
+| 10 | Kasir mobile Android | 🟡 Berjalan + siap Play + tunai offline (v1.1.5); sisa retur dan uji lapangan |
 | Platform | Paket langganan, domain kustom, QA/QC, hapus tenant | 🟡 Berjalan; domain kustom belum diuji end-to-end di edge nyata |
 
 **Jalur kritis go-live pilot**
 
-- [ ] Import barang + saldo awal stok dari Excel/CSV (katalog pilot >100 ribu barang)
-- [ ] Backup terjadwal ke luar server + satu kali uji restore
+- [x] Import barang + saldo awal stok dari Excel/CSV
+- [x] Backup terjadwal ke luar server (Google Drive) + uji restore
 - [ ] Spec test penjualan untuk kasus tersering, disetujui pemilik produk
 - [ ] CI GitHub Actions (`go test`, `bun run check`)
 - [ ] Gladi bersih di PC kasir toko: shift, struk di printer asli, retur, piutang
 
-**Batasan:** kasir belum bisa offline · Syarat Layanan & Kebijakan Privasi belum ditinjau konsultan hukum (banner draf sudah dihapus atas keputusan pemilik produk) · email verifikasi belum memblokir login dan dikirim tanpa antrean/retry.
+**Batasan:** kasir web belum bisa offline (mobile: tunai saja) · Syarat Layanan & Kebijakan Privasi belum ditinjau konsultan hukum (banner draf sudah dihapus atas keputusan pemilik produk) · email verifikasi belum memblokir login dan dikirim tanpa antrean/retry.
 
 Status rinci yang selalu terbaru: [`docs/ROADMAP.md`](docs/ROADMAP.md). Bila README berbeda, **ikuti `docs/`**.
 
