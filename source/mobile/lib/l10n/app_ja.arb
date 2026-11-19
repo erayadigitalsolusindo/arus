@@ -839,6 +839,7 @@
   "printerPaper80": "80 mm",
   "printerCut": "用紙を自動カット",
   "printerAuto": "支払い後にレシートを自動印刷",
+  "voiceKinds": "金額を読み上げる支払方法",
   "printerTest": "プリンターをテスト",
   "printerTestSent": "テストページを送信しました。",
   "printerNotConfigured": "プリンターが選択されていません。先にBluetoothプリンターを選択してください。",

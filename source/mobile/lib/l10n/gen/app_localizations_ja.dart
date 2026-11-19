@@ -1282,6 +1282,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get printerAuto => '支払い後にレシートを自動印刷';
 
   @override
+  String get voiceKinds => '金額を読み上げる支払方法';
+
+  @override
   String get printerTest => 'プリンターをテスト';
 
   @override

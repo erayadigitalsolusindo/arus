@@ -15,6 +15,7 @@
   import { loadReceiptSettings, printErrorMessage, printReceipt } from '#lib/pos/receipt.ts';
   import ReceiptSettings from '#lib/components/ReceiptSettings.svelte';
   import { erapay, eraFinal, type EraPayCharge } from '#lib/pos/erapay.ts';
+  import { payChime, speakPaid, loadVoiceKinds } from '#lib/pos/chime.ts';
 
   let {
     total,
@@ -364,6 +365,11 @@
       error = describe(e);
     } finally {
       submitting = false;
+    }
+    if (done) {
+      const kinds = loadVoiceKinds();
+      const spoken = entered.filter((m) => kinds.includes(m.kind)).reduce((s, m) => s + amountOf(m), 0n);
+      if (spoken <= 0n || !speakPaid(centsToNumber(spoken))) payChime(); // tanpa suara ucapan: nada saja
     }
     if (done && receipt.auto) void print();
   }

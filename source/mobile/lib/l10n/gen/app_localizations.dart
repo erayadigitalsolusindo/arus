@@ -2374,6 +2374,12 @@ abstract class AppLocalizations {
   /// **'Cetak struk otomatis setelah bayar'**
   String get printerAuto;
 
+  /// No description provided for @voiceKinds.
+  ///
+  /// In id, this message translates to:
+  /// **'Ucapkan nominal untuk metode'**
+  String get voiceKinds;
+
   /// No description provided for @printerTest.
   ///
   /// In id, this message translates to:

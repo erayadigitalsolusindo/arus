@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../pay_voice.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
@@ -187,6 +188,9 @@ class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
               onChanged: (v) => _update(s.copyWith(auto: v)),
             ),
             const SizedBox(height: 8),
+            Text(l.voiceKinds),
+            const _VoiceKinds(),
+            const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: s.hasPrinter && !_testing ? () => _test(s) : null,
               icon: _testing
@@ -286,6 +290,54 @@ class _PrintReceiptButtonState extends ConsumerState<PrintReceiptButton> {
               textAlign: TextAlign.center,
               style: TextStyle(color: context.pal.danger, fontSize: 12.5),
             ),
+          ),
+      ],
+    );
+  }
+}
+
+const _kindLabel = {
+  'cash': 'Tunai',
+  'transfer': 'Transfer',
+  'debit': 'Debit / QRIS',
+  'credit_card': 'Kartu kredit',
+  'ewallet': 'E-money',
+};
+
+/// Pilih metode bayar yang nominalnya diucapkan (per perangkat).
+class _VoiceKinds extends StatefulWidget {
+  const _VoiceKinds();
+  @override
+  State<_VoiceKinds> createState() => _VoiceKindsState();
+}
+
+class _VoiceKindsState extends State<_VoiceKinds> {
+  Set<String>? _on;
+  @override
+  void initState() {
+    super.initState();
+    loadVoiceKinds().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final on = _on;
+    if (on == null) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 8,
+      children: [
+        for (final k in voiceKinds)
+          FilterChip(
+            label: Text(_kindLabel[k]!),
+            selected: on.contains(k),
+            onSelected: (v) {
+              final next = {...on};
+              v ? next.add(k) : next.remove(k);
+              setState(() => _on = next);
+              saveVoiceKinds(next);
+            },
           ),
       ],
     );

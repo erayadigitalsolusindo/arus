@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api/api_error.dart';
+import '../../core/pay_voice.dart';
 import '../../core/money/money.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -353,6 +354,12 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
         }
       }
       if (result == null || !mounted) return;
+      final vk = await loadVoiceKinds();
+      final spoken = _rows
+          .where((r) => vk.contains(r.method.kind))
+          .fold(Decimal.zero, (a, r) => a + parseInput(r.amount.text));
+      if (spoken > Decimal.zero) unawaited(speakPaid(spoken.toDouble()));
+      if (!mounted) return;
       ref.read(cartProvider.notifier).clear();
       Navigator.of(context).pop(result);
     } on ApiError catch (e) {

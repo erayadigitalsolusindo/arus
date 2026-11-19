@@ -209,6 +209,7 @@ const pos: Messages['pos'] = {
     methodAgent: '直接プリンター(ESC/POS、印刷エージェント)',
     methodBrowser: 'ブラウザ経由',
     cut: '用紙を自動でカット',
+    voice: '金額を読み上げる支払方法',
     test: 'プリンターのテスト',
     testSent: 'テストページを送信しました ({via})。',
     viaAgent: '直接プリンターへ',

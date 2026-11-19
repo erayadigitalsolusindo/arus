@@ -209,6 +209,7 @@ const pos: Messages['pos'] = {
     methodAgent: 'Direct to printer (ESC/POS, print agent)',
     methodBrowser: 'Through the browser',
     cut: 'Cut paper automatically',
+    voice: 'Announce the amount for methods',
     test: 'Test printer',
     testSent: 'Test page sent ({via}).',
     viaAgent: 'direct to printer',

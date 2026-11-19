@@ -208,6 +208,7 @@ export default {
     methodAgent: 'Langsung ke printer (ESC/POS, print-agent)',
     methodBrowser: 'Lewat browser',
     cut: 'Potong kertas otomatis',
+    voice: 'Ucapkan nominal untuk metode',
     test: 'Tes printer',
     testSent: 'Halaman uji terkirim ({via}).',
     viaAgent: 'langsung ke printer',

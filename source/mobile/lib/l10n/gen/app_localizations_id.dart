@@ -1315,6 +1315,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get printerAuto => 'Cetak struk otomatis setelah bayar';
 
   @override
+  String get voiceKinds => 'Ucapkan nominal untuk metode';
+
+  @override
   String get printerTest => 'Tes printer';
 
   @override

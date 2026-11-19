@@ -815,6 +815,7 @@
   "printerPaper80": "80 mm",
   "printerCut": "Potong kertas otomatis",
   "printerAuto": "Cetak struk otomatis setelah bayar",
+  "voiceKinds": "Ucapkan nominal untuk metode",
   "printerTest": "Tes printer",
   "printerTestSent": "Halaman uji terkirim.",
   "printerNotConfigured": "Printer belum dipilih. Pilih printer Bluetooth dulu.",

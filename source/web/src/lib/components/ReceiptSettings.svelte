@@ -2,6 +2,7 @@
   // Pengaturan struk per perangkat (PC kasir): cetak otomatis, lebar kertas, cara cetak, potong kertas, tes printer.
   import { onMount } from 'svelte';
   import { t } from '#lib/i18n/index.ts';
+  import { VOICE_KINDS, loadVoiceKinds, saveVoiceKinds } from '#lib/pos/chime.ts';
   import { agentStatus, loadReceiptSettings, printErrorMessage, printLines, saveReceiptSettings, testLines, type Paper, type PrintMethod, type ReceiptSettings } from '#lib/pos/receipt.ts';
 
   let { onchange }: { onchange?: (s: ReceiptSettings) => void } = $props();
@@ -11,6 +12,13 @@
   let testing = $state(false);
   let message = $state('');
   let failed = $state(false);
+
+  let voice = $state(loadVoiceKinds());
+  function toggleVoice(k: string, on: boolean) {
+    voice = on ? [...voice, k] : voice.filter((x) => x !== k);
+    saveVoiceKinds(voice);
+    if (on) speechSynthesis.cancel(); // ketukan ini juga membuka izin suara di browser
+  }
 
   async function check() {
     agent = undefined;
@@ -49,6 +57,16 @@
     <input type="checkbox" class="size-4 accent-[var(--color-primary-600)]" checked={s.auto} onchange={(e) => set({ auto: e.currentTarget.checked })} />
     {t('pos.receipt.auto')}
   </label>
+
+  <fieldset class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <legend class="font-semibold mb-1">{t('pos.receipt.voice')}</legend>
+    {#each VOICE_KINDS as k (k)}
+      <label class="flex items-center gap-1 cursor-pointer">
+        <input type="checkbox" class="size-4 accent-[var(--color-primary-600)]" checked={voice.includes(k)} onchange={(e) => toggleVoice(k, e.currentTarget.checked)} />
+        {t(`sales.method.${k}` as 'sales.method.cash')}
+      </label>
+    {/each}
+  </fieldset>
 
   <fieldset class="space-y-1">
     <legend class="font-semibold mb-1">{t('pos.receipt.method')}</legend>

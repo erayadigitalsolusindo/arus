@@ -727,6 +727,7 @@
   "printerPaper80": "80 mm",
   "printerCut": "Cut paper automatically",
   "printerAuto": "Print receipt automatically after payment",
+  "voiceKinds": "Announce the amount for methods",
   "printerTest": "Test printer",
   "printerTestSent": "Test page sent.",
   "printerNotConfigured": "No printer selected. Pick a Bluetooth printer first.",

@@ -1312,6 +1312,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get printerAuto => 'Print receipt automatically after payment';
 
   @override
+  String get voiceKinds => 'Announce the amount for methods';
+
+  @override
   String get printerTest => 'Test printer';
 
   @override
