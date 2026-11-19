@@ -361,7 +361,7 @@ Modul backend (`source/backend/internal/`): `auth` `authz` `iam` `audit` `outlet
 | 8 | Modul opsional: akuntansi, AI, payment gateway, API eksternal | 🟡 SIAK, HalloArus, EraPay QRIS, API HMAC berjalan; resto/KDS belum |
 | 9 | Wizard onboarding & go-live | 🟡 Wizard + import selesai; gladi bersih & go-live belum |
 | 10 | Kasir mobile Android | 🟡 Berjalan + siap Play + tunai offline (v1.1.5); sisa retur dan uji lapangan |
-| Platform | Paket langganan, domain kustom, QA/QC, hapus tenant | 🟡 Berjalan; domain kustom belum diuji end-to-end di edge nyata |
+| Platform | Paket langganan, domain kustom, QA/QC, hapus tenant | ✅ Berjalan; domain kustom (Caddy edge) sudah diuji end-to-end |
 
 **Jalur kritis go-live pilot**
 
@@ -382,7 +382,7 @@ Status rinci yang selalu terbaru: [`docs/ROADMAP.md`](docs/ROADMAP.md). Bila REA
 | aaPanel (Apache/Nginx) + systemd | [`DEPLOY-AAPANEL.md`](source/deploy/aapanel/DEPLOY-AAPANEL.md) | ✅ Diuji di server nyata |
 | Manual (nginx + certbot + systemd) | [`DEPLOY-MANUAL.md`](source/deploy/manual/DEPLOY-MANUAL.md) | Belum diuji di server nyata |
 | PC kasir (printer thermal + print-agent) | [`PC-KASIR.md`](source/deploy/PC-KASIR.md) | ✅ Diuji dengan printer fisik |
-| Domain kustom per tenant (Caddy edge) | [`DOMAIN-KUSTOM.md`](source/deploy/edge/DOMAIN-KUSTOM.md) | Belum dijalankan/diuji |
+| Domain kustom per tenant (Caddy edge) | [`DOMAIN-KUSTOM.md`](source/deploy/edge/DOMAIN-KUSTOM.md) | ✅ Diuji end-to-end di edge nyata |
 
 - Web (`arus.<domain>`) dan API (`arus-api.<domain>`) harus di bawah **satu domain induk** agar cookie refresh `SameSite=Lax` bekerja.
 - Postgres, Redis, dan API hanya bind ke `127.0.0.1`. Jangan buka port 5433/6380/8080.

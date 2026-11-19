@@ -14,7 +14,7 @@ Web dan API terlihat satu origin oleh browser, jadi cookie refresh tetap first-p
 
 Sertifikat TLS hanya diterbitkan untuk domain yang berstatus **Aktif** di Platform Admin: Caddy bertanya ke `GET /public/domain-check?domain=...` sebelum menerbitkan.
 
-> Status: kode backend/web sudah dibuat dan lolos build + tes unit. **Caddyfile belum pernah dijalankan** dan alur end-to-end belum diuji; ikuti bagian "Uji pertama" dan periksa log.
+> Status: kode backend/web sudah dibuat, lolos build + tes unit, dan **sudah diuji end-to-end di edge Caddy nyata**. Bagian "Uji pertama" tetap berguna sebagai panduan verifikasi di server baru.
 
 ## A. Server edge (sekali)
 
