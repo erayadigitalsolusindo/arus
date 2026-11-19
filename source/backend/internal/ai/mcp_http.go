@@ -453,7 +453,7 @@ func (h *MCPHandler) dispatch(ctx context.Context, gi grantInfo, req rpcRequest)
 		}
 		return ok(map[string]any{
 			"protocolVersion": ver, "capabilities": map[string]any{"tools": map[string]any{"listChanged": false}},
-			"serverInfo": map[string]any{"name": "ARUS HalloArus", "version": "1.0.0"}, "instructions": mcpInstructions,
+			"serverInfo": map[string]any{"name": "ARUS HalloArus", "version": "1.0.0"}, "instructions": h.svc.mcpInstructionsFor(ctx, gi.Actor),
 		})
 	case "ping":
 		return ok(map[string]any{})
@@ -505,6 +505,15 @@ func (h *MCPHandler) auditCall(ctx context.Context, gi grantInfo, tool string, o
 	if err != nil {
 		h.log.WarnContext(ctx, "mcp audit gagal", "err", err)
 	}
+}
+
+// mcpInstructionsFor = instruksi dasar + batasan & aturan operator yang sama dengan chat HalloArus (policyPrompt/rulesPrompt).
+func (s *Service) mcpInstructionsFor(ctx context.Context, a authz.Actor) string {
+	pol, rules, err := s.bundle(ctx, a.TenantID)
+	if err != nil {
+		return mcpInstructions
+	}
+	return mcpInstructions + policyPrompt(pol) + rulesPrompt(rules)
 }
 
 // callTool menjalankan satu tool baca atas nama pengguna (dipakai connector MCP).
