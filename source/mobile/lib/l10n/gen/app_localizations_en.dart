@@ -1907,6 +1907,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorEditWindowClosed => 'The edit window has closed.';
 
   @override
+  String get errorPlanTxLimit =>
+      'The daily transaction limit of your plan has been reached. Upgrade under Subscription to raise it.';
+
+  @override
+  String get errorPlanItemLimit =>
+      'The active item limit of your plan has been reached. Archive unused items or upgrade under Subscription.';
+
+  @override
+  String get errorPlanUserLimit =>
+      'The user limit of your plan has been reached. Upgrade under Subscription or deactivate another user.';
+
+  @override
   String get errorStockReverse =>
       'Not enough stock to reverse this purchase (part of it has been sold).';
 

@@ -1016,7 +1016,7 @@
         return;
     }
     if (!ctrl) return;
-    if (e.key === 'Enter' || (classic && e.key.toLowerCase() === 's')) return act(() => !payDisabled && startPay());
+    if (e.key === 'Enter' || e.key.toLowerCase() === 's') return act(() => !payDisabled && startPay());
     if (e.key.toLowerCase() === 'k') return act(() => (voucherOpen = true));
     if (classic && e.key.toLowerCase() === 'f') return act(() => document.getElementById('cl-cart-search')?.focus());
     if (e.key === 'ArrowUp') return act(() => selectLine(-1));

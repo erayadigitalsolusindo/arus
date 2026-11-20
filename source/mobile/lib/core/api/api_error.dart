@@ -162,6 +162,12 @@ class ApiError implements Exception {
         return l.errorCodeTaken;
       case 'EDIT_WINDOW_CLOSED':
         return l.errorEditWindowClosed;
+      case 'PLAN_TX_LIMIT_REACHED':
+        return l.errorPlanTxLimit;
+      case 'PLAN_ITEM_LIMIT_REACHED':
+        return l.errorPlanItemLimit;
+      case 'PLAN_USER_LIMIT_REACHED':
+        return l.errorPlanUserLimit;
       case 'INTERNAL':
         return l.errorInternal;
       default:

@@ -1868,6 +1868,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorEditWindowClosed => '編集可能な期間が過ぎました。';
 
   @override
+  String get errorPlanTxLimit => 'プランの1日の取引上限に達しました。サブスクリプションからアップグレードしてください。';
+
+  @override
+  String get errorPlanItemLimit =>
+      'プランの有効な商品数の上限に達しました。使わない商品をアーカイブするか、サブスクリプションからアップグレードしてください。';
+
+  @override
+  String get errorPlanUserLimit =>
+      'プランのユーザー数上限に達しました。サブスクリプションからアップグレードするか、他のユーザーを無効にしてください。';
+
+  @override
   String get errorStockReverse => 'この仕入を戻すには在庫が不足しています（一部は販売済み）。';
 
   @override

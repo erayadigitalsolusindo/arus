@@ -3460,6 +3460,24 @@ abstract class AppLocalizations {
   /// **'Batas waktu edit sudah lewat.'**
   String get errorEditWindowClosed;
 
+  /// No description provided for @errorPlanTxLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas transaksi harian paket Anda tercapai. Upgrade paket di menu Langganan untuk menambah batas.'**
+  String get errorPlanTxLimit;
+
+  /// No description provided for @errorPlanItemLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas jumlah barang aktif paket Anda tercapai. Arsipkan barang yang tidak dipakai atau upgrade paket di menu Langganan.'**
+  String get errorPlanItemLimit;
+
+  /// No description provided for @errorPlanUserLimit.
+  ///
+  /// In id, this message translates to:
+  /// **'Batas jumlah pengguna paket Anda tercapai. Upgrade paket di menu Langganan atau nonaktifkan pengguna lain.'**
+  String get errorPlanUserLimit;
+
   /// No description provided for @errorStockReverse.
   ///
   /// In id, this message translates to:

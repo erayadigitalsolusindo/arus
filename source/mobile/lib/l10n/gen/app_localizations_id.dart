@@ -1912,6 +1912,18 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorEditWindowClosed => 'Batas waktu edit sudah lewat.';
 
   @override
+  String get errorPlanTxLimit =>
+      'Batas transaksi harian paket Anda tercapai. Upgrade paket di menu Langganan untuk menambah batas.';
+
+  @override
+  String get errorPlanItemLimit =>
+      'Batas jumlah barang aktif paket Anda tercapai. Arsipkan barang yang tidak dipakai atau upgrade paket di menu Langganan.';
+
+  @override
+  String get errorPlanUserLimit =>
+      'Batas jumlah pengguna paket Anda tercapai. Upgrade paket di menu Langganan atau nonaktifkan pengguna lain.';
+
+  @override
   String get errorStockReverse =>
       'Stok tidak cukup untuk membalik nota ini (sebagian sudah terjual).';
 
