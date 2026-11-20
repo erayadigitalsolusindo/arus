@@ -2281,4 +2281,36 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get itemsOpname => '棚卸';
+
+  @override
+  String get serverProdDesc => '日常利用のメインサーバー。';
+
+  @override
+  String get serverEmuDesc => 'PC上の開発サーバー。テスト専用。';
+
+  @override
+  String get serverCustomTitle => 'その他のアドレス';
+
+  @override
+  String get serverCustomDesc => '独自のサーバーアドレスを入力（例: 同じネットワークのPCのIP）。';
+
+  @override
+  String get serverSecure => 'HTTPS · 暗号化';
+
+  @override
+  String get serverInsecure => 'HTTP · 暗号化なし';
+
+  @override
+  String get serverTest => '接続テスト';
+
+  @override
+  String get serverTesting => 'テスト中…';
+
+  @override
+  String serverOk(int ms) {
+    return '接続OK · $ms ms';
+  }
+
+  @override
+  String get serverFail => 'このアドレスに接続できません';
 }

@@ -1214,5 +1214,16 @@
   "payCloseStay": "Stay here",
   "payCloseLeave": "Close",
   "payCloseTooltip": "Close",
-  "itemsOpname": "Stock Opname"
+  "itemsOpname": "Stock Opname",
+  "serverProdDesc": "The main server for everyday use.",
+  "serverEmuDesc": "Development server on your computer, for testing only.",
+  "serverCustomTitle": "Other address",
+  "serverCustomDesc": "Type your own server address, e.g. your computer's IP on the same network.",
+  "serverSecure": "HTTPS · encrypted",
+  "serverInsecure": "HTTP · not encrypted",
+  "serverTest": "Test connection",
+  "serverTesting": "Testing…",
+  "serverOk": "Connected · {ms} ms",
+  "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
+  "serverFail": "Cannot connect to this address"
 }

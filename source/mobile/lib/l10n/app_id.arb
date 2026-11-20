@@ -1302,5 +1302,16 @@
   "payCloseStay": "Tetap di sini",
   "payCloseLeave": "Tutup",
   "payCloseTooltip": "Tutup",
-  "itemsOpname": "Stok Opname"
+  "itemsOpname": "Stok Opname",
+  "serverProdDesc": "Server utama untuk pemakaian sehari-hari.",
+  "serverEmuDesc": "Server pengembangan di komputer, khusus uji coba.",
+  "serverCustomTitle": "Alamat lain",
+  "serverCustomDesc": "Ketik alamat server sendiri, mis. IP komputer di jaringan yang sama.",
+  "serverSecure": "HTTPS · terenkripsi",
+  "serverInsecure": "HTTP · tidak terenkripsi",
+  "serverTest": "Tes koneksi",
+  "serverTesting": "Menguji…",
+  "serverOk": "Terhubung · {ms} ms",
+  "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
+  "serverFail": "Tidak dapat terhubung ke alamat ini"
 }

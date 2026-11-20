@@ -4239,6 +4239,66 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Stok Opname'**
   String get itemsOpname;
+
+  /// No description provided for @serverProdDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Server utama untuk pemakaian sehari-hari.'**
+  String get serverProdDesc;
+
+  /// No description provided for @serverEmuDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Server pengembangan di komputer, khusus uji coba.'**
+  String get serverEmuDesc;
+
+  /// No description provided for @serverCustomTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Alamat lain'**
+  String get serverCustomTitle;
+
+  /// No description provided for @serverCustomDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Ketik alamat server sendiri, mis. IP komputer di jaringan yang sama.'**
+  String get serverCustomDesc;
+
+  /// No description provided for @serverSecure.
+  ///
+  /// In id, this message translates to:
+  /// **'HTTPS · terenkripsi'**
+  String get serverSecure;
+
+  /// No description provided for @serverInsecure.
+  ///
+  /// In id, this message translates to:
+  /// **'HTTP · tidak terenkripsi'**
+  String get serverInsecure;
+
+  /// No description provided for @serverTest.
+  ///
+  /// In id, this message translates to:
+  /// **'Tes koneksi'**
+  String get serverTest;
+
+  /// No description provided for @serverTesting.
+  ///
+  /// In id, this message translates to:
+  /// **'Menguji…'**
+  String get serverTesting;
+
+  /// No description provided for @serverOk.
+  ///
+  /// In id, this message translates to:
+  /// **'Terhubung · {ms} ms'**
+  String serverOk(int ms);
+
+  /// No description provided for @serverFail.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak dapat terhubung ke alamat ini'**
+  String get serverFail;
 }
 
 class _AppLocalizationsDelegate

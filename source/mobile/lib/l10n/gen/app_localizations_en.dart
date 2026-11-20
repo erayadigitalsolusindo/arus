@@ -2339,4 +2339,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get itemsOpname => 'Stock Opname';
+
+  @override
+  String get serverProdDesc => 'The main server for everyday use.';
+
+  @override
+  String get serverEmuDesc =>
+      'Development server on your computer, for testing only.';
+
+  @override
+  String get serverCustomTitle => 'Other address';
+
+  @override
+  String get serverCustomDesc =>
+      'Type your own server address, e.g. your computer\'s IP on the same network.';
+
+  @override
+  String get serverSecure => 'HTTPS · encrypted';
+
+  @override
+  String get serverInsecure => 'HTTP · not encrypted';
+
+  @override
+  String get serverTest => 'Test connection';
+
+  @override
+  String get serverTesting => 'Testing…';
+
+  @override
+  String serverOk(int ms) {
+    return 'Connected · $ms ms';
+  }
+
+  @override
+  String get serverFail => 'Cannot connect to this address';
 }

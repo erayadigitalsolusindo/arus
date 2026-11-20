@@ -1326,5 +1326,16 @@
   "payCloseStay": "このまま",
   "payCloseLeave": "閉じる",
   "payCloseTooltip": "閉じる",
-  "itemsOpname": "棚卸"
+  "itemsOpname": "棚卸",
+  "serverProdDesc": "日常利用のメインサーバー。",
+  "serverEmuDesc": "PC上の開発サーバー。テスト専用。",
+  "serverCustomTitle": "その他のアドレス",
+  "serverCustomDesc": "独自のサーバーアドレスを入力（例: 同じネットワークのPCのIP）。",
+  "serverSecure": "HTTPS · 暗号化",
+  "serverInsecure": "HTTP · 暗号化なし",
+  "serverTest": "接続テスト",
+  "serverTesting": "テスト中…",
+  "serverOk": "接続OK · {ms} ms",
+  "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
+  "serverFail": "このアドレスに接続できません"
 }

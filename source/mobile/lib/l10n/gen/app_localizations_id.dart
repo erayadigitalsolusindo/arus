@@ -2340,4 +2340,38 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get itemsOpname => 'Stok Opname';
+
+  @override
+  String get serverProdDesc => 'Server utama untuk pemakaian sehari-hari.';
+
+  @override
+  String get serverEmuDesc =>
+      'Server pengembangan di komputer, khusus uji coba.';
+
+  @override
+  String get serverCustomTitle => 'Alamat lain';
+
+  @override
+  String get serverCustomDesc =>
+      'Ketik alamat server sendiri, mis. IP komputer di jaringan yang sama.';
+
+  @override
+  String get serverSecure => 'HTTPS · terenkripsi';
+
+  @override
+  String get serverInsecure => 'HTTP · tidak terenkripsi';
+
+  @override
+  String get serverTest => 'Tes koneksi';
+
+  @override
+  String get serverTesting => 'Menguji…';
+
+  @override
+  String serverOk(int ms) {
+    return 'Terhubung · $ms ms';
+  }
+
+  @override
+  String get serverFail => 'Tidak dapat terhubung ke alamat ini';
 }
