@@ -17,7 +17,7 @@ export default {
     noAccount: 'Belum punya akun?',
     createOne: 'Buat akun',
     downloadApk: 'TERSEDIA DI GOOGLE PLAY',
-    downloadApkDirect: 'UNDUH APK (TANPA GOOGLE PLAY)',
+    downloadApkDirect: 'UNDUH APK',
     emailRequired: 'Email wajib diisi.',
     emailInvalid: 'Format email tidak valid.',
     passwordRequired: 'Kata sandi wajib diisi.'

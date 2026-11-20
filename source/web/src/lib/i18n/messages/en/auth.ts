@@ -19,7 +19,7 @@ const auth: Messages['auth'] = {
     noAccount: "Don't have an account?",
     createOne: 'Create one',
     downloadApk: 'GET IT ON GOOGLE PLAY',
-    downloadApkDirect: 'DOWNLOAD APK (NO GOOGLE PLAY)',
+    downloadApkDirect: 'DOWNLOAD APK',
     emailRequired: 'Email is required.',
     emailInvalid: 'Invalid email format.',
     passwordRequired: 'Password is required.'

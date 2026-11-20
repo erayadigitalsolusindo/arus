@@ -253,15 +253,15 @@
         </form>
       {:else}
       <div class="mt-6 grid gap-3 {erayaEnabled ? 'sm:grid-cols-2' : ''}">
-        {#if $googleEnabled}
-          <GoogleButton onCredential={googleLogin} />
-        {:else}
-          <button type="button" class="btn btn-outline w-full !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
-        {/if}
         {#if erayaEnabled}
           <button type="button" class="btn btn-outline w-full h-10 !text-[12.5px] justify-center" disabled={loading} onclick={() => startEraya('login', safeNext(new URL(location.href).searchParams.get('next')) ?? '')}>
             <ErayaMark class="h-4 w-auto" />{t('auth.eraya.signIn')}
           </button>
+        {/if}
+        {#if $googleEnabled}
+          <GoogleButton onCredential={googleLogin} />
+        {:else}
+          <button type="button" class="btn btn-outline w-full !text-[12.5px] justify-center"><i class="fa-brands fa-google text-[13px]"></i>Google</button>
         {/if}
       </div>
 
@@ -335,20 +335,20 @@
         {t('auth.login.noAccount')} <a href="/register" class="font-semibold text-primary-600">{t('auth.login.createOne')}</a>
       </p>
 
-      <div class="flex gap-2 mt-4">
+      <div class="grid gap-3 mt-4 {apkReady ? 'sm:grid-cols-2' : ''}">
+      {#if apkReady}
+        <a href="{API_URL}/public/mobile/apk" download class="btn btn-outline w-full justify-center !text-[12.5px] font-bold tracking-wide">
+          <BrandLogo kind="icon" class="h-4 w-4" />{t('auth.login.downloadApkDirect')}
+        </a>
+      {/if}
       <a
         href={PLAY_URL}
         target="_blank"
         rel="noopener noreferrer"
-        class="btn btn-outline flex-1 justify-center !text-[12.5px] font-bold tracking-wide"
+        class="btn btn-outline w-full justify-center !text-[12.5px] font-bold tracking-wide"
       >
         <svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" aria-hidden="true"><path fill="#00D7FE" d="M3.6 1.6c-.3.3-.5.8-.5 1.4v18c0 .6.2 1.1.5 1.4l.1.1L13.8 12.4v-.2L3.7 1.5z"/><path fill="#FFCE00" d="M17.2 15.8l-3.4-3.4v-.2l3.4-3.4.1.1 4 2.3c1.1.6 1.1 1.7 0 2.4l-4 2.2z"/><path fill="#FF3A44" d="M17.3 15.7l-3.5-3.5L3.6 22.4c.4.4 1 .4 1.7.1l12-6.8"/><path fill="#00F076" d="M17.3 8.7L5.3 1.9c-.7-.4-1.3-.3-1.7.1l10.2 10.2z"/></svg>{t('auth.login.downloadApk')}
       </a>
-      {#if apkReady}
-        <a href="{API_URL}/public/mobile/apk" download class="btn btn-outline flex-1 justify-center !text-[12.5px] font-bold tracking-wide">
-          <i class="icon-download text-[16px]"></i>{t('auth.login.downloadApkDirect')}
-        </a>
-      {/if}
       </div>
     </div>
 
