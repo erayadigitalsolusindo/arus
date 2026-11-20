@@ -19,6 +19,7 @@ const auth: Messages['auth'] = {
     noAccount: 'アカウントがありませんか?',
     createOne: 'アカウントを作成',
     downloadApk: 'Google Playで入手',
+    downloadApkDirect: 'APKをダウンロード（Google Play不要）',
     emailRequired: 'メールアドレスは必須です。',
     emailInvalid: 'メールアドレスの形式が無効です。',
     passwordRequired: 'パスワードは必須です。'
