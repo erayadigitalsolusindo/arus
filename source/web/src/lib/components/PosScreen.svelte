@@ -40,6 +40,12 @@
   import { page } from '$app/state';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import { initials } from '#lib/auth/initials.ts';
+
+  /** Gambar pengganti kartu barang: 2 huruf (kata 1+2; satu kata → dua huruf awal), sama seperti mobile. */
+  function itemInitials(name: string): string {
+    const w = name.trim().split(/\s+/).filter(Boolean);
+    return (w.length > 1 ? w[0]![0]! + w[1]![0]! : Array.from(w[0] ?? '').slice(0, 2).join('')).toUpperCase();
+  }
   import { setPosLayout, posPath, type PosLayout } from '#lib/pos/layout.ts';
 
   // modern = tiga kolom (/kasir); classic = layar bergaya aplikasi desktop (/kasirb). Logika & dialognya sama.
@@ -1196,7 +1202,7 @@
                   {#if r.main_image_id}
                     <AuthImage itemId={r.id} imageId={r.main_image_id} alt={r.name} class="size-full object-cover" />
                   {:else}
-                    <span class="grid place-items-center size-full text-[var(--text-tertiary)]"><i class="icon-image text-[26px]"></i></span>
+                    <span class="grid place-items-center size-full bg-[color-mix(in_oklab,var(--color-primary-600)_14%,transparent)] font-display text-[34px] font-extrabold text-[var(--color-primary-600)]" aria-hidden="true">{itemInitials(r.name)}</span>
                   {/if}
                 </div>
                 <div class="flex flex-col min-w-0 grow p-2.5 text-[12px]">
