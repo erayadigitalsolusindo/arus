@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/services.dart' show appFlavor;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_update/in_app_update.dart' as iau;
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Flavor Play memperbarui lewat Google Play (In-App Update), bukan unduh APK sendiri.
 bool get isPlayFlavor => appFlavor == 'play';
@@ -22,13 +21,6 @@ class PlayUpdateOffer {
   final bool flexibleAllowed;
   final bool immediateAllowed;
 }
-
-/// Maks. berapa kali "Nanti" untuk satu versi sebelum pembaruan jadi wajib.
-const maxPlayUpdateSkips = 3;
-
-/// Prioritas Play >= 4 (diatur saat rilis di Play Console) atau terlalu sering ditunda: layar pembaruan tak bisa dilewati.
-bool playUpdateIsForced({required int priority, required int skips}) =>
-    priority >= 4 || skips >= maxPlayUpdateSkips;
 
 /// Pembungkus plugin supaya logika bisa dites tanpa Play.
 class PlayUpdateClient {
@@ -89,13 +81,11 @@ class PlayUpdateState {
   const PlayUpdateState({
     this.phase = PlayUpdatePhase.none,
     this.offer,
-    this.skips = 0,
     this.showCard = false,
   });
 
   final PlayUpdatePhase phase;
   final PlayUpdateOffer? offer;
-  final int skips;
 
   /// Kartu pembaruan tampil di atas aplikasi (otomatis saat dibuka, atau dari tombol Cek pembaruan).
   final bool showCard;
@@ -106,20 +96,17 @@ class PlayUpdateState {
       phase != PlayUpdatePhase.none &&
       phase != PlayUpdatePhase.upToDate;
 
-  bool get forced =>
-      offer != null &&
-      playUpdateIsForced(priority: offer!.priority, skips: skips);
+  /// Ada versi baru = wajib diperbarui, tanpa tombol "Nanti".
+  bool get forced => offer != null;
 
   PlayUpdateState copyWith({
     PlayUpdatePhase? phase,
     PlayUpdateOffer? offer,
     bool clearOffer = false,
-    int? skips,
     bool? showCard,
   }) => PlayUpdateState(
     phase: phase ?? this.phase,
     offer: clearOffer ? null : (offer ?? this.offer),
-    skips: skips ?? this.skips,
     showCard: showCard ?? this.showCard,
   );
 }
@@ -138,17 +125,6 @@ class PlayUpdateController extends Notifier<PlayUpdateState> {
   PlayUpdateState build() {
     ref.onDispose(() => _sub?.cancel());
     return const PlayUpdateState();
-  }
-
-  String _skipKey(int code) => 'update.play.skips.$code';
-
-  Future<int> _loadSkips(int code) async {
-    try {
-      return (await SharedPreferences.getInstance()).getInt(_skipKey(code)) ??
-          0;
-    } catch (_) {
-      return 0;
-    }
   }
 
   /// Cek ke Play. [manual] (tombol Cek pembaruan) selalu menampilkan hasilnya, termasuk "sudah terbaru" dan galat.
@@ -181,11 +157,9 @@ class PlayUpdateController extends Notifier<PlayUpdateState> {
             : const PlayUpdateState();
         return;
       }
-      final skips = await _loadSkips(offer.versionCode);
       final next = state.copyWith(
         phase: PlayUpdatePhase.available,
         offer: offer,
-        skips: skips,
       );
       final show = manual || next.forced || !_autoPrompted;
       if (!manual) _autoPrompted = true;
@@ -198,20 +172,6 @@ class PlayUpdateController extends Notifier<PlayUpdateState> {
           ? state.copyWith(phase: PlayUpdatePhase.failed, showCard: true)
           : const PlayUpdateState();
     }
-  }
-
-  /// "Nanti": ingat penundaan untuk versi ini; setelah [maxPlayUpdateSkips] kali pembaruan jadi wajib.
-  Future<void> later() async {
-    final o = state.offer;
-    if (o == null || state.forced) return;
-    final skips = state.skips + 1;
-    state = state.copyWith(showCard: false, skips: skips);
-    try {
-      await (await SharedPreferences.getInstance()).setInt(
-        _skipKey(o.versionCode),
-        skips,
-      );
-    } catch (_) {}
   }
 
   /// Tutup kartu tanpa menunda (hasil "sudah terbaru"/galat, atau kartu yang dibuka manual).

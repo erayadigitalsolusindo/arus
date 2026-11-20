@@ -48,24 +48,15 @@ ProviderContainer _box(_FakePlay f) {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('wajib bila prioritas tinggi atau terlalu sering ditunda', () {
-    expect(playUpdateIsForced(priority: 0, skips: 0), isFalse);
-    expect(playUpdateIsForced(priority: 4, skips: 0), isTrue);
-    expect(playUpdateIsForced(priority: 0, skips: maxPlayUpdateSkips), isTrue);
-  });
-
   test(
-    'cek otomatis: kartu muncul sekali, diam bila tak ada pembaruan',
+    'cek otomatis: kartu wajib muncul, diam bila tak ada pembaruan',
     () async {
       final c = _box(_FakePlay(offer: _offer));
       final n = c.read(playUpdateProvider.notifier);
       await n.check();
       expect(c.read(playUpdateProvider).showCard, isTrue);
       expect(c.read(playUpdateProvider).hasUpdate, isTrue);
-
-      await n.later();
-      expect(c.read(playUpdateProvider).showCard, isFalse);
-      expect(c.read(playUpdateProvider).hasUpdate, isTrue); // lencana tetap
+      expect(c.read(playUpdateProvider).forced, isTrue); // tak ada "Nanti"
 
       final none = _box(_FakePlay());
       await none.read(playUpdateProvider.notifier).check();
@@ -73,24 +64,6 @@ void main() {
       expect(none.read(playUpdateProvider).hasUpdate, isFalse);
     },
   );
-
-  test('Nanti dihitung per versi dan jadi wajib setelah batas', () async {
-    final c = _box(_FakePlay(offer: _offer));
-    final n = c.read(playUpdateProvider.notifier);
-    await n.check();
-    for (var i = 0; i < maxPlayUpdateSkips; i++) {
-      await n.later();
-    }
-    expect(c.read(playUpdateProvider).forced, isTrue);
-    await n.later(); // tak berpengaruh saat wajib
-    expect(c.read(playUpdateProvider).skips, maxPlayUpdateSkips);
-
-    // dibuka lagi: hitungan tersimpan, kartu wajib langsung muncul
-    final again = _box(_FakePlay(offer: _offer));
-    await again.read(playUpdateProvider.notifier).check();
-    expect(again.read(playUpdateProvider).forced, isTrue);
-    expect(again.read(playUpdateProvider).showCard, isTrue);
-  });
 
   test('cek manual menampilkan hasil: terbaru dan gagal', () async {
     final c = _box(_FakePlay());
@@ -106,30 +79,11 @@ void main() {
     expect(bad.read(playUpdateProvider).showCard, isTrue);
   });
 
-  test(
-    'pembaruan fleksibel: unduh di latar belakang lalu siap dipasang',
-    () async {
-      final f = _FakePlay(offer: _offer);
-      final c = _box(f);
-      final n = c.read(playUpdateProvider.notifier);
-      await n.check();
-      await n.start();
-      expect(f.flexibleStarted, isTrue);
-      expect(c.read(playUpdateProvider).phase, PlayUpdatePhase.downloading);
-      expect(c.read(playUpdateProvider).showCard, isFalse);
-
-      f.done.add(true);
-      await Future<void>.delayed(Duration.zero);
-      expect(c.read(playUpdateProvider).phase, PlayUpdatePhase.downloaded);
-      expect(c.read(playUpdateProvider).showCard, isTrue);
-    },
-  );
-
-  test('pembaruan wajib memakai layar penuh Play', () async {
+  test('pembaruan selalu memakai layar penuh Play', () async {
     final f = _FakePlay(
       offer: const PlayUpdateOffer(
         versionCode: 10,
-        priority: 5,
+        priority: 0,
         flexibleAllowed: true,
         immediateAllowed: true,
       ),

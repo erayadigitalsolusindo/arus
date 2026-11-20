@@ -7,8 +7,7 @@ import '../../l10n/gen/app_localizations.dart';
 import 'play_update.dart';
 
 /// Flavor Play: cek pembaruan ke Google Play saat dibuka/dilanjutkan, lalu tampilkan kartu pembaruan di atas
-/// aplikasi. Kartu bisa ditunda ("Nanti") sampai [maxPlayUpdateSkips] kali; sesudah itu atau pada rilis berprioritas
-/// tinggi, kartu tak bisa ditutup. Tombol Cek pembaruan memicu cek manual dan menampilkan hasilnya di kartu yang sama.
+/// aplikasi. Bila ada versi baru, kartu tak bisa ditutup sampai diperbarui. Tombol Cek pembaruan memicu cek manual dan menampilkan hasilnya di kartu yang sama.
 /// Memakai Stack (bukan dialog) karena gate ada di atas Navigator.
 class PlayUpdateGate extends ConsumerStatefulWidget {
   const PlayUpdateGate({super.key, required this.child});
@@ -135,17 +134,6 @@ class _UpdateCard extends ConsumerWidget {
 
     final List<Widget> actions = switch (phase) {
       PlayUpdatePhase.available => [
-        if (!forced)
-          Expanded(
-            child: OutlinedButton(
-              onPressed: ctrl.later,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-              ),
-              child: Text(l.updLater),
-            ),
-          ),
-        if (!forced) const SizedBox(width: 10),
         Expanded(
           child: FilledButton.icon(
             onPressed: ctrl.start,
@@ -288,8 +276,6 @@ class _UpdateToast extends ConsumerWidget {
       action = Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton(onPressed: ctrl.later, child: Text(l.updLater)),
-          const SizedBox(width: 6),
           FilledButton.icon(
             onPressed: ctrl.start,
             icon: const Icon(Icons.download, size: 18),
