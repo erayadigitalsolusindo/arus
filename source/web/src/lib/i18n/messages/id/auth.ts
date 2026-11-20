@@ -16,7 +16,7 @@ export default {
     submit: 'Masuk',
     noAccount: 'Belum punya akun?',
     createOne: 'Buat akun',
-    downloadApk: 'TERSEDIA DI GOOGLE PLAY',
+    downloadApk: 'GOOGLE PLAY',
     downloadApkDirect: 'UNDUH APK',
     emailRequired: 'Email wajib diisi.',
     emailInvalid: 'Format email tidak valid.',

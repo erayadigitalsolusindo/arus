@@ -18,7 +18,7 @@ const auth: Messages['auth'] = {
     submit: 'Sign In',
     noAccount: "Don't have an account?",
     createOne: 'Create one',
-    downloadApk: 'GET IT ON GOOGLE PLAY',
+    downloadApk: 'GOOGLE PLAY',
     downloadApkDirect: 'DOWNLOAD APK',
     emailRequired: 'Email is required.',
     emailInvalid: 'Invalid email format.',
