@@ -63,13 +63,6 @@ type Service struct {
 	box         *secretBox
 	methods     *paymentmethod.Service
 	requireProd bool // di luar development: hanya key production yang diterima
-	qgBase      string
-}
-
-// provider = penyedia QRIS satu toko (EraPay atau QRISGate); keduanya dipetakan ke Payment yang sama.
-type provider interface {
-	Create(ctx context.Context, idemKey string, r createReq) (Payment, error)
-	Get(ctx context.Context, paymentID string) (Payment, error)
 }
 
 func NewService(pool *pgxpool.Pool, baseURL, secret string, requireProd bool, methods *paymentmethod.Service) (*Service, error) {
@@ -77,7 +70,7 @@ func NewService(pool *pgxpool.Pool, baseURL, secret string, requireProd bool, me
 	if err != nil {
 		return nil, err
 	}
-	return &Service{pool: pool, baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), box: box, methods: methods, requireProd: requireProd, qgBase: qrisgateBaseURL}, nil
+	return &Service{pool: pool, baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), box: box, methods: methods, requireProd: requireProd}, nil
 }
 
 // Charge = bentuk respons API ke kasir.
@@ -108,10 +101,13 @@ func scanCharge(row pgx.Row) (chargeRow, error) {
 	return c, nil
 }
 
-// clientTx membangun klien dari key tenant (nil bila belum dipasang / penyedia mati). kind = penyedia yang dipakai tenant.
-func (s *Service) clientTx(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) (provider, error) {
-	var enc, kind string
-	if err := tx.QueryRow(ctx, `SELECT api_key_enc, provider FROM erapay_settings WHERE tenant_id = $1`, tenant).Scan(&enc, &kind); err != nil {
+// clientTx membangun klien dari key tenant (nil bila belum dipasang / integrasi mati).
+func (s *Service) clientTx(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) (*Client, error) {
+	if s.baseURL == "" {
+		return nil, nil
+	}
+	var enc string
+	if err := tx.QueryRow(ctx, `SELECT api_key_enc FROM erapay_settings WHERE tenant_id = $1`, tenant).Scan(&enc); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -121,16 +117,10 @@ func (s *Service) clientTx(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) (pr
 	if err != nil {
 		return nil, err
 	}
-	if kind == ProviderQRISGate {
-		return newQRISGateClient(s.qgBase, key), nil
-	}
-	if cl := NewClient(s.baseURL, key); cl != nil { // nil bila alamat EraPay kosong; jangan bungkus nil bertipe ke interface
-		return cl, nil
-	}
-	return nil, nil
+	return NewClient(s.baseURL, key), nil
 }
 
-func (s *Service) client(ctx context.Context, tenant uuid.UUID) (c provider, err error) {
+func (s *Service) client(ctx context.Context, tenant uuid.UUID) (c *Client, err error) {
 	err = db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		c, err = s.clientTx(ctx, tx, tenant)
 		return err
@@ -146,18 +136,16 @@ type Config struct {
 	Configured  bool       `json:"configured"`            // tenant sudah menyimpan API key
 	KeyHint     string     `json:"key_hint,omitempty"`    // 4 karakter terakhir key
 	Environment string     `json:"environment,omitempty"` // "sandbox" | "production"
-	Provider    string     `json:"provider,omitempty"`    // "erapay" | "qrisgate" (penyedia dari key yang terpasang)
 }
 
 func (s *Service) Config(ctx context.Context, a authz.Actor) (Config, error) {
-	cfg := Config{}
+	cfg := Config{ServerReady: s.baseURL != ""}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT key_hint, environment, provider FROM erapay_settings WHERE tenant_id = $1`, a.TenantID).Scan(&cfg.KeyHint, &cfg.Environment, &cfg.Provider)
+		err := tx.QueryRow(ctx, `SELECT key_hint, environment FROM erapay_settings WHERE tenant_id = $1`, a.TenantID).Scan(&cfg.KeyHint, &cfg.Environment)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		cfg.Configured = err == nil
-		cfg.ServerReady = s.baseURL != "" || cfg.Provider == ProviderQRISGate // QRISGate tak butuh alamat di server
 		var id uuid.UUID
 		err = tx.QueryRow(ctx, `SELECT m.method_id FROM erapay_methods m JOIN payment_methods p ON p.id = m.method_id AND p.active WHERE m.tenant_id = $1`, a.TenantID).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -197,60 +185,42 @@ func (s *Service) SaveKeyForTenant(ctx context.Context, tenant uuid.UUID, adminN
 }
 
 func (s *Service) saveKey(ctx context.Context, a authz.Actor, apiKey string) (Config, error) {
+	if s.baseURL == "" {
+		return Config{}, ErrDisabled
+	}
 	apiKey = strings.TrimSpace(apiKey)
-	kind, env := ProviderEraPay, ""
-	switch {
-	case qrisgateKeyFormat.MatchString(apiKey): // penyedia dikenali dari awalan key: qg_live_ = QRISGate, epk_ = EraPay
-		kind, env = ProviderQRISGate, "production"
-		if err := newQRISGateClient(s.qgBase, apiKey).check(ctx); errors.Is(err, ErrKeyInvalid) {
-			return Config{}, err
-		} else if err != nil {
-			return Config{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
-		}
-	case keyFormat.MatchString(apiKey):
-		if s.baseURL == "" {
-			return Config{}, ErrDisabled
-		}
-		info, err := NewClient(s.baseURL, apiKey).Self(ctx)
-		switch {
-		case errors.Is(err, ErrKeyInvalid):
-			return Config{}, err
-		case err != nil:
-			return Config{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
-		case !slices.Contains(info.Scopes, "payment:create") || !slices.Contains(info.Scopes, "payment:read"):
-			return Config{}, ErrKeyScope
-		case s.requireProd && info.Environment != "production":
-			return Config{}, ErrKeyEnvironment
-		}
-		env = info.Environment
-	default:
+	if !keyFormat.MatchString(apiKey) {
 		return Config{}, ErrBadKey
+	}
+	info, err := NewClient(s.baseURL, apiKey).Self(ctx)
+	switch {
+	case errors.Is(err, ErrKeyInvalid):
+		return Config{}, err
+	case err != nil:
+		return Config{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	case !slices.Contains(info.Scopes, "payment:create") || !slices.Contains(info.Scopes, "payment:read"):
+		return Config{}, ErrKeyScope
+	case s.requireProd && info.Environment != "production":
+		return Config{}, ErrKeyEnvironment
 	}
 	enc, err := s.box.seal(apiKey, a.TenantID.String())
 	if err != nil {
 		return Config{}, err
 	}
 	err = db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `INSERT INTO erapay_settings (tenant_id, api_key_enc, key_hint, environment, provider, updated_by) VALUES ($1, $2, $3, $4, $5, $6)
+		_, err := tx.Exec(ctx, `INSERT INTO erapay_settings (tenant_id, api_key_enc, key_hint, environment, updated_by) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (tenant_id) DO UPDATE SET api_key_enc = EXCLUDED.api_key_enc, key_hint = EXCLUDED.key_hint,
-			environment = EXCLUDED.environment, provider = EXCLUDED.provider, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-			a.TenantID, enc, apiKey[len(apiKey)-4:], env, kind, a.UserID)
+			environment = EXCLUDED.environment, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+			a.TenantID, enc, apiKey[len(apiKey)-4:], info.Environment, a.UserID)
 		return err
 	})
 	if err != nil {
 		return Config{}, err
 	}
-	if err := s.ensureMethod(ctx, a, methodName(kind)); err != nil {
+	if err := s.ensureMethod(ctx, a); err != nil {
 		return Config{}, err
 	}
 	return s.Config(ctx, a)
-}
-
-func methodName(kind string) string {
-	if kind == ProviderQRISGate {
-		return "QRISGate QRIS"
-	}
-	return MethodName
 }
 
 // RemoveKey menghapus key tenant: kasir tak lagi bisa membuat QR baru. Metode dan charge lama tetap ada (menempel di nota lama).
@@ -264,23 +234,23 @@ func (s *Service) RemoveKey(ctx context.Context, a authz.Actor) error {
 	})
 }
 
-// ensureMethod membuat metode pembayaran bernama `name` ("EraPay QRIS"/"QRISGate QRIS", e-wallet, tanpa biaya) lalu menandainya. Idempotent.
-func (s *Service) ensureMethod(ctx context.Context, a authz.Actor, name string) error {
+// ensureMethod membuat metode pembayaran "EraPay QRIS" (e-wallet, tanpa biaya) lalu menandainya. Idempotent.
+func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 	var have bool
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM erapay_methods m JOIN payment_methods p ON p.id = m.method_id AND p.active WHERE m.tenant_id = $1 AND p.name = $2)`, a.TenantID, name).Scan(&have)
+		return tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM erapay_methods m JOIN payment_methods p ON p.id = m.method_id AND p.active WHERE m.tenant_id = $1)`, a.TenantID).Scan(&have)
 	})
 	if err != nil || have {
 		return err
 	}
-	m, err := s.methods.Create(ctx, a, paymentmethod.Input{Name: name, Kind: paymentmethod.KindEWallet})
+	m, err := s.methods.Create(ctx, a, paymentmethod.Input{Name: MethodName, Kind: paymentmethod.KindEWallet})
 	if errors.Is(err, paymentmethod.ErrNameTaken) { // sudah ada (dibuat manual atau diarsipkan): pakai yang itu
-		list, _, lerr := s.methods.List(ctx, a, paymentmethod.ListParams{Q: name, Limit: 100})
+		list, _, lerr := s.methods.List(ctx, a, paymentmethod.ListParams{Q: MethodName, Limit: 100})
 		if lerr != nil {
 			return lerr
 		}
 		for i := range list {
-			if list[i].Name == name && !paymentmethod.IsInternal(list[i].Kind) && list[i].Kind != paymentmethod.KindCash { // jenis boleh sudah diganti owner (mis. Debit)
+			if list[i].Name == MethodName && !paymentmethod.IsInternal(list[i].Kind) && list[i].Kind != paymentmethod.KindCash { // jenis boleh sudah diganti owner (mis. Debit)
 				m, err = &list[i], nil
 				if !list[i].Active {
 					m, err = s.methods.SetActive(ctx, a, list[i].ID, true)
@@ -300,20 +270,20 @@ func (s *Service) ensureMethod(ctx context.Context, a authz.Actor, name string) 
 
 // CreateCharge membuat (atau mengembalikan, bila kunci sama) tagihan QRIS. key dibuat kasir per percobaan bayar.
 func (s *Service) CreateCharge(ctx context.Context, a authz.Actor, key string, amount decimal.Decimal) (Charge, error) {
+	if s.baseURL == "" {
+		return Charge{}, ErrDisabled
+	}
 	if !amount.IsPositive() || !amount.Equal(amount.Truncate(0)) || amount.GreaterThan(decimal.NewFromInt(maxAmount)) {
 		return Charge{}, ErrAmount
 	}
 	var c chargeRow
-	var cl provider
+	var cl *Client
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		var err error
 		if cl, err = s.clientTx(ctx, tx, a.TenantID); err != nil {
 			return err
 		}
 		if cl == nil {
-			if s.baseURL == "" {
-				return ErrDisabled
-			}
 			return ErrNotConfigured
 		}
 		var mid uuid.UUID

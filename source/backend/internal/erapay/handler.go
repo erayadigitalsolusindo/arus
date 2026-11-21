@@ -68,7 +68,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrKeyConflict):
 		httpx.Error(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "Kunci sudah dipakai untuk nominal lain.")
 	case errors.Is(err, ErrRejected):
-		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_REJECTED", "Penyedia QRIS menolak tagihan ini (periksa API key dan saldo penyedia).")
+		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_REJECTED", "EraPay menolak tagihan QRIS ini.")
 	case errors.Is(err, ErrBadKey):
 		httpx.ValidationError(w, map[string]string{"api_key": "INVALID"})
 	case errors.Is(err, ErrKeyInvalid):

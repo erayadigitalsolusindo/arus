@@ -11,8 +11,6 @@ export type EraPayConfig = {
   configured: boolean;
   key_hint?: string;
   environment?: 'sandbox' | 'production';
-  /** Penyedia dari key terpasang (dikenali server dari awalan key: epk_ = EraPay, qg_live_ = QRISGate). */
-  provider?: 'erapay' | 'qrisgate';
 };
 export type EraPayStatus = 'pending' | 'succeeded' | 'failed' | 'expired' | 'cancelled' | 'unknown';
 export type EraPayCharge = { id: string; status: EraPayStatus; amount: string; qr_value?: string; expires_at?: string };
