@@ -855,19 +855,20 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                 ),
               ),
             ),
-          FilledButton.tonalIcon(
-            onPressed: _busy || r.eraBusy || amount <= Decimal.zero
-                ? null
-                : () => _eraStart(r),
-            icon: const Icon(Icons.qr_code_2),
-            label: Text(
-              r.eraBusy
-                  ? l.payEraCreating
-                  : c == null
-                  ? l.payEraGenerate
-                  : l.payEraRegenerate,
+          if (!partner) // Partner Payment aktif menggantikan tombol Buat QR
+            FilledButton.tonalIcon(
+              onPressed: _busy || r.eraBusy || amount <= Decimal.zero
+                  ? null
+                  : () => _eraStart(r),
+              icon: const Icon(Icons.qr_code_2),
+              label: Text(
+                r.eraBusy
+                    ? l.payEraCreating
+                    : c == null
+                    ? l.payEraGenerate
+                    : l.payEraRegenerate,
+              ),
             ),
-          ),
           if (partner)
             Padding(
               padding: const EdgeInsets.only(top: 8),

@@ -290,7 +290,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payEraGenerate => 'Create QRIS code';
 
   @override
-  String get payEraPartner => 'PARTNER PAYMENT';
+  String get payEraPartner => 'Partner Payment';
 
   @override
   String get payEraPartnerOpen => 'Open payment page';

@@ -284,7 +284,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get payEraGenerate => 'QRISコードを作成';
 
   @override
-  String get payEraPartner => 'PARTNER PAYMENT';
+  String get payEraPartner => 'Partner Payment';
 
   @override
   String get payEraPartnerOpen => '支払いページを開く';

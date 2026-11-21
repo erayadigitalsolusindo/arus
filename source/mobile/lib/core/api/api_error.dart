@@ -173,7 +173,8 @@ class ApiError implements Exception {
       case 'INTERNAL':
         return l.errorInternal;
       default:
-        return l.errorUnknown;
+        // Kode tanpa terjemahan: tampilkan pesan server bila ada (mis. PARTNER_PAYMENT_DISABLED), bukan pesan umum.
+        return serverMessage.isNotEmpty ? serverMessage : l.errorUnknown;
     }
   }
 

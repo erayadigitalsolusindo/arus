@@ -4,7 +4,9 @@ import { t, tryT } from './i18n.svelte.ts';
 /** Pesan error untuk pengguna: terjemahan berdasarkan `code` API, lalu `message` server, lalu pesan umum. */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    return tryT(`errors.${err.code}`) ?? (err.message || t('errors.UNKNOWN'));
+    // ACCOUNT_LOCKED memuat {count} menit: isi dari retryAfter (detik) agar tidak tampil mentah.
+    const params = err.code === 'ACCOUNT_LOCKED' ? { count: Math.max(1, Math.ceil(err.retryAfter / 60)) } : undefined;
+    return tryT(`errors.${err.code}`, params) ?? (err.message || t('errors.UNKNOWN'));
   }
   return t('errors.UNKNOWN');
 }

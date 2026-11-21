@@ -105,7 +105,7 @@ func (c *Client) do(ctx context.Context, method, path, idemKey string, body []by
 		}
 		return env.Payment, nil
 	case resp.StatusCode == http.StatusUnprocessableEntity, resp.StatusCode == http.StatusBadRequest, resp.StatusCode == http.StatusForbidden:
-		return Payment{}, ErrRejected
+		return Payment{}, fmt.Errorf("%w: HTTP %d %s", ErrRejected, resp.StatusCode, bytes.TrimSpace(raw[:min(len(raw), 300)])) // alasan EraPay ikut ke log
 	case resp.StatusCode == http.StatusNotFound && method == http.MethodGet:
 		return Payment{}, errNotFound
 	}
