@@ -287,7 +287,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get payRef => 'No. referensi';
 
   @override
-  String get payEraGenerate => 'Buat QR QRIS';
+  String get payEraGenerate => 'Buat QR';
 
   @override
   String get payEraRegenerate => 'Buat ulang QR';

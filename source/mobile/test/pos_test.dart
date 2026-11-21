@@ -628,10 +628,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('EraPay QRIS').last);
       await tester.pumpAndSettle();
-      expect(find.text('Buat QR QRIS'), findsOneWidget);
+      expect(find.text('Buat QR'), findsOneWidget);
       expect(payEnabled(tester), isFalse);
 
-      await tester.tap(find.text('Buat QR QRIS'));
+      await tester.tap(find.text('Buat QR'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(charges.single.headers['Idempotency-Key'], isNotEmpty);
@@ -721,7 +721,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buat QR; status tetap menunggu → muncul jalur simpan paksa.
-      await tester.tap(find.text('Buat QR QRIS'));
+      await tester.tap(find.text('Buat QR'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(

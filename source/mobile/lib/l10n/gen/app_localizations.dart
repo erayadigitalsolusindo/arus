@@ -613,7 +613,7 @@ abstract class AppLocalizations {
   /// No description provided for @payEraGenerate.
   ///
   /// In id, this message translates to:
-  /// **'Buat QR QRIS'**
+  /// **'Buat QR'**
   String get payEraGenerate;
 
   /// No description provided for @payEraRegenerate.
