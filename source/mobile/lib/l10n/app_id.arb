@@ -1339,5 +1339,9 @@
   "qrisTokoConfirmBody": "Pembayaran QRIS berikutnya akan masuk ke rekening pada QRIS yang baru. Pastikan itu QRIS toko Anda.",
   "qrisTokoConfirmYes": "Ganti QRIS",
   "qrisTokoSaved": "QRIS toko diperbarui",
-  "errorQrisInvalid": "QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal."
+  "errorQrisInvalid": "QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal.",
+  "qrisTokoUpload": "Unggah gambar QRIS",
+  "qrisTokoUploadFail": "QRIS tidak terbaca dari gambar. Pilih foto atau tangkapan layar QRIS yang jelas dan utuh.",
+  "qrisTokoUploadedLabel": "Gambar yang Anda unggah",
+  "qrisTokoSavedLabel": "QRIS yang kini tersimpan di server"
 }

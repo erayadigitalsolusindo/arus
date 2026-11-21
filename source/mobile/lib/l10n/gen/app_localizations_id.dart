@@ -2439,4 +2439,17 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get errorQrisInvalid =>
       'QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal.';
+
+  @override
+  String get qrisTokoUpload => 'Unggah gambar QRIS';
+
+  @override
+  String get qrisTokoUploadFail =>
+      'QRIS tidak terbaca dari gambar. Pilih foto atau tangkapan layar QRIS yang jelas dan utuh.';
+
+  @override
+  String get qrisTokoUploadedLabel => 'Gambar yang Anda unggah';
+
+  @override
+  String get qrisTokoSavedLabel => 'QRIS yang kini tersimpan di server';
 }

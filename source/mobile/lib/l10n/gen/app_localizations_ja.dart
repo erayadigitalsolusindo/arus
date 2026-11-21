@@ -2376,4 +2376,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorQrisInvalid => 'QRISが無効です。金額なしの完全な静的店舗QRISを使用してください。';
+
+  @override
+  String get qrisTokoUpload => 'QRIS画像をアップロード';
+
+  @override
+  String get qrisTokoUploadFail =>
+      '画像からQRISを読み取れませんでした。QRISが鮮明で全体が写っている写真またはスクリーンショットを選んでください。';
+
+  @override
+  String get qrisTokoUploadedLabel => 'アップロードした画像';
+
+  @override
+  String get qrisTokoSavedLabel => 'サーバーに保存された現在のQRIS';
 }

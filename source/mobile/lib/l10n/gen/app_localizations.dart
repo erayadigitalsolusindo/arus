@@ -4413,6 +4413,30 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal.'**
   String get errorQrisInvalid;
+
+  /// No description provided for @qrisTokoUpload.
+  ///
+  /// In id, this message translates to:
+  /// **'Unggah gambar QRIS'**
+  String get qrisTokoUpload;
+
+  /// No description provided for @qrisTokoUploadFail.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS tidak terbaca dari gambar. Pilih foto atau tangkapan layar QRIS yang jelas dan utuh.'**
+  String get qrisTokoUploadFail;
+
+  /// No description provided for @qrisTokoUploadedLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Gambar yang Anda unggah'**
+  String get qrisTokoUploadedLabel;
+
+  /// No description provided for @qrisTokoSavedLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS yang kini tersimpan di server'**
+  String get qrisTokoSavedLabel;
 }
 
 class _AppLocalizationsDelegate

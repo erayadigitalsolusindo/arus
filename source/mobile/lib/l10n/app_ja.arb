@@ -1356,5 +1356,9 @@
   "qrisTokoConfirmBody": "以降のQRIS支払いは新しいQRISの口座に入金されます。ご自身の店舗のQRISか確認してください。",
   "qrisTokoConfirmYes": "QRISを置き換える",
   "qrisTokoSaved": "店舗QRISを更新しました",
-  "errorQrisInvalid": "QRISが無効です。金額なしの完全な静的店舗QRISを使用してください。"
+  "errorQrisInvalid": "QRISが無効です。金額なしの完全な静的店舗QRISを使用してください。",
+  "qrisTokoUpload": "QRIS画像をアップロード",
+  "qrisTokoUploadFail": "画像からQRISを読み取れませんでした。QRISが鮮明で全体が写っている写真またはスクリーンショットを選んでください。",
+  "qrisTokoUploadedLabel": "アップロードした画像",
+  "qrisTokoSavedLabel": "サーバーに保存された現在のQRIS"
 }

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -95,6 +98,11 @@ class _QrisDialogState extends ConsumerState<_QrisDialog> {
   late QrisToko _q = widget.initial;
   bool _busy = false;
 
+  /// Bukti berhasil: gambar yang baru diunggah (bila lewat unggah) dan QR yang kini tersimpan di server.
+  String? _pendingPath;
+  String? _proofPath;
+  bool _justSaved = false;
+
   Future<void> _replace(String payload) async {
     final l = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -128,13 +136,18 @@ class _QrisDialogState extends ConsumerState<_QrisDialog> {
       ref.invalidate(qrisTokoProvider);
       final fresh = await ref.read(qrisTokoProvider.future);
       if (!mounted) return;
-      setState(() => _q = fresh);
+      setState(() {
+        _q = fresh;
+        _justSaved = true;
+        _proofPath = _pendingPath;
+      });
       messenger.showSnackBar(SnackBar(content: Text(l.qrisTokoSaved)));
     } on DioException catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text(ApiError.fromDio(e).message(l))),
       );
     } finally {
+      _pendingPath = null;
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -147,6 +160,39 @@ class _QrisDialogState extends ConsumerState<_QrisDialog> {
       ),
     );
     if (code != null && code.isNotEmpty) await _replace(code);
+  }
+
+  /// Unggah gambar QRIS dari galeri: QR di gambar dibaca di HP (gambar tidak dikirim ke server); isinya divalidasi server.
+  Future<void> _upload() async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (f == null) return;
+    final scanner = MobileScannerController(
+      formats: const [BarcodeFormat.qrCode],
+    );
+    String code = '';
+    try {
+      final cap = await scanner.analyzeImage(
+        f.path,
+        formats: const [BarcodeFormat.qrCode],
+      );
+      code =
+          cap?.barcodes
+              .map((b) => b.rawValue?.trim() ?? '')
+              .firstWhere((v) => v.isNotEmpty, orElse: () => '') ??
+          '';
+    } on Object {
+      code = '';
+    } finally {
+      await scanner.dispose();
+    }
+    if (code.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(l.qrisTokoUploadFail)));
+      return;
+    }
+    _pendingPath = f.path;
+    if (mounted) await _replace(code);
   }
 
   Future<void> _paste() async {
@@ -191,7 +237,61 @@ class _QrisDialogState extends ConsumerState<_QrisDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_justSaved)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: pal.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: pal.success),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${l.qrisTokoSaved}: ${_q.name}',
+                          style: TextStyle(
+                            color: pal.success,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_proofPath != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      l.qrisTokoUploadedLabel,
+                      style: TextStyle(fontSize: 11, color: pal.textTertiary),
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(_proofPath!),
+                        height: 150,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           if (_q.hasQris) ...[
+            if (_justSaved)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  l.qrisTokoSavedLabel,
+                  style: TextStyle(fontSize: 11, color: pal.textTertiary),
+                ),
+              ),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -225,6 +325,11 @@ class _QrisDialogState extends ConsumerState<_QrisDialog> {
             onPressed: _busy ? null : _scan,
             icon: const Icon(Icons.qr_code_scanner),
             label: Text(l.qrisTokoScan),
+          ),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _upload,
+            icon: const Icon(Icons.image_outlined),
+            label: Text(l.qrisTokoUpload),
           ),
           TextButton.icon(
             onPressed: _busy ? null : _paste,

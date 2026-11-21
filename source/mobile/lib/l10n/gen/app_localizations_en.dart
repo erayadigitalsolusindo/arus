@@ -2438,4 +2438,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorQrisInvalid =>
       'Invalid QRIS. Use the complete static store QRIS, without an amount.';
+
+  @override
+  String get qrisTokoUpload => 'Upload QRIS image';
+
+  @override
+  String get qrisTokoUploadFail =>
+      'No QRIS could be read from the image. Pick a clear, complete photo or screenshot of the QRIS.';
+
+  @override
+  String get qrisTokoUploadedLabel => 'Image you uploaded';
+
+  @override
+  String get qrisTokoSavedLabel => 'QRIS now saved on the server';
 }

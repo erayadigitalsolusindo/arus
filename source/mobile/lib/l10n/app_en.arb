@@ -1244,5 +1244,9 @@
   "qrisTokoConfirmBody": "The next QRIS payments will go to the account on the new QRIS. Make sure it is your store's QRIS.",
   "qrisTokoConfirmYes": "Replace QRIS",
   "qrisTokoSaved": "Store QRIS updated",
-  "errorQrisInvalid": "Invalid QRIS. Use the complete static store QRIS, without an amount."
+  "errorQrisInvalid": "Invalid QRIS. Use the complete static store QRIS, without an amount.",
+  "qrisTokoUpload": "Upload QRIS image",
+  "qrisTokoUploadFail": "No QRIS could be read from the image. Pick a clear, complete photo or screenshot of the QRIS.",
+  "qrisTokoUploadedLabel": "Image you uploaded",
+  "qrisTokoSavedLabel": "QRIS now saved on the server"
 }
