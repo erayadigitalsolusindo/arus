@@ -1248,5 +1248,8 @@
   "qrisTokoUpload": "Upload QRIS image",
   "qrisTokoUploadFail": "No QRIS could be read from the image. Pick a clear, complete photo or screenshot of the QRIS.",
   "qrisTokoUploadedLabel": "Image you uploaded",
-  "qrisTokoSavedLabel": "QRIS now saved on the server"
+  "qrisTokoSavedLabel": "QRIS now saved on the server",
+  "listenerTitle": "EraPay Listener",
+  "listenerSubtitle": "Install or open it; settings are filled in automatically",
+  "listenerNotInstalled": "EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations)."
 }

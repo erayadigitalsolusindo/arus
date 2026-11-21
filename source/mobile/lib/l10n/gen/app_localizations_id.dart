@@ -2452,4 +2452,15 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get qrisTokoSavedLabel => 'QRIS yang kini tersimpan di server';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerSubtitle =>
+      'Install atau buka; pengaturan terisi otomatis';
+
+  @override
+  String get listenerNotInstalled =>
+      'EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).';
 }

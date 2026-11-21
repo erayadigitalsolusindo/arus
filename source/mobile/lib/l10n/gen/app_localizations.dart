@@ -4437,6 +4437,24 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'QRIS yang kini tersimpan di server'**
   String get qrisTokoSavedLabel;
+
+  /// No description provided for @listenerTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay Listener'**
+  String get listenerTitle;
+
+  /// No description provided for @listenerSubtitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Install atau buka; pengaturan terisi otomatis'**
+  String get listenerSubtitle;
+
+  /// No description provided for @listenerNotInstalled.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).'**
+  String get listenerNotInstalled;
 }
 
 class _AppLocalizationsDelegate

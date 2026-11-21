@@ -387,7 +387,7 @@ type QRISGateInfo struct {
 // QRISGate membaca status QRIS statis tenant dan apakah jalurnya ke QRISGate (GET, token key).
 func (c *ProvisioningClient) QRISGate(ctx context.Context, tenantID uuid.UUID) (QRISGateInfo, error) {
 	var out QRISGateInfo
-	status, err := c.qrisgateDo(ctx, http.MethodGet, tenantID, "", nil, &out)
+	status, err := c.tenantDo(ctx, http.MethodGet, tenantID, "/qrisgate", nil, &out)
 	if err != nil {
 		return QRISGateInfo{}, err
 	}
@@ -403,7 +403,7 @@ func (c *ProvisioningClient) SaveQRISGateQRIS(ctx context.Context, tenantID uuid
 	var out struct {
 		Name string `json:"qris_name"`
 	}
-	status, err := c.qrisgateDo(ctx, http.MethodPut, tenantID, "/qris", body, &out)
+	status, err := c.tenantDo(ctx, http.MethodPut, tenantID, "/qrisgate/qris", body, &out)
 	switch {
 	case err != nil:
 		return "", err
@@ -415,13 +415,13 @@ func (c *ProvisioningClient) SaveQRISGateQRIS(ctx context.Context, tenantID uuid
 	return out.Name, nil
 }
 
-// qrisgateDo mengirim permintaan ke /v1/integrations/arus/tenants/{id}/qrisgate{suffix}; 200 diurai ke out, 404 dan 422
+// tenantDo mengirim permintaan (token key) ke /v1/integrations/arus/tenants/{id}{path}; 200 diurai ke out, 404 dan 422
 // dikembalikan sebagai status agar pemanggil memberi arti. Isi QRIS tidak dicatat di log.
-func (c *ProvisioningClient) qrisgateDo(ctx context.Context, method string, tenantID uuid.UUID, suffix string, body []byte, out any) (int, error) {
+func (c *ProvisioningClient) tenantDo(ctx context.Context, method string, tenantID uuid.UUID, path string, body []byte, out any) (int, error) {
 	if c.keyToken == "" {
 		return 0, ErrEcosystemNotConfigured
 	}
-	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/qrisgate%s", c.baseURL, tenantID, suffix), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/v1/integrations/arus/tenants/%s%s", c.baseURL, tenantID, path), bytes.NewReader(body))
 	if err != nil {
 		return 0, ErrUnavailable
 	}
@@ -432,7 +432,7 @@ func (c *ProvisioningClient) qrisgateDo(ctx context.Context, method string, tena
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		slog.Warn("erapay provisioning: koneksi gagal", "op", "qrisgate", "err", err)
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "tenant", "err", err)
 		return 0, ErrUnavailable
 	}
 	defer resp.Body.Close()
@@ -443,10 +443,41 @@ func (c *ProvisioningClient) qrisgateDo(ctx context.Context, method string, tena
 		}
 	case http.StatusNotFound, http.StatusUnprocessableEntity:
 	default:
-		slog.Warn("erapay provisioning ditolak", "op", "qrisgate", "status", resp.StatusCode) // tanpa body
+		slog.Warn("erapay provisioning ditolak", "op", "tenant", "status", resp.StatusCode) // tanpa body
 		return 0, ErrUnavailable
 	}
 	return resp.StatusCode, nil
+}
+
+// ListenerLink meminta tautan erapaylistener://setup (memuat rahasia; jangan dicatat di log) untuk tenant.
+func (c *ProvisioningClient) ListenerLink(ctx context.Context, tenantID uuid.UUID) (string, error) {
+	var out struct {
+		Link string `json:"link"`
+	}
+	status, err := c.tenantDo(ctx, http.MethodPost, tenantID, "/listener-setup", nil, &out)
+	switch {
+	case err != nil:
+		return "", err
+	case status == http.StatusNotFound:
+		return "", ErrEcosystemSSO
+	case status != http.StatusOK || out.Link == "":
+		return "", ErrUnavailable // 422: QRISGate belum bisa disiapkan untuk akun ini
+	}
+	return out.Link, nil
+}
+
+// ListenerLink: hanya Owner (tautan memuat rahasia penerima pembayaran).
+func (s *Service) ListenerLink(ctx context.Context, a authz.Actor) (string, error) {
+	if a.Impersonator != uuid.Nil {
+		return "", ErrImpersonating
+	}
+	if !a.Perms.All {
+		return "", ErrEcosystemOwner
+	}
+	if s.provisioner == nil {
+		return "", ErrEcosystemNotConfigured
+	}
+	return s.provisioner.ListenerLink(ctx, a.TenantID)
 }
 
 // QRISGate: kartu QRIS toko. Hanya Owner yang melihatnya; bagi yang lain, belum tertaut, atau EraPay tak terjangkau

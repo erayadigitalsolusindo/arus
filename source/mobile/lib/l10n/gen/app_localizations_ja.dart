@@ -2389,4 +2389,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get qrisTokoSavedLabel => 'サーバーに保存された現在のQRIS';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerSubtitle => 'インストールまたは起動すると設定が自動入力されます';
+
+  @override
+  String get listenerNotInstalled =>
+      'EraPay Listener が未インストールです。EraPay ダッシュボード(連携)からダウンロードしてください。';
 }

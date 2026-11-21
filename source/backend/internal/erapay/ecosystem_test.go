@@ -196,3 +196,32 @@ func TestProvisioningClientQRISGate(t *testing.T) {
 		t.Fatalf("5xx: %v", err)
 	}
 }
+
+func TestProvisioningClientListenerLink(t *testing.T) {
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	status, body := http.StatusOK, `{"link":"erapaylistener://setup?url=x"}`
+	var gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	c := NewProvisioningClient(srv.URL, "provision-token")
+	if _, err := c.ListenerLink(t.Context(), tenant); !errors.Is(err, ErrEcosystemNotConfigured) {
+		t.Fatalf("tanpa token key harus mati: %v", err)
+	}
+	c.keyToken = "key-token"
+	link, err := c.ListenerLink(t.Context(), tenant)
+	if err != nil || link != "erapaylistener://setup?url=x" || gotMethod != "POST" || gotPath != "/v1/integrations/arus/tenants/"+tenant.String()+"/listener-setup" {
+		t.Fatalf("ok: %q %v %s %s", link, err, gotMethod, gotPath)
+	}
+	status = http.StatusNotFound
+	if _, err := c.ListenerLink(t.Context(), tenant); !errors.Is(err, ErrEcosystemSSO) {
+		t.Fatalf("404: %v", err)
+	}
+	status = http.StatusUnprocessableEntity
+	if _, err := c.ListenerLink(t.Context(), tenant); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("422: %v", err)
+	}
+}

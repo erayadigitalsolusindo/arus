@@ -37,6 +37,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Post("/sso", h.ecosystemSSO)
 		r.Get("/qris", h.qrisInfo)
 		r.Put("/qris", h.saveQRIS)
+		r.Post("/listener-link", h.listenerLink)
 	})
 	r.Route("/payments/erapay", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
@@ -210,6 +211,16 @@ func (h *Handler) removeKey(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) qrisInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	httpx.JSON(w, http.StatusOK, h.svc.QRISGate(r.Context(), actor(r)))
+}
+
+func (h *Handler) listenerLink(w http.ResponseWriter, r *http.Request) {
+	link, err := h.svc.ListenerLink(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.JSON(w, http.StatusOK, map[string]string{"link": link})
 }
 
 func (h *Handler) saveQRIS(w http.ResponseWriter, r *http.Request) {

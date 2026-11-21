@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../theme/text_scale_controller.dart';
 import '../theme/theme_controller.dart';
 import '../update/update_check.dart';
+import 'listener_tile.dart';
 import 'qris_toko.dart';
 
 /// Satu tombol pengaturan perangkat: bahasa, ukuran teks, tampilan (terang/gelap), dan cek pembaruan.
@@ -187,6 +188,7 @@ class _SettingsDialog extends ConsumerWidget {
               ),
             ),
             const QrisTokoTile(),
+            const ListenerTile(),
             Material(
               color: pal.primarySoft,
               borderRadius: BorderRadius.circular(12),

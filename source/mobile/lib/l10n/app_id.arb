@@ -1343,5 +1343,8 @@
   "qrisTokoUpload": "Unggah gambar QRIS",
   "qrisTokoUploadFail": "QRIS tidak terbaca dari gambar. Pilih foto atau tangkapan layar QRIS yang jelas dan utuh.",
   "qrisTokoUploadedLabel": "Gambar yang Anda unggah",
-  "qrisTokoSavedLabel": "QRIS yang kini tersimpan di server"
+  "qrisTokoSavedLabel": "QRIS yang kini tersimpan di server",
+  "listenerTitle": "EraPay Listener",
+  "listenerSubtitle": "Install atau buka; pengaturan terisi otomatis",
+  "listenerNotInstalled": "EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi)."
 }

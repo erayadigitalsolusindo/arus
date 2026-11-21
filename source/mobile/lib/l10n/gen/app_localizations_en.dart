@@ -2451,4 +2451,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrisTokoSavedLabel => 'QRIS now saved on the server';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerSubtitle =>
+      'Install or open it; settings are filled in automatically';
+
+  @override
+  String get listenerNotInstalled =>
+      'EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations).';
 }
