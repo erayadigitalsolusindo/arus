@@ -269,6 +269,14 @@ const feeSyncEvery = 5 * time.Minute
 // SyncFees menyalin tarif MDR EraPay (persen, tetap, transaksi kecil) ke metode "EraPay" tenant. Tarif milik EraPay:
 // pengguna Arus tidak bisa mengubahnya (paymentmethod.Update menguncinya). Tanpa provisioner / endpoint: tidak berbuat apa-apa.
 func (s *Service) SyncFees(ctx context.Context, tenant uuid.UUID) error {
+	// Jenis metode EraPay selalu Debit (QRIS), bukan E-Wallet/e-money; dibetulkan juga untuk metode lama, tanpa bergantung pada endpoint tarif.
+	if err := db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE payment_methods SET kind = $2 WHERE tenant_id = $1 AND kind <> $2
+			AND id = (SELECT method_id FROM erapay_methods WHERE tenant_id = $1)`, tenant, paymentmethod.KindDebit)
+		return err
+	}); err != nil {
+		return err
+	}
 	if s.provisioner == nil {
 		return nil
 	}
@@ -296,7 +304,7 @@ func (s *Service) syncFeesSoon(ctx context.Context, tenant uuid.UUID, force bool
 	}
 }
 
-// ensureMethod membuat metode pembayaran "EraPay" (e-wallet, tanpa biaya) lalu menandainya. Idempotent.
+// ensureMethod membuat metode pembayaran "EraPay" (jenis Debit/QRIS, bukan e-money; tarif disinkron dari EraPay) lalu menandainya. Idempotent.
 func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 	var have bool
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
@@ -305,14 +313,14 @@ func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 	if err != nil || have {
 		return err
 	}
-	m, err := s.methods.Create(ctx, a, paymentmethod.Input{Name: MethodName, Kind: paymentmethod.KindEWallet})
+	m, err := s.methods.Create(ctx, a, paymentmethod.Input{Name: MethodName, Kind: paymentmethod.KindDebit})
 	if errors.Is(err, paymentmethod.ErrNameTaken) { // sudah ada (dibuat manual atau diarsipkan): pakai yang itu
 		list, _, lerr := s.methods.List(ctx, a, paymentmethod.ListParams{Q: MethodName, Limit: 100})
 		if lerr != nil {
 			return lerr
 		}
 		for i := range list {
-			if list[i].Name == MethodName && !paymentmethod.IsInternal(list[i].Kind) && list[i].Kind != paymentmethod.KindCash { // jenis boleh sudah diganti owner (mis. Debit)
+			if list[i].Name == MethodName && !paymentmethod.IsInternal(list[i].Kind) && list[i].Kind != paymentmethod.KindCash { // jenis lama (mis. E-Wallet) dibetulkan ke Debit oleh SyncFees
 				m, err = &list[i], nil
 				if !list[i].Active {
 					m, err = s.methods.SetActive(ctx, a, list[i].ID, true)

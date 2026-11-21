@@ -497,11 +497,11 @@ func TestEraPayFeesLocked(t *testing.T) {
 	if _, err := admin.Exec(ctx, `UPDATE payment_methods SET fee_pct = 0.7, fee_flat = 0, small_tx_limit = 100000, small_tx_flat = 500 WHERE id = $1`, era.ID); err != nil {
 		t.Fatal(err)
 	}
-	got, err := svc.Update(ctx, a, era.ID, Input{Name: "EraPay Toko", FeePct: "5", FeeFlat: "999", SmallTxLimit: "1", SmallTxFlat: "1"})
+	got, err := svc.Update(ctx, a, era.ID, Input{Name: "EraPay Toko", Kind: KindTransfer, FeePct: "5", FeeFlat: "999", SmallTxLimit: "1", SmallTxFlat: "1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != "EraPay Toko" || got.FeePct != "0.70" || got.FeeFlat != "0.00" || got.SmallTxLimit != "100000.00" || got.SmallTxFlat != "500.00" || !got.FeeLocked {
+	if got.Name != "EraPay Toko" || got.Kind != KindEWallet || got.FeePct != "0.70" || got.FeeFlat != "0.00" || got.SmallTxLimit != "100000.00" || got.SmallTxFlat != "500.00" || !got.FeeLocked {
 		t.Fatalf("tarif EraPay harus tetap: %+v", got)
 	}
 	other, err := svc.Create(ctx, a, Input{Name: "QRIS Lain", Kind: KindEWallet, FeePct: "1"})

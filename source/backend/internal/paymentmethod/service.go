@@ -403,6 +403,13 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		if code != "" {
 			f["name"] = code
 		}
+		var locked bool // metode EraPay: jenis (Debit) serta biaya & aturan transaksi kecil mengikuti EraPay, input diabaikan
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM erapay_methods WHERE tenant_id = $1 AND method_id = $2)`, a.TenantID, id).Scan(&locked); err != nil {
+			return err
+		}
+		if locked {
+			in.Kind = ""
+		}
 		// Jenis boleh diganti di antara jenis non-tunai. Tunai terkunci (satu-satunya yang memberi kembalian).
 		kind := cur.Kind
 		if in.Kind != "" && in.Kind != cur.Kind {
@@ -414,10 +421,6 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			default:
 				kind = in.Kind
 			}
-		}
-		var locked bool // metode EraPay: biaya & aturan transaksi kecil mengikuti EraPay, input diabaikan
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM erapay_methods WHERE tenant_id = $1 AND method_id = $2)`, a.TenantID, id).Scan(&locked); err != nil {
-			return err
 		}
 		if locked {
 			in.FeePct, in.FeeFlat = Num(cur.FeePct.String()), Num(cur.FeeFlat.String())
