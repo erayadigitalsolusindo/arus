@@ -253,7 +253,7 @@
     {/if}
   </div>
 
-  {#if era?.server_ready && can('payment_methods', 'update')}
+  {#if era && can('payment_methods', 'update')}
     <section class="surface-card !p-0 overflow-hidden" aria-labelledby="era-title">
       <header class="flex flex-wrap items-center gap-3 px-4 py-3.5 border-b border-[var(--border-subtle)]">
         <span class="grid place-items-center size-10 shrink-0 rounded-lg bg-[color-mix(in_oklab,var(--color-primary-500)_14%,transparent)] text-[var(--color-primary-600)]">
@@ -266,7 +266,7 @@
         {#if era.configured}
           <div class="flex items-center gap-2">
             <span class="badge-soft badge-success"><i class="icon-circle-check me-1 text-[12px]"></i>{t('catalog.paymentMethods.era.installed')}</span>
-            <span class="font-mono text-[12px] text-[var(--text-secondary)]" title={t('catalog.paymentMethods.era.keyLabel')}>epk_…{era.key_hint}</span>
+            <span class="font-mono text-[12px] text-[var(--text-secondary)]" title={t('catalog.paymentMethods.era.keyLabel')}>{era.provider === 'qrisgate' ? 'qg_…' : 'epk_…'}{era.key_hint}</span>
             {#if era.environment}<span class="badge-soft {era.environment === 'production' ? 'badge-info' : 'badge-warning'}">{t(`catalog.paymentMethods.era.env.${era.environment}` as 'catalog.paymentMethods.era.env.production')}</span>{/if}
           </div>
         {:else}
@@ -278,7 +278,7 @@
         <div class="flex flex-wrap items-stretch gap-2">
           <div class="relative grow basis-72">
             <i class="icon-key-round text-[15px] absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" aria-hidden="true"></i>
-            <input id="era-key" type="password" class="{inputClass} font-mono" style="padding-inline-start: 2.5rem" bind:value={eraKey} placeholder="epk_prd_xxxxxxxx_…" autocomplete="off" spellcheck="false" maxlength="120" />
+            <input id="era-key" type="password" class="{inputClass} font-mono" style="padding-inline-start: 2.5rem" bind:value={eraKey} placeholder="epk_prd_… / qg_live_…" autocomplete="off" spellcheck="false" maxlength="120" />
           </div>
           <button type="submit" class="btn btn-primary !text-[12.5px] whitespace-nowrap" disabled={eraBusy || !eraKey.trim()}>
             <i class="icon-shield-check text-[14px]"></i>{eraBusy ? t('catalog.saving') : era.configured ? t('catalog.paymentMethods.era.replace') : t('catalog.paymentMethods.era.save')}
