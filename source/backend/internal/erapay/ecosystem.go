@@ -397,6 +397,15 @@ func (c *ProvisioningClient) QRISGate(ctx context.Context, tenantID uuid.UUID) (
 	return out, nil
 }
 
+// MerchantFees membaca tarif MDR merchant di EraPay (GET .../fees, token key). found=false bila endpoint/merchant belum ada.
+func (c *ProvisioningClient) MerchantFees(ctx context.Context, tenantID uuid.UUID) (f Fees, found bool, err error) {
+	status, err := c.tenantDo(ctx, http.MethodGet, tenantID, "/fees", nil, &f)
+	if err != nil {
+		return Fees{}, false, err
+	}
+	return f, status == http.StatusOK, nil
+}
+
 // SaveQRISGateQRIS mengganti QRIS statis tenant di EraPay (divalidasi di sana). Mengembalikan nama merchant di QRIS.
 func (c *ProvisioningClient) SaveQRISGateQRIS(ctx context.Context, tenantID uuid.UUID, payload string) (string, error) {
 	body, _ := json.Marshal(map[string]string{"payload": payload})

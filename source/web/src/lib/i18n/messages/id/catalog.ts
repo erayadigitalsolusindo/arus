@@ -91,6 +91,7 @@ export default {
     feePct: 'Biaya (%)',
     feeFlat: 'Biaya tetap',
     feeHint: 'Isi persen, rupiah, atau keduanya. Kosongkan bila tanpa biaya.',
+    feeLockedHint: 'Tarif (MDR) mengikuti EraPay dan disinkronkan otomatis, tidak bisa diubah di sini.',
     feeCash: 'Tunai tidak dikenai biaya.',
     smallTx: 'Aturan transaksi kecil (BI)',
     smallTxHint: 'Transaksi sampai batas tertentu dikenai MDR flat (menggantikan persen/nominal di atas). Di atas batas tetap memakai tarif di atas.',

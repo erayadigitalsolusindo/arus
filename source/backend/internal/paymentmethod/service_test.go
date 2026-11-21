@@ -73,12 +73,13 @@ func TestLifecycle(t *testing.T) {
 	svc := NewService(app)
 	a, b := authz.Actor{TenantID: tenant}, authz.Actor{TenantID: other}
 
-	// Bawaan: lima metode biasa + Deposit Member + Kredit Pemasok (sistem), Tunai di urutan pertama dan bersifat sistem.
+	// Bawaan: hanya Tunai + Deposit Member + Kredit Pemasok (sistem), Tunai di urutan pertama dan bersifat sistem.
 	list, total, err := svc.List(ctx, a, ListParams{})
-	if err != nil || total != 7 || list[0].Name != "Tunai" || !list[0].System || list[0].Kind != KindCash {
+	if err != nil || total != 3 || list[0].Name != "Tunai" || !list[0].System || list[0].Kind != KindCash {
 		t.Fatalf("bawaan: %+v %d %v", list, total, err)
 	}
 	cash := list[0]
+	legacyMethods(t, svc, a, b)
 	var deposit Method
 	for _, m := range list {
 		if m.Kind == KindDeposit {
@@ -441,5 +442,73 @@ func TestNumDecoding(t *testing.T) {
 	f := FieldErrors{}
 	if pct, flat := fees(Input{FeePct: "", FeeFlat: "100"}, KindEWallet, f); len(f) != 0 || !pct.IsZero() || !flat.Equal(decimal.NewFromInt(100)) {
 		t.Fatalf("persen kosong + tetap 100: %v %s %s", f, pct, flat)
+	}
+}
+
+// legacyMethods menambah metode yang dulu jadi bawaan (Transfer, Debit, Kartu Kredit, E-Wallet) agar uji aturan jenis/akun tetap berlaku.
+func legacyMethods(t *testing.T, svc *Service, actors ...authz.Actor) {
+	t.Helper()
+	for _, a := range actors {
+		for _, m := range []Input{{Name: "Transfer", Kind: KindTransfer}, {Name: "Debit", Kind: KindDebit}, {Name: "Kartu Kredit", Kind: KindCreditCard}, {Name: "E-Wallet", Kind: KindEWallet}} {
+			if _, err := svc.Create(context.Background(), a, m); err != nil {
+				t.Fatalf("metode %s: %v", m.Name, err)
+			}
+		}
+	}
+}
+
+// Metode EraPay: tarif (MDR) milik EraPay, input biaya & aturan transaksi kecil diabaikan; metode lain tetap bisa diubah.
+func TestEraPayFeesLocked(t *testing.T) {
+	appURL, adminURL := os.Getenv("TEST_DATABASE_URL"), os.Getenv("TEST_ADMIN_DATABASE_URL")
+	if appURL == "" || adminURL == "" {
+		t.Skip("TEST_DATABASE_URL/TEST_ADMIN_DATABASE_URL tidak di-set")
+	}
+	ctx := context.Background()
+	app, err := pgxpool.New(ctx, appURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	admin, err := pgxpool.New(ctx, adminURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close()
+	tenant := uuid.New()
+	if _, err := admin.Exec(ctx, `INSERT INTO tenants (id, code, name) VALUES ($1, $2, 'UJI-ERA')`, tenant, "era-"+tenant.String()[:8]); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(ctx, `DELETE FROM erapay_methods WHERE tenant_id = $1`, tenant)
+		_, _ = admin.Exec(ctx, `DELETE FROM audit_log WHERE tenant_id = $1`, tenant)
+		_, _ = admin.Exec(ctx, `DELETE FROM payment_methods WHERE tenant_id = $1`, tenant)
+		_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tenant)
+	})
+	svc := NewService(app)
+	a := authz.Actor{TenantID: tenant}
+	era, err := svc.Create(ctx, a, Input{Name: "EraPay", Kind: KindEWallet})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `INSERT INTO erapay_methods (tenant_id, method_id) VALUES ($1, $2)`, tenant, era.ID); err != nil {
+		t.Fatal(err)
+	}
+	// Sinkron dari EraPay (tulis langsung), lalu pengguna mencoba mengubah semua kolom tarif.
+	if _, err := admin.Exec(ctx, `UPDATE payment_methods SET fee_pct = 0.7, fee_flat = 0, small_tx_limit = 100000, small_tx_flat = 500 WHERE id = $1`, era.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Update(ctx, a, era.ID, Input{Name: "EraPay Toko", FeePct: "5", FeeFlat: "999", SmallTxLimit: "1", SmallTxFlat: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "EraPay Toko" || got.FeePct != "0.70" || got.FeeFlat != "0.00" || got.SmallTxLimit != "100000.00" || got.SmallTxFlat != "500.00" || !got.FeeLocked {
+		t.Fatalf("tarif EraPay harus tetap: %+v", got)
+	}
+	other, err := svc.Create(ctx, a, Input{Name: "QRIS Lain", Kind: KindEWallet, FeePct: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o, err := svc.Update(ctx, a, other.ID, Input{Name: "QRIS Lain", FeePct: "2"}); err != nil || o.FeePct != "2.00" || o.FeeLocked {
+		t.Fatalf("metode biasa tetap bisa diubah: %+v %v", o, err)
 	}
 }

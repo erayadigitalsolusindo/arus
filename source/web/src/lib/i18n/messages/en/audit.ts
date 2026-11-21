@@ -31,7 +31,7 @@ const audit: Messages['audit'] = {
   loaded: '{shown} of {total} lines · {actors} actors',
   noMatch: 'No lines match the search.',
   tailing: 'Waiting for new entries…',
-  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', purchase: 'Purchase', purchase_return: 'Purchase Return', sale_return: 'Sales Return', member_deposit: 'Member Deposit', supplier_credit: 'Supplier Credit', shift: 'Cashier Shift', cash_movement: 'Cashier Petty Cash' },
+  entities: { user: 'User', role: 'Role', outlet: 'Outlet', session: 'Session', tenant: 'Tenant', unit: 'Unit', category: 'Category', brand: 'Brand', principal: 'Principal', supplier: 'Supplier', salesperson: 'Salesperson', item: 'Item', member: 'Member', member_level: 'Member Level', voucher: 'Coupon', payment_method: 'Payment Method', danger_zone: 'Danger Zone', purchase: 'Purchase', purchase_return: 'Purchase Return', sale_return: 'Sales Return', member_deposit: 'Member Deposit', supplier_credit: 'Supplier Credit', shift: 'Cashier Shift', cash_movement: 'Cashier Petty Cash' },
   actions: {
     receivable_opening: 'Recorded an opening receivable',
     receivable_opening_void: 'Voided an opening receivable',
@@ -106,6 +106,7 @@ const audit: Messages['audit'] = {
     voucher_public: 'Changed coupon visibility on the landing page',
     payment_method_create: 'Added a payment method',
     payment_method_update: 'Edited a payment method',
+    danger_zone_clear: 'Cleared data (Danger Zone)',
     payment_method_active: 'Changed a payment method status',
     item_create: 'Added an item',
     item_update: 'Edited an item',

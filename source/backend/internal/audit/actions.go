@@ -289,3 +289,10 @@ const (
 )
 
 const ActionAIMCPCall = "ai.mcp_call" // satu panggilan tool lewat connector MCP (nama tool + klien; tanpa isi hasil)
+
+// Danger zone (Owner): pembersihan transaksi. Details: scope + jumlah baris terhapus per tabel.
+const (
+	EntityDangerZone = "danger_zone"
+
+	ActionDangerClear = "danger_zone.clear"
+)

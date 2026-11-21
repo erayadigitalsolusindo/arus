@@ -31,7 +31,7 @@ const audit: Messages['audit'] = {
   loaded: '{total}行中{shown}行 · 操作者{actors}人',
   noMatch: '検索に一致する行はありません。',
   tailing: '新しいエントリを待機中…',
-  entities: { user: 'ユーザー', role: 'ロール', outlet: '店舗', session: 'セッション', tenant: 'テナント', unit: '単位', category: 'カテゴリ', brand: 'ブランド', principal: 'プリンシパル', supplier: '仕入先', salesperson: '営業担当者', item: '商品', member: 'メンバー', member_level: 'メンバーレベル', voucher: 'クーポン', payment_method: '支払方法', purchase: '仕入', purchase_return: '仕入返品', sale_return: '売上返品', member_deposit: 'メンバーデポジット', supplier_credit: '仕入先クレジット', shift: 'レジシフト', cash_movement: 'レジ小口現金' },
+  entities: { user: 'ユーザー', role: 'ロール', outlet: '店舗', session: 'セッション', tenant: 'テナント', unit: '単位', category: 'カテゴリ', brand: 'ブランド', principal: 'プリンシパル', supplier: '仕入先', salesperson: '営業担当者', item: '商品', member: 'メンバー', member_level: 'メンバーレベル', voucher: 'クーポン', payment_method: '支払方法', danger_zone: 'デンジャーゾーン', purchase: '仕入', purchase_return: '仕入返品', sale_return: '売上返品', member_deposit: 'メンバーデポジット', supplier_credit: '仕入先クレジット', shift: 'レジシフト', cash_movement: 'レジ小口現金' },
   actions: {
     receivable_opening: '売掛金の期首残高を記録しました',
     receivable_opening_void: '売掛金の期首残高を取り消しました',
@@ -106,6 +106,7 @@ const audit: Messages['audit'] = {
     voucher_public: 'ランディングページでのクーポン表示を変更しました',
     payment_method_create: '支払方法を追加しました',
     payment_method_update: '支払方法を編集しました',
+    danger_zone_clear: 'データ消去(デンジャーゾーン)',
     payment_method_active: '支払方法のステータスを変更しました',
     item_create: '商品を追加しました',
     item_update: '商品を編集しました',

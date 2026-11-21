@@ -29,7 +29,7 @@ export default {
   loaded: '{shown} dari {total} baris · {actors} pelaku',
   noMatch: 'Tidak ada baris yang cocok dengan pencarian.',
   tailing: 'Menunggu entri baru…',
-  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon', payment_method: 'Metode Pembayaran', purchase: 'Pembelian', purchase_return: 'Retur Pembelian', sale_return: 'Retur Penjualan', member_deposit: 'Deposit Member', supplier_credit: 'Kredit Pemasok', shift: 'Shift Kasir', cash_movement: 'Kas Kecil Kasir' },
+  entities: { user: 'Pengguna', role: 'Role', outlet: 'Outlet', session: 'Sesi', tenant: 'Tenant', unit: 'Satuan', category: 'Kategori', brand: 'Brand', principal: 'Principal', supplier: 'Suplier', salesperson: 'Salesman', item: 'Item', member: 'Member', member_level: 'Level Member', voucher: 'Kupon', payment_method: 'Metode Pembayaran', danger_zone: 'Danger Zone', purchase: 'Pembelian', purchase_return: 'Retur Pembelian', sale_return: 'Retur Penjualan', member_deposit: 'Deposit Member', supplier_credit: 'Kredit Pemasok', shift: 'Shift Kasir', cash_movement: 'Kas Kecil Kasir' },
   actions: {
     receivable_opening: 'Mencatat saldo awal piutang',
     receivable_opening_void: 'Membatalkan saldo awal piutang',
@@ -104,6 +104,7 @@ export default {
     voucher_public: 'Mengubah tampil kupon di landing page',
     payment_method_create: 'Menambah metode pembayaran',
     payment_method_update: 'Mengubah metode pembayaran',
+    danger_zone_clear: 'Membersihkan data (Danger Zone)',
     payment_method_active: 'Mengubah status metode pembayaran',
     item_create: 'Menambah item',
     item_update: 'Mengubah item',

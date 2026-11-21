@@ -42,6 +42,7 @@
     smallFlat: string;
     bearer: FeeBearer;
     system: boolean;
+    locked: boolean; // tarif milik EraPay
     saving: boolean;
     error: string;
     errors: Partial<Record<Field, string>>;
@@ -147,11 +148,11 @@
   const canWrite = (m: PaymentMethod | null) => (m ? can('payment_methods', 'update') : can('payment_methods', 'create'));
   const openNew = () => {
     void loadAccounts();
-    editor = { id: null, accountId: '', name: '', kind: 'ewallet', feePct: '', feeFlat: '', smallOn: false, smallLimit: '', smallFlat: '', bearer: 'store', system: false, saving: false, error: '', errors: {} };
+    editor = { id: null, accountId: '', name: '', kind: 'ewallet', feePct: '', feeFlat: '', smallOn: false, smallLimit: '', smallFlat: '', bearer: 'store', system: false, locked: false, saving: false, error: '', errors: {} };
   };
   const openMethod = (m: PaymentMethod) => {
     void loadAccounts();
-    editor = { id: m.id, accountId: m.account?.id ?? '', name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', smallOn: Number(m.small_tx_limit) > 0, smallLimit: Number(m.small_tx_limit) ? m.small_tx_limit : '', smallFlat: Number(m.small_tx_flat) ? m.small_tx_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, saving: false, error: '', errors: {} };
+    editor = { id: m.id, accountId: m.account?.id ?? '', name: m.name, kind: m.kind, feePct: Number(m.fee_pct) ? m.fee_pct : '', feeFlat: Number(m.fee_flat) ? m.fee_flat : '', smallOn: Number(m.small_tx_limit) > 0, smallLimit: Number(m.small_tx_limit) ? m.small_tx_limit : '', smallFlat: Number(m.small_tx_flat) ? m.small_tx_flat : '', bearer: m.fee_bearer ?? 'store', system: m.is_system, locked: !!m.fee_locked, saving: false, error: '', errors: {} };
   };
 
   /** Ringkasan biaya untuk tabel, mis. "0,7% + Rp100"; "—" bila tanpa biaya. */
@@ -427,31 +428,31 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
               <label for="pm-fee-pct" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.feePct')}</label>
-              <input id="pm-fee-pct" inputmode="decimal" class={inputClass} bind:value={ed.feePct} maxlength="6" placeholder="0" disabled={ro} aria-invalid={!!ed.errors.fee_pct} />
+              <input id="pm-fee-pct" inputmode="decimal" class={inputClass} bind:value={ed.feePct} maxlength="6" placeholder="0" disabled={ro || ed.locked} aria-invalid={!!ed.errors.fee_pct} />
               {#if ed.errors.fee_pct}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.fee_pct}</p>{/if}
             </div>
             <div>
               <label for="pm-fee-flat" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.feeFlat')}</label>
-              <input id="pm-fee-flat" inputmode="decimal" class={inputClass} bind:value={ed.feeFlat} maxlength="12" placeholder="0" disabled={ro} aria-invalid={!!ed.errors.fee_flat} />
+              <input id="pm-fee-flat" inputmode="decimal" class={inputClass} bind:value={ed.feeFlat} maxlength="12" placeholder="0" disabled={ro || ed.locked} aria-invalid={!!ed.errors.fee_flat} />
               {#if ed.errors.fee_flat}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.fee_flat}</p>{/if}
             </div>
           </div>
-          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t('catalog.paymentMethods.feeHint')}</p>
+          <p class="text-[11px] mt-1 text-[var(--text-tertiary)]">{t(ed.locked ? 'catalog.paymentMethods.feeLockedHint' : 'catalog.paymentMethods.feeHint')}</p>
           <div class="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-muted,transparent)] p-3">
             <label class="flex items-start gap-2 text-[13px] font-semibold">
-              <input type="checkbox" class="mt-1" bind:checked={ed.smallOn} disabled={ro} />
+              <input type="checkbox" class="mt-1" bind:checked={ed.smallOn} disabled={ro || ed.locked} />
               <span>{t('catalog.paymentMethods.smallTx')}<span class="block text-[11.5px] font-normal text-[var(--text-tertiary)]">{t('catalog.paymentMethods.smallTxHint')}</span></span>
             </label>
             {#if ed.smallOn}
               <div class="grid gap-3 sm:grid-cols-2 mt-3">
                 <div>
                   <label for="pm-small-limit" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.smallTxLimit')}</label>
-                  <input id="pm-small-limit" inputmode="decimal" class={inputClass} bind:value={ed.smallLimit} maxlength="12" placeholder="100000" disabled={ro} aria-invalid={!!ed.errors.small_tx_limit} />
+                  <input id="pm-small-limit" inputmode="decimal" class={inputClass} bind:value={ed.smallLimit} maxlength="12" placeholder="100000" disabled={ro || ed.locked} aria-invalid={!!ed.errors.small_tx_limit} />
                   {#if ed.errors.small_tx_limit}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.small_tx_limit}</p>{/if}
                 </div>
                 <div>
                   <label for="pm-small-flat" class="text-[11.5px] mb-1 block text-[var(--text-secondary)]">{t('catalog.paymentMethods.smallTxFlat')}</label>
-                  <input id="pm-small-flat" inputmode="decimal" class={inputClass} bind:value={ed.smallFlat} maxlength="12" placeholder="500" disabled={ro} aria-invalid={!!ed.errors.small_tx_flat} />
+                  <input id="pm-small-flat" inputmode="decimal" class={inputClass} bind:value={ed.smallFlat} maxlength="12" placeholder="500" disabled={ro || ed.locked} aria-invalid={!!ed.errors.small_tx_flat} />
                   {#if ed.errors.small_tx_flat}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.small_tx_flat}</p>{/if}
                 </div>
               </div>

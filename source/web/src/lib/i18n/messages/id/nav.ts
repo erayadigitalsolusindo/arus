@@ -5,6 +5,7 @@ export default {
   users: 'Pengguna',
   roles: 'Role & Hak Akses',
   outlets: 'Outlet',
+  dangerZone: 'Danger Zone',
   auditLog: 'Audit Log',
   subscription: 'Langganan',
   storefront: 'Landing Page',

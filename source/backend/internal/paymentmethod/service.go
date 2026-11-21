@@ -110,6 +110,8 @@ type Method struct {
 	// Aturan transaksi kecil: jumlah dibayar <= SmallTxLimit -> biaya = SmallTxFlat (menggantikan persen + nominal). Limit "0.00" = nonaktif.
 	SmallTxLimit string    `json:"small_tx_limit,omitempty"`
 	SmallTxFlat  string    `json:"small_tx_flat,omitempty"`
+	// FeeLocked: tarif milik EraPay (disinkronkan dari sana), tidak bisa diubah di Arus.
+	FeeLocked bool      `json:"fee_locked,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitzero"` // kosong di lookup
 	// Account = akun COA yang dipetakan ke metode ini (kosong bila tenant belum punya bagan akun).
 	Account *AccountRef `json:"account,omitempty"`
@@ -219,8 +221,7 @@ func smallTx(in Input, kind string, f FieldErrors) (limit, flat decimal.Decimal)
 }
 
 var defaults = []struct{ name, kind string }{
-	{"Tunai", KindCash}, {"Transfer", KindTransfer}, {"Debit", KindDebit}, {"Kartu Kredit", KindCreditCard}, {"E-Wallet", KindEWallet},
-	{"Deposit Member", KindDeposit}, {"Kredit Pemasok", KindSupplierCredit},
+	{"Tunai", KindCash}, {"Deposit Member", KindDeposit}, {"Kredit Pemasok", KindSupplierCredit},
 }
 
 // SeedDefaults mengisi metode bawaan; dipanggil Register di dalam transaksi pembuatan tenant.
@@ -283,9 +284,12 @@ func (s *Service) List(ctx context.Context, a authz.Actor, p ListParams) ([]Meth
 	total := 0
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		rows, err := gen.New(tx).PaymentMethodList(ctx, arg)
+		var era uuid.UUID
+		_ = tx.QueryRow(ctx, `SELECT method_id FROM erapay_methods WHERE tenant_id = $1`, a.TenantID).Scan(&era)
 		for _, r := range rows {
 			m := view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
 			m.Account = accountRef(r.AccountID, r.AccountCode, r.AccountName)
+			m.FeeLocked = r.ID == era
 			out = append(out, m)
 			total = int(r.Total)
 		}
@@ -411,6 +415,14 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 				kind = in.Kind
 			}
 		}
+		var locked bool // metode EraPay: biaya & aturan transaksi kecil mengikuti EraPay, input diabaikan
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM erapay_methods WHERE tenant_id = $1 AND method_id = $2)`, a.TenantID, id).Scan(&locked); err != nil {
+			return err
+		}
+		if locked {
+			in.FeePct, in.FeeFlat = Num(cur.FeePct.String()), Num(cur.FeeFlat.String())
+			in.SmallTxLimit, in.SmallTxFlat = Num(cur.SmallTxLimit.String()), Num(cur.SmallTxFlat.String())
+		}
 		feePct, feeFlat := fees(in, kind, f)
 		feeBearer := bearer(in, kind, cur.FeeBearer, f)
 		sLimit, sFlat := smallTx(in, kind, f)
@@ -447,6 +459,7 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 			}
 		}
 		out = view(r.ID, r.Name, r.Kind, r.IsSystem, r.Active, r.FeePct, r.FeeFlat, r.FeeBearer, r.SmallTxLimit, r.SmallTxFlat, r.CreatedAt)
+		out.FeeLocked = locked
 		if err := fillAccount(ctx, q, a.TenantID, &out); err != nil {
 			return err
 		}

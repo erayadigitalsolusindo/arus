@@ -46,6 +46,7 @@ func TestAccountMapping(t *testing.T) {
 		_, _ = admin.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, tenant)
 	})
 	svc := NewService(app)
+	legacyMethods(t, svc, authz.Actor{TenantID: tenant, Perms: authz.Permissions{All: true}})
 	a := authz.Actor{TenantID: tenant}
 
 	// Belum ada bagan akun: metode baru tetap jadi, tanpa akun.

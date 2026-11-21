@@ -19,6 +19,7 @@ import (
 	"aciraba/internal/backup"
 	"aciraba/internal/authz"
 	"aciraba/internal/catalog"
+	"aciraba/internal/dangerzone"
 	"aciraba/internal/dashboard"
 	"aciraba/internal/erapay"
 	"aciraba/internal/extapi"
@@ -172,6 +173,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	storefront.NewHandler(storefrontSvc, perms, tokens, d.Redis, uploads, d.Log).WithDomainTarget(d.Cfg.DomainTarget).Routes(r)
 	paymentmethod.NewHandler(pmSvc, perms, tokens, d.Log).Routes(r)
 	erapay.NewHandler(eraSvc, perms, tokens, d.Log).Routes(r)
+	dangerzone.NewHandler(dangerzone.NewService(d.Pool, eraSvc), perms, tokens, d.Redis, d.Log).Routes(r)
 	subSvc := subscription.NewService(d.Pool, d.Cfg.EraPayBaseURL, d.Cfg.EraPayPlatformKey)
 	subscription.NewHandler(subSvc, perms, tokens, d.Log).Routes(r)
 	purchaseH := purchasing.NewHandler(purchasing.NewService(d.Pool), perms, tokens, d.Log)

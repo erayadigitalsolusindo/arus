@@ -138,6 +138,7 @@ const errors: Messages['errors'] = {
   ERAPAY_UNAVAILABLE: 'EraPayに接続できません。もう一度お試しください。',
   ERAPAY_ECOSYSTEM_UNAVAILABLE: 'EraPayエコシステム接続がまだ準備できていません。管理者に問い合わせるか、後でもう一度お試しください。',
   ECOSYSTEM_OWNER_REQUIRED: 'EraPayを有効化できるのは店舗オーナーのみです。',
+  DANGER_OWNER_REQUIRED: 'デンジャーゾーンを使えるのは店舗オーナーのみです。',
   ERAPAY_TERMS_REQUIRED: '続行するにはEraPayの規約に同意してください。',
   ERAPAY_ECOSYSTEM_AMBIGUOUS: '一致するEraPayマーチャントが複数あります。正しいテナントをリンクするにはEraPayサポートに連絡してください。',
   MERCHANT_NOT_APPROVED: 'マーチャントはERAPAYで未承認です。承認後にキーを作成できます。',

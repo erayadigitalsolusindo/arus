@@ -7,6 +7,7 @@ const nav: Messages['nav'] = {
   users: 'ユーザー',
   roles: 'ロールと権限',
   outlets: '店舗',
+  dangerZone: 'デンジャーゾーン',
   auditLog: '監査ログ',
   subscription: 'サブスクリプション',
   storefront: 'ランディングページ',

@@ -92,6 +92,7 @@ const catalog: Messages['catalog'] = {
     feePct: 'Fee (%)',
     feeFlat: 'Flat fee',
     feeHint: 'Enter a percentage, an amount, or both. Leave empty for no fee.',
+    feeLockedHint: 'Fees (MDR) follow EraPay and sync automatically; they cannot be changed here.',
     feeCash: 'Cash carries no fee.',
     smallTx: 'Small transaction rule (BI)',
     smallTxHint: 'Transactions up to a set limit are charged a flat MDR (replacing the percentage/amount above). Above the limit the rates above apply.',

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +22,7 @@ import (
 )
 
 // MethodName = nama metode pembayaran yang dibuat saat key disimpan.
-const MethodName = "EraPay QRIS"
+const MethodName = "EraPay"
 
 const (
 	StatusPending   = "pending"
@@ -136,7 +138,7 @@ func (s *Service) client(ctx context.Context, tenant uuid.UUID) (c *Client, err 
 // Config = status integrasi untuk kasir dan halaman pengaturan.
 type Config struct {
 	Enabled     bool       `json:"enabled"`               // kasir bisa memakai QRIS (server siap + key terpasang + metode aktif)
-	MethodID    *uuid.UUID `json:"method_id,omitempty"`   // metode "EraPay QRIS" milik tenant
+	MethodID    *uuid.UUID `json:"method_id,omitempty"`   // metode "EraPay" milik tenant
 	ServerReady bool       `json:"server_ready"`          // alamat EraPay terpasang di server
 	Configured  bool       `json:"configured"`            // tenant sudah menyimpan API key
 	KeyHint     string     `json:"key_hint,omitempty"`    // 4 karakter terakhir key
@@ -163,11 +165,14 @@ func (s *Service) Config(ctx context.Context, a authz.Actor) (Config, error) {
 		cfg.Enabled = cfg.ServerReady && cfg.Configured
 		return nil
 	})
+	if err == nil && cfg.Enabled { // tarif ikut EraPay: segarkan di latar belakang, dilihat pada pemuatan berikutnya
+		go s.syncFeesSoon(context.WithoutCancel(ctx), a.TenantID, false)
+	}
 	return cfg, err
 }
 
 // SaveKey memverifikasi API key ke EraPay (dikenal, aktif, punya izin payment:create + payment:read, lingkungan sesuai), menyimpannya
-// terenkripsi, lalu menyiapkan metode "EraPay QRIS" bila belum ada. Mengganti key lama bila sudah ada.
+// terenkripsi, lalu menyiapkan metode "EraPay" bila belum ada. Mengganti key lama bila sudah ada.
 func (s *Service) SaveKey(ctx context.Context, a authz.Actor, apiKey string) (Config, error) {
 	if a.Impersonator != uuid.Nil {
 		return Config{}, ErrImpersonating
@@ -225,6 +230,7 @@ func (s *Service) saveKey(ctx context.Context, a authz.Actor, apiKey string) (Co
 	if err := s.ensureMethod(ctx, a); err != nil {
 		return Config{}, err
 	}
+	s.syncFeesSoon(ctx, a.TenantID, true)
 	return s.Config(ctx, a)
 }
 
@@ -239,7 +245,55 @@ func (s *Service) RemoveKey(ctx context.Context, a authz.Actor) error {
 	})
 }
 
-// ensureMethod membuat metode pembayaran "EraPay QRIS" (e-wallet, tanpa biaya) lalu menandainya. Idempotent.
+// RestoreMethod membuat ulang metode "EraPay" (dan menyinkronkan tarifnya) bila key EraPay tenant masih terpasang. Dipakai setelah
+// reset metode pembayaran; tanpa key tidak berbuat apa-apa.
+func (s *Service) RestoreMethod(ctx context.Context, a authz.Actor) error {
+	cfg, err := s.Config(ctx, a)
+	if err != nil || !cfg.Configured {
+		return err
+	}
+	if err := s.ensureMethod(ctx, a); err != nil {
+		return err
+	}
+	s.syncFeesSoon(ctx, a.TenantID, true)
+	return nil
+}
+
+var feeSyncedAt sync.Map // tenant -> waktu sinkron tarif terakhir (Config memicu sinkron paling sering tiap feeSyncEvery)
+
+const feeSyncEvery = 5 * time.Minute
+
+// SyncFees menyalin tarif MDR EraPay (persen, tetap, transaksi kecil) ke metode "EraPay" tenant. Tarif milik EraPay:
+// pengguna Arus tidak bisa mengubahnya (paymentmethod.Update menguncinya). Tanpa provisioner / endpoint: tidak berbuat apa-apa.
+func (s *Service) SyncFees(ctx context.Context, tenant uuid.UUID) error {
+	if s.provisioner == nil {
+		return nil
+	}
+	f, found, err := s.provisioner.MerchantFees(ctx, tenant)
+	if err != nil || !found {
+		return err
+	}
+	pct := decimal.NewFromInt(int64(f.MDRBPS)).Div(decimal.NewFromInt(100))
+	return db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE payment_methods SET fee_pct = $2, fee_flat = $3, small_tx_limit = $4, small_tx_flat = $5
+			WHERE tenant_id = $1 AND id = (SELECT method_id FROM erapay_methods WHERE tenant_id = $1)`,
+			tenant, pct, decimal.NewFromInt(f.MDRFixed), decimal.NewFromInt(f.MDRFlatUpTo), decimal.NewFromInt(f.MDRFlatFee))
+		return err
+	})
+}
+
+// syncFeesSoon = SyncFees bila sudah lewat feeSyncEvery; gagal hanya dicatat (tarif lama tetap berlaku).
+func (s *Service) syncFeesSoon(ctx context.Context, tenant uuid.UUID, force bool) {
+	if last, ok := feeSyncedAt.Load(tenant); !force && ok && time.Since(last.(time.Time)) < feeSyncEvery {
+		return
+	}
+	feeSyncedAt.Store(tenant, time.Now())
+	if err := s.SyncFees(ctx, tenant); err != nil {
+		slog.Warn("erapay: sinkron tarif gagal", "err", err)
+	}
+}
+
+// ensureMethod membuat metode pembayaran "EraPay" (e-wallet, tanpa biaya) lalu menandainya. Idempotent.
 func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 	var have bool
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {

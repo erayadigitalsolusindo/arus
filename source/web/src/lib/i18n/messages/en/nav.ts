@@ -7,6 +7,7 @@ const nav: Messages['nav'] = {
   users: 'Users',
   roles: 'Roles & Permissions',
   outlets: 'Outlets',
+  dangerZone: 'Danger Zone',
   auditLog: 'Audit Log',
   subscription: 'Subscription',
   storefront: 'Landing Page',

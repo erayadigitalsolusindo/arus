@@ -92,6 +92,7 @@ const catalog: Messages['catalog'] = {
     feePct: '手数料（%）',
     feeFlat: '固定手数料',
     feeHint: 'パーセント、金額、またはその両方を入力します。手数料なしの場合は空のままにします。',
+    feeLockedHint: '手数料(MDR)はEraPayに従い自動同期されるため、ここでは変更できません。',
     feeCash: '現金には手数料はかかりません。',
     smallTx: '少額取引ルール（BI）',
     smallTxHint: '一定額までの取引には定額MDRが適用されます（上記の料率/金額に代わります）。上限を超える場合は上記の料率が適用されます。',
