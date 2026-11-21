@@ -586,14 +586,22 @@ class SaleDraft {
 /// Status integrasi QRIS EraPay untuk toko ini (`GET /payments/erapay/config`).
 /// [methodId] = metode pembayaran "EraPay QRIS"; baris bayar dengan metode itu memakai QR, bukan nomor referensi manual.
 class EraPayConfig {
-  const EraPayConfig({this.enabled = false, this.methodId});
+  const EraPayConfig({
+    this.enabled = false,
+    this.methodId,
+    this.partnerPayment = false,
+  });
 
   final bool enabled;
   final String? methodId;
 
+  /// Platform Admin menyalakan tombol PARTNER PAYMENT (checkout hosted) untuk toko ini.
+  final bool partnerPayment;
+
   factory EraPayConfig.fromJson(Map<String, dynamic> j) => EraPayConfig(
     enabled: j['enabled'] == true,
     methodId: j['method_id'] == null ? null : '${j['method_id']}',
+    partnerPayment: j['partner_payment'] == true,
   );
 }
 
@@ -618,6 +626,9 @@ class EraCharge {
   final Decimal? payAmount;
 
   bool get isPaid => status == 'succeeded';
+
+  /// PARTNER PAYMENT: [qrValue] berisi URL halaman checkout gateway, bukan isi QR.
+  bool get hosted => qrValue.startsWith('https://');
 
   /// Status akhir yang tidak akan berubah lagi (polling berhenti).
   bool get isFinal =>

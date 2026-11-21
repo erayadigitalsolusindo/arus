@@ -338,12 +338,16 @@ class PosRepository {
   /// Buat tagihan QRIS; kunci yang sama mengembalikan tagihan yang sama (aman diulang).
   Future<EraCharge> eraCreateCharge(
     Decimal amount,
-    String idempotencyKey,
-  ) async {
+    String idempotencyKey, {
+    bool hosted = false,
+  }) async {
     final c = await _guard(() async {
       final r = await _dio.post<Map<String, dynamic>>(
         '/payments/erapay/charges',
-        data: {'amount': decToApi(amount, scale: 2)},
+        data: {
+          'amount': decToApi(amount, scale: 2),
+          if (hosted) 'checkout': 'hosted',
+        },
         options: Options(headers: {'Idempotency-Key': idempotencyKey}),
       );
       return EraCharge.fromJson(r.data!);
@@ -393,12 +397,14 @@ class PosRepository {
 
   /// QRIS terakhir dengan nominal sama yang masih menunggu bayar (atau sudah lunas) dan belum dipakai nota.
   /// Status diperiksa ke server; null bila tidak ada / offline.
-  Future<EraCharge?> eraRecover(Decimal amount) async {
+  Future<EraCharge?> eraRecover(Decimal amount, {bool hosted = false}) async {
     final want = decToApi(amount, scale: 2);
     for (final e in (await _storedCharges()).reversed) {
       if (e['amount'] != want) continue;
       try {
         final c = await eraGetCharge('${e['id']}');
+        if (c.hosted != hosted)
+          continue; // QR dan PARTNER PAYMENT tidak saling menggantikan
         if ((c.status == 'pending' && c.qrValue.isNotEmpty) || c.isPaid) {
           return c;
         }

@@ -107,6 +107,8 @@
   "payAddMethod": "Tambah metode",
   "payRef": "No. referensi",
   "payEraGenerate": "Buat QR",
+  "payEraPartner": "PARTNER PAYMENT",
+  "payEraPartnerOpen": "Buka halaman pembayaran",
   "payEraRegenerate": "Buat ulang QR",
   "payEraCreating": "Membuat QR...",
   "payEraScan": "Minta pelanggan scan dan bayar {amount}",

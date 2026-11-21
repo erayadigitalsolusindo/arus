@@ -63,6 +63,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "ERAPAY_DISABLED", "Integrasi EraPay belum diaktifkan di server.")
 	case errors.Is(err, ErrNotConfigured):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_NOT_CONFIGURED", "API key EraPay belum dipasang untuk toko ini.")
+	case errors.Is(err, ErrPartnerDisabled):
+		httpx.Error(w, http.StatusForbidden, "PARTNER_PAYMENT_DISABLED", "PARTNER PAYMENT belum diaktifkan untuk toko ini.")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
 	case errors.Is(err, ErrAmount):
@@ -153,9 +155,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Amount string `json:"amount"`
+		Amount   string `json:"amount"`
+		Checkout string `json:"checkout"` // "" | "hosted"
 	}
 	if !httpx.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.Checkout != "" && in.Checkout != "hosted" {
+		httpx.ValidationError(w, map[string]string{"checkout": "INVALID"})
 		return
 	}
 	amount, err := decimal.NewFromString(in.Amount)
@@ -163,7 +170,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, map[string]string{"amount": "INVALID"})
 		return
 	}
-	c, err := h.svc.CreateCharge(r.Context(), actor(r), key, amount)
+	c, err := h.svc.CreateChargeMode(r.Context(), actor(r), key, amount, in.Checkout == "hosted")
 	if err != nil {
 		h.fail(w, r, err)
 		return

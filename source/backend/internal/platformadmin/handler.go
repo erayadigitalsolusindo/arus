@@ -105,6 +105,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/platform/tenants/{id}/erapay", h.ERAPayStatus)
 			r.Post("/platform/tenants/{id}/erapay", h.ERAPayActivate)
 			r.Put("/platform/tenants/{id}/erapay/key", h.ERAPaySaveKey)
+			r.Put("/platform/tenants/{id}/erapay/partner", h.ERAPayPartner)
 			r.Post("/platform/tenants/{id}/erapay/key/issue", h.ERAPayIssueKey)
 			r.Get("/platform/tenants/{id}/deletion", h.GetDeleteSchedule)
 			r.Put("/platform/tenants/{id}/deletion", h.ScheduleDelete)

@@ -290,6 +290,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get payEraGenerate => 'Buat QR';
 
   @override
+  String get payEraPartner => 'PARTNER PAYMENT';
+
+  @override
+  String get payEraPartnerOpen => 'Buka halaman pembayaran';
+
+  @override
   String get payEraRegenerate => 'Buat ulang QR';
 
   @override

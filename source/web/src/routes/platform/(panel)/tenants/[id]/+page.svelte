@@ -71,12 +71,28 @@
   let eraKey = $state('');
   let eraKeyBusy = $state(false);
   let eraKeySaved = $state(false);
+  let eraPartner = $state(false); // tombol PARTNER PAYMENT (checkout hosted) di kasir tenant
+  let eraPartnerBusy = $state(false);
+  async function togglePartner() {
+    if (eraPartnerBusy) return;
+    eraPartnerBusy = true;
+    error = '';
+    try {
+      eraPartner = (await platformApi.erapayPartner(id, !eraPartner)).partner_payment;
+      await loadAudit();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      eraPartnerBusy = false;
+    }
+  }
   async function loadEra() {
     try {
       const st = await platformApi.erapayStatus(id);
       eraActive = st.active;
       eraMerchant = st.merchant_status ?? '';
       eraKeyHint = st.key_configured ? st.key_hint : '';
+      eraPartner = st.partner_payment === true;
     } catch {
       eraActive = null;
     }
@@ -607,6 +623,12 @@
               <button type="submit" class="btn !text-[12.5px] disabled:opacity-60" disabled={!eraKey.trim() || !eraStepOk || eraKeyBusy}>{t('platform.tenant.erapayKeySave')}</button>
             </form>
             {#if eraKeySaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.erapayKeyDone')}</p>{/if}
+            {#if eraKeyHint}
+              <label class="flex items-start gap-2 pt-2 text-[12.5px]">
+                <input type="checkbox" class="mt-0.5" checked={eraPartner} disabled={eraPartnerBusy} onchange={togglePartner} />
+                <span><b>{t('platform.tenant.erapayPartner')}</b><br /><span class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayPartnerHelp')}</span></span>
+              </label>
+            {/if}
           </div>
         </div>
       </section>

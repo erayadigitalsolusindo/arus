@@ -107,6 +107,8 @@
   "payAddMethod": "方法を追加",
   "payRef": "参照番号",
   "payEraGenerate": "QRISコードを作成",
+  "payEraPartner": "PARTNER PAYMENT",
+  "payEraPartnerOpen": "支払いページを開く",
   "payEraRegenerate": "QRを再作成",
   "payEraCreating": "QRを作成中…",
   "payEraScan": "お客様に {amount} のスキャンと支払いをお願いしてください",

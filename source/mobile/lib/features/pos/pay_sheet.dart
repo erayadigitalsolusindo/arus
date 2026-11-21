@@ -4,6 +4,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api/api_error.dart';
@@ -111,7 +112,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       parseInput(r.amount.text) <= Decimal.zero ||
       (_eraFresh(r) && r.charge!.isPaid);
 
-  Future<void> _eraStart(_PayRow r) async {
+  Future<void> _eraStart(_PayRow r, {bool hosted = false}) async {
     final amount = parseInput(r.amount.text);
     if (amount <= Decimal.zero || r.eraBusy) return;
     r.timer?.cancel();
@@ -129,8 +130,14 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       final repo = ref.read(posRepositoryProvider);
       // Pakai lagi QRIS yang sudah pernah dibuat untuk nominal ini (belum dibayar / sudah lunas, belum dipakai nota).
       final c =
-          (r.charge == null ? await repo.eraRecover(amount) : null) ??
-          await repo.eraCreateCharge(amount, '$_eraKey-q${r.eraAttempt}');
+          (r.charge == null
+              ? await repo.eraRecover(amount, hosted: hosted)
+              : null) ??
+          await repo.eraCreateCharge(
+            amount,
+            '$_eraKey-${hosted ? 'p' : 'q'}${r.eraAttempt}',
+            hosted: hosted,
+          );
       if (!mounted) return;
       r.ref.text = c
           .id; // dikirim sebagai ref_no; server mencocokkan dengan charge lunas
@@ -823,6 +830,8 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     final amount = parseInput(r.amount.text);
     final fresh = _eraFresh(r);
     final needNew = c == null || !fresh || (c.isFinal && !c.isPaid);
+    final partner =
+        ref.watch(eraPayConfigProvider).asData?.value.partnerPayment ?? false;
 
     final Widget body;
     if (needNew) {
@@ -859,6 +868,17 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                   : l.payEraRegenerate,
             ),
           ),
+          if (partner)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: FilledButton.tonalIcon(
+                onPressed: _busy || r.eraBusy || amount <= Decimal.zero
+                    ? null
+                    : () => _eraStart(r, hosted: true),
+                icon: const Icon(Icons.open_in_new),
+                label: Text(l.payEraPartner),
+              ),
+            ),
           if (c == null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -887,7 +907,16 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
     } else {
       body = Column(
         children: [
-          if (c.qrValue.isNotEmpty)
+          if (c.hosted)
+            FilledButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse(c.qrValue),
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.open_in_new),
+              label: Text(l.payEraPartnerOpen),
+            )
+          else if (c.qrValue.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -903,11 +932,12 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               ),
             ),
           const SizedBox(height: 8),
-          Text(
-            l.payEraScan(formatMoney(c.payAmount ?? amount)),
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          if (!c.hosted)
+            Text(
+              l.payEraScan(formatMoney(c.payAmount ?? amount)),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           if (c.payAmount != null) ...[
             Container(
               margin: const EdgeInsets.only(top: 6),

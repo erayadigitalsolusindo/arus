@@ -32,6 +32,7 @@ const (
 	ActionTenantRename  = "platform.tenant_rename"
 	ActionERAPay        = "platform.erapay_activate"
 	ActionERAPayKey     = "platform.erapay_key"
+	ActionERAPayPartner = "platform.erapay_partner"
 	ActionUserEmail     = "platform.user_email"
 	ActionTenantDeleteSchedule = "platform.tenant_delete_schedule"
 	ActionTenantDeleteCancel   = "platform.tenant_delete_cancel"

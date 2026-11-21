@@ -616,6 +616,18 @@ abstract class AppLocalizations {
   /// **'Buat QR'**
   String get payEraGenerate;
 
+  /// No description provided for @payEraPartner.
+  ///
+  /// In id, this message translates to:
+  /// **'PARTNER PAYMENT'**
+  String get payEraPartner;
+
+  /// No description provided for @payEraPartnerOpen.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka halaman pembayaran'**
+  String get payEraPartnerOpen;
+
   /// No description provided for @payEraRegenerate.
   ///
   /// In id, this message translates to:

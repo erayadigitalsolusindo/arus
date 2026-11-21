@@ -177,6 +177,8 @@ export default {
     erapayKeyPlaceholder: 'Tempel API key dari ERAPAY',
     erapayKeySave: 'Pasang key',
     erapayKeyDone: 'Key terpasang. Kasir tenant sudah bisa memakai QRIS.',
+    erapayPartner: 'PARTNER PAYMENT',
+    erapayPartnerHelp: 'Tampilkan tombol kedua di kasir mobile: pembayaran lewat halaman checkout milik gateway (DANA). Hanya bila rute EraPay tenant memakai DANA Gapura.',
     erapayDone: 'Berhasil didaftarkan ke ERAPAY.',
     identityHelp: 'Ganti nama toko dan kode (slug). Kode hanya pengenal untuk tampilan dan dukungan; login pengguna tetap memakai email.',
     identityName: 'Nama toko',

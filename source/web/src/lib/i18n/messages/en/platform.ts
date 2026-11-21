@@ -182,6 +182,8 @@ const platform: Messages['platform'] = {
     erapayKeyPlaceholder: 'Paste the API key from ERAPAY',
     erapayKeySave: 'Set key',
     erapayKeyDone: 'Key saved. The tenant’s cashier can now use QRIS.',
+    erapayPartner: 'PARTNER PAYMENT',
+    erapayPartnerHelp: 'Show a second button in the mobile cashier: pay on the gateway’s own checkout page (DANA). Works only when the tenant’s EraPay route uses DANA Gapura.',
     erapayDone: 'Registered with ERAPAY.',
     identityHelp: 'Change the store name and code (slug). The code is only a display/support identifier; users still sign in with email.',
     identityName: 'Store name',

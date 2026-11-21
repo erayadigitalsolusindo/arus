@@ -22,6 +22,7 @@ type ERAPay interface {
 	SaveKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName, apiKey string) (erapay.Config, error)
 	IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName string, fees *erapay.Fees) (erapay.Config, error)
 	ConfigForTenant(ctx context.Context, tenant uuid.UUID) (erapay.Config, error)
+	SetPartnerPaymentForTenant(ctx context.Context, tenant uuid.UUID, on bool) (erapay.Config, error)
 }
 
 func (h *Handler) erapayFail(w http.ResponseWriter, r *http.Request, err error) {
@@ -40,6 +41,8 @@ func (h *Handler) erapayFail(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_FEES_INVALID", "Tarif tidak valid. Periksa persen dan nominal (bilangan bulat rupiah, aturan transaksi kecil diisi berpasangan).")
 	case errors.Is(err, erapay.ErrMerchantState):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_STATE", "Merchant tidak bisa disetujui dari statusnya sekarang (mis. ditolak atau ditangguhkan). Tangani di dashboard EraPay.")
+	case errors.Is(err, erapay.ErrNotConfigured):
+		httpx.Error(w, http.StatusConflict, "ERAPAY_NOT_CONFIGURED", "Pasang API key EraPay tenant lebih dulu.")
 	case errors.Is(err, erapay.ErrKeyExists):
 		httpx.Error(w, http.StatusConflict, "API_KEY_EXISTS", "Key otomatis sudah pernah dibuat di EraPay. Cabut atau putar key itu dari dashboard EraPay, atau tempel key manual.")
 	case errors.Is(err, erapay.ErrEcosystemSSO):
@@ -79,7 +82,34 @@ func (h *Handler) ERAPayStatus(w http.ResponseWriter, r *http.Request) {
 		h.erapayFail(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"active": st.Active, "merchant_status": st.MerchantStatus, "key_configured": cfg.Configured, "key_hint": cfg.KeyHint, "environment": cfg.Environment})
+	httpx.JSON(w, http.StatusOK, map[string]any{"active": st.Active, "merchant_status": st.MerchantStatus, "key_configured": cfg.Configured, "key_hint": cfg.KeyHint, "environment": cfg.Environment, "partner_payment": cfg.PartnerPayment})
+}
+
+// ERAPayPartner: PUT /platform/tenants/{id}/erapay/partner. Menyalakan tombol PARTNER PAYMENT di kasir tenant.
+func (h *Handler) ERAPayPartner(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &in, 1024) {
+		return
+	}
+	if h.ERAPay == nil {
+		h.erapayFail(w, r, erapay.ErrEcosystemNotConfigured)
+		return
+	}
+	cfg, err := h.ERAPay.SetPartnerPaymentForTenant(r.Context(), id, in.Enabled)
+	if err != nil {
+		h.erapayFail(w, r, err)
+		return
+	}
+	if err := h.svc.recordERAPay(r.Context(), actor(r), id, ActionERAPayPartner, audit.ActionPlatformERAPayPartner, map[string]any{"enabled": cfg.PartnerPayment}); err != nil {
+		h.Log.Error("audit erapay gagal", "err", err)
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"partner_payment": cfg.PartnerPayment})
 }
 
 func (h *Handler) ERAPayActivate(w http.ResponseWriter, r *http.Request) {

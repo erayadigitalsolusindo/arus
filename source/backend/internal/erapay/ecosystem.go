@@ -252,6 +252,24 @@ func (s *Service) ConfigForTenant(ctx context.Context, tenant uuid.UUID) (Config
 	return s.Config(ctx, authz.Actor{TenantID: tenant})
 }
 
+// SetPartnerPaymentForTenant menyalakan/mematikan PARTNER PAYMENT (otorisasi oleh pemanggil: Platform Admin). Butuh key terpasang.
+func (s *Service) SetPartnerPaymentForTenant(ctx context.Context, tenant uuid.UUID, on bool) (Config, error) {
+	err := db.WithTenant(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE erapay_settings SET partner_payment = $2, updated_at = now() WHERE tenant_id = $1`, tenant, on)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotConfigured
+		}
+		return nil
+	})
+	if err != nil {
+		return Config{}, err
+	}
+	return s.ConfigForTenant(ctx, tenant)
+}
+
 // IssueKey meminta ERAPAY menerbitkan API key pembayaran (tanpa payout) untuk tenant. Secret hanya ada di respons ini.
 func (c *ProvisioningClient) IssueKey(ctx context.Context, tenantID uuid.UUID) (string, error) {
 	if c.keyToken == "" {

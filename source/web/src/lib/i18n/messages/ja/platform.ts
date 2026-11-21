@@ -179,6 +179,8 @@ const platform: Messages['platform'] = {
     erapayKeyPlaceholder: 'ERAPAYのAPIキーを貼り付け',
     erapayKeySave: 'キーを設定',
     erapayKeyDone: 'キーを保存しました。レジでQRISを利用できます。',
+    erapayPartner: 'PARTNER PAYMENT',
+    erapayPartnerHelp: 'モバイルレジに2つ目のボタンを表示します（ゲートウェイ（DANA）のチェックアウトページで支払い）。テナントのEraPayルートがDANA Gapuraの場合のみ有効です。',
     erapayDone: 'ERAPAYに登録しました。',
     identityHelp: '店舗名とコード（スラッグ）を変更します。コードは表示・サポート用の識別子で、ログインはメールアドレスのままです。',
     identityName: '店舗名',

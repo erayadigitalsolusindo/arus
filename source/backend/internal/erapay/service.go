@@ -48,6 +48,7 @@ var (
 	ErrQRISInvalid            = errors.New("QRIS tidak valid: harus QRIS statis merchant yang utuh")
 	ErrMerchantNotApproved    = errors.New("merchant EraPay belum disetujui EraPay")
 	ErrBadFees                = errors.New("tarif persetujuan EraPay tidak valid")
+	ErrPartnerDisabled        = errors.New("PARTNER PAYMENT belum diaktifkan untuk toko ini")
 	ErrMerchantState          = errors.New("merchant EraPay tidak bisa disetujui dari statusnya sekarang")
 	ErrKeyExists              = errors.New("API key otomatis untuk toko ini sudah ada di EraPay")
 	ErrBadKey                 = errors.New("format API key EraPay tidak valid")
@@ -143,12 +144,14 @@ type Config struct {
 	Configured  bool       `json:"configured"`            // tenant sudah menyimpan API key
 	KeyHint     string     `json:"key_hint,omitempty"`    // 4 karakter terakhir key
 	Environment string     `json:"environment,omitempty"` // "sandbox" | "production"
+	// PartnerPayment: Platform Admin menyalakan tombol PARTNER PAYMENT (checkout hosted) untuk toko ini.
+	PartnerPayment bool `json:"partner_payment"`
 }
 
 func (s *Service) Config(ctx context.Context, a authz.Actor) (Config, error) {
 	cfg := Config{ServerReady: s.baseURL != ""}
 	err := db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT key_hint, environment FROM erapay_settings WHERE tenant_id = $1`, a.TenantID).Scan(&cfg.KeyHint, &cfg.Environment)
+		err := tx.QueryRow(ctx, `SELECT key_hint, environment, partner_payment FROM erapay_settings WHERE tenant_id = $1`, a.TenantID).Scan(&cfg.KeyHint, &cfg.Environment, &cfg.PartnerPayment)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
@@ -328,7 +331,13 @@ func (s *Service) ensureMethod(ctx context.Context, a authz.Actor) error {
 }
 
 // CreateCharge membuat (atau mengembalikan, bila kunci sama) tagihan QRIS. key dibuat kasir per percobaan bayar.
+// CreateCharge membuat tagihan QRIS biasa.
 func (s *Service) CreateCharge(ctx context.Context, a authz.Actor, key string, amount decimal.Decimal) (Charge, error) {
+	return s.CreateChargeMode(ctx, a, key, amount, false)
+}
+
+// CreateChargeMode: hosted = PARTNER PAYMENT: EraPay mengembalikan URL checkout gateway (disimpan di qr_value) dan hanya bila diaktifkan Platform Admin.
+func (s *Service) CreateChargeMode(ctx context.Context, a authz.Actor, key string, amount decimal.Decimal, hosted bool) (Charge, error) {
 	if s.baseURL == "" {
 		return Charge{}, ErrDisabled
 	}
@@ -344,6 +353,15 @@ func (s *Service) CreateCharge(ctx context.Context, a authz.Actor, key string, a
 		}
 		if cl == nil {
 			return ErrNotConfigured
+		}
+		if hosted {
+			var on bool
+			if err := tx.QueryRow(ctx, `SELECT partner_payment FROM erapay_settings WHERE tenant_id = $1`, a.TenantID).Scan(&on); err != nil {
+				return err
+			}
+			if !on {
+				return ErrPartnerDisabled
+			}
 		}
 		var mid uuid.UUID
 		if err := tx.QueryRow(ctx, `SELECT method_id FROM erapay_methods WHERE tenant_id = $1`, a.TenantID).Scan(&mid); err != nil {
@@ -370,9 +388,11 @@ func (s *Service) CreateCharge(ctx context.Context, a authz.Actor, key string, a
 		return Charge{}, ErrKeyConflict
 	}
 	if c.paymentID == "" { // belum pernah sampai ke EraPay (atau gagal sebelumnya): kirim; Idempotency-Key = id charge, aman diulang
-		p, err := cl.Create(ctx, c.ID.String(), createReq{
-			MerchantReference: c.ID.String(), Amount: amount.IntPart(), Currency: "IDR", PaymentMethod: "QRIS", Description: "Kasir ARUS",
-		})
+		req := createReq{MerchantReference: c.ID.String(), Amount: amount.IntPart(), Currency: "IDR", PaymentMethod: "QRIS", Description: "Kasir ARUS"}
+		if hosted {
+			req.Checkout = "hosted"
+		}
+		p, err := cl.Create(ctx, c.ID.String(), req)
 		if errors.Is(err, ErrRejected) {
 			return Charge{}, err
 		}

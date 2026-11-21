@@ -50,6 +50,7 @@ type createReq struct {
 	Description       string `json:"description,omitempty"`
 	OutletID          string `json:"outlet_id,omitempty"`
 	ExpiresAt         string `json:"expires_at,omitempty"`
+	Checkout          string `json:"checkout,omitempty"` // "hosted" = halaman checkout milik gateway (PARTNER PAYMENT)
 }
 
 // CreateQRIS membuat tagihan QRIS sederhana (dipakai penagihan paket langganan). ref = merchant_reference; idemKey = Idempotency-Key.

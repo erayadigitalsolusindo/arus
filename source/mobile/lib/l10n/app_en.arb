@@ -86,6 +86,8 @@
   "payAddMethod": "Add method",
   "payRef": "Reference no.",
   "payEraGenerate": "Create QRIS code",
+  "payEraPartner": "PARTNER PAYMENT",
+  "payEraPartnerOpen": "Open payment page",
   "payEraRegenerate": "Create new QR",
   "payEraCreating": "Creating QR...",
   "payEraScan": "Ask the customer to scan and pay {amount}",
