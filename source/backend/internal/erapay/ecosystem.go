@@ -375,3 +375,54 @@ func (s *Service) IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, admin
 	}
 	return s.SaveKeyForTenant(ctx, tenant, adminName, secret)
 }
+
+// ListenerSetup meminta tautan erapaylistener://setup (URL webhook + rahasia + paket) milik tenant ke EraPay.
+// Berisi rahasia: jangan dicatat; hanya Owner (dicek pemanggil).
+func (c *ProvisioningClient) ListenerSetup(ctx context.Context, tenantID uuid.UUID) (string, error) {
+	if c.keyToken == "" {
+		return "", ErrEcosystemNotConfigured
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/listener-setup", c.baseURL, tenantID), nil)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	req.Header.Set("Authorization", "Bearer "+c.keyToken)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "listener-setup", "err", err)
+		return "", ErrUnavailable
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		return "", ErrEcosystemSSO
+	case http.StatusUnprocessableEntity:
+		return "", ErrListenerUnavailable
+	default:
+		slog.Warn("erapay provisioning ditolak", "op", "listener-setup", "status", resp.StatusCode) // tanpa body
+		return "", ErrUnavailable
+	}
+	var out struct {
+		Link string `json:"link"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out) != nil || !strings.HasPrefix(out.Link, "erapaylistener://setup?") {
+		return "", ErrUnavailable
+	}
+	return out.Link, nil
+}
+
+// ListenerSetup: hanya Owner (Perms.All), karena tautannya memuat rahasia webhook listener.
+func (s *Service) ListenerSetup(ctx context.Context, a authz.Actor) (string, error) {
+	if a.Impersonator != uuid.Nil {
+		return "", ErrImpersonating
+	}
+	if !a.Perms.All {
+		return "", ErrEcosystemOwner
+	}
+	if s.provisioner == nil {
+		return "", ErrEcosystemNotConfigured
+	}
+	return s.provisioner.ListenerSetup(ctx, a.TenantID)
+}

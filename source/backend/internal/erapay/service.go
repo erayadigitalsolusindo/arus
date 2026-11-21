@@ -42,6 +42,7 @@ var (
 	ErrEcosystemEmail         = errors.New("email Owner harus diverifikasi sebelum aktivasi EraPay")
 	ErrEcosystemTerms         = errors.New("syarat EraPay harus disetujui")
 	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
+	ErrListenerUnavailable    = errors.New("QRISGate belum bisa disiapkan untuk akun EraPay ini")
 	ErrEcosystemSSO           = errors.New("masuk otomatis ke EraPay tidak tersedia untuk akun ini")
 	ErrMerchantNotApproved    = errors.New("merchant EraPay belum disetujui EraPay")
 	ErrBadFees                = errors.New("tarif persetujuan EraPay tidak valid")

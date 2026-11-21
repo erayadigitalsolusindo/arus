@@ -151,3 +151,33 @@ func TestProvisioningClientApprove(t *testing.T) {
 		}
 	}
 }
+
+func TestProvisioningClientListenerSetup(t *testing.T) {
+	const link = "erapaylistener://setup?secret=qls_x&url=https%3A%2F%2Fapi.test%2Fwebhooks%2Fqrisgate%2Fm"
+	status := http.StatusOK
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.Header.Get("Authorization") != "Bearer key-token" ||
+			!strings.HasSuffix(r.URL.Path, "/tenants/11111111-1111-4111-8111-111111111111/listener-setup") {
+			t.Fatalf("unexpected request: %s %s %q", r.Method, r.URL.Path, r.Header.Get("Authorization"))
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"link":"` + link + `"}`))
+	}))
+	defer server.Close()
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+
+	c := NewProvisioningClient(server.URL, "server-token")
+	if _, err := c.ListenerSetup(context.Background(), tenant); !errors.Is(err, ErrEcosystemNotConfigured) {
+		t.Fatalf("tanpa key token: %v", err)
+	}
+	c.keyToken = "key-token"
+	if got, err := c.ListenerSetup(context.Background(), tenant); err != nil || got != link {
+		t.Fatalf("setup = %q, %v", got, err)
+	}
+	for code, want := range map[int]error{404: ErrEcosystemSSO, 422: ErrListenerUnavailable, 500: ErrUnavailable} {
+		status = code
+		if _, err := c.ListenerSetup(context.Background(), tenant); !errors.Is(err, want) {
+			t.Fatalf("status %d: %v", code, err)
+		}
+	}
+}

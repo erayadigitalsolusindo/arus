@@ -35,6 +35,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/status", h.ecosystemStatus)
 		r.Post("/activate", h.activateEcosystem)
 		r.Post("/sso", h.ecosystemSSO)
+		r.Post("/listener-setup", h.listenerSetup)
 	})
 	r.Route("/payments/erapay", func(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
@@ -89,6 +90,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusConflict, "EMAIL_NOT_VERIFIED", "Verifikasi email akun Anda sebelum mengaktifkan EraPay.")
 	case errors.Is(err, ErrEcosystemTerms):
 		httpx.Error(w, http.StatusBadRequest, "ERAPAY_TERMS_REQUIRED", "Setujui syarat EraPay untuk melanjutkan.")
+	case errors.Is(err, ErrListenerUnavailable):
+		httpx.Error(w, http.StatusUnprocessableEntity, "ERAPAY_LISTENER_UNAVAILABLE", "QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.")
 	case errors.Is(err, ErrEcosystemSSO):
 		httpx.Error(w, http.StatusConflict, "ERAPAY_SSO_UNAVAILABLE", "Masuk otomatis tidak tersedia (akun EraPay belum tertaut). Masuk manual di EraPay.")
 	case errors.Is(err, ErrEcosystemAmbiguous):
@@ -130,6 +133,16 @@ func (h *Handler) ecosystemSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]string{"url": url})
+}
+
+func (h *Handler) listenerSetup(w http.ResponseWriter, r *http.Request) {
+	link, err := h.svc.ListenerSetup(r.Context(), actor(r))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.JSON(w, http.StatusOK, map[string]string{"link": link})
 }
 
 func (h *Handler) config(w http.ResponseWriter, r *http.Request) {

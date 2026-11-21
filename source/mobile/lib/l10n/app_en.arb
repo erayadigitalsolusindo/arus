@@ -1228,5 +1228,14 @@
   "serverTesting": "Testing…",
   "serverOk": "Connected · {ms} ms",
   "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
-  "serverFail": "Cannot connect to this address"
+  "serverFail": "Cannot connect to this address",
+  "errorEcoOwner": "Only the store Owner can set up EraPay Listener.",
+  "errorListenerUnavailable": "QRISGate cannot be set up for this EraPay account yet. Configure it in the EraPay dashboard first.",
+  "errorEcoUnavailable": "The EraPay connection is not available for this store.",
+  "listenerTitle": "EraPay Listener",
+  "listenerHint": "Auto-fill the QRIS listener settings on this phone",
+  "listenerInstallTitle": "Listener app is not installed",
+  "listenerInstallBody": "Install the EraPay Listener app first (download it from the EraPay dashboard: Integrations → QRISGate), then tap this button again.",
+  "listenerInstallOpen": "Open EraPay dashboard",
+  "listenerClose": "Close"
 }

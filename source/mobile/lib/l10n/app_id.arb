@@ -1316,5 +1316,14 @@
   "serverTesting": "Menguji…",
   "serverOk": "Terhubung · {ms} ms",
   "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
-  "serverFail": "Tidak dapat terhubung ke alamat ini"
+  "serverFail": "Tidak dapat terhubung ke alamat ini",
+  "errorEcoOwner": "Hanya Owner toko yang dapat menyiapkan EraPay Listener.",
+  "errorListenerUnavailable": "QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.",
+  "errorEcoUnavailable": "Koneksi ke EraPay belum tersedia untuk toko ini.",
+  "listenerTitle": "EraPay Listener",
+  "listenerHint": "Isi otomatis pengaturan listener QRIS di HP ini",
+  "listenerInstallTitle": "Aplikasi Listener belum terpasang",
+  "listenerInstallBody": "Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.",
+  "listenerInstallOpen": "Buka dashboard EraPay",
+  "listenerClose": "Tutup"
 }

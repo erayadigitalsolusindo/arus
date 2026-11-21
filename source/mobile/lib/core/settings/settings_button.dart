@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../theme/text_scale_controller.dart';
 import '../theme/theme_controller.dart';
 import '../update/update_check.dart';
+import 'erapay_listener.dart';
 
 /// Satu tombol pengaturan perangkat: bahasa, ukuran teks, tampilan (terang/gelap), dan cek pembaruan.
 class SettingsButton extends ConsumerWidget {
@@ -182,6 +183,31 @@ class _SettingsDialog extends ConsumerWidget {
                   selected: {theme},
                   onSelectionChanged: (s) =>
                       ref.read(themeModeProvider.notifier).set(s.first),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Material(
+                color: pal.primarySoft,
+                borderRadius: BorderRadius.circular(12),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: Icon(
+                    Icons.notifications_active_outlined,
+                    color: pal.primary,
+                  ),
+                  title: Text(
+                    l.listenerTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    l.listenerHint,
+                    style: TextStyle(fontSize: 12, color: pal.textTertiary),
+                  ),
+                  onTap: () => setupErapayListener(context, ref),
                 ),
               ),
             ),

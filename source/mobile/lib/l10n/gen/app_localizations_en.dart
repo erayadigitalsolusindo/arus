@@ -2385,4 +2385,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serverFail => 'Cannot connect to this address';
+
+  @override
+  String get errorEcoOwner =>
+      'Only the store Owner can set up EraPay Listener.';
+
+  @override
+  String get errorListenerUnavailable =>
+      'QRISGate cannot be set up for this EraPay account yet. Configure it in the EraPay dashboard first.';
+
+  @override
+  String get errorEcoUnavailable =>
+      'The EraPay connection is not available for this store.';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerHint =>
+      'Auto-fill the QRIS listener settings on this phone';
+
+  @override
+  String get listenerInstallTitle => 'Listener app is not installed';
+
+  @override
+  String get listenerInstallBody =>
+      'Install the EraPay Listener app first (download it from the EraPay dashboard: Integrations → QRISGate), then tap this button again.';
+
+  @override
+  String get listenerInstallOpen => 'Open EraPay dashboard';
+
+  @override
+  String get listenerClose => 'Close';
 }

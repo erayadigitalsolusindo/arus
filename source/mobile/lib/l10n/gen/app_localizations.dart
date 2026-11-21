@@ -4317,6 +4317,60 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Tidak dapat terhubung ke alamat ini'**
   String get serverFail;
+
+  /// No description provided for @errorEcoOwner.
+  ///
+  /// In id, this message translates to:
+  /// **'Hanya Owner toko yang dapat menyiapkan EraPay Listener.'**
+  String get errorEcoOwner;
+
+  /// No description provided for @errorListenerUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.'**
+  String get errorListenerUnavailable;
+
+  /// No description provided for @errorEcoUnavailable.
+  ///
+  /// In id, this message translates to:
+  /// **'Koneksi ke EraPay belum tersedia untuk toko ini.'**
+  String get errorEcoUnavailable;
+
+  /// No description provided for @listenerTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay Listener'**
+  String get listenerTitle;
+
+  /// No description provided for @listenerHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Isi otomatis pengaturan listener QRIS di HP ini'**
+  String get listenerHint;
+
+  /// No description provided for @listenerInstallTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Aplikasi Listener belum terpasang'**
+  String get listenerInstallTitle;
+
+  /// No description provided for @listenerInstallBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.'**
+  String get listenerInstallBody;
+
+  /// No description provided for @listenerInstallOpen.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka dashboard EraPay'**
+  String get listenerInstallOpen;
+
+  /// No description provided for @listenerClose.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup'**
+  String get listenerClose;
 }
 
 class _AppLocalizationsDelegate

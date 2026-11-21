@@ -1340,5 +1340,14 @@
   "serverTesting": "テスト中…",
   "serverOk": "接続OK · {ms} ms",
   "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
-  "serverFail": "このアドレスに接続できません"
+  "serverFail": "このアドレスに接続できません",
+  "errorEcoOwner": "EraPay Listenerを設定できるのは店舗のオーナーのみです。",
+  "errorListenerUnavailable": "このEraPayアカウントではまだQRISGateを設定できません。先にEraPayダッシュボードで設定してください。",
+  "errorEcoUnavailable": "この店舗ではEraPayとの接続を利用できません。",
+  "listenerTitle": "EraPay Listener",
+  "listenerHint": "このスマホのQRISリスナー設定を自動入力",
+  "listenerInstallTitle": "Listenerアプリが未インストールです",
+  "listenerInstallBody": "先にEraPay Listenerアプリをインストールしてください(EraPayダッシュボードの 連携 → QRISGate からダウンロード)。その後もう一度このボタンを押してください。",
+  "listenerInstallOpen": "EraPayダッシュボードを開く",
+  "listenerClose": "閉じる"
 }

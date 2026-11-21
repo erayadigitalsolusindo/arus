@@ -2386,4 +2386,35 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get serverFail => 'Tidak dapat terhubung ke alamat ini';
+
+  @override
+  String get errorEcoOwner =>
+      'Hanya Owner toko yang dapat menyiapkan EraPay Listener.';
+
+  @override
+  String get errorListenerUnavailable =>
+      'QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.';
+
+  @override
+  String get errorEcoUnavailable =>
+      'Koneksi ke EraPay belum tersedia untuk toko ini.';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerHint => 'Isi otomatis pengaturan listener QRIS di HP ini';
+
+  @override
+  String get listenerInstallTitle => 'Aplikasi Listener belum terpasang';
+
+  @override
+  String get listenerInstallBody =>
+      'Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.';
+
+  @override
+  String get listenerInstallOpen => 'Buka dashboard EraPay';
+
+  @override
+  String get listenerClose => 'Tutup';
 }

@@ -2324,4 +2324,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get serverFail => 'このアドレスに接続できません';
+
+  @override
+  String get errorEcoOwner => 'EraPay Listenerを設定できるのは店舗のオーナーのみです。';
+
+  @override
+  String get errorListenerUnavailable =>
+      'このEraPayアカウントではまだQRISGateを設定できません。先にEraPayダッシュボードで設定してください。';
+
+  @override
+  String get errorEcoUnavailable => 'この店舗ではEraPayとの接続を利用できません。';
+
+  @override
+  String get listenerTitle => 'EraPay Listener';
+
+  @override
+  String get listenerHint => 'このスマホのQRISリスナー設定を自動入力';
+
+  @override
+  String get listenerInstallTitle => 'Listenerアプリが未インストールです';
+
+  @override
+  String get listenerInstallBody =>
+      '先にEraPay Listenerアプリをインストールしてください(EraPayダッシュボードの 連携 → QRISGate からダウンロード)。その後もう一度このボタンを押してください。';
+
+  @override
+  String get listenerInstallOpen => 'EraPayダッシュボードを開く';
+
+  @override
+  String get listenerClose => '閉じる';
 }

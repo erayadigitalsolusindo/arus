@@ -130,6 +130,13 @@ class ApiError implements Exception {
         return l.errorEraNotConfigured;
       case 'ERAPAY_REJECTED':
         return l.errorEraRejected;
+      case 'ECOSYSTEM_OWNER_REQUIRED':
+        return l.errorEcoOwner;
+      case 'ERAPAY_LISTENER_UNAVAILABLE':
+        return l.errorListenerUnavailable;
+      case 'ERAPAY_ECOSYSTEM_UNAVAILABLE':
+      case 'ERAPAY_SSO_UNAVAILABLE':
+        return l.errorEcoUnavailable;
       case 'ERAPAY_UNAVAILABLE':
         return l.errorEraUnavailable;
       case 'METHOD_INACTIVE':
