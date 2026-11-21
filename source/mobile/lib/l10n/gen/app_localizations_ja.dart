@@ -295,6 +295,20 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get payEraBreakTotal => '取引合計';
+
+  @override
+  String get payEraBreakCode => '固有コード';
+
+  @override
+  String get payEraBreakPay => 'お支払い合計';
+
+  @override
+  String payEraCodeNote(String base) {
+    return '固有コードは店舗の口座に入ります。伝票は $base のままです。';
+  }
+
+  @override
   String get payEraWaiting => '支払い待ち…お支払い完了後にノートが自動保存されます。';
 
   @override
@@ -2326,31 +2340,40 @@ class AppLocalizationsJa extends AppLocalizations {
   String get serverFail => 'このアドレスに接続できません';
 
   @override
-  String get errorEcoOwner => 'EraPay Listenerを設定できるのは店舗のオーナーのみです。';
+  String get qrisTokoTitle => '店舗QRIS';
 
   @override
-  String get errorListenerUnavailable =>
-      'このEraPayアカウントではまだQRISGateを設定できません。先にEraPayダッシュボードで設定してください。';
+  String get qrisTokoNone => 'QRISが未保存です';
 
   @override
-  String get errorEcoUnavailable => 'この店舗ではEraPayとの接続を利用できません。';
+  String get qrisTokoHint =>
+      'このQRISがお客様の入金先口座(QRISGate)を決めます。必ずご自身の店舗の静的QRISに置き換えてください。';
 
   @override
-  String get listenerTitle => 'EraPay Listener';
+  String get qrisTokoScan => '新しいQRISをスキャン';
 
   @override
-  String get listenerHint => 'このスマホのQRISリスナー設定を自動入力';
+  String get qrisTokoPaste => 'QRISテキストを貼り付け';
 
   @override
-  String get listenerInstallTitle => 'Listenerアプリが未インストールです';
+  String get qrisTokoPasteTitle => 'QRISテキストを貼り付け';
 
   @override
-  String get listenerInstallBody =>
-      '先にEraPay Listenerアプリをインストールしてください(EraPayダッシュボードの 連携 → QRISGate からダウンロード)。その後もう一度このボタンを押してください。';
+  String get qrisTokoPasteHint => '静的QRISのテキスト(000201…で始まる)';
 
   @override
-  String get listenerInstallOpen => 'EraPayダッシュボードを開く';
+  String get qrisTokoConfirmTitle => '店舗QRISを置き換えますか?';
 
   @override
-  String get listenerClose => '閉じる';
+  String get qrisTokoConfirmBody =>
+      '以降のQRIS支払いは新しいQRISの口座に入金されます。ご自身の店舗のQRISか確認してください。';
+
+  @override
+  String get qrisTokoConfirmYes => 'QRISを置き換える';
+
+  @override
+  String get qrisTokoSaved => '店舗QRISを更新しました';
+
+  @override
+  String get errorQrisInvalid => 'QRISが無効です。金額なしの完全な静的店舗QRISを使用してください。';
 }

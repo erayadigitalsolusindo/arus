@@ -3,7 +3,7 @@
   // selama belum lunas dan belum kedaluwarsa, supaya pelanggan masih bisa membayar.
   import { onMount } from 'svelte';
   import { erapay, eraFinal, type EraPayCharge } from '#lib/pos/erapay.ts';
-  import { t } from '#lib/i18n/index.ts';
+  import { t, formatCurrency } from '#lib/i18n/index.ts';
 
   let { chargeId, amountLabel }: { chargeId: string; amountLabel: string } = $props();
 
@@ -64,7 +64,8 @@
   {#if qr && waiting}
     <div class="mt-2 inline-block rounded-lg border border-[var(--border-subtle)] bg-white p-2 text-center">
       <img src={qr} alt={t('pos.erapay.qrAlt')} class="mx-auto size-[200px]" />
-      <div class="mt-1 text-[var(--text-secondary)]">{t('pos.erapay.scan', { amount: amountLabel })}</div>
+      <div class="mt-1 text-[var(--text-secondary)]">{t('pos.erapay.scan', { amount: charge?.pay_amount ? formatCurrency(Number(charge.pay_amount), 'IDR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amountLabel })}</div>
+      {#if charge?.pay_amount}<div class="text-[11px] text-[var(--text-tertiary)]">{t('pos.erapay.uniqueCodeShort')}</div>{/if}
     </div>
   {/if}
 </div>

@@ -301,6 +301,20 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get payEraBreakTotal => 'Total transaksi';
+
+  @override
+  String get payEraBreakCode => 'Kode unik';
+
+  @override
+  String get payEraBreakPay => 'Total bayar';
+
+  @override
+  String payEraCodeNote(String base) {
+    return 'Kode unik masuk ke rekening toko; nota tetap tercatat $base.';
+  }
+
+  @override
   String get payEraWaiting =>
       'Menunggu pembayaran... nota tersimpan otomatis setelah lunas.';
 
@@ -2388,33 +2402,41 @@ class AppLocalizationsId extends AppLocalizations {
   String get serverFail => 'Tidak dapat terhubung ke alamat ini';
 
   @override
-  String get errorEcoOwner =>
-      'Hanya Owner toko yang dapat menyiapkan EraPay Listener.';
+  String get qrisTokoTitle => 'QRIS toko';
 
   @override
-  String get errorListenerUnavailable =>
-      'QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.';
+  String get qrisTokoNone => 'Belum ada QRIS tersimpan';
 
   @override
-  String get errorEcoUnavailable =>
-      'Koneksi ke EraPay belum tersedia untuk toko ini.';
+  String get qrisTokoHint =>
+      'QRIS ini menentukan rekening tujuan uang pelanggan (QRISGate). Ganti hanya dengan QRIS statis toko Anda sendiri.';
 
   @override
-  String get listenerTitle => 'EraPay Listener';
+  String get qrisTokoScan => 'Pindai QRIS baru';
 
   @override
-  String get listenerHint => 'Isi otomatis pengaturan listener QRIS di HP ini';
+  String get qrisTokoPaste => 'Tempel teks QRIS';
 
   @override
-  String get listenerInstallTitle => 'Aplikasi Listener belum terpasang';
+  String get qrisTokoPasteTitle => 'Tempel teks QRIS';
 
   @override
-  String get listenerInstallBody =>
-      'Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.';
+  String get qrisTokoPasteHint => 'Teks QRIS statis (diawali 000201…)';
 
   @override
-  String get listenerInstallOpen => 'Buka dashboard EraPay';
+  String get qrisTokoConfirmTitle => 'Ganti QRIS toko?';
 
   @override
-  String get listenerClose => 'Tutup';
+  String get qrisTokoConfirmBody =>
+      'Pembayaran QRIS berikutnya akan masuk ke rekening pada QRIS yang baru. Pastikan itu QRIS toko Anda.';
+
+  @override
+  String get qrisTokoConfirmYes => 'Ganti QRIS';
+
+  @override
+  String get qrisTokoSaved => 'QRIS toko diperbarui';
+
+  @override
+  String get errorQrisInvalid =>
+      'QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal.';
 }

@@ -301,6 +301,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get payEraBreakTotal => 'Transaction total';
+
+  @override
+  String get payEraBreakCode => 'Unique code';
+
+  @override
+  String get payEraBreakPay => 'Total to pay';
+
+  @override
+  String payEraCodeNote(String base) {
+    return 'The unique code goes to the store account; the receipt stays at $base.';
+  }
+
+  @override
   String get payEraWaiting =>
       'Waiting for payment... the sale is saved automatically once paid.';
 
@@ -2387,34 +2401,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverFail => 'Cannot connect to this address';
 
   @override
-  String get errorEcoOwner =>
-      'Only the store Owner can set up EraPay Listener.';
+  String get qrisTokoTitle => 'Store QRIS';
 
   @override
-  String get errorListenerUnavailable =>
-      'QRISGate cannot be set up for this EraPay account yet. Configure it in the EraPay dashboard first.';
+  String get qrisTokoNone => 'No QRIS saved yet';
 
   @override
-  String get errorEcoUnavailable =>
-      'The EraPay connection is not available for this store.';
+  String get qrisTokoHint =>
+      'This QRIS decides which account customers\' money goes to (QRISGate). Only replace it with your own store\'s static QRIS.';
 
   @override
-  String get listenerTitle => 'EraPay Listener';
+  String get qrisTokoScan => 'Scan new QRIS';
 
   @override
-  String get listenerHint =>
-      'Auto-fill the QRIS listener settings on this phone';
+  String get qrisTokoPaste => 'Paste QRIS text';
 
   @override
-  String get listenerInstallTitle => 'Listener app is not installed';
+  String get qrisTokoPasteTitle => 'Paste QRIS text';
 
   @override
-  String get listenerInstallBody =>
-      'Install the EraPay Listener app first (download it from the EraPay dashboard: Integrations → QRISGate), then tap this button again.';
+  String get qrisTokoPasteHint => 'Static QRIS text (starts with 000201…)';
 
   @override
-  String get listenerInstallOpen => 'Open EraPay dashboard';
+  String get qrisTokoConfirmTitle => 'Replace the store QRIS?';
 
   @override
-  String get listenerClose => 'Close';
+  String get qrisTokoConfirmBody =>
+      'The next QRIS payments will go to the account on the new QRIS. Make sure it is your store\'s QRIS.';
+
+  @override
+  String get qrisTokoConfirmYes => 'Replace QRIS';
+
+  @override
+  String get qrisTokoSaved => 'Store QRIS updated';
+
+  @override
+  String get errorQrisInvalid =>
+      'Invalid QRIS. Use the complete static store QRIS, without an amount.';
 }

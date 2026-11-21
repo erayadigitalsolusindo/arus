@@ -604,6 +604,7 @@ class EraCharge {
     required this.status,
     required this.amount,
     this.qrValue = '',
+    this.payAmount,
   });
 
   final String id;
@@ -612,6 +613,9 @@ class EraCharge {
   final String status;
   final Decimal amount;
   final String qrValue;
+
+  /// Nominal di QR bila beda dari [amount] (QRISGate: harga + kode unik); null = sama.
+  final Decimal? payAmount;
 
   bool get isPaid => status == 'succeeded';
 
@@ -627,5 +631,6 @@ class EraCharge {
     status: '${j['status']}',
     amount: dec(j['amount']),
     qrValue: '${j['qr_value'] ?? ''}',
+    payAmount: j['pay_amount'] == null ? null : dec(j['pay_amount']),
   );
 }

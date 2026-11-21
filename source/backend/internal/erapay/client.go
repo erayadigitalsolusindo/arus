@@ -39,6 +39,7 @@ type Payment struct {
 		Value string `json:"value"`
 	} `json:"qr_code"`
 	ExpiresAt *time.Time `json:"expires_at"`
+	PayAmount int64      `json:"pay_amount"` // QRISGate: nominal di QR = harga + kode unik (0 = sama dengan harga)
 }
 
 type createReq struct {

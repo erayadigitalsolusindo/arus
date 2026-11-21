@@ -110,6 +110,10 @@
   "payEraRegenerate": "Buat ulang QR",
   "payEraCreating": "Membuat QR...",
   "payEraScan": "Minta pelanggan scan dan bayar {amount}",
+  "payEraBreakTotal": "Total transaksi",
+  "payEraBreakCode": "Kode unik",
+  "payEraBreakPay": "Total bayar",
+  "payEraCodeNote": "Kode unik masuk ke rekening toko; nota tetap tercatat {base}.",
   "payEraWaiting": "Menunggu pembayaran... nota tersimpan otomatis setelah lunas.",
   "payEraPaid": "Pembayaran QRIS diterima",
   "payEraFailed": "Pembayaran QRIS gagal. Buat QR baru.",
@@ -181,6 +185,13 @@
   "@payEraScan": {
     "placeholders": {
       "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@payEraCodeNote": {
+    "placeholders": {
+      "base": {
         "type": "String"
       }
     }
@@ -1317,13 +1328,16 @@
   "serverOk": "Terhubung · {ms} ms",
   "@serverOk": {"placeholders": {"ms": {"type": "int"}}},
   "serverFail": "Tidak dapat terhubung ke alamat ini",
-  "errorEcoOwner": "Hanya Owner toko yang dapat menyiapkan EraPay Listener.",
-  "errorListenerUnavailable": "QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.",
-  "errorEcoUnavailable": "Koneksi ke EraPay belum tersedia untuk toko ini.",
-  "listenerTitle": "EraPay Listener",
-  "listenerHint": "Isi otomatis pengaturan listener QRIS di HP ini",
-  "listenerInstallTitle": "Aplikasi Listener belum terpasang",
-  "listenerInstallBody": "Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.",
-  "listenerInstallOpen": "Buka dashboard EraPay",
-  "listenerClose": "Tutup"
+  "qrisTokoTitle": "QRIS toko",
+  "qrisTokoNone": "Belum ada QRIS tersimpan",
+  "qrisTokoHint": "QRIS ini menentukan rekening tujuan uang pelanggan (QRISGate). Ganti hanya dengan QRIS statis toko Anda sendiri.",
+  "qrisTokoScan": "Pindai QRIS baru",
+  "qrisTokoPaste": "Tempel teks QRIS",
+  "qrisTokoPasteTitle": "Tempel teks QRIS",
+  "qrisTokoPasteHint": "Teks QRIS statis (diawali 000201…)",
+  "qrisTokoConfirmTitle": "Ganti QRIS toko?",
+  "qrisTokoConfirmBody": "Pembayaran QRIS berikutnya akan masuk ke rekening pada QRIS yang baru. Pastikan itu QRIS toko Anda.",
+  "qrisTokoConfirmYes": "Ganti QRIS",
+  "qrisTokoSaved": "QRIS toko diperbarui",
+  "errorQrisInvalid": "QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal."
 }

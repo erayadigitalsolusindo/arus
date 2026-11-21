@@ -904,10 +904,45 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
             ),
           const SizedBox(height: 8),
           Text(
-            l.payEraScan(formatMoney(amount)),
+            l.payEraScan(formatMoney(c.payAmount ?? amount)),
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
+          if (c.payAmount != null) ...[
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: pal.border),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  _kv(l.payEraBreakTotal, formatMoney(amount), pal),
+                  _kv(
+                    l.payEraBreakCode,
+                    '+ ${formatMoney(c.payAmount! - amount)}',
+                    pal,
+                  ),
+                  const Divider(height: 10),
+                  _kv(
+                    l.payEraBreakPay,
+                    formatMoney(c.payAmount!),
+                    pal,
+                    bold: true,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l.payEraCodeNote(formatMoney(amount)),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: pal.textTertiary, fontSize: 11.5),
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

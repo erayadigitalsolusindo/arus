@@ -42,8 +42,8 @@ var (
 	ErrEcosystemEmail         = errors.New("email Owner harus diverifikasi sebelum aktivasi EraPay")
 	ErrEcosystemTerms         = errors.New("syarat EraPay harus disetujui")
 	ErrEcosystemAmbiguous     = errors.New("lebih dari satu merchant EraPay cocok dengan toko ini")
-	ErrListenerUnavailable    = errors.New("QRISGate belum bisa disiapkan untuk akun EraPay ini")
 	ErrEcosystemSSO           = errors.New("masuk otomatis ke EraPay tidak tersedia untuk akun ini")
+	ErrQRISInvalid            = errors.New("QRIS tidak valid: harus QRIS statis merchant yang utuh")
 	ErrMerchantNotApproved    = errors.New("merchant EraPay belum disetujui EraPay")
 	ErrBadFees                = errors.New("tarif persetujuan EraPay tidak valid")
 	ErrMerchantState          = errors.New("merchant EraPay tidak bisa disetujui dari statusnya sekarang")
@@ -80,6 +80,7 @@ type Charge struct {
 	Amount    string     `json:"amount"`
 	QRValue   string     `json:"qr_value,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	PayAmount string     `json:"pay_amount,omitempty"` // yang dibayar pelanggan bila beda dari Amount (QRISGate: + kode unik)
 }
 
 type chargeRow struct {
@@ -90,14 +91,18 @@ type chargeRow struct {
 	amountDec decimal.Decimal
 }
 
-const chargeCols = `id, method_id, status, amount, coalesce(erapay_payment_id, ''), coalesce(qr_value, ''), expires_at, sale_id`
+const chargeCols = `id, method_id, status, amount, coalesce(erapay_payment_id, ''), coalesce(qr_value, ''), expires_at, sale_id, pay_amount`
 
 func scanCharge(row pgx.Row) (chargeRow, error) {
 	var c chargeRow
-	if err := row.Scan(&c.ID, &c.methodID, &c.Status, &c.amountDec, &c.paymentID, &c.QRValue, &c.ExpiresAt, &c.saleID); err != nil {
+	var pay *decimal.Decimal
+	if err := row.Scan(&c.ID, &c.methodID, &c.Status, &c.amountDec, &c.paymentID, &c.QRValue, &c.ExpiresAt, &c.saleID, &pay); err != nil {
 		return chargeRow{}, err
 	}
 	c.Amount = c.amountDec.StringFixed(2)
+	if pay != nil && pay.GreaterThan(c.amountDec) {
+		c.PayAmount = pay.StringFixed(2)
+	}
 	return c, nil
 }
 
@@ -347,8 +352,8 @@ func storeTx(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, p Payment) (c
 	return scanCharge(tx.QueryRow(ctx, `UPDATE erapay_charges SET
 			erapay_payment_id = coalesce(erapay_payment_id, $3), gateway = coalesce(nullif($7, ''), gateway),
 			status = CASE WHEN status IN ('succeeded','failed','expired','cancelled') THEN status ELSE $4 END,
-			qr_value = coalesce($5, qr_value), expires_at = coalesce($6, expires_at), updated_at = now()
-		WHERE id = $1 AND tenant_id = $2 RETURNING `+chargeCols, id, tenant, p.ID, normStatus(p.Status), qr, p.ExpiresAt, strings.ToLower(strings.TrimSpace(p.Gateway))))
+			qr_value = coalesce($5, qr_value), expires_at = coalesce($6, expires_at), pay_amount = coalesce(nullif($8::numeric, 0), pay_amount), updated_at = now()
+		WHERE id = $1 AND tenant_id = $2 RETURNING `+chargeCols, id, tenant, p.ID, normStatus(p.Status), qr, p.ExpiresAt, strings.ToLower(strings.TrimSpace(p.Gateway)), p.PayAmount))
 }
 
 func normStatus(s string) string {

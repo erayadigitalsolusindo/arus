@@ -13,7 +13,7 @@ export type EraPayConfig = {
   environment?: 'sandbox' | 'production';
 };
 export type EraPayStatus = 'pending' | 'succeeded' | 'failed' | 'expired' | 'cancelled' | 'unknown';
-export type EraPayCharge = { id: string; status: EraPayStatus; amount: string; qr_value?: string; expires_at?: string };
+export type EraPayCharge = { id: string; status: EraPayStatus; amount: string; qr_value?: string; expires_at?: string; /** Nominal yang dibayar pelanggan bila beda dari amount (QRISGate: + kode unik). */ pay_amount?: string };
 
 export const erapay = {
   config: () => api<EraPayConfig>('/payments/erapay/config'),

@@ -376,45 +376,94 @@ func (s *Service) IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, admin
 	return s.SaveKeyForTenant(ctx, tenant, adminName, secret)
 }
 
-// ListenerSetup meminta tautan erapaylistener://setup (URL webhook + rahasia + paket) milik tenant ke EraPay.
-// Berisi rahasia: jangan dicatat; hanya Owner (dicek pemanggil).
-func (c *ProvisioningClient) ListenerSetup(ctx context.Context, tenantID uuid.UUID) (string, error) {
-	if c.keyToken == "" {
-		return "", ErrEcosystemNotConfigured
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/listener-setup", c.baseURL, tenantID), nil)
+// QRISGateInfo = kartu "QRIS toko": tampil hanya bila Active (jalur pembayaran tenant sekarang ke QRISGate EraPay).
+type QRISGateInfo struct {
+	Active      bool   `json:"active"`
+	HasQRIS     bool   `json:"has_qris"`
+	QRISName    string `json:"qris_name,omitempty"`
+	QRISPayload string `json:"qris_payload,omitempty"`
+}
+
+// QRISGate membaca status QRIS statis tenant dan apakah jalurnya ke QRISGate (GET, token key).
+func (c *ProvisioningClient) QRISGate(ctx context.Context, tenantID uuid.UUID) (QRISGateInfo, error) {
+	var out QRISGateInfo
+	status, err := c.qrisgateDo(ctx, http.MethodGet, tenantID, "", nil, &out)
 	if err != nil {
-		return "", ErrUnavailable
+		return QRISGateInfo{}, err
+	}
+	if status == http.StatusNotFound {
+		return QRISGateInfo{}, ErrEcosystemSSO // belum tertaut ke EraPay
+	}
+	return out, nil
+}
+
+// SaveQRISGateQRIS mengganti QRIS statis tenant di EraPay (divalidasi di sana). Mengembalikan nama merchant di QRIS.
+func (c *ProvisioningClient) SaveQRISGateQRIS(ctx context.Context, tenantID uuid.UUID, payload string) (string, error) {
+	body, _ := json.Marshal(map[string]string{"payload": payload})
+	var out struct {
+		Name string `json:"qris_name"`
+	}
+	status, err := c.qrisgateDo(ctx, http.MethodPut, tenantID, "/qris", body, &out)
+	switch {
+	case err != nil:
+		return "", err
+	case status == http.StatusNotFound:
+		return "", ErrEcosystemSSO
+	case status == http.StatusUnprocessableEntity:
+		return "", ErrQRISInvalid
+	}
+	return out.Name, nil
+}
+
+// qrisgateDo mengirim permintaan ke /v1/integrations/arus/tenants/{id}/qrisgate{suffix}; 200 diurai ke out, 404 dan 422
+// dikembalikan sebagai status agar pemanggil memberi arti. Isi QRIS tidak dicatat di log.
+func (c *ProvisioningClient) qrisgateDo(ctx context.Context, method string, tenantID uuid.UUID, suffix string, body []byte, out any) (int, error) {
+	if c.keyToken == "" {
+		return 0, ErrEcosystemNotConfigured
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/v1/integrations/arus/tenants/%s/qrisgate%s", c.baseURL, tenantID, suffix), bytes.NewReader(body))
+	if err != nil {
+		return 0, ErrUnavailable
 	}
 	req.Header.Set("Authorization", "Bearer "+c.keyToken)
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		slog.Warn("erapay provisioning: koneksi gagal", "op", "listener-setup", "err", err)
-		return "", ErrUnavailable
+		slog.Warn("erapay provisioning: koneksi gagal", "op", "qrisgate", "err", err)
+		return 0, ErrUnavailable
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK:
-	case http.StatusNotFound:
-		return "", ErrEcosystemSSO
-	case http.StatusUnprocessableEntity:
-		return "", ErrListenerUnavailable
+		if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(out) != nil {
+			return 0, ErrUnavailable
+		}
+	case http.StatusNotFound, http.StatusUnprocessableEntity:
 	default:
-		slog.Warn("erapay provisioning ditolak", "op", "listener-setup", "status", resp.StatusCode) // tanpa body
-		return "", ErrUnavailable
+		slog.Warn("erapay provisioning ditolak", "op", "qrisgate", "status", resp.StatusCode) // tanpa body
+		return 0, ErrUnavailable
 	}
-	var out struct {
-		Link string `json:"link"`
-	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out) != nil || !strings.HasPrefix(out.Link, "erapaylistener://setup?") {
-		return "", ErrUnavailable
-	}
-	return out.Link, nil
+	return resp.StatusCode, nil
 }
 
-// ListenerSetup: hanya Owner (Perms.All), karena tautannya memuat rahasia webhook listener.
-func (s *Service) ListenerSetup(ctx context.Context, a authz.Actor) (string, error) {
+// QRISGate: kartu QRIS toko. Hanya Owner yang melihatnya; bagi yang lain, belum tertaut, atau EraPay tak terjangkau
+// jawabannya "tidak aktif" supaya kartu tersembunyi tanpa galat di pengaturan.
+func (s *Service) QRISGate(ctx context.Context, a authz.Actor) QRISGateInfo {
+	if a.Impersonator != uuid.Nil || !a.Perms.All || s.provisioner == nil {
+		return QRISGateInfo{}
+	}
+	info, err := s.provisioner.QRISGate(ctx, a.TenantID)
+	if err != nil {
+		return QRISGateInfo{}
+	}
+	return info
+}
+
+// SaveQRISGateQRIS: hanya Owner; QRIS menentukan ke rekening mana uang pelanggan masuk.
+func (s *Service) SaveQRISGateQRIS(ctx context.Context, a authz.Actor, payload string) (string, error) {
 	if a.Impersonator != uuid.Nil {
 		return "", ErrImpersonating
 	}
@@ -424,5 +473,5 @@ func (s *Service) ListenerSetup(ctx context.Context, a authz.Actor) (string, err
 	if s.provisioner == nil {
 		return "", ErrEcosystemNotConfigured
 	}
-	return s.provisioner.ListenerSetup(ctx, a.TenantID)
+	return s.provisioner.SaveQRISGateQRIS(ctx, a.TenantID, strings.TrimSpace(payload))
 }

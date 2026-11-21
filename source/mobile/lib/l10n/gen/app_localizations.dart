@@ -634,6 +634,30 @@ abstract class AppLocalizations {
   /// **'Minta pelanggan scan dan bayar {amount}'**
   String payEraScan(String amount);
 
+  /// No description provided for @payEraBreakTotal.
+  ///
+  /// In id, this message translates to:
+  /// **'Total transaksi'**
+  String get payEraBreakTotal;
+
+  /// No description provided for @payEraBreakCode.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode unik'**
+  String get payEraBreakCode;
+
+  /// No description provided for @payEraBreakPay.
+  ///
+  /// In id, this message translates to:
+  /// **'Total bayar'**
+  String get payEraBreakPay;
+
+  /// No description provided for @payEraCodeNote.
+  ///
+  /// In id, this message translates to:
+  /// **'Kode unik masuk ke rekening toko; nota tetap tercatat {base}.'**
+  String payEraCodeNote(String base);
+
   /// No description provided for @payEraWaiting.
   ///
   /// In id, this message translates to:
@@ -4318,59 +4342,77 @@ abstract class AppLocalizations {
   /// **'Tidak dapat terhubung ke alamat ini'**
   String get serverFail;
 
-  /// No description provided for @errorEcoOwner.
+  /// No description provided for @qrisTokoTitle.
   ///
   /// In id, this message translates to:
-  /// **'Hanya Owner toko yang dapat menyiapkan EraPay Listener.'**
-  String get errorEcoOwner;
+  /// **'QRIS toko'**
+  String get qrisTokoTitle;
 
-  /// No description provided for @errorListenerUnavailable.
+  /// No description provided for @qrisTokoNone.
   ///
   /// In id, this message translates to:
-  /// **'QRISGate belum bisa disiapkan untuk akun EraPay ini. Atur dulu di dashboard EraPay.'**
-  String get errorListenerUnavailable;
+  /// **'Belum ada QRIS tersimpan'**
+  String get qrisTokoNone;
 
-  /// No description provided for @errorEcoUnavailable.
+  /// No description provided for @qrisTokoHint.
   ///
   /// In id, this message translates to:
-  /// **'Koneksi ke EraPay belum tersedia untuk toko ini.'**
-  String get errorEcoUnavailable;
+  /// **'QRIS ini menentukan rekening tujuan uang pelanggan (QRISGate). Ganti hanya dengan QRIS statis toko Anda sendiri.'**
+  String get qrisTokoHint;
 
-  /// No description provided for @listenerTitle.
+  /// No description provided for @qrisTokoScan.
   ///
   /// In id, this message translates to:
-  /// **'EraPay Listener'**
-  String get listenerTitle;
+  /// **'Pindai QRIS baru'**
+  String get qrisTokoScan;
 
-  /// No description provided for @listenerHint.
+  /// No description provided for @qrisTokoPaste.
   ///
   /// In id, this message translates to:
-  /// **'Isi otomatis pengaturan listener QRIS di HP ini'**
-  String get listenerHint;
+  /// **'Tempel teks QRIS'**
+  String get qrisTokoPaste;
 
-  /// No description provided for @listenerInstallTitle.
+  /// No description provided for @qrisTokoPasteTitle.
   ///
   /// In id, this message translates to:
-  /// **'Aplikasi Listener belum terpasang'**
-  String get listenerInstallTitle;
+  /// **'Tempel teks QRIS'**
+  String get qrisTokoPasteTitle;
 
-  /// No description provided for @listenerInstallBody.
+  /// No description provided for @qrisTokoPasteHint.
   ///
   /// In id, this message translates to:
-  /// **'Pasang aplikasi EraPay Listener dulu (unduh dari dashboard EraPay: Integrasi → QRISGate), lalu tekan tombol ini lagi.'**
-  String get listenerInstallBody;
+  /// **'Teks QRIS statis (diawali 000201…)'**
+  String get qrisTokoPasteHint;
 
-  /// No description provided for @listenerInstallOpen.
+  /// No description provided for @qrisTokoConfirmTitle.
   ///
   /// In id, this message translates to:
-  /// **'Buka dashboard EraPay'**
-  String get listenerInstallOpen;
+  /// **'Ganti QRIS toko?'**
+  String get qrisTokoConfirmTitle;
 
-  /// No description provided for @listenerClose.
+  /// No description provided for @qrisTokoConfirmBody.
   ///
   /// In id, this message translates to:
-  /// **'Tutup'**
-  String get listenerClose;
+  /// **'Pembayaran QRIS berikutnya akan masuk ke rekening pada QRIS yang baru. Pastikan itu QRIS toko Anda.'**
+  String get qrisTokoConfirmBody;
+
+  /// No description provided for @qrisTokoConfirmYes.
+  ///
+  /// In id, this message translates to:
+  /// **'Ganti QRIS'**
+  String get qrisTokoConfirmYes;
+
+  /// No description provided for @qrisTokoSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS toko diperbarui'**
+  String get qrisTokoSaved;
+
+  /// No description provided for @errorQrisInvalid.
+  ///
+  /// In id, this message translates to:
+  /// **'QRIS tidak valid. Gunakan QRIS statis toko yang utuh, tanpa nominal.'**
+  String get errorQrisInvalid;
 }
 
 class _AppLocalizationsDelegate

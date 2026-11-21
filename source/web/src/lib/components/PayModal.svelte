@@ -567,7 +567,15 @@
                   <p class="text-[14px] font-bold text-[var(--color-success-600)]"><i class="icon-check me-1"></i>{t('pos.erapay.paid')}</p>
                 {:else}
                   {#if eraQr}<img src={eraQr} alt={t('pos.erapay.qrAlt')} class="mx-auto size-[260px] rounded bg-white p-1" />{/if}
-                  <p class="text-[13px] font-semibold">{t('pos.erapay.scan', { amount: money(amountOf(m)) })}</p>
+                  <p class="text-[13px] font-semibold">{t('pos.erapay.scan', { amount: money(eraCharge.pay_amount ? toCents(eraCharge.pay_amount) : amountOf(m)) })}</p>
+                  {#if eraCharge.pay_amount}
+                    <div class="mx-auto w-full max-w-[280px] rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-start text-[12.5px]">
+                      <div class="flex justify-between"><span>{t('pos.erapay.breakTotal')}</span><span>{money(amountOf(m))}</span></div>
+                      <div class="flex justify-between"><span>{t('pos.erapay.breakCode')}</span><span>+ {money(toCents(eraCharge.pay_amount) - amountOf(m))}</span></div>
+                      <div class="mt-1 flex justify-between border-t border-[var(--border-subtle)] pt-1 font-bold"><span>{t('pos.erapay.breakPay')}</span><span>{money(toCents(eraCharge.pay_amount))}</span></div>
+                    </div>
+                    <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('pos.erapay.codeNote', { base: money(amountOf(m)) })}</p>
+                  {/if}
                   <p class="text-[12px] text-[var(--text-tertiary)]">{t('pos.erapay.waiting')}</p>
                   {#if eraCanForce && !eraForce}
                     <button type="button" class="btn btn-outline" onclick={() => void eraEnableForce()}>

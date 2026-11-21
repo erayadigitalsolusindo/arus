@@ -152,32 +152,47 @@ func TestProvisioningClientApprove(t *testing.T) {
 	}
 }
 
-func TestProvisioningClientListenerSetup(t *testing.T) {
-	const link = "erapaylistener://setup?secret=qls_x&url=https%3A%2F%2Fapi.test%2Fwebhooks%2Fqrisgate%2Fm"
-	status := http.StatusOK
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.Header.Get("Authorization") != "Bearer key-token" ||
-			!strings.HasSuffix(r.URL.Path, "/tenants/11111111-1111-4111-8111-111111111111/listener-setup") {
-			t.Fatalf("unexpected request: %s %s %q", r.Method, r.URL.Path, r.Header.Get("Authorization"))
+func TestProvisioningClientQRISGate(t *testing.T) {
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	status, body := http.StatusOK, `{}`
+	var gotMethod, gotPath, gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotMethod, gotPath, gotBody = r.Method, r.URL.Path, string(b)
+		if r.Header.Get("Authorization") != "Bearer key-token" {
+			t.Errorf("harus memakai token key: %q", r.Header.Get("Authorization"))
 		}
 		w.WriteHeader(status)
-		_, _ = w.Write([]byte(`{"link":"` + link + `"}`))
+		_, _ = w.Write([]byte(body))
 	}))
-	defer server.Close()
-	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
-
-	c := NewProvisioningClient(server.URL, "server-token")
-	if _, err := c.ListenerSetup(context.Background(), tenant); !errors.Is(err, ErrEcosystemNotConfigured) {
-		t.Fatalf("tanpa key token: %v", err)
+	defer srv.Close()
+	c := NewProvisioningClient(srv.URL, "provision-token")
+	if _, err := c.QRISGate(t.Context(), tenant); !errors.Is(err, ErrEcosystemNotConfigured) {
+		t.Fatalf("tanpa token key harus mati: %v", err)
 	}
 	c.keyToken = "key-token"
-	if got, err := c.ListenerSetup(context.Background(), tenant); err != nil || got != link {
-		t.Fatalf("setup = %q, %v", got, err)
+
+	body = `{"active":true,"has_qris":true,"qris_name":"TOKO A","qris_payload":"0002..."}`
+	info, err := c.QRISGate(t.Context(), tenant)
+	if err != nil || !info.Active || !info.HasQRIS || info.QRISName != "TOKO A" || gotMethod != "GET" || gotPath != "/v1/integrations/arus/tenants/"+tenant.String()+"/qrisgate" {
+		t.Fatalf("get: %+v %v %s %s", info, err, gotMethod, gotPath)
 	}
-	for code, want := range map[int]error{404: ErrEcosystemSSO, 422: ErrListenerUnavailable, 500: ErrUnavailable} {
-		status = code
-		if _, err := c.ListenerSetup(context.Background(), tenant); !errors.Is(err, want) {
-			t.Fatalf("status %d: %v", code, err)
-		}
+	status, body = http.StatusNotFound, `{}`
+	if _, err := c.QRISGate(t.Context(), tenant); !errors.Is(err, ErrEcosystemSSO) {
+		t.Fatalf("404: %v", err)
+	}
+
+	status, body = http.StatusOK, `{"qris_name":"TOKO B"}`
+	name, err := c.SaveQRISGateQRIS(t.Context(), tenant, "0002abc")
+	if err != nil || name != "TOKO B" || gotMethod != "PUT" || !strings.HasSuffix(gotPath, "/qrisgate/qris") || !strings.Contains(gotBody, `"payload":"0002abc"`) {
+		t.Fatalf("save: %q %v %s %s %s", name, err, gotMethod, gotPath, gotBody)
+	}
+	status = http.StatusUnprocessableEntity
+	if _, err := c.SaveQRISGateQRIS(t.Context(), tenant, "salah"); !errors.Is(err, ErrQRISInvalid) {
+		t.Fatalf("422: %v", err)
+	}
+	status = http.StatusBadGateway
+	if _, err := c.SaveQRISGateQRIS(t.Context(), tenant, "x"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("5xx: %v", err)
 	}
 }
