@@ -1,6 +1,6 @@
 // Klien API Platform Admin. Semua lewat token platform (papi); tidak pernah memakai token tenant.
 import type { AuthResponse } from '#lib/api/client.ts';
-import { papi } from './session.svelte.ts';
+import { papi, papiUpload } from './session.svelte.ts';
 
 export type TenantRow = {
   id: string;
@@ -259,11 +259,11 @@ export const platformApi = {
   previewStorefrontTemplate: (body: { html: string; css: string }) => papi<{ html: string }>('/platform/storefront-templates/preview', { method: 'POST', body: json(body) }),
   apkInfo: () => papi<ApkInfo>('/public/mobile/apk/info'),
   /** Unggah APK Kasir (multipart; versi harus dikirim sebelum berkas). */
-  uploadApk: (file: File, version: string) => {
+  uploadApk: (file: File, version: string, onProgress: (pct: number) => void) => {
     const form = new FormData();
     if (version) form.append('version', version);
     form.append('file', file);
-    return papi<ApkInfo>('/platform/mobile/apk', { method: 'PUT', body: form });
+    return papiUpload<ApkInfo>('/platform/mobile/apk', form, onProgress);
   },
   deleteApk: () => papi<void>('/platform/mobile/apk', { method: 'DELETE' }),
   tenants: (q: string, limit: number, offset: number) => papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`),

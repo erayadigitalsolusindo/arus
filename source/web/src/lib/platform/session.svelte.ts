@@ -2,7 +2,7 @@
 // httpOnly `platform_refresh` (Path /platform/auth). Otorisasi sebenarnya di server.
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { ApiError, CSRF_HEADERS, request, requestStream } from '#lib/api/client.ts';
+import { API_URL, ApiError, CSRF_HEADERS, request, requestStream } from '#lib/api/client.ts';
 
 export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean };
 export type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
@@ -55,6 +55,36 @@ export async function papi<T>(path: string, init: RequestInit = {}): Promise<T> 
     if (!(err instanceof ApiError) || err.status !== 401 || sent === null) throw err;
     if (token === sent && !(await refresh())) throw err;
     return request<T>(path, init, token);
+  }
+}
+
+/** PUT multipart dengan progres unggah (fetch tidak punya); satu kali refresh bila 401, seperti papi. */
+export async function papiUpload<T>(path: string, form: FormData, onProgress: (pct: number) => void): Promise<T> {
+  const send = (tk: string | null) =>
+    new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', `${API_URL}${path}`);
+      xhr.withCredentials = true;
+      if (tk) xhr.setRequestHeader('Authorization', `Bearer ${tk}`);
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+      xhr.onerror = () => reject(new ApiError(0, 'NETWORK', 'Network error'));
+      xhr.onload = () => {
+        let body: any = null;
+        try {
+          body = JSON.parse(xhr.responseText);
+        } catch {}
+        if (xhr.status >= 200 && xhr.status < 300) return resolve(body as T);
+        reject(new ApiError(xhr.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `HTTP ${xhr.status}`, body?.error?.fields ?? {}));
+      };
+      xhr.send(form);
+    });
+  const sent = token;
+  try {
+    return await send(token);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401 || sent === null) throw err;
+    if (token === sent && !(await refresh())) throw err;
+    return send(token);
   }
 }
 

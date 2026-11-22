@@ -11,6 +11,7 @@
   let error = $state('');
   let notice = $state('');
   let busy = $state(false);
+  let pct = $state(0);
   let file = $state<File | null>(null);
   let version = $state('');
   let input = $state<HTMLInputElement>();
@@ -41,9 +42,10 @@
   async function upload() {
     if (!file) return;
     busy = true;
+    pct = 0;
     error = notice = '';
     try {
-      info = await platformApi.uploadApk(file, version.trim());
+      info = await platformApi.uploadApk(file, version.trim(), (p) => (pct = p));
       notice = t('platform.mobile.uploaded');
       file = null;
       version = '';
@@ -131,7 +133,12 @@
     {#if file}<p class="text-[12px] text-[var(--text-tertiary)]">{file.name} · {size(file.size)}</p>{/if}
 
     <button type="button" class="btn btn-primary !text-[13px]" disabled={busy || !file} onclick={upload}>
-      <i class={busy ? 'icon-loader-circle animate-spin text-[14px]' : 'icon-upload text-[14px]'}></i>{busy ? t('platform.mobile.uploading') : t('platform.mobile.upload')}
+      <i class={busy ? 'icon-loader-circle animate-spin text-[14px]' : 'icon-upload text-[14px]'}></i>{busy ? `${t('platform.mobile.uploading')} ${pct}%` : t('platform.mobile.upload')}
     </button>
+    {#if busy}
+      <div class="h-2 rounded-full overflow-hidden bg-sunken-bordered" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={pct}>
+        <div class="h-full bg-primary transition-[width] duration-150" style="width:{pct}%"></div>
+      </div>
+    {/if}
   </section>
 </div>
