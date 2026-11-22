@@ -44,6 +44,9 @@ type CleanRegister struct {
 	GoogleSub string
 	// IdentityProvider = penyedia GoogleSub ("google" bila kosong, atau "eraya").
 	IdentityProvider string
+	// Provisioned = dibuat Platform Admin (massal): langsung aktif, tanpa email verifikasi, tanpa password yang bisa dipakai.
+	// Pemilik masuk lewat Google; GoogleLogin menautkan lewat email yang sama dan menandainya terverifikasi.
+	Provisioned bool
 }
 
 // provider = penyedia identitas untuk GoogleSub.
@@ -88,7 +91,7 @@ func ValidateRegister(in RegisterInput) (CleanRegister, map[string]string) {
 // Register membuat tenant + outlet pertama + role Owner + user Owner dalam satu transaksi, lalu menerbitkan sesi dan
 // (setelah commit) mengirim email verifikasi. Input harus sudah lolos ValidateRegister. lang = bahasa email.
 func (s *Service) Register(ctx context.Context, in CleanRegister, lang string) (*Session, error) {
-	if in.GoogleSub != "" && in.Password == "" {
+	if (in.GoogleSub != "" || in.Provisioned) && in.Password == "" {
 		// Akun Google/Eraya diberi password awal bawaan (login dengannya ditolak, hanya untuk ubah password).
 		in.Password = pauth.DefaultIdentityPassword
 	}
@@ -145,7 +148,7 @@ func (s *Service) registerTx(ctx context.Context, in CleanRegister, code, hash s
 		}
 		user, err = q.CreateUser(ctx, gen.CreateUserParams{
 			TenantID: tenant.ID, RoleID: role.ID, Email: in.Email, Name: in.OwnerName,
-			Phone: pgtype.Text{String: in.Phone, Valid: true}, PasswordHash: hash, TermsVersion: pgtype.Text{String: TermsVersion, Valid: true},
+			Phone: pgtype.Text{String: in.Phone, Valid: in.Phone != ""}, PasswordHash: hash, TermsVersion: pgtype.Text{String: TermsVersion, Valid: true},
 		})
 		if err != nil {
 			return err
@@ -211,4 +214,17 @@ func tenantCode(name string) (string, error) {
 		base = "toko"
 	}
 	return base + "-" + hex.EncodeToString(b), nil
+}
+
+// ProvisionTenant membuat tenant + Owner untuk Platform Admin (tanpa sesi login yang tersisa). Input harus bersih;
+// telepon boleh kosong. Mengembalikan id tenant; ErrEmailTaken bila email sudah dipakai.
+func (s *Service) ProvisionTenant(ctx context.Context, in CleanRegister) (uuid.UUID, error) {
+	in.Provisioned = true
+	sess, err := s.Register(ctx, in, "id")
+	if err != nil {
+		return uuid.Nil, err
+	}
+	_ = s.Sessions.RevokeUser(ctx, sess.User.ID) // Register menerbitkan refresh token; tidak ada yang memakainya
+	tid, err := uuid.Parse(sess.Tenant.ID)
+	return tid, err
 }

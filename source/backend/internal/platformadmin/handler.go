@@ -52,6 +52,7 @@ type HandlerDeps struct {
 	Live         *live.Hub           // pantauan penjualan real-time lintas tenant (opsional)
 	Presence     *live.Presence
 	Captcha      *httpx.Turnstile // nil = mati; berlaku untuk login platform (tanpa pengecualian)
+	Auth         *auth.Service    // pendaftaran tenant massal oleh operator
 	ERAPay       ERAPay           // pendaftaran tenant ke ERAPAY (opsional; nil = fitur nonaktif)
 }
 
@@ -97,6 +98,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(requireMFA)
 			r.Get("/platform/tenants", h.ListTenants)
+			r.Post("/platform/tenants/bulk", h.BulkCreateTenants)
 			r.Get("/platform/tenants/{id}", h.GetTenant)
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
 			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)
@@ -433,6 +435,25 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, page)
+}
+
+// BulkCreateTenants: POST /platform/tenants/bulk {"items":[{business_name,email,owner_name?,outlet_name?,phone?}]} (maks 100).
+func (h *Handler) BulkCreateTenants(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []BulkTenantInput `json:"items"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	res, err := h.svc.BulkCreateTenants(r.Context(), actor(r), h.Auth, req.Items)
+	switch {
+	case errors.Is(err, ErrBulkLimit):
+		httpx.ValidationError(w, map[string]string{"items": "INVALID"})
+	case err != nil:
+		h.internal(w, r, "daftar tenant massal gagal", err)
+	default:
+		httpx.JSON(w, http.StatusOK, map[string]any{"results": res})
+	}
 }
 
 func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {

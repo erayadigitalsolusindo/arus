@@ -267,6 +267,8 @@ export const platformApi = {
   },
   deleteApk: () => papi<void>('/platform/mobile/apk', { method: 'DELETE' }),
   tenants: (q: string, limit: number, offset: number) => papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`),
+  bulkCreateTenants: (items: { business_name: string; email: string; owner_name?: string; outlet_name?: string; phone?: string }[]) =>
+    papi<{ results: { row: number; email: string; ok: boolean; tenant_id?: string; error?: string }[] }>('/platform/tenants/bulk', { method: 'POST', body: json({ items }) }),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
   /** Batas hari edit/batal nota tenant (0 = hanya hari nota dibuat, maks 3650). Hanya operator platform yang boleh mengubah. */
   setSaleEditWindow: (id: string, days: number) => papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ sale_edit_window_days: days }) }),

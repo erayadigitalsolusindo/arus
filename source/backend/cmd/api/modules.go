@@ -136,7 +136,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Lockout: auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		Origins: d.Cfg.CORSOrigins, SecureCookie: !d.Cfg.IsDev(),
 		APK: uploads, Ext: extStore, ExtCatalog: extCatalog, Storefront: storefrontSvc, Backup: backupSvc,
-		Live: liveHub, Presence: presence, Captcha: httpx.NewTurnstile(d.Cfg.TurnstileSecret),
+		Live: liveHub, Presence: presence, Captcha: httpx.NewTurnstile(d.Cfg.TurnstileSecret), Auth: authSvc,
 	})
 	platformHandler.Routes(r)
 	// API eksternal bertanda tangan HMAC (/ext/v1/*) meneruskan ke router yang sama; portal dokumentasi publik.
