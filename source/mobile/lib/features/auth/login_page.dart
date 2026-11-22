@@ -183,20 +183,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Future<void> _openListener() async {
-    final l = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    var ok = false;
+  Future<void> _downloadListener() async {
     try {
-      ok = await launchUrl(
-        Uri.parse('erapaylistener://setup'),
+      await launchUrl(
+        Uri.parse('https://erapay.erayadigital.co.id/listener-apk'),
         mode: LaunchMode.externalApplication,
       );
     } catch (_) {
-      // tak ada app yang menangani tautan ini
+      // tak ada peramban untuk membuka tautan
     }
-    if (!ok)
-      messenger.showSnackBar(SnackBar(content: Text(l.listenerLoginMissing)));
   }
 
   Future<void> _editServer() async {
@@ -471,12 +466,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             const SizedBox(height: 18),
                             // Sementara: jalan pintas membuka app EraPay Listener dari layar login.
                             TextButton.icon(
-                              onPressed: _openListener,
+                              onPressed: _downloadListener,
                               icon: const Icon(
                                 Icons.notifications_active_outlined,
                                 size: 16,
                               ),
-                              label: Text(l.listenerTitle),
+                              label: Text(l.listenerDownload),
                             ),
                             InkWell(
                               onTap: _loading ? null : _editServer,

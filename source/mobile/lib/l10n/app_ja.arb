@@ -1380,7 +1380,7 @@
   "listenerTitle": "EraPay Listener",
   "listenerSubtitle": "インストールまたは起動すると設定が自動入力されます",
   "listenerNotInstalled": "EraPay Listener が未インストールです。EraPay ダッシュボード(連携)からダウンロードしてください。",
-  "listenerLoginMissing": "EraPay Listenerがインストールされていません。先にログインし、設定から開いてインストールしてください。",
+  "listenerDownload": "EraPay Listener をダウンロード",
   "updateWaitingWifi": "Wi-Fi 接続を待っています…",
   "updateUseData": "モバイルデータで更新をダウンロード",
   "settingsUpdateWifiOnly": "更新は Wi-Fi のみでダウンロード",

@@ -2484,8 +2484,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations).';
 
   @override
-  String get listenerLoginMissing =>
-      'EraPay Listener is not installed. Sign in first, then open it from Settings to install it.';
+  String get listenerDownload => 'Download EraPay Listener';
 
   @override
   String get updateWaitingWifi => 'Waiting for Wi-Fi to download the update…';

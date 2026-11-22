@@ -1363,7 +1363,7 @@
   "listenerTitle": "EraPay Listener",
   "listenerSubtitle": "Install atau buka; pengaturan terisi otomatis",
   "listenerNotInstalled": "EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).",
-  "listenerLoginMissing": "EraPay Listener belum terpasang. Masuk dulu, lalu buka dari Pengaturan untuk memasangnya.",
+  "listenerDownload": "Unduh EraPay Listener",
   "updateWaitingWifi": "Menunggu Wi-Fi untuk mengunduh pembaruan…",
   "updateUseData": "Unduh pakai data seluler",
   "settingsUpdateWifiOnly": "Unduh pembaruan hanya lewat Wi-Fi",

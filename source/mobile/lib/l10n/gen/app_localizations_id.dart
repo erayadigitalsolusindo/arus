@@ -2485,8 +2485,7 @@ class AppLocalizationsId extends AppLocalizations {
       'EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).';
 
   @override
-  String get listenerLoginMissing =>
-      'EraPay Listener belum terpasang. Masuk dulu, lalu buka dari Pengaturan untuk memasangnya.';
+  String get listenerDownload => 'Unduh EraPay Listener';
 
   @override
   String get updateWaitingWifi => 'Menunggu Wi-Fi untuk mengunduh pembaruan…';

@@ -4492,11 +4492,11 @@ abstract class AppLocalizations {
   /// **'EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).'**
   String get listenerNotInstalled;
 
-  /// No description provided for @listenerLoginMissing.
+  /// No description provided for @listenerDownload.
   ///
   /// In id, this message translates to:
-  /// **'EraPay Listener belum terpasang. Masuk dulu, lalu buka dari Pengaturan untuk memasangnya.'**
-  String get listenerLoginMissing;
+  /// **'Unduh EraPay Listener'**
+  String get listenerDownload;
 
   /// No description provided for @updateWaitingWifi.
   ///

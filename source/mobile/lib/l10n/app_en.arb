@@ -1258,7 +1258,7 @@
   "listenerTitle": "EraPay Listener",
   "listenerSubtitle": "Install or open it; settings are filled in automatically",
   "listenerNotInstalled": "EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations).",
-  "listenerLoginMissing": "EraPay Listener is not installed. Sign in first, then open it from Settings to install it.",
+  "listenerDownload": "Download EraPay Listener",
   "updateWaitingWifi": "Waiting for Wi-Fi to download the update…",
   "updateUseData": "Download using mobile data",
   "settingsUpdateWifiOnly": "Download updates over Wi-Fi only",
