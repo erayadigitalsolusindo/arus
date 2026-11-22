@@ -33,29 +33,50 @@ type BulkTenantResult struct {
 	Email    string    `json:"email"`
 	OK       bool      `json:"ok"`
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	Error    string    `json:"error,omitempty"` // EMAIL_TAKEN | INVALID:<field> | INTERNAL
+	Error    string    `json:"error,omitempty"` // EMAIL_TAKEN | EMAIL_DUPLICATE | INVALID:<field>:<kode> | INTERNAL
 }
 
 var ErrBulkLimit = errors.New("jumlah baris tidak valid")
 
 // BulkCreateTenants mendaftarkan banyak tenant sekaligus, langsung aktif. Tiap baris berdiri sendiri: baris gagal
 // tidak membatalkan baris lain. Pemilik masuk lewat Google dengan email yang sama (tertaut otomatis saat login pertama).
-func (s *Service) BulkCreateTenants(ctx context.Context, a Actor, authSvc *auth.Service, rows []BulkTenantInput) ([]BulkTenantResult, error) {
+// dryRun = hanya memeriksa (validasi yang sama persis + email sudah terpakai/ganda), tidak membuat apa pun.
+func (s *Service) BulkCreateTenants(ctx context.Context, a Actor, authSvc *auth.Service, rows []BulkTenantInput, dryRun bool) ([]BulkTenantResult, error) {
 	if len(rows) == 0 || len(rows) > MaxBulkTenants {
 		return nil, ErrBulkLimit
 	}
 	out := make([]BulkTenantResult, len(rows))
+	seen := map[string]bool{}
 	for i, in := range rows {
 		res := BulkTenantResult{Row: i + 1, Email: strings.TrimSpace(in.Email)}
 		in.OwnerName = firstNonEmpty(in.OwnerName, strings.SplitN(in.Email, "@", 2)[0])
 		in.OutletName = firstNonEmpty(in.OutletName, in.BusinessName)
-		c, bad := cleanBulk(in)
-		if bad != "" {
-			res.Error = "INVALID:" + bad
+		c, field, code := cleanBulk(in)
+		if field != "" {
+			res.Error = "INVALID:" + field + ":" + code
 			out[i] = res
 			continue
 		}
 		res.Email, c.Password = c.Email, BulkDefaultPassword
+		if seen[c.Email] {
+			res.Error = "EMAIL_DUPLICATE"
+			out[i] = res
+			continue
+		}
+		seen[c.Email] = true
+		if dryRun {
+			taken, err := authSvc.EmailTaken(ctx, c.Email)
+			switch {
+			case err != nil:
+				res.Error = "INTERNAL"
+			case taken:
+				res.Error = "EMAIL_TAKEN"
+			default:
+				res.OK = true
+			}
+			out[i] = res
+			continue
+		}
 		tid, err := authSvc.ProvisionTenant(ctx, c)
 		switch {
 		case errors.Is(err, auth.ErrEmailTaken):
@@ -71,8 +92,7 @@ func (s *Service) BulkCreateTenants(ctx context.Context, a Actor, authSvc *auth.
 	return out, nil
 }
 
-func cleanBulk(in BulkTenantInput) (c auth.CleanRegister, badField string) {
-	var code string
+func cleanBulk(in BulkTenantInput) (c auth.CleanRegister, badField, code string) {
 	for _, f := range []struct {
 		name string
 		do   func() string
@@ -90,10 +110,10 @@ func cleanBulk(in BulkTenantInput) (c auth.CleanRegister, badField string) {
 		}},
 	} {
 		if code = f.do(); code != "" {
-			return auth.CleanRegister{}, f.name
+			return auth.CleanRegister{}, f.name, code
 		}
 	}
-	return c, ""
+	return c, "", ""
 }
 
 func firstNonEmpty(a, b string) string {

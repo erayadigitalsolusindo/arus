@@ -440,12 +440,13 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 // BulkCreateTenants: POST /platform/tenants/bulk {"items":[{business_name,email,owner_name?,outlet_name?,phone?}]} (maks 100).
 func (h *Handler) BulkCreateTenants(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Items []BulkTenantInput `json:"items"`
+		Items  []BulkTenantInput `json:"items"`
+		DryRun bool              `json:"dry_run"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	res, err := h.svc.BulkCreateTenants(r.Context(), actor(r), h.Auth, req.Items)
+	res, err := h.svc.BulkCreateTenants(r.Context(), actor(r), h.Auth, req.Items, req.DryRun)
 	switch {
 	case errors.Is(err, ErrBulkLimit):
 		httpx.ValidationError(w, map[string]string{"items": "INVALID"})

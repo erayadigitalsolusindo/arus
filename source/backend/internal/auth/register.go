@@ -228,3 +228,12 @@ func (s *Service) ProvisionTenant(ctx context.Context, in CleanRegister) (uuid.U
 	tid, err := uuid.Parse(sess.Tenant.ID)
 	return tid, err
 }
+
+// EmailTaken = email sudah dipakai akun mana pun (untuk pemeriksaan pendaftaran massal sebelum eksekusi).
+func (s *Service) EmailTaken(ctx context.Context, email string) (bool, error) {
+	_, err := accountByEmail(ctx, s.Pool, email)
+	if isNoAccount(err) {
+		return false, nil
+	}
+	return err == nil, err
+}
