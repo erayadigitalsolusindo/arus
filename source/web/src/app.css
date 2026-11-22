@@ -179,3 +179,29 @@ input.money-field::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Animasi masuk halus (dipakai halaman daftar massal): muncul naik bertahap lewat --d. */
+.rise {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.drop-float {
+  animation: drop-float 2.4s ease-in-out infinite;
+}
+@keyframes drop-float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .drop-float {
+    animation: none;
+  }
+}

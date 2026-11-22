@@ -190,7 +190,7 @@
   const label = { ok: 'stOk', bad: 'stFail', fix: 'stFix', ready: 'stReady', wait: 'stWait' } as const;
 </script>
 
-<div class="flex flex-wrap items-end justify-between gap-3">
+<div class="rise flex flex-wrap items-end justify-between gap-3 pt-2">
   <div>
     <h1 class="font-display font-bold text-[22px] tracking-tight">{t(k('title'))}</h1>
     <p class="text-[12.5px] mt-1 text-[var(--text-tertiary)] max-w-2xl">{t(k('subtitle'))}</p>
@@ -198,15 +198,15 @@
   <a href="/platform/tenants" class="btn btn-outline !text-[12.5px]"><i class="icon-chevron-left text-[13px]"></i>{t(k('back'))}</a>
 </div>
 
-<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+<div class="rise grid grid-cols-2 xl:grid-cols-4 gap-4" style="--d:60ms">
   <StatCard label={t(k('statRows'))} value={String(rows.length)} icon="store" tone="primary" hint={fileName || t(k('statNone'))} />
   <StatCard label={done ? t(k('statOk')) : t(k('statReady'))} value={String(done ? okCount : valid.length)} icon="circle-check" tone="success" hint={done ? t(k('statOkHint'), { count: Object.keys(results).length }) : t(k('statReadyHint'))} />
   <StatCard label={done ? t(k('statFail')) : t(k('statFix'))} value={String(done ? failCount : invalid.length)} icon="circle-alert" tone="danger" hint={done ? t(k('statFailHint')) : t(k('statFixHint'))} />
   <StatCard label={t(k('statDup'))} value={String(dupes)} icon="users" tone="warning" hint={t(k('statDupHint'))} />
 </div>
 
-<div class="grid gap-4 xl:grid-cols-3">
-  <div class="xl:col-span-2 surface-card space-y-3">
+<div class="rise grid gap-5 xl:grid-cols-3" style="--d:120ms">
+  <div class="xl:col-span-2 surface-card p-5 sm:p-6 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="font-semibold text-[14px]"><span class="inline-grid size-6 place-items-center rounded-full bg-[var(--color-primary-50)] text-[var(--color-primary-700)] text-[12px] me-1.5">1</span>{t(k('step1'))}</h2>
       <div class="flex flex-wrap gap-2">
@@ -217,12 +217,12 @@
     </div>
 
     <label
-      class="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors {dragging ? 'border-[var(--color-primary-500)] bg-[var(--color-primary-50)]' : 'border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]'}"
+      class="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center cursor-pointer transition-all duration-200 {dragging ? 'scale-[1.01]' : ''} {dragging ? 'border-[var(--color-primary-500)] bg-[var(--color-primary-50)]' : 'border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]'}"
       ondragover={(e) => { e.preventDefault(); dragging = true; }}
       ondragleave={() => (dragging = false)}
       ondrop={(e) => { e.preventDefault(); dragging = false; void onFile(e.dataTransfer?.files?.[0]); }}
     >
-      <i class="icon-download text-[22px] text-[var(--text-tertiary)]"></i>
+      <i class="icon-download text-[24px] text-[var(--text-tertiary)] {dragging ? 'text-[var(--color-primary-600)]' : 'drop-float'}"></i>
       <span class="text-[13px] font-semibold">{t(k('drop'))}</span>
       <span class="text-[11.5px] text-[var(--text-tertiary)]">{fileName ? t(k('loaded'), { name: fileName }) : t(k('dropHint'))}</span>
       <input type="file" accept=".csv,.txt,.xlsx,text/csv" class="sr-only" onchange={(e) => onFile(e.currentTarget.files?.[0])} />
@@ -234,7 +234,7 @@
         value={text}
         oninput={(e) => load(parseText(e.currentTarget.value), '', e.currentTarget.value)}
         rows="6"
-        class="mt-2 w-full field-control font-mono text-[12px]"
+        class="mt-3 w-full field-control font-mono text-[12px] !p-3"
         aria-label={t(k('step1'))}
         placeholder={HEADER + '\n' + SAMPLE}
       ></textarea>
@@ -243,7 +243,7 @@
     {#if error}<div role="alert" class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] shrink-0"></i><span>{error}</span></div>{/if}
   </div>
 
-  <div class="surface-card space-y-3 text-[12.5px]">
+  <div class="surface-card p-5 sm:p-6 space-y-4 text-[12.5px]">
     <h2 class="font-semibold text-[14px]">{t(k('colTitle'))}</h2>
     <table class="w-full text-[12px]">
       <thead>
@@ -271,8 +271,8 @@
   </div>
 </div>
 
-<div class="surface-card !p-0 overflow-hidden">
-  <div class="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)]">
+<div class="rise surface-card !p-0 overflow-hidden" style="--d:180ms">
+  <div class="p-5 sm:px-6 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)]">
     <h2 class="font-semibold text-[14px]"><span class="inline-grid size-6 place-items-center rounded-full bg-[var(--color-primary-50)] text-[var(--color-primary-700)] text-[12px] me-1.5">2</span>{done ? t(k('stepResult')) : t(k('step2'))}</h2>
     <div class="flex flex-wrap items-center gap-2">
       {#if done}
@@ -295,28 +295,28 @@
       <thead>
         <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
           {#each ['thRow', 'thShop', 'thEmail', 'thOwner', 'thOutlet', 'thPhone', 'thStatus'] as h (h)}
-            <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t(k(h))}</th>
+            <th class="px-5 py-3 text-start font-semibold" scope="col">{t(k(h))}</th>
           {/each}
         </tr>
       </thead>
       <tbody>
-        {#each shown as r (r.line)}
+        {#each shown as r, i (r.line)}
           {@const s = status(r)}
-          <tr class="border-t border-[var(--border-subtle)] align-top">
-            <td class="px-4 py-2.5 tabular-nums text-[var(--text-tertiary)]">{r.line}</td>
-            <td class="px-4 py-2.5 font-semibold">{r.shop || '—'}</td>
-            <td class="px-4 py-2.5 font-mono text-[12px]">{r.email || '—'}</td>
-            <td class="px-4 py-2.5">{r.owner || r.email.split('@')[0] || '—'}{#if !r.owner}<span class="text-[10.5px] text-[var(--text-tertiary)]"> {t(k('auto'))}</span>{/if}</td>
-            <td class="px-4 py-2.5">{r.outlet || r.shop || '—'}{#if !r.outlet}<span class="text-[10.5px] text-[var(--text-tertiary)]"> {t(k('auto'))}</span>{/if}</td>
-            <td class="px-4 py-2.5 font-mono text-[12px]">{r.phone || '—'}</td>
-            <td class="px-4 py-2.5">
+          <tr class="rise border-t border-[var(--border-subtle)] align-top transition-colors hover:bg-[var(--surface-sunken)]" style="--d:{Math.min(i, 12) * 25}ms">
+            <td class="px-5 py-3 tabular-nums text-[var(--text-tertiary)]">{r.line}</td>
+            <td class="px-5 py-3 font-semibold">{r.shop || '—'}</td>
+            <td class="px-5 py-3 font-mono text-[12px]">{r.email || '—'}</td>
+            <td class="px-5 py-3">{r.owner || r.email.split('@')[0] || '—'}{#if !r.owner}<span class="text-[10.5px] text-[var(--text-tertiary)]"> {t(k('auto'))}</span>{/if}</td>
+            <td class="px-5 py-3">{r.outlet || r.shop || '—'}{#if !r.outlet}<span class="text-[10.5px] text-[var(--text-tertiary)]"> {t(k('auto'))}</span>{/if}</td>
+            <td class="px-5 py-3 font-mono text-[12px]">{r.phone || '—'}</td>
+            <td class="px-5 py-3">
               <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold {tone[s.s as keyof typeof tone]}">{t(k(label[s.s as keyof typeof label]))}</span>
               <span class="block mt-0.5 text-[11.5px] text-[var(--text-tertiary)]">{s.note}</span>
             </td>
           </tr>
         {:else}
-          <tr>
-            <td colspan="7" class="px-4 py-14 text-center">
+          <tr class="rise">
+            <td colspan="7" class="px-4 py-16 text-center">
               <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><i class="icon-store text-[22px]"></i></span>
               <p class="font-semibold">{t(k('emptyTitle'))}</p>
               <p class="text-[12px] text-[var(--text-tertiary)] mt-1">{t(k('emptyHint'))}</p>
