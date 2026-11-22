@@ -321,6 +321,14 @@ class ManageRepository {
         .toList();
   });
 
+  Future<Salesperson> createSupplier(String name) => _guard(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/catalog/suppliers/',
+      data: {'name': name},
+    );
+    return Salesperson.fromJson(r.data!);
+  });
+
   Future<List<PurchaseItemChoice>> purchaseItems(String q) => _guard(() async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/purchases/items',

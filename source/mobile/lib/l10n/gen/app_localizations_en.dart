@@ -1803,6 +1803,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get purNoSupplier => 'No supplier found.';
 
   @override
+  String get purAddSupplier => 'Add supplier';
+
+  @override
+  String get purSupplierName => 'Supplier name';
+
+  @override
   String get purDate => 'Date';
 
   @override

@@ -40,6 +40,9 @@ class Permissions {
       json is Map ? Permissions(json.map((k, v) => MapEntry('$k', v))) : none;
 
   bool can(String module, [String action = 'view']) {
+    // Modul terkunci paket langganan: server menolak walau owner (`*`).
+    final locked = _raw['_locked'];
+    if (locked is List && locked.contains(module)) return false;
     if (_raw['*'] == true) return true;
     final acts = _raw[module];
     return acts is List && acts.contains(action);

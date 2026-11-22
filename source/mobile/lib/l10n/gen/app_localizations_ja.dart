@@ -1767,6 +1767,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get purNoSupplier => '仕入先が見つかりません。';
 
   @override
+  String get purAddSupplier => '仕入先を追加';
+
+  @override
+  String get purSupplierName => '仕入先名';
+
+  @override
   String get purDate => '日付';
 
   @override

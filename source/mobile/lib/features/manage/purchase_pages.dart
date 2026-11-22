@@ -1253,6 +1253,41 @@ class _SupplierPickerState extends ConsumerState<_SupplierPicker> {
     super.dispose();
   }
 
+  Future<void> _add() async {
+    final l = AppLocalizations.of(context);
+    final c = TextEditingController(text: _q.text.trim());
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.purAddSupplier),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: l.purSupplierName),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: Text(l.commonSave),
+          ),
+        ],
+      ),
+    );
+    c.dispose();
+    if (name == null || name.isEmpty) return;
+    try {
+      final s = await ref.read(manageRepositoryProvider).createSupplier(name);
+      if (mounted) Navigator.of(context).pop((id: s.id, name: s.name));
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
   Future<void> _load() async {
     final my = ++_seq;
     setState(() {
@@ -1275,6 +1310,10 @@ class _SupplierPickerState extends ConsumerState<_SupplierPicker> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
+    final session = ref.watch(sessionProvider);
+    final canAdd =
+        session is SessionSignedIn &&
+        session.profile.permissions.can('suppliers', 'create');
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SizedBox(
@@ -1283,18 +1322,33 @@ class _SupplierPickerState extends ConsumerState<_SupplierPicker> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: TextField(
-                controller: _q,
-                autofocus: true,
-                onChanged: (_) {
-                  _debounce?.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 300), _load);
-                },
-                decoration: InputDecoration(
-                  hintText: l.purSearchSupplier,
-                  prefixIcon: const Icon(Icons.search),
-                  isDense: true,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _q,
+                      autofocus: true,
+                      onChanged: (_) {
+                        _debounce?.cancel();
+                        _debounce = Timer(
+                          const Duration(milliseconds: 300),
+                          _load,
+                        );
+                      },
+                      decoration: InputDecoration(
+                        hintText: l.purSearchSupplier,
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  if (canAdd)
+                    IconButton.filledTonal(
+                      tooltip: l.purAddSupplier,
+                      onPressed: _add,
+                      icon: const Icon(Icons.add),
+                    ),
+                ],
               ),
             ),
             Expanded(

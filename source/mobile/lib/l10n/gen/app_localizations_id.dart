@@ -1808,6 +1808,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get purNoSupplier => 'Pemasok tidak ditemukan.';
 
   @override
+  String get purAddSupplier => 'Tambah pemasok';
+
+  @override
+  String get purSupplierName => 'Nama pemasok';
+
+  @override
   String get purDate => 'Tanggal';
 
   @override

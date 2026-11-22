@@ -66,6 +66,7 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
   bool _busy = false;
   bool _submitted = false;
   ApiError? _error;
+  String _initialCost = ''; // HPP saat dibuka; dikirim saat simpan hanya bila diubah
   Map<String, dynamic>? _raw; // barang yang sedang diubah (dasar body PUT)
 
   bool get _edit => widget.editId != null;
@@ -103,6 +104,7 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
         _raw = raw;
         _name.text = '${raw['name'] ?? ''}';
         _sell.text = decToApi(dec(raw['sell_price']), scale: 2);
+        _cost.text = _initialCost = decToApi(dec(raw['avg_cost']), scale: 2);
         _barcode.text = '${raw['barcode'] ?? ''}';
         _goods = raw['kind'] != 'service';
         _negative = raw['allow_negative_stock'] == true;
@@ -205,7 +207,7 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
   Future<void> _save({required bool sellNow}) async {
     setState(() => _submitted = true);
     final sell = _num(_sell);
-    final cost = _edit ? Decimal.zero : _num(_cost);
+    final cost = _num(_cost);
     if (_name.text.trim().isEmpty ||
         sell == null ||
         cost == null ||
@@ -229,6 +231,8 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
           'weight_grams': raw['weight_grams'] ?? '0',
           'min_stock': raw['min_stock'] ?? '0',
           'sell_price': decToApi(sell, scale: 2),
+          if (decToApi(cost, scale: 2) != _initialCost)
+            'cost': decToApi(cost, scale: 2),
           'unit_id': _unitId,
           'category_id': _categoryId ?? '',
           'brand_id': refId('brand'),
@@ -364,34 +368,21 @@ class _AddItemSheetState extends ConsumerState<AddItemSheet> {
                             ),
                           ),
                         ),
-                        if (!_edit) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: _cost,
-                              keyboardType: numPad,
-                              inputFormatters: numOnly,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: l.itemCost,
-                                errorText: _moneyError(l, _cost),
-                              ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _cost,
+                            keyboardType: numPad,
+                            inputFormatters: numOnly,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              labelText: l.itemCost,
+                              errorText: _moneyError(l, _cost),
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
-                    if (_edit)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          l.itemsCostNote,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: pal.textTertiary,
-                          ),
-                        ),
-                      ),
                     const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,

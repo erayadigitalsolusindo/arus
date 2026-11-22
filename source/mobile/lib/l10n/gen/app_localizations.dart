@@ -619,7 +619,7 @@ abstract class AppLocalizations {
   /// No description provided for @payEraPartner.
   ///
   /// In id, this message translates to:
-  /// **'PARTNER PAYMENT'**
+  /// **'Partner Payment'**
   String get payEraPartner;
 
   /// No description provided for @payEraPartnerOpen.
@@ -3273,6 +3273,18 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Pemasok tidak ditemukan.'**
   String get purNoSupplier;
+
+  /// No description provided for @purAddSupplier.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah pemasok'**
+  String get purAddSupplier;
+
+  /// No description provided for @purSupplierName.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama pemasok'**
+  String get purSupplierName;
 
   /// No description provided for @purDate.
   ///

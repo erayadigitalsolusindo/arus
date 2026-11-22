@@ -1077,6 +1077,8 @@
   "purPickSupplier": "Pilih pemasok",
   "purSearchSupplier": "Cari pemasok",
   "purNoSupplier": "Pemasok tidak ditemukan.",
+  "purAddSupplier": "Tambah pemasok",
+  "purSupplierName": "Nama pemasok",
   "purDate": "Tanggal",
   "purInvoiceNo": "No. faktur pemasok (opsional)",
   "purNote": "Catatan (opsional)",

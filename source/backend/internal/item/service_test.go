@@ -290,8 +290,7 @@ func TestUpdateKeepsCostAndAudits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Biaya yang dikirim saat mengubah diabaikan: HPP hanya diubah transaksi.
-	up, err := e.svc.Update(ctx, e.a, it.ID, Input{Name: "Kopi", SKU: it.SKU, UnitID: unit.String(), Cost: "9999", SellPrice: "1750", Barcode: "123"})
+	up, err := e.svc.Update(ctx, e.a, it.ID, Input{Name: "Kopi", SKU: it.SKU, UnitID: unit.String(), SellPrice: "1750", Barcode: "123"})
 	if err != nil || up.LastCost != "1000.00" || up.AvgCost != "1000.00" || up.SellPrice != "1750.00" || up.Barcode != "123" {
 		t.Fatalf("ubah: %+v %v", up, err)
 	}
@@ -319,6 +318,29 @@ func TestUpdateKeepsCostAndAudits(t *testing.T) {
 	}
 	if e.auditCount(t, e.a.TenantID, "item.active") != 1 {
 		t.Error("arsip harus tercatat")
+	}
+}
+
+func TestUpdateCost(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	unit := e.master(t, "units", e.a.TenantID, "Pcs", true)
+	it, err := e.svc.Create(ctx, e.a, Input{Name: "Kopi", UnitID: unit.String(), Cost: "1000", SellPrice: "1500"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := Input{Name: "Kopi", SKU: it.SKU, UnitID: unit.String(), SellPrice: "1500", Cost: "1200"}
+	up, err := e.svc.Update(ctx, e.a, it.ID, in)
+	if err != nil || up.LastCost != "1200.00" || up.AvgCost != "1200.00" {
+		t.Fatalf("ubah HPP: %+v %v", up, err)
+	}
+	if e.auditCount(t, e.a.TenantID, "item.update") != 1 {
+		t.Error("perubahan HPP harus tercatat")
+	}
+	in.Cost = "abc"
+	var fe FieldErrors
+	if _, err := e.svc.Update(ctx, e.a, it.ID, in); !errors.As(err, &fe) || fe["cost"] == "" {
+		t.Errorf("HPP tidak valid: %v", err)
 	}
 }
 

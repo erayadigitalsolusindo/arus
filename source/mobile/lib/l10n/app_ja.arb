@@ -1094,6 +1094,8 @@
   "purPickSupplier": "仕入先を選択",
   "purSearchSupplier": "仕入先を検索",
   "purNoSupplier": "仕入先が見つかりません。",
+  "purAddSupplier": "仕入先を追加",
+  "purSupplierName": "仕入先名",
   "purDate": "日付",
   "purInvoiceNo": "仕入先伝票番号（任意）",
   "purNote": "メモ（任意）",

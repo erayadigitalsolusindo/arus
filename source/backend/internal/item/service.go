@@ -153,7 +153,7 @@ type OutletPriceInput struct {
 }
 
 // Input untuk membuat/mengubah item. Id master kosong ("") = tidak diisi (kecuali UnitID, wajib).
-// Cost (HPP awal) hanya dipakai saat membuat. OutletPrices nil saat mengubah = harga cabang tidak disentuh;
+// Cost: HPP awal saat membuat; saat mengubah, kosong = HPP tidak disentuh, terisi = HPP outlet aktif diganti. OutletPrices nil saat mengubah = harga cabang tidak disentuh;
 // selain itu daftar ini menggantikan seluruh harga khusus pada cabang yang boleh diakses pemanggil.
 type Input struct {
 	SKU     string
@@ -291,7 +291,7 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 	if c.sell, ok = money(in.SellPrice); !ok {
 		f["sell_price"] = sanitize.Invalid
 	}
-	if creating {
+	if creating || strings.TrimSpace(in.Cost) != "" {
 		if c.cost, ok = money(in.Cost); !ok {
 			f["cost"] = sanitize.Invalid
 		}
@@ -713,6 +713,11 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		}); err != nil {
 			return err
 		}
+		if strings.TrimSpace(in.Cost) != "" {
+			if err := setOutletCost(ctx, tx, a, id, c.sku, c.name, c.cost); err != nil {
+				return err
+			}
+		}
 		if c.prices != nil {
 			if err := q.ItemOutletPriceDelete(ctx, gen.ItemOutletPriceDeleteParams{TenantID: a.TenantID, ItemID: id, OutletIds: outletIDs(a)}); err != nil {
 				return err
@@ -736,6 +741,29 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, id uuid.UUID, in In
 		return nil, err
 	}
 	return &it, nil
+}
+
+// setOutletCost mengganti HPP (rata-rata dan terakhir) barang di outlet aktif tanpa pembelian; dicatat di audit `item.update`.
+func setOutletCost(ctx context.Context, tx pgx.Tx, a authz.Actor, id uuid.UUID, sku, name string, cost decimal.Decimal) error {
+	var before decimal.Decimal
+	if err := tx.QueryRow(ctx, `SELECT coalesce(oc.avg_cost, i.avg_cost)::text FROM items i
+		LEFT JOIN item_outlet_costs oc ON oc.tenant_id = i.tenant_id AND oc.item_id = i.id AND oc.outlet_id = $3
+		WHERE i.tenant_id = $1 AND i.id = $2`, a.TenantID, id, a.OutletID).Scan(&before); err != nil {
+		return err
+	}
+	if before.Equal(cost) {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO item_outlet_costs (tenant_id, outlet_id, item_id, avg_cost, last_cost) VALUES ($1, $2, $3, $4, $4)
+		ON CONFLICT (tenant_id, outlet_id, item_id) DO UPDATE SET avg_cost = EXCLUDED.avg_cost, last_cost = EXCLUDED.last_cost`,
+		a.TenantID, a.OutletID, id, cost); err != nil {
+		return err
+	}
+	return audit.Record(ctx, tx, audit.FromActor(a), audit.Entry{
+		Action: audit.ActionItemUpdate, Entity: audit.EntityItem, EntityID: id.String(),
+		Details: map[string]any{"sku": sku, "name": name, "outlet_id": a.OutletID.String(),
+			"before": map[string]any{"cost": before.StringFixed(2)}, "after": map[string]any{"cost": cost.StringFixed(2)}},
+	})
 }
 
 // recordUpdate mencatat perubahan: `item.update` untuk data barang (hanya kolom yang berubah) dan `item.price`

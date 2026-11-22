@@ -982,6 +982,8 @@
   "purPickSupplier": "Choose supplier",
   "purSearchSupplier": "Search suppliers",
   "purNoSupplier": "No supplier found.",
+  "purAddSupplier": "Add supplier",
+  "purSupplierName": "Supplier name",
   "purDate": "Date",
   "purInvoiceNo": "Supplier invoice no. (optional)",
   "purNote": "Note (optional)",
