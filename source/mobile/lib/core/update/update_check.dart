@@ -38,4 +38,3 @@ Future<void> checkForUpdates(BuildContext context, WidgetRef ref) async {
     ..clearSnackBars()
     ..showSnackBar(SnackBar(content: Text(l.updUpToDate)));
 }
-

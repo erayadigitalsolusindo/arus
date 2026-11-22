@@ -48,4 +48,3 @@ class LocaleController extends Notifier<Locale?> {
     } catch (_) {}
   }
 }
-

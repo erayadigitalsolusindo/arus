@@ -8,14 +8,28 @@ final _tts = FlutterTts();
 /// Metode bayar yang nominalnya diucapkan (per perangkat); bawaan semua non-tunai.
 Future<Set<String>> loadVoiceKinds() async {
   final p = await SharedPreferences.getInstance();
-  return (p.getStringList(_key) ?? voiceKinds.where((k) => k != 'cash').toList())
+  return (p.getStringList(_key) ??
+          voiceKinds.where((k) => k != 'cash').toList())
       .toSet();
 }
 
 Future<void> saveVoiceKinds(Set<String> k) async =>
     (await SharedPreferences.getInstance()).setStringList(_key, k.toList());
 
-const _s = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+const _s = [
+  '',
+  'satu',
+  'dua',
+  'tiga',
+  'empat',
+  'lima',
+  'enam',
+  'tujuh',
+  'delapan',
+  'sembilan',
+  'sepuluh',
+  'sebelas',
+];
 
 /// 125000 -> "seratus dua puluh lima ribu" (sama dengan dashboard EraPay).
 String terbilang(int n) {
@@ -31,6 +45,7 @@ String terbilang(int n) {
     if (x < 1000000000) return '${w(x ~/ 1000000)} juta ${w(x % 1000000)}';
     return '${w(x ~/ 1000000000)} miliar ${w(x % 1000000000)}';
   }
+
   return w(n).replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 

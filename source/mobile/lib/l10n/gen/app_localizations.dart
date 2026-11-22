@@ -4491,6 +4491,36 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).'**
   String get listenerNotInstalled;
+
+  /// No description provided for @listenerLoginMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'EraPay Listener belum terpasang. Masuk dulu, lalu buka dari Pengaturan untuk memasangnya.'**
+  String get listenerLoginMissing;
+
+  /// No description provided for @updateWaitingWifi.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunggu Wi-Fi untuk mengunduh pembaruan…'**
+  String get updateWaitingWifi;
+
+  /// No description provided for @updateUseData.
+  ///
+  /// In id, this message translates to:
+  /// **'Unduh pakai data seluler'**
+  String get updateUseData;
+
+  /// No description provided for @settingsUpdateWifiOnly.
+  ///
+  /// In id, this message translates to:
+  /// **'Unduh pembaruan hanya lewat Wi-Fi'**
+  String get settingsUpdateWifiOnly;
+
+  /// No description provided for @settingsUpdateWifiOnlyHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Matikan agar pembaruan boleh diunduh otomatis memakai data seluler.'**
+  String get settingsUpdateWifiOnlyHint;
 }
 
 class _AppLocalizationsDelegate

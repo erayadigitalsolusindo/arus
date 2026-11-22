@@ -29,7 +29,10 @@ class ListenerTile extends ConsumerWidget {
     try {
       final link = await _post(ref, '/ecosystem/erapay/listener-link', 'link');
       if (link.isNotEmpty &&
-          await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication)) {
+          await launchUrl(
+            Uri.parse(link),
+            mode: LaunchMode.externalApplication,
+          )) {
         return;
       }
       final dash = await _post(ref, '/ecosystem/erapay/sso', 'url');
@@ -57,7 +60,10 @@ class ListenerTile extends ConsumerWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          leading: Icon(Icons.notifications_active_outlined, color: pal.primary),
+          leading: Icon(
+            Icons.notifications_active_outlined,
+            color: pal.primary,
+          ),
           title: Text(
             l.listenerTitle,
             style: const TextStyle(fontWeight: FontWeight.w700),

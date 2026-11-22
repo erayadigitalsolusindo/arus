@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 const double kTextScaleMin = 0.8;
 const double kTextScaleMax = 1.3;
 const double kTextScaleStep = 0.05;
@@ -45,4 +44,3 @@ class TextScaleController extends Notifier<double> {
     } catch (_) {}
   }
 }
-

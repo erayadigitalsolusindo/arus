@@ -7,6 +7,7 @@ import '../../core/update/app_version_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/api_error.dart';
@@ -180,6 +181,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _openListener() async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    var ok = false;
+    try {
+      ok = await launchUrl(
+        Uri.parse('erapaylistener://setup'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      // tak ada app yang menangani tautan ini
+    }
+    if (!ok)
+      messenger.showSnackBar(SnackBar(content: Text(l.listenerLoginMissing)));
   }
 
   Future<void> _editServer() async {
@@ -452,6 +469,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                             ),
                             const SizedBox(height: 18),
+                            // Sementara: jalan pintas membuka app EraPay Listener dari layar login.
+                            TextButton.icon(
+                              onPressed: _openListener,
+                              icon: const Icon(
+                                Icons.notifications_active_outlined,
+                                size: 16,
+                              ),
+                              label: Text(l.listenerTitle),
+                            ),
                             InkWell(
                               onTap: _loading ? null : _editServer,
                               borderRadius: BorderRadius.circular(8),

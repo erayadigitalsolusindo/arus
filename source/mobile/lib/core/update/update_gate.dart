@@ -45,10 +45,54 @@ class _UpdateGateState extends ConsumerState<UpdateGate>
     return Stack(
       children: [
         widget.child,
-        if (u.required) Positioned.fill(child: _UpdateScreen(state: u)),
+        // Saat mengunduh, aplikasi tetap bisa dipakai; layar wajib baru muncul saat siap dipasang.
+        if (u.phase == UpdatePhase.downloading)
+          Positioned(top: 0, left: 0, right: 0, child: _UpdateBar(state: u))
+        else if (u.required)
+          Positioned.fill(child: _UpdateScreen(state: u)),
       ],
     );
   }
+}
+
+/// Garis tipis di tepi atas layar selama unduhan berjalan (tidak menutupi ikon apa pun); oranye bila menunggu Wi-Fi.
+class _UpdateBar extends StatelessWidget {
+  const _UpdateBar({required this.state});
+
+  final UpdateState state;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: LinearProgressIndicator(
+      minHeight: 3,
+      value: state.waiting || state.progress <= 0 ? null : state.progress,
+      color: state.waiting ? Colors.orange : null,
+    ),
+  );
+}
+
+/// Tanya lalu lanjutkan unduhan lewat data seluler (saat antre menunggu Wi-Fi).
+Future<void> confirmUseData(BuildContext context, WidgetRef ref) async {
+  final l = AppLocalizations.of(context);
+  final m = MaterialLocalizations.of(context);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(l.updateUseData),
+      content: Text(l.updateWaitingWifi),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c, false),
+          child: Text(m.cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(c, true),
+          child: Text(m.okButtonLabel),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) ref.read(appUpdateProvider.notifier).start();
 }
 
 class _UpdateScreen extends ConsumerWidget {
@@ -64,7 +108,8 @@ class _UpdateScreen extends ConsumerWidget {
         state.phase == UpdatePhase.downloading ||
         state.phase == UpdatePhase.installing;
     final msg = switch (state.phase) {
-      UpdatePhase.downloading => l.updateDownloading,
+      UpdatePhase.downloading =>
+        state.waiting ? l.updateWaitingWifi : l.updateDownloading,
       UpdatePhase.installing => l.updateInstalling,
       UpdatePhase.needsPermission => l.updatePermission,
       UpdatePhase.failed => l.updateFailed,
@@ -115,6 +160,15 @@ class _UpdateScreen extends ConsumerWidget {
                         '${(state.progress * 100).round()}%',
                         textAlign: TextAlign.center,
                       ),
+                      if (state.waiting) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              ref.read(appUpdateProvider.notifier).start(),
+                          icon: const Icon(Icons.signal_cellular_alt),
+                          label: Text(l.updateUseData),
+                        ),
+                      ],
                     ] else if (busy)
                       const LinearProgressIndicator()
                     else

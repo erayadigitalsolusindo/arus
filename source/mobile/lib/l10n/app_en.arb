@@ -1257,5 +1257,10 @@
   "qrisTokoSavedLabel": "QRIS now saved on the server",
   "listenerTitle": "EraPay Listener",
   "listenerSubtitle": "Install or open it; settings are filled in automatically",
-  "listenerNotInstalled": "EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations)."
+  "listenerNotInstalled": "EraPay Listener is not installed. Download it from the EraPay dashboard (Integrations).",
+  "listenerLoginMissing": "EraPay Listener is not installed. Sign in first, then open it from Settings to install it.",
+  "updateWaitingWifi": "Waiting for Wi-Fi to download the update…",
+  "updateUseData": "Download using mobile data",
+  "settingsUpdateWifiOnly": "Download updates over Wi-Fi only",
+  "settingsUpdateWifiOnlyHint": "Turn off to let updates download automatically over mobile data."
 }

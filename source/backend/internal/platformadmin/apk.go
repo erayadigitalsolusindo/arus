@@ -138,6 +138,8 @@ func (h *Handler) APKDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "arus-kasir.apk"}))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-cache")
+	// WriteTimeout server (30 dtk) memutus APK besar di koneksi lambat; beri waktu khusus untuk unduhan ini.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(15 * time.Minute))
 	modTime := in.UploadedAt
 	http.ServeContent(w, r, "arus-kasir.apk", modTime, f)
 }

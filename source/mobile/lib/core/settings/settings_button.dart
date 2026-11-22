@@ -6,7 +6,9 @@ import '../locale/locale_controller.dart';
 import '../theme/app_theme.dart';
 import '../theme/text_scale_controller.dart';
 import '../theme/theme_controller.dart';
+import '../update/app_update.dart';
 import '../update/update_check.dart';
+import '../update/update_gate.dart';
 import 'listener_tile.dart';
 import 'qris_toko.dart';
 
@@ -87,6 +89,7 @@ class _SettingsDialog extends ConsumerWidget {
     final scale = ref.watch(textScaleProvider);
     final scaleCtrl = ref.read(textScaleProvider.notifier);
     final has = ref.watch(updateAvailableProvider);
+    final up = ref.watch(appUpdateProvider);
 
     return AlertDialog(
       scrollable: true,
@@ -187,6 +190,16 @@ class _SettingsDialog extends ConsumerWidget {
                 ),
               ),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l.settingsUpdateWifiOnly),
+              subtitle: Text(
+                l.settingsUpdateWifiOnlyHint,
+                style: TextStyle(fontSize: 12, color: pal.textTertiary),
+              ),
+              value: ref.watch(updateWifiOnlyProvider),
+              onChanged: ref.read(updateWifiOnlyProvider.notifier).set,
+            ),
             const QrisTokoTile(),
             const ListenerTile(),
             Material(
@@ -206,10 +219,20 @@ class _SettingsDialog extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
-                  has ? l.updAvailableBadge : l.settingsUpdateHint,
+                  up.phase == UpdatePhase.downloading
+                      ? (up.waiting
+                            ? l.updateWaitingWifi
+                            : '${l.updateDownloading} ${(up.progress * 100).round()}%')
+                      : has
+                      ? l.updAvailableBadge
+                      : l.settingsUpdateHint,
                   style: TextStyle(fontSize: 12, color: pal.textTertiary),
                 ),
                 onTap: () {
+                  if (up.waiting) {
+                    confirmUseData(context, ref);
+                    return;
+                  }
                   Navigator.pop(context);
                   checkForUpdates(context, ref);
                 },

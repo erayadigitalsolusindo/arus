@@ -1362,5 +1362,10 @@
   "qrisTokoSavedLabel": "QRIS yang kini tersimpan di server",
   "listenerTitle": "EraPay Listener",
   "listenerSubtitle": "Install atau buka; pengaturan terisi otomatis",
-  "listenerNotInstalled": "EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi)."
+  "listenerNotInstalled": "EraPay Listener belum terpasang. Unduh dari dashboard EraPay (Integrasi).",
+  "listenerLoginMissing": "EraPay Listener belum terpasang. Masuk dulu, lalu buka dari Pengaturan untuk memasangnya.",
+  "updateWaitingWifi": "Menunggu Wi-Fi untuk mengunduh pembaruan…",
+  "updateUseData": "Unduh pakai data seluler",
+  "settingsUpdateWifiOnly": "Unduh pembaruan hanya lewat Wi-Fi",
+  "settingsUpdateWifiOnlyHint": "Matikan agar pembaruan boleh diunduh otomatis memakai data seluler."
 }

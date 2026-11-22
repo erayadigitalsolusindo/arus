@@ -1,5 +1,7 @@
 package id.co.erayadigital.arus_mobile
 
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -21,6 +23,53 @@ class MainActivity : FlutterActivity() {
                         val p = packageManager.getPackageInfo(packageName, 0)
                         val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) p.longVersionCode else @Suppress("DEPRECATION") p.versionCode.toLong()
                         result.success(mapOf("versionName" to (p.versionName ?: ""), "versionCode" to code, "cacheDir" to cacheDir.absolutePath))
+                    }
+                    // Unduhan lewat DownloadManager sistem: tetap jalan saat layar tidur/aplikasi ditutup, lanjut otomatis (Range) bila putus.
+                    "download" -> {
+                        val url = call.argument<String>("url")
+                        val dir = getExternalFilesDir(null)
+                        if (url == null || dir == null) {
+                            result.error("ARG", "url/dir", null)
+                        } else {
+                            val file = File(dir, "arus-update.apk")
+                            file.delete()
+                            val req = DownloadManager.Request(Uri.parse(url))
+                                .setTitle("ARUS")
+                                .setMimeType("application/vnd.android.package-archive")
+                                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                .setDestinationUri(Uri.fromFile(file))
+                            if (call.argument<Boolean>("wifiOnly") == true) req.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
+                            call.argument<Map<String, String>>("headers")?.forEach { (k, v) -> req.addRequestHeader(k, v) }
+                            val id = (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(req)
+                            result.success(mapOf("id" to id, "path" to file.absolutePath))
+                        }
+                    }
+                    "downloadStatus" -> {
+                        val id = call.argument<Number>("id")?.toLong() ?: -1L
+                        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                        dm.query(DownloadManager.Query().setFilterById(id)).use { c ->
+                            if (!c.moveToFirst()) {
+                                result.success(mapOf("state" to "missing", "got" to 0L, "total" to 0L))
+                            } else {
+                                val state = when (c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
+                                    DownloadManager.STATUS_SUCCESSFUL -> "done"
+                                    DownloadManager.STATUS_FAILED -> "failed"
+                                    DownloadManager.STATUS_PAUSED -> "paused"
+                                    DownloadManager.STATUS_PENDING -> "pending"
+                                    else -> "running"
+                                }
+                                result.success(mapOf(
+                                    "state" to state,
+                                    "got" to c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)),
+                                    "total" to c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)),
+                                ))
+                            }
+                        }
+                    }
+                    "downloadRemove" -> {
+                        val id = call.argument<Number>("id")?.toLong() ?: -1L
+                        (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).remove(id)
+                        result.success(null)
                     }
                     "install" -> {
                         val path = call.argument<String>("path")
