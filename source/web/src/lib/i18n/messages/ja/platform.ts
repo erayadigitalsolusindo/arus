@@ -157,6 +157,8 @@ const platform: Messages['platform'] = {
     erapayHelp: 'この店舗をERAPAYに登録すると、オーナーがQRISとERAPAYウォレットを利用できます。情報はオーナーアカウントから取得されます。',
     erapayOn: 'ERAPAYに登録済み',
     erapayOff: 'ERAPAY未登録',
+    erapayQuick: 'QRISGateを有効化(ワンボタン)',
+    erapayQuickHelp: 'テナントをEraPayに登録し、手数料0(qrisgate-directプラン)で承認し、キーを設定したうえで、qrisgateゲートウェイを有効化してQRIS決済をそちらに振り向けます。完了済みの手順はスキップされます。店舗オーナーは静的QRISの登録とListenerのインストールだけで済みます。',
     erapayAgree: '店舗オーナーがERAPAYの規約に同意済み',
     erapayButton: 'ERAPAYに登録',
     erapayBusy: '登録中…',

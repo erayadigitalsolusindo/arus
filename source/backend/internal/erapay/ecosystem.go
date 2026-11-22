@@ -442,6 +442,31 @@ func (c *ProvisioningClient) SaveQRISGateQRIS(ctx context.Context, tenantID uuid
 	return out.Name, nil
 }
 
+// EnableQRISGate menyalakan gateway qrisgate + mengarahkan jalur pembayaran merchant ke sana (idempoten, token key).
+func (c *ProvisioningClient) EnableQRISGate(ctx context.Context, tenantID uuid.UUID) error {
+	var out struct {
+		Active bool `json:"active"`
+	}
+	status, err := c.tenantDo(ctx, http.MethodPost, tenantID, "/qrisgate/enable", nil, &out)
+	switch {
+	case err != nil:
+		return err
+	case status == http.StatusNotFound:
+		return ErrEcosystemSSO
+	case status != http.StatusOK || !out.Active:
+		return ErrUnavailable // 422: QRISGate belum bisa disiapkan untuk akun ini
+	}
+	return nil
+}
+
+// EnableQRISGateForTenant: jalur Platform Admin (otorisasi oleh pemanggil).
+func (s *Service) EnableQRISGateForTenant(ctx context.Context, tenant uuid.UUID) error {
+	if s.provisioner == nil {
+		return ErrEcosystemNotConfigured
+	}
+	return s.provisioner.EnableQRISGate(ctx, tenant)
+}
+
 // tenantDo mengirim permintaan (token key) ke /v1/integrations/arus/tenants/{id}{path}; 200 diurai ke out, 404 dan 422
 // dikembalikan sebagai status agar pemanggil memberi arti. Isi QRIS tidak dicatat di log.
 func (c *ProvisioningClient) tenantDo(ctx context.Context, method string, tenantID uuid.UUID, path string, body []byte, out any) (int, error) {

@@ -160,6 +160,8 @@ const platform: Messages['platform'] = {
     erapayHelp: 'Register this store with ERAPAY so the owner can use QRIS and the ERAPAY wallet. Details come from the owner account.',
     erapayOn: 'Registered with ERAPAY',
     erapayOff: 'Not registered with ERAPAY',
+    erapayQuick: 'Activate QRISGate (1 button)',
+    erapayQuickHelp: 'Registers the tenant at EraPay, approves it with 0 fees (qrisgate-direct plan), installs the key, then switches on the qrisgate gateway and routes the tenant\'s QRIS payments to it. Finished steps are skipped. The store owner then only needs to enter the static QRIS and install the Listener.',
     erapayAgree: 'The store owner has accepted the ERAPAY terms',
     erapayButton: 'Register with ERAPAY',
     erapayBusy: 'Registering…',

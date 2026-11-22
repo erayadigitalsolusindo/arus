@@ -122,6 +122,25 @@
       eraKeyBusy = false;
     }
   }
+  async function quickstartEra() {
+    if (eraKeyBusy || !eraAgreed || !eraStepOk) return;
+    eraKeyBusy = true;
+    error = '';
+    try {
+      const r = await platformApi.erapayQuickstart(id, eraPass, eraCode.trim());
+      eraActive = r.active;
+      eraMerchant = 'approved';
+      eraKeyHint = r.key_hint;
+      eraDone = true;
+      await loadAudit();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      eraPass = '';
+      eraCode = '';
+      eraKeyBusy = false;
+    }
+  }
   async function activateEra() {
     if (!eraAgreed || eraBusy) return;
     eraBusy = true;
@@ -584,6 +603,21 @@
         {@render cardHead('wallet', t('platform.tenant.erapayTitle'))}
         <div class="p-5 space-y-3">
           <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayHelp')}</p>
+          {#if !eraActive || !eraKeyHint}
+            <div class="space-y-2 rounded-lg border border-[var(--border-subtle)] p-3">
+              <p class="text-[12px] font-semibold text-[var(--text-secondary)]">{t('platform.tenant.erapayQuick')}</p>
+              <p class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenant.erapayQuickHelp')}</p>
+              <label class="flex items-start gap-2 text-[12.5px]">
+                <input type="checkbox" class="mt-0.5" bind:checked={eraAgreed} />
+                <span>{t('platform.tenant.erapayAgree')}</span>
+              </label>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <input class="field-control" type="password" autocomplete="current-password" placeholder={t('platform.tenant.erapayPassword')} bind:value={eraPass} />
+                <input class="field-control font-mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder={t('platform.tenant.erapayTotp')} bind:value={eraCode} />
+              </div>
+              <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!eraAgreed || !eraStepOk || eraKeyBusy} onclick={quickstartEra}>{eraKeyBusy ? t('platform.tenant.erapayBusy') : t('platform.tenant.erapayQuick')}</button>
+            </div>
+          {/if}
           {#if eraActive}
             <p class="text-[12.5px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{eraDone ? t('platform.tenant.erapayDone') : t('platform.tenant.erapayOn')}</p>
           {:else}

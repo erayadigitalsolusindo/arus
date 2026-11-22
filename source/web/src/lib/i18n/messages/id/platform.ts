@@ -155,6 +155,8 @@ export default {
     erapayHelp: 'Daftarkan toko ini ke ERAPAY agar pemilik bisa memakai QRIS dan dompet ERAPAY. Data diambil dari akun pemilik toko.',
     erapayOn: 'Sudah terdaftar di ERAPAY',
     erapayOff: 'Belum terdaftar di ERAPAY',
+    erapayQuick: 'Aktifkan QRISGate (1 tombol)',
+    erapayQuickHelp: 'Mendaftarkan tenant ke EraPay, menyetujui dengan tarif 0 (plan qrisgate-direct), memasang key, lalu menyalakan gateway qrisgate dan mengarahkan pembayaran QRIS tenant ke sana. Langkah yang sudah selesai dilewati. Pemilik toko tinggal mengisi QRIS statis dan memasang Listener.',
     erapayAgree: 'Pemilik toko sudah menyetujui syarat ERAPAY',
     erapayButton: 'Daftarkan ke ERAPAY',
     erapayBusy: 'Mendaftarkan…',

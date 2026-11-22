@@ -225,3 +225,28 @@ func TestProvisioningClientListenerLink(t *testing.T) {
 		t.Fatalf("422: %v", err)
 	}
 }
+
+func TestProvisioningClientEnableQRISGate(t *testing.T) {
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	status, body := http.StatusOK, `{"active":true}`
+	var gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	c := NewProvisioningClient(srv.URL, "provision-token")
+	c.keyToken = "key-token"
+	if err := c.EnableQRISGate(t.Context(), tenant); err != nil || gotMethod != "POST" || gotPath != "/v1/integrations/arus/tenants/"+tenant.String()+"/qrisgate/enable" {
+		t.Fatalf("enable: %v %s %s", err, gotMethod, gotPath)
+	}
+	status = http.StatusNotFound
+	if err := c.EnableQRISGate(t.Context(), tenant); !errors.Is(err, ErrEcosystemSSO) {
+		t.Fatalf("404: %v", err)
+	}
+	status = http.StatusUnprocessableEntity
+	if err := c.EnableQRISGate(t.Context(), tenant); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("422: %v", err)
+	}
+}

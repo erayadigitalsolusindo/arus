@@ -23,6 +23,7 @@ type ERAPay interface {
 	IssueKeyForTenant(ctx context.Context, tenant uuid.UUID, adminName string, fees *erapay.Fees) (erapay.Config, error)
 	ConfigForTenant(ctx context.Context, tenant uuid.UUID) (erapay.Config, error)
 	SetPartnerPaymentForTenant(ctx context.Context, tenant uuid.UUID, on bool) (erapay.Config, error)
+	EnableQRISGateForTenant(ctx context.Context, tenant uuid.UUID) error
 }
 
 func (h *Handler) erapayFail(w http.ResponseWriter, r *http.Request, err error) {
@@ -227,6 +228,70 @@ func (h *Handler) ERAPayIssueKey(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error("audit erapay gagal", "err", err)
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"key_configured": cfg.Configured, "key_hint": cfg.KeyHint, "environment": cfg.Environment})
+}
+
+// ERAPayQuickstart: satu tombol untuk menyiapkan tenant ke EraPay/QRISGate: daftar, setujui dengan tarif 0 (plan
+// qrisgate-direct), terbitkan key, nyalakan QRISGate. Langkah yang sudah selesai dilewati, jadi aman diulang.
+// Terakhir, gateway qrisgate dinyalakan dan jalur pembayaran diarahkan ke sana (butuh EraPay yang punya endpoint enable).
+func (h *Handler) ERAPayQuickstart(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		OwnerAgreed bool   `json:"owner_agreed"`
+		Password    string `json:"password"`
+		Code        string `json:"code"`
+	}
+	if !httpx.DecodeJSONLimit(w, r, &in, 2<<10) {
+		return
+	}
+	if !in.OwnerAgreed {
+		httpx.ValidationError(w, map[string]string{"owner_agreed": "REQUIRED"})
+		return
+	}
+	a := actor(r)
+	if !h.stepUp(w, r, a, in.Password, in.Code) {
+		return
+	}
+	if h.ERAPay == nil {
+		h.erapayFail(w, r, erapay.ErrEcosystemNotConfigured)
+		return
+	}
+	st, err := h.ERAPay.StatusForTenant(r.Context(), id)
+	if err != nil {
+		h.erapayFail(w, r, err)
+		return
+	}
+	if !st.Active {
+		if st, err = h.ERAPay.ActivateForTenant(r.Context(), id); err != nil {
+			h.erapayFail(w, r, err)
+			return
+		}
+		if err := h.svc.recordERAPay(r.Context(), a, id, ActionERAPay, audit.ActionPlatformERAPay, map[string]any{"owner_agreed": true, "via": "quickstart"}); err != nil {
+			h.Log.Error("audit erapay gagal", "err", err)
+		}
+	}
+	cfg, err := h.ERAPay.ConfigForTenant(r.Context(), id)
+	if err != nil {
+		h.erapayFail(w, r, err)
+		return
+	}
+	if !cfg.Configured {
+		fees := erapay.Fees{} // semua 0 = plan qrisgate-direct
+		if cfg, err = h.ERAPay.IssueKeyForTenant(r.Context(), id, a.Name, &fees); err != nil {
+			h.erapayFail(w, r, err)
+			return
+		}
+		if err := h.svc.recordERAPay(r.Context(), a, id, ActionERAPayKey, audit.ActionPlatformERAPayKey, map[string]any{"key_hint": cfg.KeyHint, "environment": cfg.Environment, "issued": "quickstart", "fees": fees}); err != nil {
+			h.Log.Error("audit erapay gagal", "err", err)
+		}
+	}
+	if err := h.ERAPay.EnableQRISGateForTenant(r.Context(), id); err != nil {
+		h.erapayFail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"active": st.Active, "merchant_status": "approved", "key_configured": cfg.Configured, "key_hint": cfg.KeyHint, "environment": cfg.Environment})
 }
 
 func (s *Service) recordERAPay(ctx context.Context, a Actor, tenantID uuid.UUID, action, auditAction string, details map[string]any) error {
