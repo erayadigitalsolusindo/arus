@@ -208,7 +208,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get posClearCartNo => 'Keep';
 
   @override
+  String posInCart(String qty, String unit) {
+    return 'Buy: $qty $unit';
+  }
+
+  @override
   String get posAddedToCart => 'Added';
+
+  @override
+  String get posQtyAdd => 'Add to cart';
 
   @override
   String get posRemoveLine => 'Remove';

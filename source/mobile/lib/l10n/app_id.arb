@@ -82,7 +82,9 @@
   "posClearCartAskBody": "Semua barang di keranjang akan dihapus dan tidak bisa dikembalikan.",
   "posClearCartYes": "Ya, kosongkan",
   "posClearCartNo": "Batal",
+  "posInCart": "Beli: {qty} {unit}",
   "posAddedToCart": "Ditambahkan",
+  "posQtyAdd": "Tambah ke keranjang",
   "posRemoveLine": "Hapus",
   "posStock": "Stok {qty}",
   "posStockShort": "Stok kurang (tersedia {qty})",
@@ -160,6 +162,16 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "@posInCart": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
       }
     }
   },

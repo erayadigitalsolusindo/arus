@@ -1098,6 +1098,13 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                     : (v) {
                         r.method = methods.firstWhere((m) => m.id == v);
                         r.timer?.cancel(); // ganti metode: hentikan polling QR
+                        // EraPay: nominal terkunci, isi otomatis dengan sisa tagihan.
+                        if (_isEra(r)) {
+                          final need = _needFor(r);
+                          if (need > Decimal.zero) {
+                            r.amount.text = formatMoney(need, symbol: false);
+                          }
+                        }
                         _edited();
                       },
               ),
@@ -1108,6 +1115,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               child: TextField(
                 controller: r.amount,
                 enabled: !_busy,
+                readOnly: _isEra(r), // nominal EraPay mengikuti tagihan
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),

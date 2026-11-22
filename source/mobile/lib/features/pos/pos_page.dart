@@ -28,6 +28,7 @@ import 'item_thumb.dart';
 import 'line_adjust_sheet.dart';
 import 'member_picker.dart';
 import 'pay_sheet.dart';
+import 'qty_sheet.dart';
 import 'pending_controller.dart';
 import 'pending_sheet.dart';
 import 'outbox_button.dart';
@@ -912,9 +913,11 @@ class _ProductCardState extends ConsumerState<_ProductCard>
     super.dispose();
   }
 
-  void _add() {
+  Future<void> _add() async {
+    final qty = await showQtyDialog(context, item);
+    if (qty == null || !mounted) return;
     HapticFeedback.lightImpact();
-    ref.read(cartProvider.notifier).add(item);
+    ref.read(cartProvider.notifier).add(item, qty: qty);
     _fx.forward(from: 0);
   }
 
@@ -926,6 +929,14 @@ class _ProductCardState extends ConsumerState<_ProductCard>
     final showStock =
         item.isGoods && ref.watch(appModeProvider) == AppMode.inventory;
     final out = showStock && item.stockDisplay <= Decimal.zero;
+    // Jumlah barang ini di keranjang (akumulasi semua input), tampil terus di pojok kartu.
+    final inCart = ref.watch(
+      cartProvider.select(
+        (c) => c.lines
+            .where((x) => x.item.id == item.id)
+            .fold(Decimal.zero, (a, x) => a + x.qty),
+      ),
+    );
     return AnimatedBuilder(
       animation: _fx,
       builder: (context, child) {
@@ -934,52 +945,32 @@ class _ProductCardState extends ConsumerState<_ProductCard>
         final bump = t < 0.3
             ? 1 + 0.06 * Curves.easeOut.transform(t / 0.3)
             : 1 + 0.06 * (1 - Curves.easeIn.transform((t - 0.3) / 0.7));
-        final badge = t == 0 || t == 1
-            ? 0.0
-            : t < 0.15
-            ? t / 0.15
-            : t > 0.7
-            ? (1 - t) / 0.3
-            : 1.0;
         return Transform.scale(
           scale: bump,
           child: Stack(
             children: [
               child!,
-              if (badge > 0)
+              if (inCart > Decimal.zero)
                 Positioned(
                   top: 6,
                   right: 6,
                   child: IgnorePointer(
-                    child: Opacity(
-                      opacity: badge,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: pal.success,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              l.posAddedToCart,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: pal.success,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        l.posInCart(formatQty(inCart), item.unit).trim(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),

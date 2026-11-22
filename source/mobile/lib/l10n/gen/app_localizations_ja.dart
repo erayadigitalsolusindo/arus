@@ -203,7 +203,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get posClearCartNo => '戻る';
 
   @override
+  String posInCart(String qty, String unit) {
+    return '購入: $qty $unit';
+  }
+
+  @override
   String get posAddedToCart => '追加しました';
+
+  @override
+  String get posQtyAdd => 'カートに追加';
 
   @override
   String get posRemoveLine => '削除';

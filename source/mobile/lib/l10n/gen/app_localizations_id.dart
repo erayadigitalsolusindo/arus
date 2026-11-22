@@ -208,7 +208,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get posClearCartNo => 'Batal';
 
   @override
+  String posInCart(String qty, String unit) {
+    return 'Beli: $qty $unit';
+  }
+
+  @override
   String get posAddedToCart => 'Ditambahkan';
+
+  @override
+  String get posQtyAdd => 'Tambah ke keranjang';
 
   @override
   String get posRemoveLine => 'Hapus';

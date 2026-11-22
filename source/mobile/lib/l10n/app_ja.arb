@@ -82,7 +82,9 @@
   "posClearCartAskBody": "カート内のすべての商品が削除され、元に戻せません。",
   "posClearCartYes": "はい、空にする",
   "posClearCartNo": "戻る",
+  "posInCart": "購入: {qty} {unit}",
   "posAddedToCart": "追加しました",
+  "posQtyAdd": "カートに追加",
   "posRemoveLine": "削除",
   "posStock": "在庫 {qty}",
   "posStockShort": "在庫不足（在庫 {qty}）",
@@ -160,6 +162,16 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "@posInCart": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
       }
     }
   },

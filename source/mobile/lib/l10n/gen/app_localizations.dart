@@ -466,11 +466,23 @@ abstract class AppLocalizations {
   /// **'Batal'**
   String get posClearCartNo;
 
+  /// No description provided for @posInCart.
+  ///
+  /// In id, this message translates to:
+  /// **'Beli: {qty} {unit}'**
+  String posInCart(String qty, String unit);
+
   /// No description provided for @posAddedToCart.
   ///
   /// In id, this message translates to:
   /// **'Ditambahkan'**
   String get posAddedToCart;
+
+  /// No description provided for @posQtyAdd.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambah ke keranjang'**
+  String get posQtyAdd;
 
   /// No description provided for @posRemoveLine.
   ///
