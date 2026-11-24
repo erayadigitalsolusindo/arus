@@ -34,6 +34,7 @@ const platform: Messages['platform'] = {
     expEmpty: 'この期間に終了するプランはありません。',
     outlet: '店舗', address: '住所', coords: '座標', map: '地図', noLoc: '未設定', withLoc: '位置設定済み', withoutLoc: '位置未設定', onlyMissing: '未設定のみ',
     fSearch: 'テナント・店舗・住所を検索', fTenant: 'すべてのテナント', fStatus: 'すべての状態', fActive: '有効', fLoc: 'すべての位置', fHasLoc: '位置設定済み', fReset: 'フィルターをリセット', fCount: '{total} 件中 {shown} 件を表示',
+    fOutletsLoc: '店舗 {n} · 位置設定済み {m}', fOpenTenant: 'テナントを開く', coordInvalid: '形式: 緯度, 経度（例: -5.147665, 119.432732）', save: '保存', fClear: '削除',
     locHint: '位置はテナントが「設定 › 店舗」のGPSボタンで登録します。',
     empty: 'データがありません。', loadFailed: 'レポートの読み込みに失敗しました。'
   },
@@ -537,6 +538,7 @@ const platform: Messages['platform'] = {
       platform_tenant_status: 'テナントのステータスを変更しました',
       platform_tenant_rename: '店舗名/コードを変更しました',
       platform_tenant_create: 'テナントを登録しました(一括)',
+      platform_outlet_location: '店舗の位置を設定しました',
       platform_user_email: 'ユーザーのログインメールを変更しました',
       platform_tenant_edit_window: 'レシート編集期間を変更しました',
       platform_tenant_delete_schedule: 'テナントの削除をスケジュールしました',

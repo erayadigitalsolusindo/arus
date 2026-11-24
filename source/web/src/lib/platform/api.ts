@@ -267,6 +267,8 @@ export const platformApi = {
     papi<{ items: SalesReportRow[]; from: string; to: string }>(`/platform/reports/sales?${new URLSearchParams({ from, to })}`),
   salesMonthly: (id: string) => papi<{ items: SalesMonth[] }>(`/platform/reports/sales/${id}/monthly`).then((r) => r.items),
   expiringReport: (days: number) => papi<{ items: ExpiringRow[] }>(`/platform/reports/expiring?days=${days}`).then((r) => r.items),
+  setOutletLocation: (tenantId: string, outletId: string, latitude: number | null, longitude: number | null) =>
+    papi<void>(`/platform/tenants/${tenantId}/outlets/${outletId}/location`, { method: 'PUT', body: json({ latitude, longitude }) }),
   outletLocations: () => papi<{ items: OutletLocation[] }>('/platform/reports/locations').then((r) => r.items),
   backup: () => papi<{ config: BackupConfig; runs: BackupRun[] }>('/platform/backup'),
   saveBackup: (body: BackupSave) => papi<{ ok: boolean }>('/platform/backup', { method: 'PUT', body: json(body) }),

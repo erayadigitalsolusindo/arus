@@ -107,6 +107,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/platform/tenants/{id}", h.GetTenant)
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
 			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)
+			r.Put("/platform/tenants/{id}/outlets/{outletId}/location", h.SetOutletLocation)
 			r.Get("/platform/tenants/{id}/audit", h.TenantAudit)
 			r.Post("/platform/tenants/{id}/impersonate", h.Impersonate)
 			r.Get("/platform/tenants/{id}/erapay", h.ERAPayStatus)

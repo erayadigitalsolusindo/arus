@@ -32,6 +32,7 @@ export default {
     expEmpty: 'Tidak ada paket yang berakhir dalam rentang ini.',
     outlet: 'Outlet', address: 'Alamat', coords: 'Koordinat', map: 'Peta', noLoc: 'Belum diisi', withLoc: 'Outlet berlokasi', withoutLoc: 'Belum ada lokasi', onlyMissing: 'Hanya yang belum berlokasi',
     fSearch: 'Cari tenant, outlet, atau alamat', fTenant: 'Semua tenant', fStatus: 'Semua status', fActive: 'Aktif', fLoc: 'Semua lokasi', fHasLoc: 'Sudah berlokasi', fReset: 'Reset filter', fCount: 'Menampilkan {shown} dari {total} outlet',
+    fOutletsLoc: '{n} outlet · {m} berlokasi', fOpenTenant: 'Buka tenant', coordInvalid: 'Format: latitude, longitude (contoh -5.147665, 119.432732)', save: 'Simpan', fClear: 'Hapus',
     locHint: 'Lokasi diisi tenant di Pengaturan › Outlet lewat tombol GPS.',
     empty: 'Belum ada data.', loadFailed: 'Gagal memuat laporan.'
   },
@@ -535,6 +536,7 @@ export default {
       platform_tenant_status: 'Mengubah status tenant',
       platform_tenant_rename: 'Mengganti nama/kode toko',
       platform_tenant_create: 'Mendaftarkan tenant (massal)',
+      platform_outlet_location: 'Mengisi lokasi outlet',
       platform_user_email: 'Mengubah email login pengguna',
       platform_tenant_edit_window: 'Mengubah batas waktu edit nota',
       platform_tenant_delete_schedule: 'Menjadwalkan hapus tenant',

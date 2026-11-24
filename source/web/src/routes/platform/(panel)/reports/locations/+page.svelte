@@ -31,6 +31,38 @@
       (!fLoc || (l.latitude !== null) === (fLoc === 'has')) &&
       (!k || `${l.tenant_name} ${l.outlet_name} ${l.address}`.toLowerCase().includes(k)));
   });
+  // Dikelompokkan per tenant untuk accordion (urutan mengikuti API: nama tenant).
+  const groups = $derived.by(() => {
+    const m = new Map<string, { id: string; name: string; items: OutletLocation[] }>();
+    for (const l of shownLocs) (m.get(l.tenant_id) ?? m.set(l.tenant_id, { id: l.tenant_id, name: l.tenant_name, items: [] }).get(l.tenant_id)!).items.push(l);
+    return [...m.values()];
+  });
+  // Isian koordinat per outlet: satu kolom "lat, lng" (format salin dari Google Maps).
+  let draft = $state<Record<string, string>>({});
+  let busy = $state<Record<string, boolean>>({});
+  let rowErr = $state<Record<string, string>>({});
+  const cur = (l: OutletLocation) => (l.latitude !== null ? `${l.latitude}, ${l.longitude}` : '');
+  const val = (l: OutletLocation) => draft[l.outlet_id] ?? cur(l);
+
+  async function save(l: OutletLocation, clear = false) {
+    const raw = clear ? '' : val(l).trim();
+    let lat: number | null = null, lng: number | null = null;
+    if (raw) {
+      const m = raw.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+      lat = m ? Number(m[1]) : NaN; lng = m ? Number(m[2]) : NaN;
+      if (!m || Math.abs(lat) > 90 || Math.abs(lng) > 180) { rowErr[l.outlet_id] = t('platform.reports.coordInvalid'); return; }
+    }
+    busy[l.outlet_id] = true; rowErr[l.outlet_id] = '';
+    try {
+      await platformApi.setOutletLocation(l.tenant_id, l.outlet_id, lat, lng);
+      locs = locs.map((x) => (x.outlet_id === l.outlet_id ? { ...x, latitude: lat, longitude: lng } : x));
+      delete draft[l.outlet_id];
+    } catch (err) {
+      rowErr[l.outlet_id] = errorMessage(err);
+    } finally {
+      busy[l.outlet_id] = false;
+    }
+  }
   const reset = () => { q = ''; fTenant = ''; fStatus = ''; fLoc = ''; };
   const sel = 'h-9 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] text-[12.5px]';
   const located = $derived(locs.filter((l) => l.latitude !== null).length);
@@ -85,39 +117,43 @@
   </div>
   <p class="text-[11.5px] -mt-2 text-[var(--text-tertiary)]">{t('platform.reports.locHint')}</p>
   <OutletMap items={shownLocs} />
-  <div class="surface-card !p-0 overflow-hidden">
-    <div class="overflow-x-auto scroll-thin">
-      <table class="w-full text-[12.5px] min-w-[720px]">
-        <thead>
-          <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
-            <th class="{th} text-start" scope="col">{t('platform.reports.tenant')}</th>
-            <th class="{th} text-start" scope="col">{t('platform.reports.outlet')}</th>
-            <th class="{th} text-start" scope="col">{t('platform.reports.address')}</th>
-            <th class="{th} text-start" scope="col">{t('platform.reports.coords')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#if loading}
-            <tr><td colspan="4" class="px-4 py-3"><div class="h-7 rounded-lg bg-[var(--surface-sunken)] animate-pulse"></div></td></tr>
-          {:else if shownLocs.length === 0}
-            <tr><td colspan="4" class="px-4 py-10 text-center text-[var(--text-tertiary)]">{t('platform.reports.empty')}</td></tr>
-          {:else}
-            {#each shownLocs as l (l.outlet_id)}
-              <tr class="border-t border-[var(--border-subtle)]">
-                <td class="px-4 py-2.5 font-semibold"><a href="/platform/tenants/{l.tenant_id}" class="text-[var(--color-primary-700)] hover:underline">{l.tenant_name}</a></td>
-                <td class="px-4 py-2.5">{l.outlet_name}{#if !l.active} <span class="badge-neutral rounded-full px-1.5 py-0.5 text-[10.5px]">{t('platform.reports.inactive')}</span>{/if}</td>
-                <td class="px-4 py-2.5 text-[var(--text-secondary)]">{l.address || '—'}</td>
-                <td class="px-4 py-2.5">
-                  {#if l.latitude !== null && l.longitude !== null}
-                    <a href={mapUrl(l)} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-mono text-[12px] text-[var(--color-primary-700)] hover:underline"><i class="icon-map-pin text-[13px]"></i>{l.latitude.toFixed(5)}, {l.longitude.toFixed(5)}</a>
-                  {:else}
-                    <span class="text-[var(--text-tertiary)]">{t('platform.reports.noLoc')}</span>
+  <div class="space-y-2">
+    {#if loading}
+      <div class="h-12 rounded-lg bg-[var(--surface-sunken)] animate-pulse"></div>
+    {:else if groups.length === 0}
+      <div class="surface-card text-center text-[var(--text-tertiary)] py-10">{t('platform.reports.empty')}</div>
+    {:else}
+      {#each groups as g (g.id)}
+        <details class="surface-card !p-0 group" open={!!filtered}>
+          <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none list-none">
+            <i class="icon-chevron-right text-[14px] transition-transform group-open:rotate-90"></i>
+            <span class="font-semibold flex-1 min-w-0 truncate">{g.name}</span>
+            <span class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.reports.fOutletsLoc', { n: g.items.length, m: g.items.filter((x) => x.latitude !== null).length })}</span>
+            <a href="/platform/tenants/{g.id}" class="text-[12px] text-[var(--color-primary-700)] hover:underline" onclick={(e) => e.stopPropagation()}>{t('platform.reports.fOpenTenant')}</a>
+          </summary>
+          <div class="border-t border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
+            {#each g.items as l (l.outlet_id)}
+              <div class="px-4 py-3 grid gap-2 md:grid-cols-[1fr_minmax(0,320px)_auto] md:items-center">
+                <div class="min-w-0">
+                  <div class="font-medium">{l.outlet_name}{#if !l.active} <span class="badge-neutral rounded-full px-1.5 py-0.5 text-[10.5px]">{t('platform.reports.inactive')}</span>{/if}</div>
+                  <div class="text-[12px] text-[var(--text-secondary)] truncate">{l.address || '—'}</div>
+                </div>
+                <div>
+                  <input class="{sel} w-full font-mono" placeholder="-5.147665, 119.432732" aria-label={t('platform.reports.coords')}
+                    value={val(l)} oninput={(e) => (draft[l.outlet_id] = e.currentTarget.value)} onkeydown={(e) => e.key === 'Enter' && save(l)} />
+                  {#if rowErr[l.outlet_id]}<p role="alert" class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{rowErr[l.outlet_id]}</p>{/if}
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={busy[l.outlet_id] || val(l).trim() === cur(l)} onclick={() => save(l)}>{t('platform.reports.save')}</button>
+                  {#if l.latitude !== null}
+                    <a href={mapUrl(l)} target="_blank" rel="noopener noreferrer" class="text-[var(--color-primary-700)]" aria-label={t('platform.reports.map')}><i class="icon-map-pin text-[15px]"></i></a>
+                    <button type="button" class="text-[12px] text-[var(--text-tertiary)] hover:underline" disabled={busy[l.outlet_id]} onclick={() => save(l, true)}>{t('platform.reports.fClear')}</button>
                   {/if}
-                </td>
-              </tr>
+                </div>
+              </div>
             {/each}
-          {/if}
-        </tbody>
-      </table>
-    </div>
+          </div>
+        </details>
+      {/each}
+    {/if}
   </div>

@@ -33,6 +33,7 @@ const platform: Messages['platform'] = {
     expEmpty: 'No plans expire in this window.',
     outlet: 'Outlet', address: 'Address', coords: 'Coordinates', map: 'Map', noLoc: 'Not set', withLoc: 'Outlets located', withoutLoc: 'No location yet', onlyMissing: 'Only without location',
     fSearch: 'Search tenant, outlet, or address', fTenant: 'All tenants', fStatus: 'All statuses', fActive: 'Active', fLoc: 'All locations', fHasLoc: 'With location', fReset: 'Reset filters', fCount: 'Showing {shown} of {total} outlets',
+    fOutletsLoc: '{n} outlets · {m} located', fOpenTenant: 'Open tenant', coordInvalid: 'Format: latitude, longitude (e.g. -5.147665, 119.432732)', save: 'Save', fClear: 'Clear',
     locHint: 'Tenants set the location in Settings › Outlets with the GPS button.',
     empty: 'No data yet.', loadFailed: 'Failed to load the report.'
   },
@@ -541,6 +542,7 @@ const platform: Messages['platform'] = {
       platform_tenant_status: 'Changed tenant status',
       platform_tenant_rename: 'Renamed the store / code',
       platform_tenant_create: 'Registered a tenant (bulk)',
+      platform_outlet_location: 'Set outlet location',
       platform_user_email: 'Changed a user\'s login email',
       platform_tenant_edit_window: 'Changed the receipt edit window',
       platform_tenant_delete_schedule: 'Scheduled tenant deletion',

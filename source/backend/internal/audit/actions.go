@@ -45,6 +45,7 @@ const (
 	ActionPlatformERAPay       = "platform.erapay_activate"    // tenant didaftarkan ke ERAPAY oleh operator platform
 	ActionPlatformERAPayKey    = "platform.erapay_key"         // API key ERAPAY tenant dipasang oleh operator platform
 	ActionPlatformERAPayPartner = "platform.erapay_partner" // PARTNER PAYMENT (checkout hosted) tenant dinyalakan/dimatikan operator platform
+	ActionPlatformOutletGeo    = "platform.outlet_location"    // koordinat outlet diisi/diubah operator platform
 	ActionPlatformUserEmail    = "platform.user_email"         // email login pengguna tenant diganti operator platform
 )
 

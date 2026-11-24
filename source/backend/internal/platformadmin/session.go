@@ -30,6 +30,7 @@ const (
 	ActionTenantStatus  = "platform.tenant_status"
 	ActionEditWindow    = "platform.tenant_edit_window"
 	ActionTenantRename  = "platform.tenant_rename"
+	ActionOutletGeo     = "platform.outlet_location"
 	ActionERAPay        = "platform.erapay_activate"
 	ActionERAPayKey     = "platform.erapay_key"
 	ActionERAPayPartner = "platform.erapay_partner"
