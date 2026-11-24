@@ -191,7 +191,7 @@
 
 {#if mapOpen}
   <div class="fixed inset-0 z-50 grid place-items-center p-4 bg-black/50" role="presentation" onclick={(e) => e.target === e.currentTarget && (mapOpen = false)} onkeydown={(e) => e.key === 'Escape' && (mapOpen = false)}>
-    <div role="dialog" aria-modal="true" aria-label={t('platform.reports.map')} class="surface-card w-full max-w-4xl !p-3 space-y-2">
+    <div role="dialog" aria-modal="true" aria-label={t('platform.reports.map')} class="surface-card w-full max-w-5xl !p-3 space-y-2">
       <div class="flex items-center justify-between">
         <h2 class="font-semibold text-[14px]">{t('platform.reports.map')}{#if !mapBusy} <span class="text-[var(--text-tertiary)] font-normal">· {formatNumber(mapItems.length)}</span>{/if}</h2>
         <button type="button" class="btn btn-outline !h-8 !px-2" aria-label={t('common.close')} onclick={() => (mapOpen = false)}><i class="icon-x text-[14px]"></i></button>
