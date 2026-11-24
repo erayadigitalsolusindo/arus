@@ -185,3 +185,28 @@ func TestValidateReceiptFields(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateGeo(t *testing.T) {
+	f64 := func(v float64) *float64 { return &v }
+	base := Input{Code: "ab", Name: "N"}
+	for name, c := range map[string]struct {
+		lat, lng *float64
+		ok       bool
+	}{
+		"kosong":        {nil, nil, true},
+		"valid":         {f64(-6.2), f64(106.8), true},
+		"hanya lintang": {f64(1), nil, false},
+		"lintang >90":   {f64(91), f64(0), false},
+		"bujur >180":    {f64(0), f64(181), false},
+	} {
+		in := base
+		in.Latitude, in.Longitude = c.lat, c.lng
+		cl, f := validate(in, true)
+		if (f == nil) != c.ok {
+			t.Errorf("%s: ok=%v, galat=%v", name, c.ok, f)
+		}
+		if c.ok && c.lat != nil && !cl.lat.Valid {
+			t.Errorf("%s: koordinat tidak terisi", name)
+		}
+	}
+}

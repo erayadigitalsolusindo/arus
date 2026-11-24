@@ -456,3 +456,55 @@ func cleanLines(in []string) []string {
 	}
 	return out
 }
+
+const maxBulkPlan = 500
+
+// BulkSetTenantPlan menerapkan satu paket (PlanID nil = paket default) ke banyak tenant. Override batas dan catatan
+// langganan lama dipertahankan; masa berlaku diganti dengan expiresAt. Mengembalikan id tenant yang gagal.
+func (s *Service) BulkSetTenantPlan(ctx context.Context, a Actor, ids []uuid.UUID, planID *uuid.UUID, expiresAt *time.Time) (ok int, failed []uuid.UUID, err error) {
+	if len(ids) == 0 || len(ids) > maxBulkPlan {
+		return 0, nil, FieldErrors{"tenant_ids": "INVALID"}
+	}
+	for _, id := range ids {
+		in := SetTenantPlanInput{PlanID: planID, ExpiresAt: expiresAt}
+		if planID != nil {
+			if cur, e := s.GetTenantPlan(ctx, id); e == nil && cur.Subscription != nil {
+				in.OverrideTx, in.OverrideU, in.OverrideItems, in.Note = cur.Subscription.OverrideTx, cur.Subscription.OverrideUsr, cur.Subscription.OverrideItm, cur.Subscription.Note
+			}
+		}
+		switch e := s.SetTenantPlan(ctx, a, id, in); {
+		case e == nil:
+			ok++
+		case errors.Is(e, ErrInvalidSession):
+			return ok, failed, e
+		default:
+			var fe FieldErrors
+			if errors.As(e, &fe) && fe["plan_id"] != "" {
+				return ok, failed, e // paket salah: berlaku untuk semua, hentikan
+			}
+			failed = append(failed, id)
+		}
+	}
+	return ok, failed, nil
+}
+
+// BulkSetTenantPlan: POST /platform/tenants/bulk-plan {tenant_ids, plan_id|null, expires_at|null}.
+func (h *Handler) BulkSetTenantPlan(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TenantIDs []uuid.UUID `json:"tenant_ids"`
+		PlanID    *uuid.UUID  `json:"plan_id"`
+		ExpiresAt *time.Time  `json:"expires_at"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	n, failed, err := h.svc.BulkSetTenantPlan(r.Context(), actor(r), req.TenantIDs, req.PlanID, req.ExpiresAt)
+	if err != nil {
+		h.planErr(w, r, "ubah paket massal gagal", err)
+		return
+	}
+	if failed == nil {
+		failed = []uuid.UUID{}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"updated": n, "failed": failed})
+}

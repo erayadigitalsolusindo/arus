@@ -18,6 +18,19 @@ export default {
     header: 'Teks kepala struk',
     footer: 'Teks kaki struk'
   },
+  geo: {
+    title: 'Lokasi (GPS)',
+    hint: 'Posisi outlet agar tim ACIRABA tahu di mana outlet Anda berada. Tekan tombol saat Anda berada di outlet.',
+    lat: 'Lintang',
+    lng: 'Bujur',
+    use: 'Ambil lokasi saya',
+    locating: 'Mencari lokasi…',
+    clear: 'Hapus lokasi',
+    open: 'Lihat di peta',
+    denied: 'Izin lokasi ditolak. Aktifkan izin lokasi di browser, lalu coba lagi.',
+    unavailable: 'Lokasi tidak tersedia di perangkat ini.',
+    invalid: 'Isi lintang (−90 s/d 90) dan bujur (−180 s/d 180) bersamaan, atau kosongkan keduanya.'
+  },
   taxHint: 'Persentase 0–100, maksimal 2 desimal.',
   status: 'Status',
   active: 'Aktif',

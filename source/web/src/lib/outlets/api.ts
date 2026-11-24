@@ -16,6 +16,9 @@ export type Outlet = {
   phone: string;
   receipt_header: string;
   receipt_footer: string;
+  /** Lokasi GPS; null = belum diisi. */
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type OutletInput = {
@@ -29,6 +32,8 @@ export type OutletInput = {
   phone: string;
   receipt_header: string;
   receipt_footer: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export const outlets = {

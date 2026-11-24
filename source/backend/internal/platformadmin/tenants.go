@@ -37,6 +37,16 @@ type TenantRow struct {
 	UserCount   int64      `json:"user_count"`
 	LastLoginAt *time.Time `json:"last_login_at"`
 	OwnerEmail  string     `json:"owner_email"`
+	PlanID      uuid.UUID  `json:"plan_id"`
+	PlanName    string     `json:"plan_name"`
+	PlanExpires *time.Time `json:"plan_expires_at"`
+}
+
+// TenantFilter = filter lanjutan daftar tenant; nilai kosong/nil = tidak memfilter.
+type TenantFilter struct {
+	Q, Status, Login string
+	PlanID           *uuid.UUID
+	From, To         *time.Time
 }
 
 type TenantPage struct {
@@ -47,14 +57,14 @@ type TenantPage struct {
 }
 
 // ListTenants memanggil fungsi DB yang melewati RLS (hanya untuk Platform Admin aktif; diverifikasi di DB).
-func (s *Service) ListTenants(ctx context.Context, a Actor, q string, limit, offset int) (*TenantPage, error) {
+func (s *Service) ListTenants(ctx context.Context, a Actor, f TenantFilter, limit, offset int) (*TenantPage, error) {
 	if limit <= 0 {
 		limit = defaultPage
 	}
 	limit, offset = min(limit, maxPage), max(offset, 0)
 	rows, err := s.Pool.Query(ctx,
-		`SELECT id, code, name, active, created_at, outlet_count, user_count, last_login_at, owner_email, total
-		   FROM platform_list_tenants($1, $2, $3, $4)`, a.ID, q, limit, offset)
+		`SELECT id, code, name, active, created_at, outlet_count, user_count, last_login_at, owner_email, plan_id, plan_name, plan_expires_at, total
+		   FROM platform_list_tenants($1, $2, $3, $4, $5, $6, $7, $8, $9)`, a.ID, f.Q, limit, offset, f.Status, f.PlanID, f.Login, f.From, f.To)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +75,9 @@ func (s *Service) ListTenants(ctx context.Context, a Actor, q string, limit, off
 			r     TenantRow
 			last  pgtype.Timestamptz
 			owner pgtype.Text
+			pexp  pgtype.Timestamptz
 		)
-		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Active, &r.CreatedAt, &r.OutletCount, &r.UserCount, &last, &owner, &page.Total); err != nil {
+		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Active, &r.CreatedAt, &r.OutletCount, &r.UserCount, &last, &owner, &r.PlanID, &r.PlanName, &pexp, &page.Total); err != nil {
 			return nil, err
 		}
 		if last.Valid {
@@ -74,6 +85,10 @@ func (s *Service) ListTenants(ctx context.Context, a Actor, q string, limit, off
 			r.LastLoginAt = &t
 		}
 		r.OwnerEmail = owner.String
+		if pexp.Valid {
+			t := pexp.Time
+			r.PlanExpires = &t
+		}
 		page.Items = append(page.Items, r)
 	}
 	return page, rows.Err()

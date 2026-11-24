@@ -12,7 +12,11 @@ export type TenantRow = {
   user_count: number;
   last_login_at: string | null;
   owner_email: string;
+  plan_id: string;
+  plan_name: string;
+  plan_expires_at: string | null;
 };
+export type TenantFilter = { status?: string; plan?: string; login?: string; from?: string; to?: string };
 export type BulkTenantItem = { business_name: string; email: string; owner_name?: string; outlet_name?: string; phone?: string };
 export type BulkTenantResult = { row: number; email: string; ok: boolean; tenant_id?: string; error?: string };
 export type TenantPage = { items: TenantRow[]; total: number; limit: number; offset: number };
@@ -244,7 +248,26 @@ export type BackupRun = {
 };
 export type BackupSave = { client_id: string; client_secret: string; enabled: boolean; run_hour: number; keep_count: number; include_uploads: boolean };
 
+export type SalesReportRow = {
+  tenant_id: string; code: string; name: string; active: boolean; plan_name: string; outlet_count: number;
+  sales_count: number; revenue: string; prev_count: number; prev_revenue: string; active_days: number; last_sale_at: string | null;
+};
+export type SalesMonth = { month: string; sales_count: number; revenue: string };
+export type ExpiringRow = {
+  tenant_id: string; code: string; name: string; active: boolean; owner_email: string; plan_name: string; plan_price: string;
+  expires_at: string; note: string; outlet_count: number; user_count: number; last_login_at: string | null; revenue_30d: string;
+};
+export type OutletLocation = {
+  tenant_id: string; tenant_name: string; outlet_id: string; outlet_name: string; address: string; active: boolean;
+  latitude: number | null; longitude: number | null;
+};
+
 export const platformApi = {
+  salesReport: (from: string, to: string) =>
+    papi<{ items: SalesReportRow[]; from: string; to: string }>(`/platform/reports/sales?${new URLSearchParams({ from, to })}`),
+  salesMonthly: (id: string) => papi<{ items: SalesMonth[] }>(`/platform/reports/sales/${id}/monthly`).then((r) => r.items),
+  expiringReport: (days: number) => papi<{ items: ExpiringRow[] }>(`/platform/reports/expiring?days=${days}`).then((r) => r.items),
+  outletLocations: () => papi<{ items: OutletLocation[] }>('/platform/reports/locations').then((r) => r.items),
   backup: () => papi<{ config: BackupConfig; runs: BackupRun[] }>('/platform/backup'),
   saveBackup: (body: BackupSave) => papi<{ ok: boolean }>('/platform/backup', { method: 'PUT', body: json(body) }),
   backupAuthUrl: () => papi<{ url: string }>('/platform/backup/drive/auth-url', { method: 'POST' }),
@@ -268,7 +291,10 @@ export const platformApi = {
     return papiUpload<ApkInfo>('/platform/mobile/apk', form, onProgress);
   },
   deleteApk: () => papi<void>('/platform/mobile/apk', { method: 'DELETE' }),
-  tenants: (q: string, limit: number, offset: number) => papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`),
+  tenants: (q: string, limit: number, offset: number, f: TenantFilter = {}) =>
+    papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset), ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) })}`),
+  bulkSetPlan: (tenantIds: string[], planId: string | null, expiresAt: string | null) =>
+    papi<{ updated: number; failed: string[] }>('/platform/tenants/bulk-plan', { method: 'POST', body: json({ tenant_ids: tenantIds, plan_id: planId, expires_at: expiresAt }) }),
   bulkCreateTenants: (items: BulkTenantItem[], dryRun = false) =>
     papi<{ results: BulkTenantResult[] }>('/platform/tenants/bulk', { method: 'POST', body: json({ items, dry_run: dryRun }) }),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),

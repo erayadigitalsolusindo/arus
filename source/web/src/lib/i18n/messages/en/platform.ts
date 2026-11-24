@@ -15,9 +15,28 @@ const platform: Messages['platform'] = {
     evening: 'Good evening',
     subtitle: 'ARUS control center: monitor every tenant, manage access, and trace every action through the audit log.'
   },
+  reports: {
+    title: 'Platform Reports',
+    sub: 'Track each tenant’s sales growth, plans about to expire, and outlet locations.',
+    tabSales: 'Sales', tabExpiring: 'Expiring plans', tabLocations: 'Outlet locations',
+    from: 'From', to: 'To', d7: '7 days', d30: '30 days', d90: '90 days', thisMonth: 'This month',
+    compare: 'Compared with the previous period of the same length. Completed sales only (voids excluded); returns are not deducted.',
+    revenue: 'Revenue', count: 'Receipts', tenantsSelling: 'Tenants selling', change: 'Revenue change',
+    tenant: 'Tenant', plan: 'Plan', outlets: 'Outlets', notes: 'Receipts', avg: 'Avg. receipt', growth: 'Change', activeDays: 'Active days', lastSale: 'Last sale',
+    stNew: 'New', stNone: 'No sales', stStopped: 'Stopped', stUp: 'Up', stDown: 'Down', stFlat: 'Flat',
+    trend: 'Last 6 months', never: 'Never',
+    window: 'Expiring within', days: '{n} days', expired: 'Already expired', soon: 'Soon (≤ 7 days)', later: 'Approaching',
+    expiresOn: 'Expires', daysLeft: '{n} days left', daysAgo: '{n} days ago', today: 'today',
+    price: 'Plan price', rev30: '30-day revenue', lastLogin: 'Last login', owner: 'Owner', users: 'Users', inactive: 'Inactive',
+    expHint: 'After expiry the tenant automatically falls back to the default plan. Plans that expired up to 30 days ago are included. Open the tenant to extend its plan.',
+    expEmpty: 'No plans expire in this window.',
+    outlet: 'Outlet', address: 'Address', coords: 'Coordinates', map: 'Map', noLoc: 'Not set', withLoc: 'Outlets located', withoutLoc: 'No location yet', onlyMissing: 'Only without location',
+    locHint: 'Tenants set the location in Settings › Outlets with the GPS button.',
+    empty: 'No data yet.', loadFailed: 'Failed to load the report.'
+  },
   live: {
     title: "Live Sales",
-    sub: "Watch every tenant's transactions as they happen.",
+    sub: "Watch every tenant's transactions as they happen. Excludes sales returns.",
     revenue: "Today's revenue",
     count: "Receipts",
     tenants: "Active tenants",
@@ -42,6 +61,7 @@ const platform: Messages['platform'] = {
     window: "Online = active in the last 5 minutes; Selling = a receipt in the last 15 minutes."
   },
   nav: {
+    reports: 'Reports',
     live: 'Live Sales',
     groupMain: 'Platform',
     groupSystem: 'System', backup: 'Backup', mobile: 'Mobile App', apiAccess: 'External API', languages: 'Languages', plans: 'Plans', templates: 'Landing Templates', halloarus: 'HalloArus', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', qa: 'QA Checklist', domains: 'Domains', signOut: 'Sign out' },
@@ -176,6 +196,29 @@ const platform: Messages['platform'] = {
     next: 'Next',
     open: 'Open',
     statTotal: 'Total tenants',
+    plan: 'Plan',
+    filter: {
+      title: 'Filters',
+      all: 'All',
+      recent7: 'Logged in within 7 days',
+      stale30: 'No login in 30+ days',
+      from: 'Registered from',
+      to: 'Registered until',
+      reset: 'Reset filters',
+    },
+    bulkPlan: {
+      open: 'Change plan',
+      selected: '{count} tenants selected',
+      clear: 'Clear selection',
+      selectAll: 'Select all on this page',
+      default: 'Default plan (remove manual subscription)',
+      expires: 'Valid until (empty = no expiry)',
+      apply: 'Apply',
+      confirm: 'Change the plan of {count} tenants?',
+      hint: 'Each tenant keeps its manual limit overrides and subscription note. Choosing the default plan removes the manual subscription.',
+      done: '{ok} tenants updated, {failed} failed.',
+      until: 'until {date}',
+    },
     thisPage: 'on this page'
   },
   tenant: {

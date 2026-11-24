@@ -1,21 +1,21 @@
 -- name: OutletList :many
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code;
 
 -- name: OutletGet :one
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 FROM outlets WHERE tenant_id = $1 AND id = $2;
 
 -- name: OutletCreate :one
-INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone, address, phone, receipt_header, receipt_footer)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer;
+INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone, address, phone, receipt_header, receipt_footer, latitude, longitude)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude;
 
 -- name: OutletUpdate :one
 UPDATE outlets SET name = $3, tax_store_pct = $4, tax_gov_pct = $5, timezone = $6, active = $7,
-    address = $8, phone = $9, receipt_header = $10, receipt_footer = $11
+    address = $8, phone = $9, receipt_header = $10, receipt_footer = $11, latitude = $12, longitude = $13
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer;
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude;
 
 -- name: OutletLockActive :many
 -- Mengunci baris outlet aktif selama transaksi: dua penonaktifan bersamaan tidak bisa sama-sama menyisakan nol outlet.

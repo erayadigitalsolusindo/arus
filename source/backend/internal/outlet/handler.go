@@ -54,11 +54,14 @@ type request struct {
 	Phone         string `json:"phone"`
 	ReceiptHeader string `json:"receipt_header"`
 	ReceiptFooter string `json:"receipt_footer"`
+	// Lokasi GPS (opsional; keduanya diisi atau keduanya null).
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 func (r request) input(creating bool) (Input, bool) {
 	in := Input{Code: r.Code, Name: r.Name, Timezone: r.Timezone, TaxStorePct: r.TaxStorePct.String(), TaxGovPct: r.TaxGovPct.String(), Active: true,
-		Address: r.Address, Phone: r.Phone, ReceiptHeader: r.ReceiptHeader, ReceiptFooter: r.ReceiptFooter}
+		Address: r.Address, Phone: r.Phone, ReceiptHeader: r.ReceiptHeader, ReceiptFooter: r.ReceiptFooter, Latitude: r.Latitude, Longitude: r.Longitude}
 	if !creating {
 		if r.Active == nil {
 			return in, false

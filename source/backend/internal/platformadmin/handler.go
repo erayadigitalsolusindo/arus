@@ -98,7 +98,12 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(requireMFA)
 			r.Get("/platform/tenants", h.ListTenants)
+			r.Get("/platform/reports/sales", h.SalesReport)
+			r.Get("/platform/reports/sales/{id}/monthly", h.SalesMonthly)
+			r.Get("/platform/reports/expiring", h.ExpiringReport)
+			r.Get("/platform/reports/locations", h.OutletLocations)
 			r.Post("/platform/tenants/bulk", h.BulkCreateTenants)
+			r.Post("/platform/tenants/bulk-plan", h.BulkSetTenantPlan)
 			r.Get("/platform/tenants/{id}", h.GetTenant)
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
 			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)
@@ -429,7 +434,35 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, map[string]string{"q": "INVALID"})
 		return
 	}
-	page, err := h.svc.ListTenants(r.Context(), actor(r), search, limit, offset)
+	f := TenantFilter{Q: search, Status: q.Get("status"), Login: q.Get("login")}
+	if f.Status != "" && f.Status != "active" && f.Status != "inactive" || f.Login != "" && f.Login != "never" && f.Login != "stale30" && f.Login != "recent7" {
+		httpx.ValidationError(w, map[string]string{"filter": "INVALID"})
+		return
+	}
+	if v := q.Get("plan"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			httpx.ValidationError(w, map[string]string{"plan": "INVALID"})
+			return
+		}
+		f.PlanID = &id
+	}
+	// from/to = tanggal (YYYY-MM-DD, zona Asia/Jakarta); to inklusif.
+	jkt := time.FixedZone("WIB", 7*3600)
+	for k, dst := range map[string]**time.Time{"from": &f.From, "to": &f.To} {
+		if v := q.Get(k); v != "" {
+			d, err := time.ParseInLocation("2006-01-02", v, jkt)
+			if err != nil {
+				httpx.ValidationError(w, map[string]string{k: "INVALID"})
+				return
+			}
+			if k == "to" {
+				d = d.AddDate(0, 0, 1)
+			}
+			*dst = &d
+		}
+	}
+	page, err := h.svc.ListTenants(r.Context(), actor(r), f, limit, offset)
 	if err != nil {
 		h.internal(w, r, "daftar tenant gagal", err)
 		return

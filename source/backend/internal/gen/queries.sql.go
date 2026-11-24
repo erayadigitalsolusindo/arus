@@ -5309,9 +5309,9 @@ func (q *Queries) OutletAssignUser(ctx context.Context, arg OutletAssignUserPara
 }
 
 const outletCreate = `-- name: OutletCreate :one
-INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone, address, phone, receipt_header, receipt_footer)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+INSERT INTO outlets (tenant_id, code, name, tax_store_pct, tax_gov_pct, timezone, address, phone, receipt_header, receipt_footer, latitude, longitude)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 `
 
 type OutletCreateParams struct {
@@ -5325,6 +5325,8 @@ type OutletCreateParams struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 type OutletCreateRow struct {
@@ -5340,6 +5342,8 @@ type OutletCreateRow struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (OutletCreateRow, error) {
@@ -5354,6 +5358,8 @@ func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (Out
 		arg.Phone,
 		arg.ReceiptHeader,
 		arg.ReceiptFooter,
+		arg.Latitude,
+		arg.Longitude,
 	)
 	var i OutletCreateRow
 	err := row.Scan(
@@ -5369,12 +5375,14 @@ func (q *Queries) OutletCreate(ctx context.Context, arg OutletCreateParams) (Out
 		&i.Phone,
 		&i.ReceiptHeader,
 		&i.ReceiptFooter,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }
 
 const outletGet = `-- name: OutletGet :one
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 FROM outlets WHERE tenant_id = $1 AND id = $2
 `
 
@@ -5396,6 +5404,8 @@ type OutletGetRow struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 func (q *Queries) OutletGet(ctx context.Context, arg OutletGetParams) (OutletGetRow, error) {
@@ -5414,12 +5424,14 @@ func (q *Queries) OutletGet(ctx context.Context, arg OutletGetParams) (OutletGet
 		&i.Phone,
 		&i.ReceiptHeader,
 		&i.ReceiptFooter,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }
 
 const outletList = `-- name: OutletList :many
-SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+SELECT id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 FROM outlets WHERE tenant_id = $1 ORDER BY created_at, code
 `
 
@@ -5436,6 +5448,8 @@ type OutletListRow struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletListRow, error) {
@@ -5460,6 +5474,10 @@ func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletL
 			&i.Phone,
 			&i.ReceiptHeader,
 			&i.ReceiptFooter,
+			&i.Latitude,
+			&i.Longitude,
+		&i.Latitude,
+		&i.Longitude,
 		); err != nil {
 			return nil, err
 		}
@@ -5498,9 +5516,9 @@ func (q *Queries) OutletLockActive(ctx context.Context, tenantID uuid.UUID) ([]u
 
 const outletUpdate = `-- name: OutletUpdate :one
 UPDATE outlets SET name = $3, tax_store_pct = $4, tax_gov_pct = $5, timezone = $6, active = $7,
-    address = $8, phone = $9, receipt_header = $10, receipt_footer = $11
+    address = $8, phone = $9, receipt_header = $10, receipt_footer = $11, latitude = $12, longitude = $13
 WHERE tenant_id = $1 AND id = $2
-RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer
+RETURNING id, code, name, tax_store_pct, tax_gov_pct, timezone, active, created_at, address, phone, receipt_header, receipt_footer, latitude, longitude
 `
 
 type OutletUpdateParams struct {
@@ -5515,6 +5533,8 @@ type OutletUpdateParams struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 type OutletUpdateRow struct {
@@ -5530,6 +5550,8 @@ type OutletUpdateRow struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	Latitude      pgtype.Numeric
+	Longitude     pgtype.Numeric
 }
 
 func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (OutletUpdateRow, error) {
@@ -5545,6 +5567,8 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 		arg.Phone,
 		arg.ReceiptHeader,
 		arg.ReceiptFooter,
+		arg.Latitude,
+		arg.Longitude,
 	)
 	var i OutletUpdateRow
 	err := row.Scan(
@@ -5560,6 +5584,8 @@ func (q *Queries) OutletUpdate(ctx context.Context, arg OutletUpdateParams) (Out
 		&i.Phone,
 		&i.ReceiptHeader,
 		&i.ReceiptFooter,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }

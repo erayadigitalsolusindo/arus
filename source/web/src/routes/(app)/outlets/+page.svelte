@@ -15,7 +15,7 @@
   const ZONES = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'] as const;
   const CODE_RE = /^[a-z0-9][a-z0-9_-]{1,19}$/;
 
-  type Field = 'code' | 'name' | 'timezone' | 'tax_store_pct' | 'tax_gov_pct' | 'address' | 'phone' | 'receipt_header' | 'receipt_footer';
+  type Field = 'code' | 'name' | 'timezone' | 'tax_store_pct' | 'tax_gov_pct' | 'address' | 'phone' | 'receipt_header' | 'receipt_footer' | 'latitude';
   type Editor = {
     id: string | null;
     code: string;
@@ -28,6 +28,9 @@
     phone: string;
     header: string;
     footer: string;
+    lat: string;
+    lng: string;
+    locating: boolean;
     saving: boolean;
     error: string;
     errors: Partial<Record<Field, string>>;
@@ -55,12 +58,12 @@
   const canWrite = (o: Outlet | null) => (o ? can('outlets', 'update') : can('outlets', 'create'));
 
   function openNew() {
-    editor = { id: null, code: '', name: '', timezone: ZONES[0], taxStore: '0', taxGov: '0', active: true, address: '', phone: '', header: '', footer: '', saving: false, error: '', errors: {} };
+    editor = { id: null, code: '', name: '', timezone: ZONES[0], taxStore: '0', taxGov: '0', active: true, address: '', phone: '', header: '', footer: '', lat: '', lng: '', locating: false, saving: false, error: '', errors: {} };
   }
 
   function openOutlet(o: Outlet) {
     editor = { id: o.id, code: o.code, name: o.name, timezone: o.timezone, taxStore: o.tax_store_pct, taxGov: o.tax_gov_pct, active: o.active,
-      address: o.address, phone: o.phone, header: o.receipt_header, footer: o.receipt_footer, saving: false, error: '', errors: {} };
+      address: o.address, phone: o.phone, header: o.receipt_header, footer: o.receipt_footer, lat: o.latitude?.toString() ?? '', lng: o.longitude?.toString() ?? '', locating: false, saving: false, error: '', errors: {} };
   }
 
   /** Persen 0..100, maks 2 desimal; kosong dianggap 0. */
@@ -68,6 +71,30 @@
     const v = s.trim() === '' ? 0 : Number(s);
     if (!Number.isFinite(v) || v < 0 || v > 100 || Math.round(v * 100) / 100 !== v) return null;
     return v;
+  }
+
+  /** Ambil posisi dari GPS perangkat (butuh HTTPS + izin pengguna). */
+  function useGps() {
+    if (!editor) return;
+    const ed = editor;
+    if (!navigator.geolocation) {
+      ed.errors.latitude = t('outlets.geo.unavailable');
+      return;
+    }
+    ed.locating = true;
+    ed.errors.latitude = '';
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        ed.lat = p.coords.latitude.toFixed(6);
+        ed.lng = p.coords.longitude.toFixed(6);
+        ed.locating = false;
+      },
+      (err) => {
+        ed.errors.latitude = t(err.code === err.PERMISSION_DENIED ? 'outlets.geo.denied' : 'outlets.geo.unavailable');
+        ed.locating = false;
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   }
 
   async function save(e: SubmitEvent) {
@@ -83,6 +110,13 @@
     const gov = parsePct(ed.taxGov);
     if (store === null) next.tax_store_pct = fieldMessage('INVALID');
     if (gov === null) next.tax_gov_pct = fieldMessage('INVALID');
+    // Koordinat: keduanya terisi (rentang valid) atau keduanya kosong.
+    const blank = (v: string) => v.trim() === '';
+    const lat = blank(ed.lat) ? null : Number(ed.lat);
+    const lng = blank(ed.lng) ? null : Number(ed.lng);
+    if ((lat === null) !== (lng === null) || (lat !== null && (!Number.isFinite(lat) || Math.abs(lat) > 90)) || (lng !== null && (!Number.isFinite(lng) || Math.abs(lng) > 180))) {
+      next.latitude = t('outlets.geo.invalid');
+    }
     ed.errors = next;
     if (Object.keys(next).length) return;
 
@@ -90,7 +124,7 @@
     try {
       const body = {
         name: name.value, timezone: ed.timezone, tax_store_pct: store!, tax_gov_pct: gov!,
-        address: ed.address, phone: ed.phone, receipt_header: ed.header, receipt_footer: ed.footer
+        address: ed.address, phone: ed.phone, receipt_header: ed.header, receipt_footer: ed.footer, latitude: lat, longitude: lng
       };
       if (ed.id) {
         await api.update(ed.id, { ...body, active: ed.active });
@@ -250,6 +284,35 @@
           <label for="o-phone" class={labelClass}>{t('outlets.receipt.phone')}</label>
           <input id="o-phone" class={inputClass} bind:value={ed.phone} maxlength="30" disabled={ro} aria-invalid={!!ed.errors.phone} />
           {#if ed.errors.phone}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{ed.errors.phone}</p>{/if}
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-3 rounded-lg border border-[var(--border-subtle)] p-3">
+        <legend class="px-1 text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"><i class="icon-map-pin text-[12px] me-1"></i>{t('outlets.geo.title')}</legend>
+        <p class="text-[11px] -mt-1 text-[var(--text-tertiary)]">{t('outlets.geo.hint')}</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="o-lat" class={labelClass}>{t('outlets.geo.lat')}</label>
+            <input id="o-lat" class={inputClass} inputmode="decimal" bind:value={ed.lat} disabled={ro} aria-invalid={!!ed.errors.latitude} />
+          </div>
+          <div>
+            <label for="o-lng" class={labelClass}>{t('outlets.geo.lng')}</label>
+            <input id="o-lng" class={inputClass} inputmode="decimal" bind:value={ed.lng} disabled={ro} aria-invalid={!!ed.errors.latitude} />
+          </div>
+        </div>
+        {#if ed.errors.latitude}<p class="text-[11.5px] text-[var(--color-danger-600)]">{ed.errors.latitude}</p>{/if}
+        <div class="flex flex-wrap items-center gap-2">
+          {#if !ro}
+            <button type="button" class="btn btn-outline !text-[12px]" onclick={useGps} disabled={ed.locating}>
+              <i class="icon-locate-fixed text-[13px]"></i>{ed.locating ? t('outlets.geo.locating') : t('outlets.geo.use')}
+            </button>
+            {#if ed.lat || ed.lng}
+              <button type="button" class="btn btn-ghost !text-[12px]" onclick={() => { ed.lat = ''; ed.lng = ''; }}>{t('outlets.geo.clear')}</button>
+            {/if}
+          {/if}
+          {#if ed.lat && ed.lng && !ed.errors.latitude}
+            <a class="text-[12px] text-[var(--color-primary-600)] underline" href="https://www.openstreetmap.org/?mlat={encodeURIComponent(ed.lat.trim())}&mlon={encodeURIComponent(ed.lng.trim())}#map=17/{encodeURIComponent(ed.lat.trim())}/{encodeURIComponent(ed.lng.trim())}" target="_blank" rel="noopener noreferrer">{t('outlets.geo.open')}</a>
+          {/if}
         </div>
       </fieldset>
 

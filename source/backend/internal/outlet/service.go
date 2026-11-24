@@ -4,7 +4,9 @@ package outlet
 import (
 	"context"
 	"errors"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
@@ -61,6 +64,9 @@ type Outlet struct {
 	Phone         string `json:"phone"`
 	ReceiptHeader string `json:"receipt_header"`
 	ReceiptFooter string `json:"receipt_footer"`
+	// Lokasi GPS outlet; nil = belum diisi.
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 type Service struct {
@@ -85,12 +91,15 @@ type Input struct {
 	Phone         string
 	ReceiptHeader string
 	ReceiptFooter string
+	// Lokasi GPS: keduanya nil (dikosongkan) atau keduanya terisi.
+	Latitude, Longitude *float64
 }
 
 type clean struct {
 	code, name, tz   string
 	taxStore, taxGov decimal.Decimal
 	receipt          receiptText
+	lat, lng         pgtype.Numeric
 }
 
 // receiptText = isian struk yang sudah dibersihkan.
@@ -125,6 +134,15 @@ func validate(in Input, creating bool) (clean, FieldErrors) {
 		f["tax_gov_pct"] = "INVALID"
 	}
 	c.receipt = validateReceipt(in, f)
+	if (in.Latitude == nil) != (in.Longitude == nil) {
+		f["latitude"] = "INVALID"
+	} else if in.Latitude != nil {
+		if lat, lng := *in.Latitude, *in.Longitude; math.Abs(lat) > 90 || math.Abs(lng) > 180 || math.IsNaN(lat+lng) {
+			f["latitude"] = "INVALID"
+		} else if err := errors.Join(c.lat.Scan(strconv.FormatFloat(lat, 'f', 6, 64)), c.lng.Scan(strconv.FormatFloat(lng, 'f', 6, 64))); err != nil {
+			f["latitude"] = "INVALID"
+		}
+	}
 	if len(f) > 0 {
 		return clean{}, f
 	}
@@ -178,8 +196,15 @@ type outletRow interface {
 
 func outletOf[R outletRow](row R) Outlet {
 	r := gen.OutletListRow(row)
-	return Outlet{ID: r.ID, Code: r.Code, Name: r.Name, TaxStorePct: r.TaxStorePct, TaxGovPct: r.TaxGovPct, Timezone: r.Timezone,
+	return Outlet{Latitude: numF(r.Latitude), Longitude: numF(r.Longitude), ID: r.ID, Code: r.Code, Name: r.Name, TaxStorePct: r.TaxStorePct, TaxGovPct: r.TaxGovPct, Timezone: r.Timezone,
 		Active: r.Active, CreatedAt: r.CreatedAt.Time, Address: r.Address, Phone: r.Phone, ReceiptHeader: r.ReceiptHeader, ReceiptFooter: r.ReceiptFooter}
+}
+
+func numF(n pgtype.Numeric) *float64 {
+	if f, err := n.Float64Value(); err == nil && f.Valid {
+		return &f.Float64
+	}
+	return nil
 }
 
 // List: pemilik melihat semua outlet (termasuk nonaktif); pengguna lain hanya outlet aktif yang ditugaskan.
@@ -222,7 +247,7 @@ func (s *Service) Create(ctx context.Context, actor authz.Actor, in Input) (*Out
 		q := gen.New(tx)
 		var err error
 		row, err = q.OutletCreate(ctx, gen.OutletCreateParams{TenantID: actor.TenantID, Code: c.code, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz,
-			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer})
+			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer, Latitude: c.lat, Longitude: c.lng})
 		if err != nil {
 			return err
 		}
@@ -278,7 +303,7 @@ func (s *Service) Update(ctx context.Context, actor authz.Actor, id uuid.UUID, i
 			}
 		}
 		row, err = q.OutletUpdate(ctx, gen.OutletUpdateParams{TenantID: actor.TenantID, ID: id, Name: c.name, TaxStorePct: c.taxStore, TaxGovPct: c.taxGov, Timezone: c.tz, Active: in.Active,
-			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer})
+			Address: c.receipt.address, Phone: c.receipt.phone, ReceiptHeader: c.receipt.header, ReceiptFooter: c.receipt.footer, Latitude: c.lat, Longitude: c.lng})
 		if err != nil {
 			return err
 		}
@@ -286,9 +311,11 @@ func (s *Service) Update(ctx context.Context, actor authz.Actor, id uuid.UUID, i
 			Action: audit.ActionOutletUpdate, Entity: audit.EntityOutlet, EntityID: id.String(),
 			Details: map[string]any{
 				"before": map[string]any{"name": cur.Name, "timezone": cur.Timezone, "tax_store_pct": cur.TaxStorePct.String(), "tax_gov_pct": cur.TaxGovPct.String(), "active": cur.Active,
-					"address": cur.Address, "phone": cur.Phone, "receipt_header": cur.ReceiptHeader, "receipt_footer": cur.ReceiptFooter},
+					"address": cur.Address, "phone": cur.Phone, "receipt_header": cur.ReceiptHeader, "receipt_footer": cur.ReceiptFooter,
+					"latitude": numF(cur.Latitude), "longitude": numF(cur.Longitude)},
 				"after": map[string]any{"name": row.Name, "timezone": row.Timezone, "tax_store_pct": row.TaxStorePct.String(), "tax_gov_pct": row.TaxGovPct.String(), "active": row.Active,
-					"address": row.Address, "phone": row.Phone, "receipt_header": row.ReceiptHeader, "receipt_footer": row.ReceiptFooter},
+					"address": row.Address, "phone": row.Phone, "receipt_header": row.ReceiptHeader, "receipt_footer": row.ReceiptFooter,
+					"latitude": numF(row.Latitude), "longitude": numF(row.Longitude)},
 			},
 		})
 	})

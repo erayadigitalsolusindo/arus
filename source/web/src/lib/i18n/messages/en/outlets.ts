@@ -20,6 +20,19 @@ const outlets: Messages['outlets'] = {
     header: 'Receipt header text',
     footer: 'Receipt footer text'
   },
+  geo: {
+    title: 'Location (GPS)',
+    hint: 'The outlet position, so the ACIRABA team knows where your outlets are. Press the button while you are at the outlet.',
+    lat: 'Latitude',
+    lng: 'Longitude',
+    use: 'Use my location',
+    locating: 'Finding location…',
+    clear: 'Clear location',
+    open: 'View on map',
+    denied: 'Location permission denied. Allow location access in your browser and try again.',
+    unavailable: 'Location is not available on this device.',
+    invalid: 'Fill both latitude (−90 to 90) and longitude (−180 to 180), or leave both empty.'
+  },
   taxHint: 'A percentage from 0 to 100, up to 2 decimals.',
   status: 'Status',
   active: 'Active',
