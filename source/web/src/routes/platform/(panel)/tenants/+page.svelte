@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import DatePicker from '#lib/components/DatePicker.svelte';
+  import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { platformApi, type TenantPage, type PlanRow, type TenantFilter } from '#lib/platform/api.ts';
   import { t, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
@@ -26,6 +27,14 @@
   let fTo = $state('');
   const filterCount = $derived([fStatus, fPlan, fLogin, fFrom, fTo].filter(Boolean).length);
   const filters = (): TenantFilter => ({ status: fStatus, plan: fPlan, login: fLogin, from: fFrom, to: fTo });
+  // DatePicker tidak punya onchange: terapkan filter saat rentang tanggal berubah (tanpa memicu pada muat awal).
+  let lastRange = '|';
+  $effect(() => {
+    const k = `${fFrom}|${fTo}`;
+    if (k === lastRange) return;
+    lastRange = k;
+    untrack(applyFilter);
+  });
   function applyFilter() {
     offset = 0;
     selected = new Set();
@@ -159,10 +168,10 @@
         </select>
       </label>
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.filter.from')}
-        <input type="date" class="field-control w-full mt-1 font-normal" bind:value={fFrom} onchange={applyFilter} />
+        <div class="mt-1 font-normal"><DatePicker bind:value={fFrom} max={fTo || undefined} placeholder={t('platform.tenants.filter.from')} /></div>
       </label>
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.filter.to')}
-        <input type="date" class="field-control w-full mt-1 font-normal" bind:value={fTo} onchange={applyFilter} />
+        <div class="mt-1 font-normal"><DatePicker bind:value={fTo} min={fFrom || undefined} placeholder={t('platform.tenants.filter.to')} /></div>
       </label>
       {#if filterCount}
         <button type="button" class="col-span-full justify-self-start text-[12px] font-semibold text-[var(--color-primary-700)] hover:underline" onclick={resetFilter}>{t('platform.tenants.filter.reset')}</button>
@@ -189,7 +198,7 @@
         </label>
         {#if bulkPlan}
           <label class="text-[11.5px] font-semibold">{t('platform.tenants.bulkPlan.expires')}
-            <input type="date" class="field-control mt-1 font-normal" bind:value={bulkExpires} />
+            <div class="mt-1 font-normal"><DatePicker bind:value={bulkExpires} /></div>
           </label>
         {/if}
         <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={bulkBusy} onclick={() => confirm(t('platform.tenants.bulkPlan.confirm', { count: selected.size })) && applyPlan()}>{bulkBusy ? t('platform.tenants.loading') : t('platform.tenants.bulkPlan.apply')}</button>

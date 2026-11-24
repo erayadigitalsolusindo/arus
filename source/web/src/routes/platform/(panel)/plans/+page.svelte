@@ -31,6 +31,9 @@
   };
 
   let plans = $state<PlanRow[]>([]);
+  // Filter tampilan: ditampilkan = self_service (dipilih tenant di halaman Langganan); selain itu khusus (dipasang platform).
+  let vis = $state<'all' | 'shown' | 'hidden'>('all');
+  const shown = $derived(plans.filter((p) => (vis === 'all' ? true : vis === 'shown' ? p.self_service : !p.self_service)));
   let loading = $state(true);
   let error = $state('');
   let notice = $state('');
@@ -144,6 +147,11 @@
   {:else if plans.length === 0}
     <div class="text-[13px] text-[var(--text-tertiary)]">{t('platform.plans.empty')}</div>
   {:else}
+    <div class="flex flex-wrap gap-1.5" role="group" aria-label={t('platform.plans.visibility')}>
+      {#each [['all', 'visAll'], ['shown', 'sold'], ['hidden', 'manual']] as [k, label] (k)}
+        <button type="button" class="btn btn-sm {vis === k ? 'btn-primary' : 'btn-secondary'}" aria-pressed={vis === k} onclick={() => (vis = k as typeof vis)}>{t(`platform.plans.${label}` as 'platform.plans.sold')}</button>
+      {/each}
+    </div>
     <div class="surface-card !p-0 overflow-x-auto scroll-thin">
       <table class="w-full text-[12.5px] min-w-[760px]">
         <thead>
@@ -159,7 +167,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each plans as p (p.id)}
+          {#each shown as p (p.id)}
             <tr class="border-t border-[var(--border-subtle)] hover:bg-[var(--surface-sunken)]">
               <td class="px-4 py-3">
                 <span class="block font-semibold">{p.name}</span>
@@ -173,7 +181,7 @@
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   {#if p.is_default}<span class="badge-info">{t('platform.plans.isDefault')}</span>{/if}
-                  {#if p.self_service}<span class="badge-success">{t('platform.plans.sold')}</span>{:else if !p.is_default}<span class="badge-warning">{t('platform.plans.manual')}</span>{/if}
+                  {#if p.self_service}<span class="badge-success">{t('platform.plans.sold')}</span>{:else}<span class="badge-warning">{t('platform.plans.manual')}</span>{/if}
                   {#if !p.active}<span class="badge-danger">{t('platform.plans.inactive')}</span>{/if}
                 </div>
               </td>
