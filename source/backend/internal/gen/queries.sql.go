@@ -5476,8 +5476,6 @@ func (q *Queries) OutletList(ctx context.Context, tenantID uuid.UUID) ([]OutletL
 			&i.ReceiptFooter,
 			&i.Latitude,
 			&i.Longitude,
-		&i.Latitude,
-		&i.Longitude,
 		); err != nil {
 			return nil, err
 		}
