@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../pay_voice.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import '../../l10n/gen/app_localizations.dart';
@@ -30,6 +31,8 @@ class _PrinterSheet extends ConsumerStatefulWidget {
 class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
   List<BluetoothInfo>? _paired;
   Object? _error;
+  // Nama tampilan buatan kasir (kunci: MAC); nama Bluetooth dari Android tidak ikut berubah saat printer di-rename.
+  final Map<String, String> _alias = {};
   bool _loading = false;
   bool _testing = false;
   String? _testMsg;
@@ -48,12 +51,51 @@ class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
     });
     try {
       final list = await ref.read(receiptPrinterProvider).paired();
+      final p = await SharedPreferences.getInstance();
+      for (final d in list) {
+        final a = p.getString('print.alias.${d.macAdress}');
+        if (a != null && a.isNotEmpty) _alias[d.macAdress] = a;
+      }
       if (mounted) setState(() => _paired = list);
     } catch (e) {
       if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _rename(BluetoothInfo d, PrinterSettings s) async {
+    final l = AppLocalizations.of(context);
+    final c = TextEditingController(text: _alias[d.macAdress] ?? d.name);
+    final v = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.printerRename),
+        content: TextField(controller: c, autofocus: true, maxLength: 30),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.posClearCartNo),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: Text(l.save),
+          ),
+        ],
+      ),
+    );
+    if (v == null) return;
+    final name = v.isEmpty ? d.name : v; // kosong = kembali ke nama asli
+    final p = await SharedPreferences.getInstance();
+    if (v.isEmpty) {
+      _alias.remove(d.macAdress);
+      await p.remove('print.alias.${d.macAdress}');
+    } else {
+      _alias[d.macAdress] = v;
+      await p.setString('print.alias.${d.macAdress}', v);
+    }
+    if (s.address == d.macAdress) await _update(s.copyWith(name: name));
+    if (mounted) setState(() {});
   }
 
   Future<void> _update(PrinterSettings s) =>
@@ -141,7 +183,12 @@ class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
                 onChanged: (mac) {
                   if (mac == null) return;
                   final d = paired.firstWhere((p) => p.macAdress == mac);
-                  _update(s.copyWith(address: d.macAdress, name: d.name));
+                  _update(
+                    s.copyWith(
+                      address: d.macAdress,
+                      name: _alias[d.macAdress] ?? d.name,
+                    ),
+                  );
                 },
                 child: Column(
                   children: [
@@ -150,8 +197,13 @@ class _PrinterSheetState extends ConsumerState<_PrinterSheet> {
                         contentPadding: EdgeInsets.zero,
                         dense: true,
                         value: d.macAdress,
-                        title: Text(d.name),
+                        title: Text(_alias[d.macAdress] ?? d.name),
                         subtitle: Text(d.macAdress),
+                        secondary: IconButton(
+                          tooltip: l.printerRename,
+                          icon: const Icon(Icons.edit, size: 18),
+                          onPressed: () => _rename(d, s),
+                        ),
                       ),
                   ],
                 ),

@@ -730,6 +730,7 @@
   "printerHint": "Pair the printer first in Android Settings > Bluetooth, then pick it here. These settings apply to this phone only.",
   "printerRefresh": "Reload list",
   "printerNonePaired": "No paired Bluetooth devices yet. Pair the printer in Android Settings, then reload.",
+  "printerRename": "Rename display name",
   "printerPaper": "Paper width",
   "printerPaper58": "58 mm",
   "printerPaper80": "80 mm",

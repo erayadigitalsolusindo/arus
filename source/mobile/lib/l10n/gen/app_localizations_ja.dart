@@ -1295,6 +1295,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'ペアリング済みのBluetoothデバイスがまだありません。Android設定でプリンターをペアリングしてから再読み込みしてください。';
 
   @override
+  String get printerRename => '表示名を変更';
+
+  @override
   String get printerPaper => '用紙幅';
 
   @override

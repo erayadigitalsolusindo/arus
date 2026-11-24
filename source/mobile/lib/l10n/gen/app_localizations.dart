@@ -2392,6 +2392,12 @@ abstract class AppLocalizations {
   /// **'Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Android, lalu muat ulang.'**
   String get printerNonePaired;
 
+  /// No description provided for @printerRename.
+  ///
+  /// In id, this message translates to:
+  /// **'Ubah nama tampilan'**
+  String get printerRename;
+
   /// No description provided for @printerPaper.
   ///
   /// In id, this message translates to:

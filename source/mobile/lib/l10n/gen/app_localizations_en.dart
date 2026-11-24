@@ -1325,6 +1325,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No paired Bluetooth devices yet. Pair the printer in Android Settings, then reload.';
 
   @override
+  String get printerRename => 'Rename display name';
+
+  @override
   String get printerPaper => 'Paper width';
 
   @override

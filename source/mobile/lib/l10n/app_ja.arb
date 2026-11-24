@@ -852,6 +852,7 @@
   "printerHint": "先にAndroid設定>Bluetoothでプリンターをペアリングし、ここで選択してください。この設定はこのスマホだけに適用されます。",
   "printerRefresh": "リストを再読み込み",
   "printerNonePaired": "ペアリング済みのBluetoothデバイスがまだありません。Android設定でプリンターをペアリングしてから再読み込みしてください。",
+  "printerRename": "表示名を変更",
   "printerPaper": "用紙幅",
   "printerPaper58": "58 mm",
   "printerPaper80": "80 mm",

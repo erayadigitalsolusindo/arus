@@ -1328,6 +1328,9 @@ class AppLocalizationsId extends AppLocalizations {
       'Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Android, lalu muat ulang.';
 
   @override
+  String get printerRename => 'Ubah nama tampilan';
+
+  @override
   String get printerPaper => 'Lebar kertas';
 
   @override
