@@ -15,7 +15,7 @@ const (
 	presenceKey = "live:presence"
 	touchEvery  = 30 * time.Second // satu tulis Redis per pengguna per 30 dtk, bukan per request
 	// OnlineWindow = pengguna dianggap online bila terlihat aktif dalam rentang ini.
-	OnlineWindow = 5 * time.Minute
+	OnlineWindow = 2 * time.Minute // > heartbeat klien (45 dtk) + touchEvery
 	maxOnline    = 300
 )
 

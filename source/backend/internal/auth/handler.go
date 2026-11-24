@@ -64,6 +64,8 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(csrf, httpx.RateLimit(h.Redis, "refresh", 600, time.Hour)).Post("/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/auth/logout", h.Logout)
 	r.With(authed...).Get("/auth/me", h.Me)
+	// Heartbeat presence: middleware authed sudah menandai user online; tanpa query DB.
+	r.With(authed...).Get("/auth/ping", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	r.With(authed...).Get("/auth/feature-shortcuts", h.GetFeatureShortcuts)
 	r.With(authed...).Put("/auth/feature-shortcuts", h.PutFeatureShortcuts)
 

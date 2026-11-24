@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +18,7 @@ import (
 const (
 	livePage      = 100
 	liveHeartbeat = 20 * time.Second
+	livePresenceEvery = 5 * time.Second
 	liveMaxStream = 10 * time.Minute
 	liveActiveWin = 15 * time.Minute // "sedang bertransaksi" = ada nota dalam rentang ini
 )
@@ -186,6 +189,10 @@ func (h *Handler) LiveStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hb, end := time.NewTicker(liveHeartbeat), time.NewTimer(liveMaxStream)
+	// Presence tidak punya pemicu "offline" (tak ada request), jadi dibandingkan berkala; Redis dibaca per koneksi admin (jumlahnya satuan).
+	pt := time.NewTicker(livePresenceEvery)
+	defer pt.Stop()
+	prev := h.onlineSig(r.Context())
 	defer hb.Stop()
 	defer end.Stop()
 	for {
@@ -200,10 +207,34 @@ func (h *Handler) LiveStream(w http.ResponseWriter, r *http.Request) {
 			if !write("event: sales\ndata: {}\n\n") {
 				return
 			}
+		case <-pt.C:
+			if cur := h.onlineSig(r.Context()); cur != prev {
+				prev = cur
+				if !write("event: presence\ndata: {}\n\n") {
+					return
+				}
+			}
 		case <-hb.C:
 			if !write(": ping\n\n") {
 				return
 			}
 		}
 	}
+}
+
+// onlineSig = tanda daftar online saat ini (anggota saja, tanpa waktu terlihat agar heartbeat rutin tidak memicu event).
+func (h *Handler) onlineSig(ctx context.Context) string {
+	if h.Presence == nil {
+		return ""
+	}
+	on, err := h.Presence.Online(ctx)
+	if err != nil {
+		return "err" // gagal baca = anggap tidak berubah; "err" tetap sama selama Redis mati
+	}
+	ks := make([]string, len(on))
+	for i, o := range on {
+		ks[i] = o.Tenant.String() + o.User.String()
+	}
+	sort.Strings(ks)
+	return strings.Join(ks, ",")
 }
