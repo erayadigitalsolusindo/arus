@@ -10379,7 +10379,8 @@ func (q *Queries) SalesPaymentMethodByKind(ctx context.Context, arg SalesPayment
 
 const salesPayments = `-- name: SalesPayments :many
 SELECT p.method, p.method_id, p.method_name, p.amount, p.ref_no, p.fee_pct, p.fee_amount, p.fee_bearer,
-       coalesce(c.erapay_payment_id, '')::text AS gateway_ref, coalesce(c.gateway, '')::text AS gateway
+       coalesce(c.erapay_payment_id, '')::text AS gateway_ref, coalesce(c.gateway, '')::text AS gateway,
+       (CASE WHEN c.pay_amount > c.amount THEN c.pay_amount - c.amount ELSE 0 END)::numeric AS unique_code
 FROM sale_payments p
 LEFT JOIN erapay_charges c ON c.tenant_id = p.tenant_id AND c.sale_id = p.sale_id
   AND c.id = (CASE WHEN p.ref_no ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p.ref_no::uuid END)
@@ -10402,6 +10403,7 @@ type SalesPaymentsRow struct {
 	FeeBearer  string
 	GatewayRef string
 	Gateway    string
+	UniqueCode decimal.Decimal
 }
 
 // gateway_ref = ID pembayaran EraPay (sama dengan partnerReferenceNo di DOKU); ref_no pada pembayaran EraPay berisi id charge ARUS.
@@ -10426,6 +10428,7 @@ func (q *Queries) SalesPayments(ctx context.Context, arg SalesPaymentsParams) ([
 			&i.FeeBearer,
 			&i.GatewayRef,
 			&i.Gateway,
+			&i.UniqueCode,
 		); err != nil {
 			return nil, err
 		}

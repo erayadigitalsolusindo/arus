@@ -216,6 +216,7 @@ type Payment struct {
 	FeePct     string    `json:"fee_pct"`
 	Fee        string    `json:"fee"`        // biaya metode (MDR)
 	FeeBearer  string    `json:"fee_bearer"` // "store" = ditanggung toko; "customer" = ditagihkan ke pelanggan
+	UniqueCode string    `json:"unique_code,omitempty"` // QRISGate: kode unik di atas harga (nominal QR = Amount + UniqueCode); kosong = tidak ada
 }
 
 type Sale struct {
@@ -1408,7 +1409,7 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, id uuid.UUID) (Sale, e
 		}
 		for _, p := range ps {
 			out.Payments = append(out.Payments, Payment{Method: p.Method, MethodID: p.MethodID, MethodName: p.MethodName, Amount: p.Amount.StringFixed(2), RefNo: p.RefNo, GatewayRef: p.GatewayRef, Gateway: p.Gateway,
-				FeePct: p.FeePct.StringFixed(2), Fee: p.FeeAmount.StringFixed(2), FeeBearer: p.FeeBearer})
+				FeePct: p.FeePct.StringFixed(2), Fee: p.FeeAmount.StringFixed(2), FeeBearer: p.FeeBearer, UniqueCode: uniqueCodeStr(p.UniqueCode)})
 		}
 		return nil
 	})
@@ -1677,4 +1678,12 @@ func resolveMember(ctx context.Context, tx pgx.Tx, a authz.Actor, n norm, localD
 	}
 	mc.earn = member.PointsFor(t.subtotal.Sub(t.discount), sm.SpendPerPoint)
 	return mc, lines, t, nil, nil
+}
+
+// uniqueCodeStr: kode unik QRIS sebagai string 2 desimal; "" bila tidak ada (field dihilangkan dari JSON).
+func uniqueCodeStr(d decimal.Decimal) string {
+	if !d.IsPositive() {
+		return ""
+	}
+	return d.StringFixed(2)
 }

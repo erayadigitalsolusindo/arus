@@ -183,6 +183,11 @@ List<ReceiptLine> receiptLines(
   for (final p in rc.payments) {
     final fee = p.feeByCustomer ? p.fee : Decimal.zero;
     push(lr(p.methodName, amt(p.amount + fee), w));
+    final code = p.uniqueCode;
+    if (code != null && code > Decimal.zero) {
+      push(lr('  ${l.payEraBreakCode}', '+${amt(code)}', w));
+      push(lr('  ${l.payEraBreakPay}', amt(p.amount + fee + code), w));
+    }
     if (p.refNo.isNotEmpty) {
       final s = '  ${p.refNo}';
       push(s.length > w ? s.substring(0, w) : s);

@@ -157,6 +157,17 @@ class _PosPageState extends ConsumerState<PosPage> {
               formatMoney(r.total),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
+            if (r.uniqueCode != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${l.payEraBreakCode} +${formatMoney(r.uniqueCode!)}',
+                style: TextStyle(color: context.pal.textTertiary),
+              ),
+              Text(
+                '${l.payEraBreakPay} ${formatMoney(r.qrisPaid!)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
             if (r.receivable > Decimal.zero) ...[
               const SizedBox(height: 6),
               Text(

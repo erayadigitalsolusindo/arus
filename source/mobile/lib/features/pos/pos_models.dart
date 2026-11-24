@@ -465,6 +465,8 @@ class SaleResult {
     this.dueDate,
     this.erapayPending = false,
     this.offline = false,
+    this.uniqueCode,
+    this.qrisPaid,
   });
 
   /// Nota dibuat tanpa jaringan dan masih di antrean perangkat (nomor sementara, belum ada di server).
@@ -485,7 +487,33 @@ class SaleResult {
   /// Disimpan paksa saat EraPay tidak dapat dihubungi: pembayaran QRIS belum terverifikasi lunas.
   final bool erapayPending;
 
-  factory SaleResult.fromJson(Map<String, dynamic> j) => SaleResult(
+  /// QRISGate: kode unik (di atas harga) dan nominal QR yang dibayar pelanggan; null = tidak ada.
+  final Decimal? uniqueCode;
+  final Decimal? qrisPaid;
+
+  factory SaleResult.fromJson(Map<String, dynamic> j) {
+    var code = Decimal.zero, paid = Decimal.zero;
+    for (final p in (j['payments'] as List?) ?? const []) {
+      final c = dec((p as Map)['unique_code']);
+      if (c > Decimal.zero) {
+        code += c;
+        paid += dec(p['amount']) + c;
+      }
+    }
+    return SaleResult._fromJson(
+      j,
+      code > Decimal.zero ? code : null,
+      code > Decimal.zero ? paid : null,
+    );
+  }
+
+  factory SaleResult._fromJson(
+    Map<String, dynamic> j,
+    Decimal? code,
+    Decimal? paid,
+  ) => SaleResult(
+    uniqueCode: code,
+    qrisPaid: paid,
     id: '${j['id']}',
     docNo: '${j['doc_no']}',
     total: dec(j['total']),

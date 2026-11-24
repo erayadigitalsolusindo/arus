@@ -64,6 +64,7 @@ class ReceiptPayment {
     required this.refNo,
     required this.fee,
     required this.feeByCustomer,
+    this.uniqueCode,
   });
 
   final String methodName;
@@ -72,12 +73,16 @@ class ReceiptPayment {
   final Decimal fee;
   final bool feeByCustomer;
 
+  /// QRISGate: kode unik di atas harga (nominal QR = amount + uniqueCode); null = tidak ada.
+  final Decimal? uniqueCode;
+
   factory ReceiptPayment.fromJson(Map<String, dynamic> j) => ReceiptPayment(
     methodName: '${j['method_name'] ?? ''}',
     amount: dec(j['amount']),
     refNo: '${j['ref_no'] ?? ''}',
     fee: dec(j['fee']),
     feeByCustomer: j['fee_bearer'] == 'customer',
+    uniqueCode: j['unique_code'] == null ? null : dec(j['unique_code']),
   );
 }
 

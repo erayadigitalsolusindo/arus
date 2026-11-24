@@ -1,6 +1,7 @@
 import 'package:arus_mobile/core/printing/escpos.dart';
 import 'package:arus_mobile/core/printing/receipt_layout.dart';
 import 'package:arus_mobile/core/printing/receipt_model.dart';
+import 'package:arus_mobile/features/pos/pos_models.dart';
 import 'package:arus_mobile/l10n/gen/app_localizations_id.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,7 +56,37 @@ Map<String, dynamic> _receipt({String status = 'completed'}) => {
 };
 
 void main() {
+  saleResultTests();
   final l = AppLocalizationsId();
+
+  test('struk QRIS EraPay menampilkan kode unik dan total bayar', () {
+    final j = _receipt();
+    final pay = ((j['sale'] as Map)['payments'] as List).first as Map;
+    pay
+      ..['method_name'] = 'EraPay QRIS'
+      ..['amount'] = '29000.00'
+      ..['unique_code'] = '123.00';
+    final texts = receiptLines(
+      ReceiptData.fromJson(j),
+      Paper.mm58,
+      l,
+    ).map((e) => e.text.trim()).toList();
+    expect(
+      texts.any((t) => t.startsWith('Kode unik') && t.endsWith('+123')),
+      isTrue,
+    );
+    expect(
+      texts.any((t) => t.startsWith('Total bayar') && t.endsWith('29.123')),
+      isTrue,
+    );
+    // tanpa kode unik: tidak ada baris tambahan
+    final plain = receiptLines(
+      ReceiptData.fromJson(_receipt()),
+      Paper.mm58,
+      l,
+    ).map((e) => e.text.trim());
+    expect(plain.any((t) => t.startsWith('Kode unik')), isFalse);
+  });
 
   test('struk 58 mm: lebar 32 kolom, total & kembalian benar', () {
     final lines = receiptLines(ReceiptData.fromJson(_receipt()), Paper.mm58, l);
@@ -118,5 +149,26 @@ void main() {
     expect(String.fromCharCodes(bytes), contains('Cafe'));
     expect(bytes.sublist(bytes.length - 4), [0x1d, 0x56, 0x42, 0]);
     expect(toPrinterAscii('Rp 1.000 – “ok” ñ'), 'Rp 1.000 - "ok" n');
+  });
+}
+
+void saleResultTests() {
+  test('SaleResult membaca kode unik QRIS dari pembayaran', () {
+    final r = SaleResult.fromJson({
+      'id': 'x',
+      'doc_no': 'A',
+      'total': '5000.00',
+      'payments': [
+        {'amount': '5000.00', 'unique_code': '1.00'},
+        {'amount': '0.00'},
+      ],
+    });
+    expect(r.uniqueCode.toString(), '1');
+    expect(r.qrisPaid.toString(), '5001');
+    expect(
+      SaleResult.fromJson({'id': 'x', 'doc_no': 'A', 'payments': []})
+          .uniqueCode,
+      isNull,
+    );
   });
 }
