@@ -113,6 +113,8 @@
   "payEraPartnerOpen": "支払いページを開く",
   "payEraRegenerate": "QRを再作成",
   "payEraCreating": "QRを作成中…",
+  "qrShare": "共有",
+  "qrZoomHint": "ピンチで拡大",
   "payEraScan": "お客様に {amount} のスキャンと支払いをお願いしてください",
   "payEraBreakTotal": "取引合計",
   "payEraBreakCode": "固有コード",

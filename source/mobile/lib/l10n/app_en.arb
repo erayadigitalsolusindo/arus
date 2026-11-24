@@ -92,6 +92,8 @@
   "payEraPartnerOpen": "Open payment page",
   "payEraRegenerate": "Create new QR",
   "payEraCreating": "Creating QR...",
+  "qrShare": "Share",
+  "qrZoomHint": "Pinch to zoom",
   "payEraScan": "Ask the customer to scan and pay {amount}",
   "payEraBreakTotal": "Transaction total",
   "payEraBreakCode": "Unique code",

@@ -304,6 +304,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get payEraCreating => 'QRを作成中…';
 
   @override
+  String get qrShare => '共有';
+
+  @override
+  String get qrZoomHint => 'ピンチで拡大';
+
+  @override
   String payEraScan(String amount) {
     return 'お客様に $amount のスキャンと支払いをお願いしてください';
   }

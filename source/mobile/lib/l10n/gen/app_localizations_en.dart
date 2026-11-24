@@ -310,6 +310,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payEraCreating => 'Creating QR...';
 
   @override
+  String get qrShare => 'Share';
+
+  @override
+  String get qrZoomHint => 'Pinch to zoom';
+
+  @override
   String payEraScan(String amount) {
     return 'Ask the customer to scan and pay $amount';
   }

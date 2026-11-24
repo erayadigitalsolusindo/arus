@@ -57,6 +57,8 @@ dependencies:
   flutter_tts: ^4.2.3
   flutter_web_auth_2: ^6.0.0
   url_launcher: ^6.3.3
+  share_plus: ^13.3.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

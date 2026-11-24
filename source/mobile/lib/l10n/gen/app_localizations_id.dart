@@ -310,6 +310,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get payEraCreating => 'Membuat QR...';
 
   @override
+  String get qrShare => 'Bagikan';
+
+  @override
+  String get qrZoomHint => 'Cubit untuk memperbesar';
+
+  @override
   String payEraScan(String amount) {
     return 'Minta pelanggan scan dan bayar $amount';
   }

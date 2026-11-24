@@ -113,6 +113,8 @@
   "payEraPartnerOpen": "Buka halaman pembayaran",
   "payEraRegenerate": "Buat ulang QR",
   "payEraCreating": "Membuat QR...",
+  "qrShare": "Bagikan",
+  "qrZoomHint": "Cubit untuk memperbesar",
   "payEraScan": "Minta pelanggan scan dan bayar {amount}",
   "payEraBreakTotal": "Total transaksi",
   "payEraBreakCode": "Kode unik",

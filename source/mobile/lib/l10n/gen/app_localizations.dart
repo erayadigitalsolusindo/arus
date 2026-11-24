@@ -652,6 +652,18 @@ abstract class AppLocalizations {
   /// **'Membuat QR...'**
   String get payEraCreating;
 
+  /// No description provided for @qrShare.
+  ///
+  /// In id, this message translates to:
+  /// **'Bagikan'**
+  String get qrShare;
+
+  /// No description provided for @qrZoomHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Cubit untuk memperbesar'**
+  String get qrZoomHint;
+
   /// No description provided for @payEraScan.
   ///
   /// In id, this message translates to:

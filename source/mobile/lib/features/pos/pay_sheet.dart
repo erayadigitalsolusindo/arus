@@ -4,6 +4,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'qr_viewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
@@ -925,11 +926,21 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
                     Colors.white, // QR harus kontras tinggi di tema gelap juga
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: QrImageView(
-                data: c.qrValue,
-                size: 220,
-                backgroundColor: Colors.white,
-                errorCorrectionLevel: QrErrorCorrectLevel.M,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => QrViewerPage(
+                      data: c.qrValue,
+                      caption: l.payEraScan(formatMoney(c.payAmount ?? amount)),
+                    ),
+                  ),
+                ),
+                child: QrImageView(
+                  data: c.qrValue,
+                  size: 220,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                ),
               ),
             ),
           const SizedBox(height: 8),
