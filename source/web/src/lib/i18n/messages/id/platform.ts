@@ -31,6 +31,7 @@ export default {
     expHint: 'Setelah berakhir, tenant otomatis kembali ke paket default. Tampil juga yang berakhir ≤ 30 hari lalu. Buka tenant untuk memperpanjang paket.',
     expEmpty: 'Tidak ada paket yang berakhir dalam rentang ini.',
     outlet: 'Outlet', address: 'Alamat', coords: 'Koordinat', map: 'Peta', noLoc: 'Belum diisi', withLoc: 'Outlet berlokasi', withoutLoc: 'Belum ada lokasi', onlyMissing: 'Hanya yang belum berlokasi',
+    fSearch: 'Cari tenant, outlet, atau alamat', fTenant: 'Semua tenant', fStatus: 'Semua status', fActive: 'Aktif', fLoc: 'Semua lokasi', fHasLoc: 'Sudah berlokasi', fReset: 'Reset filter', fCount: 'Menampilkan {shown} dari {total} outlet',
     locHint: 'Lokasi diisi tenant di Pengaturan › Outlet lewat tombol GPS.',
     empty: 'Belum ada data.', loadFailed: 'Gagal memuat laporan.'
   },

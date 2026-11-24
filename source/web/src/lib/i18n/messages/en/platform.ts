@@ -32,6 +32,7 @@ const platform: Messages['platform'] = {
     expHint: 'After expiry the tenant automatically falls back to the default plan. Plans that expired up to 30 days ago are included. Open the tenant to extend its plan.',
     expEmpty: 'No plans expire in this window.',
     outlet: 'Outlet', address: 'Address', coords: 'Coordinates', map: 'Map', noLoc: 'Not set', withLoc: 'Outlets located', withoutLoc: 'No location yet', onlyMissing: 'Only without location',
+    fSearch: 'Search tenant, outlet, or address', fTenant: 'All tenants', fStatus: 'All statuses', fActive: 'Active', fLoc: 'All locations', fHasLoc: 'With location', fReset: 'Reset filters', fCount: 'Showing {shown} of {total} outlets',
     locHint: 'Tenants set the location in Settings › Outlets with the GPS button.',
     empty: 'No data yet.', loadFailed: 'Failed to load the report.'
   },

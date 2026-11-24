@@ -17,8 +17,22 @@
   let loading = $state(true);
   // ---- Lokasi ----
   let locs = $state<OutletLocation[]>([]);
-  let onlyMissing = $state(false);
-  const shownLocs = $derived(onlyMissing ? locs.filter((l) => l.latitude === null) : locs);
+  let q = $state('');
+  let fTenant = $state('');
+  let fStatus = $state(''); // '' | 'active' | 'inactive'
+  let fLoc = $state(''); // '' | 'has' | 'missing'
+  const tenants = $derived([...new Map(locs.map((l) => [l.tenant_id, l.tenant_name])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
+  const filtered = $derived(fTenant || fStatus || fLoc || q.trim());
+  const shownLocs = $derived.by(() => {
+    const k = q.trim().toLowerCase();
+    return locs.filter((l) =>
+      (!fTenant || l.tenant_id === fTenant) &&
+      (!fStatus || l.active === (fStatus === 'active')) &&
+      (!fLoc || (l.latitude !== null) === (fLoc === 'has')) &&
+      (!k || `${l.tenant_name} ${l.outlet_name} ${l.address}`.toLowerCase().includes(k)));
+  });
+  const reset = () => { q = ''; fTenant = ''; fStatus = ''; fLoc = ''; };
+  const sel = 'h-9 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] text-[12.5px]';
   const located = $derived(locs.filter((l) => l.latitude !== null).length);
   const mapUrl = (l: OutletLocation) => `https://www.openstreetmap.org/?mlat=${l.latitude}&mlon=${l.longitude}#map=17/${l.latitude}/${l.longitude}`;
 
@@ -50,9 +64,25 @@
     <StatCard label={t('platform.reports.withLoc')} value="{formatNumber(located)} / {formatNumber(locs.length)}" icon="map-pin" tone="success" />
     <StatCard label={t('platform.reports.withoutLoc')} value={formatNumber(locs.length - located)} icon="circle-alert" tone="warning" />
   </div>
-  <label class="flex items-center gap-2 text-[12.5px] font-medium cursor-pointer w-fit">
-    <input type="checkbox" class="size-4 rounded accent-[var(--color-primary-600)]" bind:checked={onlyMissing} />{t('platform.reports.onlyMissing')}
-  </label>
+  <div class="flex flex-wrap items-center gap-2">
+    <input type="search" class="{sel} w-full sm:w-64" placeholder={t('platform.reports.fSearch')} aria-label={t('platform.reports.fSearch')} bind:value={q} />
+    <select class={sel} aria-label={t('platform.reports.tenant')} bind:value={fTenant}>
+      <option value="">{t('platform.reports.fTenant')}</option>
+      {#each tenants as [id, name] (id)}<option value={id}>{name}</option>{/each}
+    </select>
+    <select class={sel} aria-label={t('platform.reports.fStatus')} bind:value={fStatus}>
+      <option value="">{t('platform.reports.fStatus')}</option>
+      <option value="active">{t('platform.reports.fActive')}</option>
+      <option value="inactive">{t('platform.reports.inactive')}</option>
+    </select>
+    <select class={sel} aria-label={t('platform.reports.fLoc')} bind:value={fLoc}>
+      <option value="">{t('platform.reports.fLoc')}</option>
+      <option value="has">{t('platform.reports.fHasLoc')}</option>
+      <option value="missing">{t('platform.reports.withoutLoc')}</option>
+    </select>
+    {#if filtered}<button type="button" class="text-[12.5px] font-medium text-[var(--color-primary-700)] hover:underline" onclick={reset}>{t('platform.reports.fReset')}</button>{/if}
+    <span class="text-[11.5px] text-[var(--text-tertiary)]">{t('platform.reports.fCount', { shown: shownLocs.length, total: locs.length })}</span>
+  </div>
   <p class="text-[11.5px] -mt-2 text-[var(--text-tertiary)]">{t('platform.reports.locHint')}</p>
   <OutletMap items={shownLocs} />
   <div class="surface-card !p-0 overflow-hidden">
