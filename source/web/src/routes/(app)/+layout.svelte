@@ -28,6 +28,17 @@
 
   afterNavigate(() => (mobileOpen = false));
 
+  // Sesi berakhir (refresh gagal, atau logout dari tab lain): kembali ke login.
+  $effect(() => {
+    if (session.status === 'anon') {
+      untrack(() => tabs.reset());
+      // untrack: returnTo hanya dibaca/dihapus di sini; jika dilacak, efek berjalan ulang dan jatuh ke /login.
+      const to = untrack(() => session.returnTo) ?? '/login';
+      untrack(() => (session.returnTo = null));
+      void goto(to);
+    }
+  });
+
   // Heartbeat presence: tiap request terautentikasi menandai user online; ini menjaga user yang sedang diam di aplikasi (tab terlihat) tetap online.
   onMount(() => {
     let id: ReturnType<typeof setTimeout>;
