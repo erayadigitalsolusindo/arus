@@ -128,24 +128,6 @@ func (s *Service) ExpiringReport(ctx context.Context, a Actor, days int) ([]Expi
 	return out, rows.Err()
 }
 
-func (s *Service) OutletLocations(ctx context.Context, a Actor) ([]OutletLocation, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT tenant_id, tenant_name, outlet_id, outlet_name, address, active, latitude::float8, longitude::float8
-		FROM platform_outlet_locations($1)`, a.ID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []OutletLocation{}
-	for rows.Next() {
-		var x OutletLocation
-		if err := rows.Scan(&x.TenantID, &x.TenantName, &x.OutletID, &x.OutletName, &x.Address, &x.Active, &x.Latitude, &x.Longitude); err != nil {
-			return nil, err
-		}
-		out = append(out, x)
-	}
-	return out, rows.Err()
-}
-
 // wibDay membaca tanggal YYYY-MM-DD sebagai awal hari WIB (zona operator, sama seperti filter daftar tenant).
 func wibDay(v string) (time.Time, bool) {
 	d, err := time.ParseInLocation("2006-01-02", v, time.FixedZone("WIB", 7*3600))
@@ -218,17 +200,6 @@ func (h *Handler) ExpiringReport(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.ExpiringReport(r.Context(), a, days)
 	if err != nil {
 		h.internal(w, r, "laporan paket berakhir gagal", err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})
-}
-
-// OutletLocations: GET /platform/reports/locations.
-func (h *Handler) OutletLocations(w http.ResponseWriter, r *http.Request) {
-	a, _ := ActorFrom(r.Context())
-	items, err := h.svc.OutletLocations(r.Context(), a)
-	if err != nil {
-		h.internal(w, r, "lokasi outlet platform gagal", err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})

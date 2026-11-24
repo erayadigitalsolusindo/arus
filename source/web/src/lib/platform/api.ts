@@ -269,7 +269,11 @@ export const platformApi = {
   expiringReport: (days: number) => papi<{ items: ExpiringRow[] }>(`/platform/reports/expiring?days=${days}`).then((r) => r.items),
   setOutletLocation: (tenantId: string, outletId: string, latitude: number | null, longitude: number | null) =>
     papi<void>(`/platform/tenants/${tenantId}/outlets/${outletId}/location`, { method: 'PUT', body: json({ latitude, longitude }) }),
-  outletLocations: () => papi<{ items: OutletLocation[] }>('/platform/reports/locations').then((r) => r.items),
+  outletLocations: (f: { q?: string; status?: string; loc?: string; after?: string; map?: boolean }) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(f)) if (v) p.set(k, v === true ? '1' : String(v));
+    return papi<{ items: OutletLocation[]; next: string; total?: number; located?: number }>(`/platform/reports/locations?${p}`);
+  },
   backup: () => papi<{ config: BackupConfig; runs: BackupRun[] }>('/platform/backup'),
   saveBackup: (body: BackupSave) => papi<{ ok: boolean }>('/platform/backup', { method: 'PUT', body: json(body) }),
   backupAuthUrl: () => papi<{ url: string }>('/platform/backup/drive/auth-url', { method: 'POST' }),

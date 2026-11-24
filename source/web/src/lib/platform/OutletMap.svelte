@@ -53,4 +53,4 @@
   });
 </script>
 
-<div bind:this={el} class="h-[420px] w-full rounded-xl overflow-hidden border border-[var(--border)] z-0"></div>
+<div bind:this={el} class="h-[min(70vh,560px)] w-full rounded-xl overflow-hidden border border-[var(--border)] z-0"></div>
