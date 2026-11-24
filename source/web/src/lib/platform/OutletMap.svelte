@@ -14,6 +14,16 @@
   const markers = new Map<string, import('leaflet').CircleMarker>();
   let inView = $state<OutletLocation[]>([]); // outlet yang tampak di peta saat ini (daftar samping)
   const VIEW_CAP = 60;
+  let q = $state('');
+  // Cari di semua titik (tenant/outlet/alamat), bukan hanya yang tampak; kosong = daftar area peta.
+  const matches = $derived.by(() => {
+    const k = q.trim().toLowerCase();
+    return k ? items.filter((o) => o.latitude !== null && `${o.tenant_name} ${o.outlet_name} ${o.address}`.toLowerCase().includes(k)) : [];
+  });
+  const shown = $derived(q.trim() ? matches : inView);
+  function fitMatches() {
+    if (map && matches.length) map.fitBounds(matches.map((o) => [o.latitude!, o.longitude!] as [number, number]), { padding: [30, 30], maxZoom: 16 });
+  }
   const activeCount = $derived(items.filter((o) => o.active).length);
 
   const COLOR = { on: '#16a34a', off: '#9ca3af' };
@@ -120,11 +130,15 @@
   <div class="grid gap-2 md:grid-cols-[minmax(0,1fr)_250px]">
     <div bind:this={el} class="h-[min(70vh,560px)] w-full rounded-xl overflow-hidden border border-[var(--border)] z-0"></div>
     <div class="rounded-xl border border-[var(--border)] overflow-hidden flex flex-col h-[min(30vh,220px)] md:h-[min(70vh,560px)]">
-      <div class="px-3 py-2 text-[11.5px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
-        {t('platform.reports.mapInView', { n: formatNumber(inView.length) })}
+      <div class="p-2 border-b border-[var(--border-subtle)]">
+        <input type="search" bind:value={q} onkeydown={(e) => e.key === 'Enter' && fitMatches()} placeholder={t('platform.reports.fSearch')} aria-label={t('platform.reports.fSearch')}
+          class="w-full h-8 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] text-[12.5px]" />
+      </div>
+      <div class="px-3 py-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
+        {q.trim() ? t('platform.reports.mapResults', { n: formatNumber(matches.length) }) : t('platform.reports.mapInView', { n: formatNumber(inView.length) })}
       </div>
       <ul class="overflow-y-auto scroll-thin divide-y divide-[var(--border-subtle)] flex-1">
-        {#each inView.slice(0, VIEW_CAP) as o (o.outlet_id)}
+        {#each shown.slice(0, VIEW_CAP) as o (o.outlet_id)}
           <li>
             <button type="button" class="w-full text-start px-3 py-2 hover:bg-[var(--surface-sunken)]" onclick={() => focus(o)}>
               <div class="flex items-center gap-1.5 text-[12.5px] font-medium"><i class="inline-block size-2 rounded-full shrink-0" style="background:{o.active ? COLOR.on : COLOR.off}"></i><span class="truncate">{o.outlet_name}</span></div>
@@ -132,7 +146,8 @@
             </button>
           </li>
         {/each}
-        {#if inView.length > VIEW_CAP}<li class="px-3 py-2 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.reports.mapMore', { n: formatNumber(inView.length - VIEW_CAP) })}</li>{/if}
+        {#if shown.length > VIEW_CAP}<li class="px-3 py-2 text-[11.5px] text-[var(--text-tertiary)]">{t('platform.reports.mapMore', { n: formatNumber(shown.length - VIEW_CAP) })}</li>{/if}
+        {#if q.trim() && matches.length === 0}<li class="px-3 py-3 text-[12px] text-[var(--text-tertiary)]">{t('platform.reports.empty')}</li>{/if}
       </ul>
     </div>
   </div>

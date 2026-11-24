@@ -238,15 +238,19 @@ func (s *Service) PinStatus(ctx context.Context, a authz.Actor) (hasPin, canAppr
 // SetPin menetapkan/mengganti PIN milik pelaku sendiri; wajib password akun (bukan hanya token sesi) dan hanya untuk
 // pemegang izin penyetuju. Percobaan password salah dibatasi seperti PIN.
 func (s *Service) SetPin(ctx context.Context, a authz.Actor, password, pin string) error {
-	if a.UserID == uuid.Nil || a.Impersonator != uuid.Nil {
+	if a.UserID == uuid.Nil {
 		return ErrForbidden
 	}
 	if err := ValidatePin(pin); err != nil {
 		return err
 	}
+	// Platform Admin (sesi "masuk sebagai") tidak tahu kata sandi pemilik: tanpa verifikasi sandi, tetap tercatat di audit "Platform: <admin>".
+	byPlatform := a.Impersonator != uuid.Nil
 	key := "pin:pw:" + a.TenantID.String() + ":" + a.UserID.String()
-	if err := s.locked(ctx, key); err != nil {
-		return err
+	if !byPlatform {
+		if err := s.locked(ctx, key); err != nil {
+			return err
+		}
 	}
 	return db.WithTenant(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error {
 		q := gen.New(tx)
@@ -257,12 +261,14 @@ func (s *Service) SetPin(ctx context.Context, a authz.Actor, password, pin strin
 		if !canApproveAny(authz.ParseStored(self.Permissions)) {
 			return ErrForbidden
 		}
-		if ok, _ := pauth.VerifyPassword(password, self.PasswordHash); !ok {
-			s.fail(ctx, key)
-			return ErrBadPassword
-		}
-		if s.rdb != nil {
-			s.rdb.Del(ctx, key)
+		if !byPlatform {
+			if ok, _ := pauth.VerifyPassword(password, self.PasswordHash); !ok {
+				s.fail(ctx, key)
+				return ErrBadPassword
+			}
+			if s.rdb != nil {
+				s.rdb.Del(ctx, key)
+			}
 		}
 		hash, err := pauth.HashPassword(s.material(a.TenantID, a.UserID, pin))
 		if err != nil {

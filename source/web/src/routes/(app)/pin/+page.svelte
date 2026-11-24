@@ -3,6 +3,7 @@
   import { ApiError } from '#lib/api/client.ts';
   import { approvals } from '#lib/approval/api.ts';
   import { t } from '#lib/i18n/index.ts';
+  import { session } from '#lib/auth/session.svelte.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
 
   let hasPin = $state<boolean | null>(null);
@@ -61,11 +62,14 @@
   {/if}
 
   <form class="surface-card p-4 space-y-3" onsubmit={save} autocomplete="off">
+    <!-- Platform Admin (masuk sebagai tenant) tidak memakai kata sandi pemilik. -->
+    {#if !session.impersonating}
     <label class="block text-[13px]">
       <span class="font-semibold">{t('pos.pinPage.password')}</span>
       <input type="password" bind:value={password} autocomplete="current-password" required class="mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)]" />
       {#if fieldErr.password}<span class="text-[12px] text-[var(--color-danger-600)]">{fieldMessage(fieldErr.password)}</span>{/if}
     </label>
+    {/if}
     <label class="block text-[13px]">
       <span class="font-semibold">{t('pos.pinPage.pin')}</span>
       <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" bind:value={pin} autocomplete="new-password" required class="mt-1 w-full h-10 px-3 rounded border border-[var(--border-default)] bg-[var(--surface-base)] tracking-[0.4em]" />

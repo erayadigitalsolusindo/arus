@@ -32,6 +32,7 @@ export default {
     expEmpty: 'Tidak ada paket yang berakhir dalam rentang ini.',
     outlet: 'Outlet', address: 'Alamat', coords: 'Koordinat', map: 'Peta', noLoc: 'Belum diisi', withLoc: 'Outlet berlokasi', withoutLoc: 'Belum ada lokasi', onlyMissing: 'Hanya yang belum berlokasi',
     mapDirections: 'Buka di Google Maps', mapStreet: 'Peta', mapSat: 'Satelit', mapFit: 'Tampilkan semua', mapInView: 'Di area peta ({n})', mapMore: '+{n} lagi, perbesar peta untuk melihat',
+    mapTitle: 'Peta Sebaran Saudara Eraya Digital Solusindo', mapResults: 'Hasil pencarian ({n})',
     loadMore: 'Muat lebih banyak',
     fSearch: 'Cari tenant, outlet, atau alamat', fTenant: 'Semua tenant', fStatus: 'Semua status', fActive: 'Aktif', fLoc: 'Semua lokasi', fHasLoc: 'Sudah berlokasi', fReset: 'Reset filter', fCount: 'Menampilkan {shown} dari {total} outlet',
     fOutletsLoc: '{n} outlet · {m} berlokasi', fOpenTenant: 'Buka tenant', coordInvalid: 'Format: latitude, longitude (contoh -5.147665, 119.432732)', save: 'Simpan', fClear: 'Hapus',
