@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { untrack, type Snippet } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import { afterNavigate, goto } from '$app/navigation';
   import { session, isLocked } from '#lib/auth/session.svelte.ts';
   import { page } from '$app/state';
+  import { api } from '#lib/api/client.ts';
   import { moduleForPath } from '#lib/nav.ts';
   import { lockPrompt } from '#lib/subscription/lock.svelte.ts';
   import UpgradePrompt from '#lib/components/UpgradePrompt.svelte';
@@ -27,15 +28,16 @@
 
   afterNavigate(() => (mobileOpen = false));
 
-  // Sesi berakhir (refresh gagal, atau logout dari tab lain): kembali ke login.
-  $effect(() => {
-    if (session.status === 'anon') {
-      untrack(() => tabs.reset());
-      // untrack: returnTo hanya dibaca/dihapus di sini; jika dilacak, efek berjalan ulang dan jatuh ke /login.
-      const to = untrack(() => session.returnTo) ?? '/login';
-      untrack(() => (session.returnTo = null));
-      void goto(to);
-    }
+  // Heartbeat presence: tiap request terautentikasi menandai user online; ini menjaga user yang sedang diam di aplikasi (tab terlihat) tetap online.
+  onMount(() => {
+    let id: ReturnType<typeof setTimeout>;
+    // Jitter ±10 dtk agar klien tidak serempak menembak server.
+    const tick = () => {
+      if (session.status === 'authed' && document.visibilityState === 'visible') void api('/auth/ping').catch(() => {});
+      id = setTimeout(tick, 35_000 + Math.random() * 20_000);
+    };
+    id = setTimeout(tick, 35_000 + Math.random() * 20_000);
+    return () => clearTimeout(id);
   });
 </script>
 

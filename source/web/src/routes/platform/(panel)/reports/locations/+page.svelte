@@ -4,6 +4,7 @@
   import { t, formatNumber, formatDate, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import DateRange from '#lib/components/DateRange.svelte';
+  import OutletMap from '#lib/platform/OutletMap.svelte';
   import StatCard from '#lib/platform/StatCard.svelte';
   import { relativeTime } from '#lib/platform/relative.ts';
 
@@ -53,6 +54,7 @@
     <input type="checkbox" class="size-4 rounded accent-[var(--color-primary-600)]" bind:checked={onlyMissing} />{t('platform.reports.onlyMissing')}
   </label>
   <p class="text-[11.5px] -mt-2 text-[var(--text-tertiary)]">{t('platform.reports.locHint')}</p>
+  <OutletMap items={shownLocs} />
   <div class="surface-card !p-0 overflow-hidden">
     <div class="overflow-x-auto scroll-thin">
       <table class="w-full text-[12.5px] min-w-[720px]">

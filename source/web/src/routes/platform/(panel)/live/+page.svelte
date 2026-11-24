@@ -8,7 +8,7 @@
   import { relativeTime } from '#lib/platform/relative.ts';
 
   const REFRESH_GAP_MS = 2000; // sinyal beruntun menyatu: paling sering sekali per 2 dtk
-  const FALLBACK_MS = 30_000;
+  const FALLBACK_MS = 15_000;
   const WATCHDOG_MS = 60_000;
 
   let summary = $state<LiveSummary | null>(null);
@@ -106,7 +106,7 @@
                 status = 'live';
                 delay = 1000;
                 schedule();
-              } else if (block.includes('event: sales')) schedule();
+              } else if (block.includes('event: sales') || block.includes('event: presence')) schedule();
             }
           }
           delay = 1000; // ditutup server (batas umur aliran): sambung lagi
