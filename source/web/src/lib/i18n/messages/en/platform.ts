@@ -19,13 +19,13 @@ const platform: Messages['platform'] = {
   reports: {
     title: 'Platform Reports',
     sub: 'Track each tenant’s sales growth, plans about to expire, and outlet locations.',
-    tabSales: 'Sales', tabExpiring: 'Expiring plans', tabLocations: 'Outlet locations',
+    tabSales: 'Tenant Sales', tabExpiring: 'Expiring plans', tabLocations: 'Outlet locations',
     from: 'From', to: 'To', d7: '7 days', d30: '30 days', d90: '90 days', thisMonth: 'This month',
     compare: 'Compared with the previous period of the same length. Completed sales only (voids excluded); returns are not deducted.',
     revenue: 'Revenue', count: 'Receipts', tenantsSelling: 'Tenants selling', change: 'Revenue change',
     tenant: 'Tenant', plan: 'Plan', outlets: 'Outlets', notes: 'Receipts', avg: 'Avg. receipt', growth: 'Change', activeDays: 'Active days', lastSale: 'Last sale',
     stNew: 'New', stNone: 'No sales', stStopped: 'Stopped', stUp: 'Up', stDown: 'Down', stFlat: 'Flat',
-    trend: 'Last 6 months', never: 'Never',
+    fActiveN: '{n} active', podiumOpen: 'View podium', podiumReplay: 'Replay', fTypeAll: 'All tenant types', top10: 'Top 10 Tenants', top10Sub: 'Ranked by revenue in the selected period.', champ: 'Champion', fAdv: 'Advanced filter', fSearchT: 'Search tenant name or code', fPlanAll: 'All plans', fStAll: 'All statuses', fMin: 'Minimum revenue (Rp)', fOnlyActive: 'Active tenants only', fOnlySelling: 'Selling tenants only', fResetS: 'Reset filters', fShownS: '{shown} of {total} tenants', trend: 'Last 6 months', never: 'Never',
     window: 'Expiring within', days: '{n} days', expired: 'Already expired', soon: 'Soon (≤ 7 days)', later: 'Approaching',
     expiresOn: 'Expires', daysLeft: '{n} days left', daysAgo: '{n} days ago', today: 'today',
     price: 'Plan price', rev30: '30-day revenue', lastLogin: 'Last login', owner: 'Owner', users: 'Users', inactive: 'Inactive',
@@ -67,7 +67,7 @@ const platform: Messages['platform'] = {
     window: "Online = active in the last 5 minutes; Selling = a receipt in the last 15 minutes."
   },
   nav: {
-    groupReports: 'Reports', reportSales: 'Sales', reportExpiring: 'Expiring plans', reportLocations: 'Outlet locations',
+    groupReports: 'Reports', reportSales: 'Tenant Sales', reportExpiring: 'Expiring plans', reportLocations: 'Outlet locations',
     live: 'Live Sales',
     groupMain: 'Platform',
     groupSystem: 'System', backup: 'Backup', mobile: 'Mobile App', apiAccess: 'External API', languages: 'Languages', plans: 'Plans', templates: 'Landing Templates', halloarus: 'HalloArus', security: 'Security', tenants: 'Tenants', admins: 'Platform Admins', audit: 'Platform Audit', qa: 'QA Checklist', domains: 'Domains', signOut: 'Sign out' },
@@ -1187,7 +1187,7 @@ const platform: Messages['platform'] = {
       tenants: 'Tenants (Create = bulk register, Delete = schedule delete & purge)',
       tenant_impersonate: 'Enter as tenant',
       tenant_erapay: 'Tenant ERAPAY',
-      reports_sales: 'Reports: Sales',
+      reports_sales: 'Reports: Tenant Sales',
       reports_expiring: 'Reports: Expiring plans',
       reports_locations: 'Reports: Outlet locations',
       plans: 'Plans',

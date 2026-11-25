@@ -29,6 +29,8 @@ type SalesReportRow struct {
 	PrevRevenue string     `json:"prev_revenue"`
 	ActiveDays  int64      `json:"active_days"`
 	LastSaleAt  *time.Time `json:"last_sale_at"`
+	TenantType  string     `json:"tenant_type"`
+	Location    string     `json:"location"`
 }
 
 type SalesMonth struct {
@@ -65,7 +67,7 @@ type OutletLocation struct {
 }
 
 func (s *Service) SalesReport(ctx context.Context, a Actor, from, to time.Time) ([]SalesReportRow, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT tenant_id, code, name, active, plan_name, outlet_count, sales_count, revenue, prev_count, prev_revenue, active_days, last_sale_at
+	rows, err := s.Pool.Query(ctx, `SELECT tenant_id, code, name, active, plan_name, outlet_count, sales_count, revenue, prev_count, prev_revenue, active_days, last_sale_at, tenant_type, location
 		FROM platform_report_sales($1, $2, $3)`, a.ID, from, to)
 	if err != nil {
 		return nil, err
@@ -75,7 +77,7 @@ func (s *Service) SalesReport(ctx context.Context, a Actor, from, to time.Time) 
 	for rows.Next() {
 		var x SalesReportRow
 		var rev, prev decimal.Decimal
-		if err := rows.Scan(&x.TenantID, &x.Code, &x.Name, &x.Active, &x.PlanName, &x.OutletCount, &x.SalesCount, &rev, &x.PrevCount, &prev, &x.ActiveDays, &x.LastSaleAt); err != nil {
+		if err := rows.Scan(&x.TenantID, &x.Code, &x.Name, &x.Active, &x.PlanName, &x.OutletCount, &x.SalesCount, &rev, &x.PrevCount, &prev, &x.ActiveDays, &x.LastSaleAt, &x.TenantType, &x.Location); err != nil {
 			return nil, err
 		}
 		if !a.Allows(x.TenantID) {

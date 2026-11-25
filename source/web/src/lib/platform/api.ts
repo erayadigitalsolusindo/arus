@@ -255,7 +255,7 @@ export type BackupSave = { client_id: string; client_secret: string; enabled: bo
 
 export type SalesReportRow = {
   tenant_id: string; code: string; name: string; active: boolean; plan_name: string; outlet_count: number;
-  sales_count: number; revenue: string; prev_count: number; prev_revenue: string; active_days: number; last_sale_at: string | null;
+  sales_count: number; revenue: string; prev_count: number; prev_revenue: string; active_days: number; last_sale_at: string | null; tenant_type: string; location: string;
 };
 export type SalesMonth = { month: string; sales_count: number; revenue: string };
 export type ExpiringRow = {
