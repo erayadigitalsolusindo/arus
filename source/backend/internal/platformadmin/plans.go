@@ -466,6 +466,10 @@ func (s *Service) BulkSetTenantPlan(ctx context.Context, a Actor, ids []uuid.UUI
 		return 0, nil, FieldErrors{"tenant_ids": "INVALID"}
 	}
 	for _, id := range ids {
+		if !a.Allows(id) {
+			failed = append(failed, id)
+			continue
+		}
 		in := SetTenantPlanInput{PlanID: planID, ExpiresAt: expiresAt}
 		if planID != nil {
 			if cur, e := s.GetTenantPlan(ctx, id); e == nil && cur.Subscription != nil {

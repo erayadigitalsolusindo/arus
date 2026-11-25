@@ -46,7 +46,7 @@ type TenantRow struct {
 
 // TenantFilter = filter lanjutan daftar tenant; nilai kosong/nil = tidak memfilter.
 type TenantFilter struct {
-	Q, Status, Login, Type string
+	Q, Status, Login, Type, Location string
 	PlanID           *uuid.UUID
 	From, To         *time.Time
 }
@@ -66,7 +66,7 @@ func (s *Service) ListTenants(ctx context.Context, a Actor, f TenantFilter, limi
 	limit, offset = min(limit, maxPage), max(offset, 0)
 	rows, err := s.Pool.Query(ctx,
 		`SELECT id, code, name, active, created_at, outlet_count, user_count, last_login_at, owner_email, plan_id, plan_name, plan_expires_at, tenant_type, location, total
-		   FROM platform_list_tenants($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, a.ID, f.Q, limit, offset, f.Status, f.PlanID, f.Login, f.From, f.To, f.Type)
+		   FROM platform_list_tenants($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, a.ID, f.Q, limit, offset, f.Status, f.PlanID, f.Login, f.From, f.To, f.Type, f.Location)
 	if err != nil {
 		return nil, err
 	}

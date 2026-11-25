@@ -18,7 +18,7 @@ export type TenantRow = {
   tenant_type: string;
   location: string;
 };
-export type TenantFilter = { status?: string; plan?: string; login?: string; from?: string; to?: string; type?: string };
+export type TenantFilter = { status?: string; plan?: string; login?: string; from?: string; to?: string; type?: string; location?: string };
 export type BulkTenantItem = { business_name: string; email: string; owner_name?: string; outlet_name?: string; phone?: string };
 export type BulkTenantResult = { row: number; email: string; ok: boolean; tenant_id?: string; error?: string };
 export type TenantPage = { items: TenantRow[]; total: number; limit: number; offset: number };
@@ -38,7 +38,7 @@ export type TenantDetail = { id: string; code: string; name: string; active: boo
 
 export type DeleteSchedule = { delete_at: string; requested_at: string; due: boolean };
 
-export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string; role_id: string | null; role_name: string };
+export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string; role_id: string | null; role_name: string; tenant_count: number | null };
 
 export type PlatformModuleDef = { id: string; actions: string[] };
 export type PlatformRole = { id: string; name: string; permissions: Record<string, string[] | true>; is_system: boolean; admin_count: number };
@@ -344,6 +344,8 @@ export const platformApi = {
   createRole: (name: string, permissions: Record<string, string[]>) => papi<PlatformRole>('/platform/roles', { method: 'POST', body: json({ name, permissions }) }),
   updateRole: (id: string, name: string, permissions: Record<string, string[]>) => papi<PlatformRole>(`/platform/roles/${id}`, { method: 'PUT', body: json({ name, permissions }) }),
   deleteRole: (id: string) => papi<void>(`/platform/roles/${id}`, { method: 'DELETE' }),
+  tenantLocations: () => papi<{ items: { location: string; count: number }[] }>('/platform/tenant-locations').then((r) => r.items),
+  setAdminScope: (id: string, mode: 'all' | 'set' | 'add' | 'remove', tenantIds: string[] = []) => papi<void>(`/platform/admins/${id}/tenants`, { method: 'PUT', body: json({ mode, tenant_ids: tenantIds }) }),
   tenantTypes: () => papi<{ items: { type: string; count: number }[] }>('/platform/tenant-types').then((r) => r.items),
   /** Jenis & lokasi tenant (penanda opsional, boleh kosong); keduanya dikirim bersamaan. */
   setTenantProfile: (id: string, tenantType: string, location: string) =>

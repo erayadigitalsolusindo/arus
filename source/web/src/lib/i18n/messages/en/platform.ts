@@ -225,6 +225,16 @@ const platform: Messages['platform'] = {
       done: '{ok} tenants updated, {failed} failed.',
       until: 'until {date}',
     },
+    bulkScope: {
+      open: 'Set admin access',
+      admin: 'Admin',
+      add: 'Add to admin access',
+      remove: 'Remove from admin access',
+      apply: 'Apply',
+      confirm: 'Change access to {count} tenants for this admin?',
+      done: 'Admin access updated.',
+      hint: 'A restricted admin only sees the tenants added here. An unrestricted admin sees all tenants.',
+    },
     thisPage: 'on this page'
   },
   tenant: {
@@ -1163,6 +1173,10 @@ const platform: Messages['platform'] = {
     roleChanged: 'Admin role changed.',
     tenantType: 'Tenant Type',
     tenantLocation: 'Tenant Location',
+    scopeAll: 'All tenants',
+    scopeCount: '{count} tenants',
+    scopeReset: 'All tenants',
+    scopeResetConfirm: 'Let this admin see all tenants?',
     typePlaceholder: 'e.g. SME',
     locationPlaceholder: 'e.g. Bandung City',
     profileTitle: 'Tenant type & location',

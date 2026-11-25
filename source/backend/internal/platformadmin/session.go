@@ -72,6 +72,8 @@ type Actor struct {
 	MFA  bool // 2FA aktif; tanpa ini hanya halaman keamanan yang boleh diakses
 	// Perms = izin role admin ini (dari cache singkat); ditegakkan requirePerm.
 	Perms authz.Permissions
+	// Scope = tenant yang boleh diakses; nil = semua (lihat scope.go).
+	Scope []uuid.UUID
 }
 
 type actorKey struct{}
@@ -212,7 +214,7 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 			httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi dicabut. Silakan masuk kembali.")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA, Perms: admin.Perms})))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA, Perms: admin.Perms, Scope: admin.Scope})))
 	})
 }
 

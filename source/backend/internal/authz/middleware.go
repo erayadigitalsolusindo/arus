@@ -35,6 +35,8 @@ type PlatformAdmin struct {
 	MFA        bool // 2FA (TOTP) sudah aktif
 	// Perms = izin role Platform Admin (modul platform; lihat platformadmin.PlatformModules). Kosong = tanpa izin.
 	Perms Permissions
+	// Scope = tenant yang boleh diakses admin ini; nil = semua tenant, kosong = tidak satu pun.
+	Scope []uuid.UUID
 }
 
 // PlatformChecker dipasang di Resolver (WithPlatform) oleh modul platformadmin; authz tidak mengimpornya (hindari siklus).

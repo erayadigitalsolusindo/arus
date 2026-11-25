@@ -24,11 +24,13 @@ type AdminRow struct {
 	MFAEnabled  bool       `json:"mfa_enabled"`
 	RoleID      *uuid.UUID `json:"role_id"`
 	RoleName    string     `json:"role_name"`
+	// TenantCount = jumlah tenant yang boleh dilihat; nil = semua tenant.
+	TenantCount *int `json:"tenant_count"`
 }
 
 func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
 	rows, err := s.Pool.Query(ctx, `SELECT a.id, a.email, a.name, a.active, a.last_login_at, a.created_at,
-		(a.totp_enabled_at IS NOT NULL), r.id, r.name
+		(a.totp_enabled_at IS NOT NULL), r.id, r.name, cardinality(a.tenant_scope)
 		FROM platform_admins a
 		LEFT JOIN platform_admin_roles ar ON ar.admin_id = a.id
 		LEFT JOIN platform_roles r ON r.id = ar.role_id
@@ -44,8 +46,9 @@ func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
 			last pgtype.Timestamptz
 			rid  pgtype.UUID
 			rn   pgtype.Text
+			tc   pgtype.Int4
 		)
-		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &a.Active, &last, &a.CreatedAt, &a.MFAEnabled, &rid, &rn); err != nil {
+		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &a.Active, &last, &a.CreatedAt, &a.MFAEnabled, &rid, &rn, &tc); err != nil {
 			return nil, err
 		}
 		if last.Valid {
@@ -57,6 +60,10 @@ func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
 			a.RoleID = &id
 		}
 		a.RoleName = rn.String
+		if tc.Valid {
+			n := int(tc.Int32)
+			a.TenantCount = &n
+		}
 		out = append(out, a)
 	}
 	return out, rows.Err()

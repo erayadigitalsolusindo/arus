@@ -63,11 +63,21 @@ func (f locFilter) where() (string, []any) {
 	return strings.Join(cond, " AND "), args
 }
 
+// scoped = klausa WHERE filter ditambah pembatas tenant bagi admin berbatas ($1 = id admin, jadi argumen dimulai dari $2).
+func scoped(a Actor, f locFilter) (string, []any) {
+	where, args := f.where()
+	if a.Scope != nil {
+		args = append(args, a.Scope)
+		where += fmt.Sprintf(" AND l.tenant_id = ANY($%d)", len(args)+1)
+	}
+	return where, args
+}
+
 const locCols = `l.tenant_id, l.tenant_name, l.outlet_id, l.outlet_name, l.address, l.active, l.latitude::float8, l.longitude::float8`
 
 // OutletLocationPage mengambil satu halaman; mapOnly = hanya yang berkoordinat, tanpa batas halaman (untuk peta).
 func (s *Service) OutletLocationPage(ctx context.Context, a Actor, f locFilter, cur *locCursor, limit int, mapOnly bool) (*OutletLocationPage, error) {
-	where, args := f.where()
+	where, args := scoped(a, f)
 	if mapOnly {
 		where += " AND l.latitude IS NOT NULL"
 	}
@@ -104,7 +114,7 @@ func (s *Service) OutletLocationPage(ctx context.Context, a Actor, f locFilter, 
 		out.Next = base64.RawURLEncoding.EncodeToString(raw)
 	}
 	if cur == nil && !mapOnly { // hitungan hanya sekali, di halaman pertama
-		w, wa := f.where()
+		w, wa := scoped(a, f)
 		var total, located int
 		if err := s.Pool.QueryRow(ctx, `SELECT count(*), count(l.latitude) FROM platform_outlet_locations($1) l WHERE `+w,
 			append([]any{a.ID}, wa...)...).Scan(&total, &located); err != nil {

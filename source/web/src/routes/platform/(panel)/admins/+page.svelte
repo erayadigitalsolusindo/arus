@@ -85,6 +85,20 @@
     }
   }
 
+  async function resetScope(a: AdminRow) {
+    if (!confirm(t('platform.access.scopeResetConfirm'))) return;
+    busyId = a.id;
+    error = notice = '';
+    try {
+      await platformApi.setAdminScope(a.id, 'all');
+      await load();
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      busyId = '';
+    }
+  }
+
   // ---- Hapus permanen: verifikasi ulang password + TOTP ----
   let del = $state<{ target: AdminRow; password: string; code: string; saving: boolean; error: string } | null>(null);
   async function submitDelete(e: SubmitEvent) {
@@ -168,13 +182,14 @@
                 </div>
               </div>
             </td>
-            <td class="px-4 py-3 whitespace-nowrap">{#if a.role_name}<span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold badge-info">{a.role_name}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.access.noRole')}</span>{/if}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{#if a.role_name}<span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold badge-info">{a.role_name}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.access.noRole')}</span>{/if}<span class="block text-[11px] mt-0.5 text-[var(--text-tertiary)]">{a.tenant_count === null ? t('platform.access.scopeAll') : t('platform.access.scopeCount', { count: a.tenant_count })}</span></td>
             <td class="px-4 py-3 whitespace-nowrap">{#if a.last_login_at}<span title={formatDateTime(a.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}>{relativeTime(a.last_login_at)}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.tenants.never')}</span>{/if}</td>
             <td class="px-4 py-3"><StatusPill ok={a.active} label={a.active ? t('platform.tenants.active') : t('platform.tenants.inactive')} /></td>
             <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold {a.mfa_enabled ? 'badge-success' : 'badge-warning'}"><i class="{a.mfa_enabled ? 'icon-shield-check' : 'icon-shield-alert'} text-[12px]"></i>{a.mfa_enabled ? t('platform.security.on') : t('platform.security.off')}</span></td>
             <td class="px-4 py-3 text-end whitespace-nowrap space-x-1">
               {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openPassword(a)}>{t('platform.admins.resetPassword')}</button>{/if}
               {#if a.id !== platform.admin?.id}
+                {#if a.tenant_count !== null && canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetScope(a)}>{t('platform.access.scopeReset')}</button>{/if}
                 {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openRole(a)}>{t('platform.access.changeRole')}</button>{/if}
                 {#if a.mfa_enabled && canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetMfa(a)}>{t('platform.admins.resetMfa')}</button>{/if}
                 {#if canPlatform('admins', 'update')}

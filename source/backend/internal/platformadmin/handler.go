@@ -96,9 +96,10 @@ func (h *Handler) Routes(r chi.Router) {
 
 		// Selebihnya wajib 2FA aktif (Platform Admin = akses ke semua data pelanggan).
 		r.Group(func(r chi.Router) {
-			r.Use(requireMFA, requirePerm)
+			r.Use(requireMFA, requirePerm, scopeGuard)
 			r.Get("/platform/tenants", h.ListTenants)
 			r.Get("/platform/tenant-types", h.TenantTypes)
+			r.Get("/platform/tenant-locations", h.TenantLocations)
 			r.Get("/platform/reports/sales", h.SalesReport)
 			r.Get("/platform/reports/sales/{id}/monthly", h.SalesMonthly)
 			r.Get("/platform/reports/expiring", h.ExpiringReport)
@@ -128,6 +129,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.With(h.guardTarget).Patch("/platform/admins/{id}", h.PatchAdmin)
 			r.With(h.guardTarget).Put("/platform/admins/{id}/password", h.SetPassword)
 			r.Put("/platform/admins/{id}/role", h.SetAdminRole)
+			r.With(h.guardTarget).Put("/platform/admins/{id}/tenants", h.SetAdminScope)
 
 			r.Get("/platform/roles", h.ListRoles)
 			r.Get("/platform/roles/modules", h.RoleModules)
@@ -449,7 +451,12 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, map[string]string{"type": "INVALID"})
 		return
 	}
-	f := TenantFilter{Q: search, Status: q.Get("status"), Login: q.Get("login"), Type: typ}
+	loc, okL := sanitize.Text(q.Get("location"))
+	if !okL || len([]rune(loc)) > maxTenantLocation {
+		httpx.ValidationError(w, map[string]string{"location": "INVALID"})
+		return
+	}
+	f := TenantFilter{Q: search, Status: q.Get("status"), Login: q.Get("login"), Type: typ, Location: loc}
 	if f.Status != "" && f.Status != "active" && f.Status != "inactive" || f.Login != "" && f.Login != "never" && f.Login != "stale30" && f.Login != "recent7" {
 		httpx.ValidationError(w, map[string]string{"filter": "INVALID"})
 		return

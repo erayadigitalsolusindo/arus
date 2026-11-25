@@ -2,7 +2,8 @@
   import DatePicker from '#lib/components/DatePicker.svelte';
   import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
-  import { platformApi, type TenantPage, type PlanRow, type TenantFilter } from '#lib/platform/api.ts';
+  import { platformApi, type TenantPage, type PlanRow, type TenantFilter, type AdminRow } from '#lib/platform/api.ts';
+  import { canPlatform } from '#lib/platform/session.svelte.ts';
   import { t, formatDate, formatDateTime, formatNumber } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import Avatar from '#lib/platform/Avatar.svelte';
@@ -26,9 +27,11 @@
   let fFrom = $state('');
   let fTo = $state('');
   let fType = $state('');
+  let fLoc = $state('');
   let types = $state<{ type: string; count: number }[]>([]);
-  const filterCount = $derived([fStatus, fPlan, fLogin, fFrom, fTo, fType].filter(Boolean).length);
-  const filters = (): TenantFilter => ({ status: fStatus, plan: fPlan, login: fLogin, from: fFrom, to: fTo, type: fType });
+  let locations = $state<{ location: string; count: number }[]>([]);
+  const filterCount = $derived([fStatus, fPlan, fLogin, fFrom, fTo, fType, fLoc].filter(Boolean).length);
+  const filters = (): TenantFilter => ({ status: fStatus, plan: fPlan, login: fLogin, from: fFrom, to: fTo, type: fType, location: fLoc });
   // DatePicker tidak punya onchange: terapkan filter saat rentang tanggal berubah (tanpa memicu pada muat awal).
   let lastRange = '|';
   $effect(() => {
@@ -43,7 +46,7 @@
     void load();
   }
   function resetFilter() {
-    fStatus = fPlan = fLogin = fFrom = fTo = fType = '';
+    fStatus = fPlan = fLogin = fFrom = fTo = fType = fLoc = '';
     applyFilter();
   }
 
@@ -80,6 +83,30 @@
     }
   }
 
+  // Atur akses admin: tenant terpilih ditambahkan/dicabut dari cakupan satu admin (admin berbatas hanya melihat tenant itu).
+  let admins = $state<AdminRow[]>([]);
+  let showScope = $state(false);
+  let scopeAdmin = $state('');
+  let scopeMode = $state<'add' | 'remove'>('add');
+  function openScope() {
+    showScope = !showScope;
+    if (showScope && admins.length === 0) platformApi.admins().then((r) => (admins = r.items.filter((a) => a.active))).catch(() => {});
+  }
+  async function applyScope() {
+    bulkBusy = true;
+    bulkMsg = error = '';
+    try {
+      await platformApi.setAdminScope(scopeAdmin, scopeMode, [...selected]);
+      bulkMsg = t('platform.tenants.bulkScope.done');
+      showScope = false;
+      admins = [];
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      bulkBusy = false;
+    }
+  }
+
   async function load() {
     const my = ++seq; // abaikan respons usang saat pengguna mengetik cepat
     loading = true;
@@ -97,6 +124,7 @@
     void load();
     platformApi.plans().then((r) => (plans = r.items)).catch(() => {});
     platformApi.tenantTypes().then((r) => (types = r)).catch(() => {});
+    platformApi.tenantLocations().then((r) => (locations = r)).catch(() => {});
   });
 
   let debounce: ReturnType<typeof setTimeout>;
@@ -148,7 +176,7 @@
   </div>
 
   {#if showFilter}
-    <div class="p-3 sm:p-4 grid grid-cols-2 lg:grid-cols-6 gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]/50">
+    <div class="p-3 sm:p-4 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]/50">
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.status')}
         <select class="field-control w-full mt-1 font-normal" bind:value={fStatus} onchange={applyFilter}>
           <option value="">{t('platform.tenants.filter.all')}</option>
@@ -166,6 +194,12 @@
         <select class="field-control w-full mt-1 font-normal" bind:value={fType} onchange={applyFilter}>
           <option value="">{t('platform.tenants.filter.all')}</option>
           {#each types as ty (ty.type)}<option value={ty.type}>{ty.type} ({ty.count})</option>{/each}
+        </select>
+      </label>
+      <label class="text-[11.5px] font-semibold">{t('platform.access.tenantLocation')}
+        <select class="field-control w-full mt-1 font-normal" bind:value={fLoc} onchange={applyFilter}>
+          <option value="">{t('platform.tenants.filter.all')}</option>
+          {#each locations as l (l.location)}<option value={l.location}>{l.location} ({l.count})</option>{/each}
         </select>
       </label>
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.lastLogin')}
@@ -193,6 +227,7 @@
       {#if selected.size > 0}
         <span class="font-semibold">{t('platform.tenants.bulkPlan.selected', { count: selected.size })}</span>
         <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPlan = !showPlan)}><i class="icon-package text-[13px]"></i>{t('platform.tenants.bulkPlan.open')}</button>
+        {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12.5px]" onclick={openScope}><i class="icon-user-check text-[13px]"></i>{t('platform.tenants.bulkScope.open')}</button>{/if}
         <button type="button" class="text-[12px] text-[var(--text-tertiary)] hover:underline" onclick={() => (selected = new Set())}>{t('platform.tenants.bulkPlan.clear')}</button>
       {/if}
       {#if bulkMsg}<span class="text-[var(--text-secondary,inherit)]">{bulkMsg}</span>{/if}
@@ -214,6 +249,25 @@
         <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkPlan.hint')}</p>
       </div>
     {/if}
+  {/if}
+
+  {#if showScope && selected.size > 0}
+    <div class="px-3 sm:px-4 py-3 flex flex-wrap items-end gap-3 border-b border-[var(--border-subtle)]">
+      <label class="text-[11.5px] font-semibold">{t('platform.tenants.bulkScope.admin')}
+        <select class="field-control mt-1 font-normal min-w-44" bind:value={scopeAdmin}>
+          <option value="" disabled>—</option>
+          {#each admins as a (a.id)}<option value={a.id}>{a.name} ({a.email})</option>{/each}
+        </select>
+      </label>
+      <label class="text-[11.5px] font-semibold">&nbsp;
+        <select class="field-control mt-1 font-normal block" bind:value={scopeMode}>
+          <option value="add">{t('platform.tenants.bulkScope.add')}</option>
+          <option value="remove">{t('platform.tenants.bulkScope.remove')}</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={bulkBusy || !scopeAdmin} onclick={() => confirm(t('platform.tenants.bulkScope.confirm', { count: selected.size })) && applyScope()}>{t('platform.tenants.bulkScope.apply')}</button>
+      <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkScope.hint')}</p>
+    </div>
   {/if}
 
   {#if error}

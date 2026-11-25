@@ -221,6 +221,16 @@ const platform: Messages['platform'] = {
       done: '{ok} 件更新、{failed} 件失敗。',
       until: '{date} まで',
     },
+    bulkScope: {
+      open: '管理者のアクセス設定',
+      admin: '管理者',
+      add: '管理者のアクセスに追加',
+      remove: '管理者のアクセスから削除',
+      apply: '適用',
+      confirm: 'この管理者の {count} 件のテナントへのアクセスを変更しますか?',
+      done: '管理者のアクセスを更新しました。',
+      hint: '制限された管理者はここで追加したテナントのみ表示できます。制限のない管理者は全テナントを表示できます。',
+    },
     thisPage: 'このページに'
   },
   tenant: {
@@ -1159,6 +1169,10 @@ const platform: Messages['platform'] = {
     roleChanged: '管理者のロールを変更しました。',
     tenantType: 'テナント種別',
     tenantLocation: 'テナント所在地',
+    scopeAll: '全テナント',
+    scopeCount: '{count} 件のテナント',
+    scopeReset: '全テナント',
+    scopeResetConfirm: 'この管理者がすべてのテナントを表示できるようにしますか?',
     typePlaceholder: '例: 中小企業',
     locationPlaceholder: '例: バンドン市',
     profileTitle: 'テナントの種別と所在地',

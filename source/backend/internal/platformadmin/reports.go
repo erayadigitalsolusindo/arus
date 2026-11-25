@@ -78,6 +78,9 @@ func (s *Service) SalesReport(ctx context.Context, a Actor, from, to time.Time) 
 		if err := rows.Scan(&x.TenantID, &x.Code, &x.Name, &x.Active, &x.PlanName, &x.OutletCount, &x.SalesCount, &rev, &x.PrevCount, &prev, &x.ActiveDays, &x.LastSaleAt); err != nil {
 			return nil, err
 		}
+		if !a.Allows(x.TenantID) {
+			continue
+		}
 		x.Revenue, x.PrevRevenue = rev.StringFixed(2), prev.StringFixed(2)
 		out = append(out, x)
 	}
@@ -118,6 +121,9 @@ func (s *Service) ExpiringReport(ctx context.Context, a Actor, days int) ([]Expi
 		var price, rev decimal.Decimal
 		if err := rows.Scan(&x.TenantID, &x.Code, &x.Name, &x.Active, &owner, &x.PlanName, &price, &x.ExpiresAt, &x.Note, &x.OutletCount, &x.UserCount, &x.LastLoginAt, &rev); err != nil {
 			return nil, err
+		}
+		if !a.Allows(x.TenantID) {
+			continue
 		}
 		if owner != nil {
 			x.OwnerEmail = *owner

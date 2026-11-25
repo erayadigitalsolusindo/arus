@@ -219,6 +219,16 @@ export default {
       done: '{ok} tenant diubah, {failed} gagal.',
       until: 'sampai {date}',
     },
+    bulkScope: {
+      open: 'Atur akses admin',
+      admin: 'Admin',
+      add: 'Tambahkan ke akses admin',
+      remove: 'Cabut dari akses admin',
+      apply: 'Terapkan',
+      confirm: 'Ubah akses {count} tenant untuk admin ini?',
+      done: 'Akses admin diperbarui.',
+      hint: 'Admin yang dibatasi hanya melihat tenant yang ditambahkan di sini. Admin tanpa batas melihat semua tenant.',
+    },
     thisPage: 'pada halaman ini'
   },
   tenant: {
@@ -1157,6 +1167,10 @@ export default {
     roleChanged: 'Role admin diubah.',
     tenantType: 'Jenis Tenant',
     tenantLocation: 'Lokasi Tenant',
+    scopeAll: 'Semua tenant',
+    scopeCount: '{count} tenant',
+    scopeReset: 'Semua tenant',
+    scopeResetConfirm: 'Jadikan admin ini dapat melihat semua tenant?',
     typePlaceholder: 'mis. UMKM',
     locationPlaceholder: 'mis. Kota Bandung',
     profileTitle: 'Jenis & lokasi tenant',

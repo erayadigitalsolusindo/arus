@@ -49,6 +49,7 @@ var routeRules = []routeRule{
 	{"/platform/tenants/{id}/purge", "tenants", authz.ActDelete},
 	{"/platform/tenants", "tenants", ""},
 	{"/platform/tenant-types", "tenants", ""},
+	{"/platform/tenant-locations", "tenants", ""},
 	{"/platform/reports", "reports", ""},
 	{"/platform/audit", "audit", ""},
 	{"/platform/admins/{id}/reset-2fa", "admins", authz.ActUpdate},
