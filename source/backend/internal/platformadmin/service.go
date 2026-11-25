@@ -106,11 +106,15 @@ func (s *Service) Admin(ctx context.Context, id uuid.UUID) (authz.PlatformAdmin,
 		if perr != nil {
 			return authz.PlatformAdmin{}, perr // galat sementara: jangan di-cache
 		}
+		owner, oerr := s.isOwner(ctx, id)
+		if oerr != nil {
+			return authz.PlatformAdmin{}, oerr
+		}
 		var scope []uuid.UUID
 		if serr := s.Pool.QueryRow(ctx, `SELECT tenant_scope FROM platform_admins WHERE id = $1`, id).Scan(&scope); serr != nil {
 			return authz.PlatformAdmin{}, serr
 		}
-		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time, MFA: row.TotpEnabledAt.Valid, Perms: perms, Scope: scope}
+		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time, MFA: row.TotpEnabledAt.Valid, MFARequired: owner, Perms: perms, Scope: scope}
 	}
 	s.mu.Lock()
 	if len(s.cache) > 1000 {

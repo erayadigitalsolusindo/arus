@@ -51,7 +51,7 @@
         return;
       }
       startPlatformSession(res);
-      await goto(res.admin.mfa_enabled ? '/platform/tenants' : '/platform/security');
+      await goto(res.admin.mfa_enabled || !res.admin.mfa_required ? '/platform/tenants' : '/platform/security');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'ACCOUNT_LOCKED' && err.retryAfter > 0) {
         now = Date.now();

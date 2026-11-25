@@ -21,36 +21,37 @@ import (
 
 // Aksi audit platform (tabel platform_audit_log).
 const (
-	ActionSetup         = "platform.setup"
-	ActionLogin         = "platform.login"
-	ActionAdminCreate   = "platform.admin_create"
-	ActionAdminStatus   = "platform.admin_status"
-	ActionAdminDelete   = "platform.admin_delete"
-	ActionAdminPassword = "platform.admin_password"
-	ActionTenantStatus  = "platform.tenant_status"
-	ActionEditWindow    = "platform.tenant_edit_window"
-	ActionTenantRename  = "platform.tenant_rename"
-	ActionOutletGeo     = "platform.outlet_location"
-	ActionERAPay        = "platform.erapay_activate"
-	ActionERAPayKey     = "platform.erapay_key"
-	ActionERAPayPartner = "platform.erapay_partner"
-	ActionUserEmail     = "platform.user_email"
+	ActionSetup                = "platform.setup"
+	ActionLogin                = "platform.login"
+	ActionAdminCreate          = "platform.admin_create"
+	ActionAdminStatus          = "platform.admin_status"
+	ActionAdminDelete          = "platform.admin_delete"
+	ActionAdminPassword        = "platform.admin_password"
+	ActionTenantStatus         = "platform.tenant_status"
+	ActionEditWindow           = "platform.tenant_edit_window"
+	ActionTenantRename         = "platform.tenant_rename"
+	ActionOutletGeo            = "platform.outlet_location"
+	ActionERAPay               = "platform.erapay_activate"
+	ActionERAPayKey            = "platform.erapay_key"
+	ActionERAPayPartner        = "platform.erapay_partner"
+	ActionUserEmail            = "platform.user_email"
 	ActionTenantDeleteSchedule = "platform.tenant_delete_schedule"
 	ActionTenantDeleteCancel   = "platform.tenant_delete_cancel"
 	ActionTenantPurge          = "platform.tenant_purge"
-	ActionImpersonate   = "platform.impersonate"
-	ActionLanguageCreate = "platform.language_create"
-	ActionLanguageUpdate = "platform.language_update"
-	ActionLanguageDelete = "platform.language_delete"
+	ActionImpersonate          = "platform.impersonate"
+	ActionLanguageCreate       = "platform.language_create"
+	ActionLanguageUpdate       = "platform.language_update"
+	ActionLanguageDelete       = "platform.language_delete"
 
 	platformRole = "platform"
 )
 
 type Profile struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	MFAEnabled bool   `json:"mfa_enabled"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	MFAEnabled  bool   `json:"mfa_enabled"`
+	MFARequired bool   `json:"mfa_required"`
 	// Role & Permissions hanya untuk menyaring tampilan di SPA; penegakan sebenarnya di server (requirePerm).
 	Role        string            `json:"role"`
 	Permissions authz.Permissions `json:"permissions"`
@@ -69,7 +70,9 @@ type Session struct {
 type Actor struct {
 	ID   uuid.UUID
 	Name string
-	MFA  bool // 2FA aktif; tanpa ini hanya halaman keamanan yang boleh diakses
+	MFA  bool // 2FA aktif
+	// MFARequired: Owner wajib 2FA; tanpa 2FA aktif hanya halaman keamanan yang boleh diakses. Admin lain opsional.
+	MFARequired bool
 	// Perms = izin role admin ini (dari cache singkat); ditegakkan requirePerm.
 	Perms authz.Permissions
 	// Scope = tenant yang boleh diakses; nil = semua (lihat scope.go).
@@ -105,9 +108,13 @@ func (s *Service) newSession(ctx context.Context, row gen.PlatformAdmin, refresh
 	if err != nil {
 		return nil, err
 	}
+	owner, err := s.isOwner(ctx, row.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &Session{
 		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()),
-		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, Role: role, Permissions: perms},
+		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, MFARequired: owner, Role: role, Permissions: perms},
 		RefreshToken: refresh, Remember: remember,
 	}, nil
 }
@@ -214,7 +221,7 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 			httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi dicabut. Silakan masuk kembali.")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA, Perms: admin.Perms, Scope: admin.Scope})))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA, MFARequired: admin.MFARequired, Perms: admin.Perms, Scope: admin.Scope})))
 	})
 }
 
@@ -231,7 +238,11 @@ func (s *Service) Me(ctx context.Context, a Actor) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, Role: role, Permissions: perms}, nil
+	owner, err := s.isOwner(ctx, a.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, MFARequired: owner, Role: role, Permissions: perms}, nil
 }
 
 // SetupRequired: setup hanya tersedia selama belum ada Platform Admin DAN SetupToken dikonfigurasi di server.

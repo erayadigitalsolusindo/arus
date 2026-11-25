@@ -61,6 +61,14 @@ func (s *Service) rolePerms(ctx context.Context, adminID uuid.UUID) (uuid.UUID, 
 	return id, name, authz.ParseStoredIn(PlatformModules, raw), nil
 }
 
+// isOwner = admin memegang role sistem (Owner).
+func (s *Service) isOwner(ctx context.Context, adminID uuid.UUID) (bool, error) {
+	var ok bool
+	err := s.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM platform_admin_roles ar
+		JOIN platform_roles r ON r.id = ar.role_id WHERE ar.admin_id = $1 AND r.is_system)`, adminID).Scan(&ok)
+	return ok, err
+}
+
 func (s *Service) roleByID(ctx context.Context, id uuid.UUID) (*Role, error) {
 	var (
 		r   Role

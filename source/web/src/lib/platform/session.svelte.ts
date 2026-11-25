@@ -5,7 +5,7 @@ import { goto } from '$app/navigation';
 import { API_URL, ApiError, CSRF_HEADERS, request, requestStream } from '#lib/api/client.ts';
 
 export type PlatformPermissions = { '*'?: true } & Record<string, string[] | true | undefined>;
-export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean; role: string; permissions: PlatformPermissions };
+export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean; mfa_required: boolean; role: string; permissions: PlatformPermissions };
 export type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
 type Status = 'unknown' | 'authed' | 'anon';
 
@@ -136,7 +136,7 @@ export function bootstrap(): Promise<void> {
 export async function requirePlatform(pathname = '') {
   await bootstrap();
   if (platform.status !== 'authed') redirect(307, '/platform/login');
-  if (platform.admin && !platform.admin.mfa_enabled && pathname !== '/platform/security') redirect(307, '/platform/security');
+  if (platform.admin?.mfa_required && !platform.admin.mfa_enabled && pathname !== '/platform/security') redirect(307, '/platform/security');
 }
 
 /** Penjaga halaman login/setup: yang sudah masuk diarahkan ke panel. */

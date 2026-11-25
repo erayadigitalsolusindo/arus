@@ -9,10 +9,10 @@ import (
 	"aciraba/internal/platform/httpx"
 )
 
-// requireMFA menolak (403 MFA_ENROLL_REQUIRED) admin yang belum mengaktifkan 2FA: mereka hanya boleh ke halaman keamanan.
+// requireMFA menolak (403 MFA_ENROLL_REQUIRED) Owner yang belum mengaktifkan 2FA: mereka hanya boleh ke halaman keamanan.
 func requireMFA(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a, ok := ActorFrom(r.Context()); !ok || !a.MFA {
+		if a, ok := ActorFrom(r.Context()); !ok || (a.MFARequired && !a.MFA) {
 			httpx.Error(w, http.StatusForbidden, "MFA_ENROLL_REQUIRED", "Aktifkan 2FA terlebih dahulu.")
 			return
 		}

@@ -16,11 +16,11 @@ import (
 )
 
 const (
-	livePage      = 100
-	liveHeartbeat = 20 * time.Second
+	livePage          = 100
+	liveHeartbeat     = 20 * time.Second
 	livePresenceEvery = 5 * time.Second
-	liveMaxStream = 10 * time.Minute
-	liveActiveWin = 15 * time.Minute // "sedang bertransaksi" = ada nota dalam rentang ini
+	liveMaxStream     = 10 * time.Minute
+	liveActiveWin     = 15 * time.Minute // "sedang bertransaksi" = ada nota dalam rentang ini
 )
 
 type LiveSale struct {

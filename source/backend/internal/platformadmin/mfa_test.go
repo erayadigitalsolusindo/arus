@@ -20,6 +20,10 @@ func TestMFAEnrollmentGateAndLogin(t *testing.T) {
 	if _, err := e.admin.Exec(ctx, `INSERT INTO platform_admins (id, email, name, password_hash) VALUES ($1, $2, 'Belum 2FA', $3)`, id, email, hash); err != nil {
 		t.Fatal(err)
 	}
+	// 2FA hanya wajib bagi Owner.
+	if _, err := e.admin.Exec(ctx, `INSERT INTO platform_admin_roles (admin_id, role_id) SELECT $1, id FROM platform_roles WHERE is_system`, id); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { e.dropAdmin(id) })
 	a := Actor{ID: id, Name: "Belum 2FA"}
 

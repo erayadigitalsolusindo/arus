@@ -47,8 +47,8 @@ type TenantRow struct {
 // TenantFilter = filter lanjutan daftar tenant; nilai kosong/nil = tidak memfilter.
 type TenantFilter struct {
 	Q, Status, Login, Type, Location string
-	PlanID           *uuid.UUID
-	From, To         *time.Time
+	PlanID                           *uuid.UUID
+	From, To                         *time.Time
 }
 
 type TenantPage struct {

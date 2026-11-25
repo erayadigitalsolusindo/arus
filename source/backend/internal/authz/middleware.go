@@ -30,9 +30,10 @@ type Actor struct {
 
 // PlatformAdmin = status Platform Admin terkini (untuk memverifikasi token "masuk sebagai").
 type PlatformAdmin struct {
-	Name       string
-	ValidAfter time.Time
-	MFA        bool // 2FA (TOTP) sudah aktif
+	Name        string
+	ValidAfter  time.Time
+	MFA         bool // 2FA (TOTP) sudah aktif
+	MFARequired bool // 2FA wajib (hanya Owner); admin lain boleh cukup email + password
 	// Perms = izin role Platform Admin (modul platform; lihat platformadmin.PlatformModules). Kosong = tanpa izin.
 	Perms Permissions
 	// Scope = tenant yang boleh diakses admin ini; nil = semua tenant, kosong = tidak satu pun.

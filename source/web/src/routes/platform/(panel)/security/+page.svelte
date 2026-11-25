@@ -107,7 +107,7 @@
   <p class="text-[12px] mt-0.5 text-[var(--text-tertiary)]">{t('platform.security.subtitle')}</p>
 </div>
 
-{#if status && !status.enabled && !platform.admin?.mfa_enabled}
+{#if status && !status.enabled && !platform.admin?.mfa_enabled && platform.admin?.mfa_required}
   <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-warning">
     <i class="icon-shield-alert text-[14px] mt-px shrink-0"></i><span>{t('platform.security.required')}</span>
   </div>

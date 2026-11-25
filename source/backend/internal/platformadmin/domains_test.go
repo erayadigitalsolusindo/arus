@@ -28,9 +28,9 @@ func (f fakeDNS) LookupHost(_ context.Context, host string) ([]string, error) {
 
 func TestNormalizeHost(t *testing.T) {
 	ok := map[string]string{
-		"arus.kotakcantik.com":    "arus.kotakcantik.com",
+		"arus.kotakcantik.com":     "arus.kotakcantik.com",
 		"  ARUS.KotakCantik.com. ": "arus.kotakcantik.com",
-		"a-b.c.co.id":             "a-b.c.co.id",
+		"a-b.c.co.id":              "a-b.c.co.id",
 	}
 	for in, want := range ok {
 		if got, err := normalizeHost(in); err != nil || got != want {

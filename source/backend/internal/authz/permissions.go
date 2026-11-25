@@ -52,7 +52,7 @@ var Modules = []Module{
 	{"price_override", []string{ActView, ActApprove}}, // Owner/Supervisor yang boleh menyetujui ubah harga di kasir lewat PIN
 	{"outlet_switch", []string{ActView, ActApprove}},  // Owner/Supervisor yang boleh menyetujui pindah outlet di kasir lewat PIN
 	{"sale_edit", []string{ActView, ActApprove}},      // Owner/Supervisor yang boleh menyetujui edit/batal nota lewat PIN
-	{"ai_write", []string{ActView, ActApprove}},        // Penyetuju aksi tulis HalloArus (PIN + kode 2FA yang diketik penyetuju di kartu usulan)
+	{"ai_write", []string{ActView, ActApprove}},       // Penyetuju aksi tulis HalloArus (PIN + kode 2FA yang diketik penyetuju di kartu usulan)
 	{"qris_force", []string{ActView, ActApprove}},     // Owner/Supervisor yang boleh menyetujui force-save nota QRIS EraPay yang belum terverifikasi lunas lewat PIN
 	{"credit_limit", []string{ActView, ActApprove}},   // Owner/Supervisor yang boleh menyetujui penjualan kredit melewati limit piutang member lewat PIN
 	{"shift_close", []string{ActView, ActApprove}},    // Owner/Supervisor yang boleh menyetujui tutup shift kasir yang memiliki selisih lewat PIN
@@ -84,7 +84,7 @@ var Modules = []Module{
 	{"roles", crud},
 	{"outlets", crud},
 	{"ai_assistant", []string{ActView, ActCreate, ActUpdate}}, // HalloArus: view = memakai asisten AI (hanya-baca), create = boleh menyetujui usulan aksi tulis AI, update = kelola API key & model
-	{"storefront", []string{ActView, ActUpdate}}, // Landing page publik toko (/s/{slug}): lihat/ubah isi halaman
+	{"storefront", []string{ActView, ActUpdate}},              // Landing page publik toko (/s/{slug}): lihat/ubah isi halaman
 	{"audit_log", viewing},
 	{"subscription", viewing}, // halaman Langganan: lihat paket & pemakaian; membeli/memperpanjang khusus Owner (dicek di layanan)
 }
@@ -251,7 +251,9 @@ func Normalize(in map[string][]string) (Permissions, error) {
 }
 
 // NormalizeIn = Normalize untuk registri modul lain (tanpa paket "Hanya Kasir").
-func NormalizeIn(mods []Module, in map[string][]string) (Permissions, error) { return normalizeOne(mods, in) }
+func NormalizeIn(mods []Module, in map[string][]string) (Permissions, error) {
+	return normalizeOne(mods, in)
+}
 
 func normalizeOne(mods []Module, in map[string][]string) (Permissions, error) {
 	out := map[string][]string{}
