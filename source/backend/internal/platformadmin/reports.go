@@ -186,6 +186,46 @@ func (h *Handler) SalesReport(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": items, "from": from, "to": to})
 }
 
+// SalesPayments: GET /platform/reports/sales/payments?from&to — pemakaian metode pembayaran per tenant (disaring cakupan admin).
+func (h *Handler) SalesPayments(w http.ResponseWriter, r *http.Request) {
+	a, _ := ActorFrom(r.Context())
+	from, to, ok := salesRange(w, r)
+	if !ok {
+		return
+	}
+	rows, err := h.svc.Pool.Query(r.Context(), `SELECT tenant_id, kind, erapay, sales_count, amount FROM platform_report_sales_payments($1, $2, $3)`, a.ID, from, to)
+	if err != nil {
+		h.internal(w, r, "pemakaian pembayaran tenant gagal", err)
+		return
+	}
+	defer rows.Close()
+	type row struct {
+		TenantID   uuid.UUID `json:"tenant_id"`
+		Kind       string    `json:"kind"`
+		EraPay     bool      `json:"erapay"`
+		SalesCount int64     `json:"sales_count"`
+		Amount     string    `json:"amount"`
+	}
+	out := []row{}
+	for rows.Next() {
+		var x row
+		var amt decimal.Decimal
+		if err := rows.Scan(&x.TenantID, &x.Kind, &x.EraPay, &x.SalesCount, &amt); err != nil {
+			h.internal(w, r, "pemakaian pembayaran tenant gagal", err)
+			return
+		}
+		if a.Allows(x.TenantID) {
+			x.Amount = amt.StringFixed(2)
+			out = append(out, x)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		h.internal(w, r, "pemakaian pembayaran tenant gagal", err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
 // SalesDetail: GET /platform/reports/sales/{id}/detail?from&to (JSON dari platform_report_sales_detail).
 func (h *Handler) SalesDetail(w http.ResponseWriter, r *http.Request) {
 	a, _ := ActorFrom(r.Context())

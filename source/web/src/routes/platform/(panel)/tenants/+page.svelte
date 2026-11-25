@@ -107,6 +107,29 @@
     }
   }
 
+  // Ubah jenis & lokasi massal: '' = tidak diubah, '__clear' = kosongkan, lainnya = nilai baru (boleh ketik baru).
+  let showProfile = $state(false);
+  let profType = $state('');
+  let profLoc = $state('');
+  const pv = (v: string) => (v === '' ? undefined : v === '__clear' ? '' : v.trim());
+  async function applyProfile() {
+    bulkBusy = true;
+    bulkMsg = error = '';
+    try {
+      const res = await platformApi.bulkSetProfile([...selected], pv(profType), pv(profLoc));
+      bulkMsg = t('platform.tenants.bulkProfile.done', { ok: res.updated, failed: res.failed.length });
+      selected = new Set(res.failed);
+      showProfile = res.failed.length > 0;
+      await load();
+      platformApi.tenantTypes().then((r) => (types = r)).catch(() => {});
+      platformApi.tenantLocations().then((r) => (locations = r)).catch(() => {});
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      bulkBusy = false;
+    }
+  }
+
   async function load() {
     const my = ++seq; // abaikan respons usang saat pengguna mengetik cepat
     loading = true;
@@ -231,6 +254,7 @@
         {#if canPlatform('tenants', 'update')}
           <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPlan = !showPlan)}><i class="icon-package text-[13px]"></i>{t('platform.tenants.bulkPlan.open')}</button>
         {/if}
+        <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showProfile = !showProfile)}><i class="icon-map-pin text-[13px]"></i>{t('platform.tenants.bulkProfile.open')}</button>
         {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12.5px]" onclick={openScope}><i class="icon-user-check text-[13px]"></i>{t('platform.tenants.bulkScope.open')}</button>{/if}
         <button type="button" class="text-[12px] text-[var(--text-tertiary)] hover:underline" onclick={() => (selected = new Set())}>{t('platform.tenants.bulkPlan.clear')}</button>
       {/if}
@@ -253,6 +277,23 @@
         <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkPlan.hint')}</p>
       </div>
     {/if}
+  {/if}
+
+  {#if showProfile && selected.size > 0}
+    <div class="px-3 sm:px-4 py-3 flex flex-wrap items-end gap-3 border-b border-[var(--border-subtle)]">
+      <label class="text-[11.5px] font-semibold">{t('platform.access.tenantType')}
+        <input class="field-control mt-1 font-normal block min-w-44" list="bulk-types" maxlength="50" placeholder={t('platform.tenants.bulkProfile.keep')} bind:value={profType} />
+      </label>
+      <label class="text-[11.5px] font-semibold">{t('platform.access.tenantLocation')}
+        <input class="field-control mt-1 font-normal block min-w-44" list="bulk-locs" maxlength="100" placeholder={t('platform.tenants.bulkProfile.keep')} bind:value={profLoc} />
+      </label>
+      <datalist id="bulk-types">{#each types as ty (ty.type)}<option value={ty.type}></option>{/each}</datalist>
+      <datalist id="bulk-locs">{#each locations as l (l.location)}<option value={l.location}></option>{/each}</datalist>
+      <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => { profType = profType === '__clear' ? '' : '__clear'; }}>{t('platform.access.tenantType')}: {t('platform.tenants.bulkProfile.clear')}</button>
+      <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => { profLoc = profLoc === '__clear' ? '' : '__clear'; }}>{t('platform.access.tenantLocation')}: {t('platform.tenants.bulkProfile.clear')}</button>
+      <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={bulkBusy || (!profType && !profLoc)} onclick={() => confirm(t('platform.tenants.bulkProfile.confirm', { count: selected.size })) && applyProfile()}>{t('platform.tenants.bulkProfile.apply')}</button>
+      <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkProfile.hint')}</p>
+    </div>
   {/if}
 
   {#if showScope && selected.size > 0}

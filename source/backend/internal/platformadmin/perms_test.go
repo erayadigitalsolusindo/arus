@@ -22,6 +22,7 @@ func TestRoutePerm(t *testing.T) {
 		{"PATCH", "/platform/tenants/{id}", "tenants", "update", true},
 		{"POST", "/platform/tenants/bulk", "tenants", "create", true},
 		{"POST", "/platform/tenants/bulk-plan", "tenants", "update", true},
+		{"POST", "/platform/tenants/bulk-profile", "tenants", "update", true},
 		{"POST", "/platform/tenants/{id}/purge", "tenants", "delete", true},
 		{"PUT", "/platform/tenants/{id}/deletion", "tenants", "delete", true},
 		{"POST", "/platform/tenants/{id}/impersonate", "tenant_impersonate", "view", true},

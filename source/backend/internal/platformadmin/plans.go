@@ -512,3 +512,68 @@ func (h *Handler) BulkSetTenantPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"updated": n, "failed": failed})
 }
+
+// BulkSetTenantProfile mengisi Jenis/Lokasi Tenant banyak tenant sekaligus. Field nil = biarkan nilai lama tiap tenant
+// (string kosong = kosongkan). Mengembalikan id tenant yang gagal.
+func (s *Service) BulkSetTenantProfile(ctx context.Context, a Actor, ids []uuid.UUID, tenantType, location *string) (ok int, failed []uuid.UUID, err error) {
+	if len(ids) == 0 || len(ids) > maxBulkPlan || (tenantType == nil && location == nil) {
+		return 0, nil, FieldErrors{"tenant_ids": "INVALID"}
+	}
+	for _, id := range ids {
+		if !a.Allows(id) {
+			failed = append(failed, id)
+			continue
+		}
+		tt, loc := "", ""
+		if tenantType == nil || location == nil {
+			if e := s.Pool.QueryRow(ctx, `SELECT tenant_type, location FROM tenants WHERE id = $1`, id).Scan(&tt, &loc); e != nil {
+				failed = append(failed, id)
+				continue
+			}
+		}
+		if tenantType != nil {
+			tt = *tenantType
+		}
+		if location != nil {
+			loc = *location
+		}
+		switch e := s.SetTenantProfile(ctx, a, id, tt, loc); {
+		case e == nil:
+			ok++
+		case errors.Is(e, ErrInvalidTenantProfile):
+			return ok, failed, e // isian salah berlaku untuk semua, hentikan
+		default:
+			failed = append(failed, id)
+		}
+	}
+	return ok, failed, nil
+}
+
+// BulkSetTenantProfile: POST /platform/tenants/bulk-profile {tenant_ids, tenant_type?, location?} (field absen = tidak diubah).
+func (h *Handler) BulkSetTenantProfile(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TenantIDs  []uuid.UUID `json:"tenant_ids"`
+		TenantType *string     `json:"tenant_type"`
+		Location   *string     `json:"location"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	n, failed, err := h.svc.BulkSetTenantProfile(r.Context(), actor(r), req.TenantIDs, req.TenantType, req.Location)
+	var fe FieldErrors
+	switch {
+	case errors.Is(err, ErrInvalidTenantProfile):
+		httpx.ValidationError(w, map[string]string{"tenant_type": "INVALID", "location": "INVALID"})
+		return
+	case errors.As(err, &fe):
+		httpx.ValidationError(w, fe)
+		return
+	case err != nil:
+		h.internal(w, r, "ubah jenis/lokasi massal gagal", err)
+		return
+	}
+	if failed == nil {
+		failed = []uuid.UUID{}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"updated": n, "failed": failed})
+}

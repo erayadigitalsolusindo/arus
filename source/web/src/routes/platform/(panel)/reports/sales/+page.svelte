@@ -24,6 +24,8 @@
   let all = $state<SalesReportRow[]>([]);
   let openId = $state<string | null>(null);
   let detail = $state<SalesDetail | null>(null);
+  // Pemakaian metode pembayaran semua tenant (dimuat saat popup podium dibuka).
+  let payRows = $state<Awaited<ReturnType<typeof platformApi.salesPayments>> | null>(null);
 
   // ---- Filter lanjutan (client-side, berlaku untuk Top 10, kartu ringkasan, dan tabel) ----
   const sel = 'h-9 w-full px-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] text-[13px]';
@@ -121,6 +123,13 @@
     void loadSales();
   }
 
+  function openPodium() {
+    replay++;
+    showPodium = true;
+    payRows = null;
+    platformApi.salesPayments(from, to).then((r) => (payRows = r)).catch((err) => (error = errorMessage(err)));
+  }
+
   async function toggle(id: string) {
     if (openId === id) {
       openId = null;
@@ -144,6 +153,36 @@
     transfer: { icon: 'landmark', color: '#64748b', label: 'platform.reports.kTransfer' }
   } as const;
   const ERAPAY = '#ec4899';
+  // EraPay dipisah dari e-wallet biasa karena itu metode yang ingin dipantau platform.
+  const PAYK = {
+    cash: { icon: 'banknote', color: '#16a34a', label: 'platform.reports.kCash' },
+    erapay: { icon: 'qr-code', color: ERAPAY, label: 'platform.reports.kErapay' },
+    debit: { icon: 'credit-card', color: '#0ea5e9', label: 'platform.reports.kDebit' },
+    credit_card: { icon: 'credit-card', color: '#8b5cf6', label: 'platform.reports.kCredit' },
+    ewallet: { icon: 'wallet', color: '#f59e0b', label: 'platform.reports.kEwallet' },
+    transfer: { icon: 'landmark', color: '#64748b', label: 'platform.reports.kTransfer' }
+  } as const;
+  type PayKey = keyof typeof PAYK;
+  const PAYKEYS = Object.keys(PAYK) as PayKey[];
+  // Ikut filter halaman: hanya tenant yang lolos filter.
+  const payAgg = $derived.by(() => {
+    const ids = new Set(sales.map((r) => r.tenant_id));
+    const all: Record<PayKey, { n: number; amt: number }> = Object.fromEntries(PAYKEYS.map((k) => [k, { n: 0, amt: 0 }])) as never;
+    const per = new Map<string, Record<PayKey, number>>();
+    for (const x of payRows ?? []) {
+      if (!ids.has(x.tenant_id)) continue;
+      const k: PayKey = x.erapay ? 'erapay' : x.kind;
+      all[k].n += x.sales_count;
+      all[k].amt += Number(x.amount);
+      const m = per.get(x.tenant_id) ?? (Object.fromEntries(PAYKEYS.map((q) => [q, 0])) as Record<PayKey, number>);
+      m[k] += x.sales_count;
+      per.set(x.tenant_id, m);
+    }
+    return { all, per, total: Math.max(1, PAYKEYS.reduce((a, k) => a + all[k].n, 0)), has: PAYKEYS.some((k) => all[k].n > 0) };
+  });
+  // Semua tenant (lolos filter) yang punya pembayaran, urut omzet.
+  const payTenants = $derived([...sales].filter((r) => payAgg.per.has(r.tenant_id)).sort((a, b) => Number(b.revenue) - Number(a.revenue)));
+  const pctOf = (n: number, tot: number) => formatNumber((n / tot) * 100, { maximumFractionDigits: 1 }) + '%';
   const hh = (h: number) => String(h).padStart(2, '0') + ':00–' + String((h + 1) % 24).padStart(2, '0') + ':00';
 
   onMount(loadSales);
@@ -242,7 +281,7 @@
   </div>
 
   {#if !loading && top.length > 0}
-    <button type="button" onclick={() => { replay++; showPodium = true; }}
+    <button type="button" onclick={openPodium}
       class="group w-full flex items-center gap-3 rounded-xl px-4 py-3 text-start text-white shadow-sm hover:shadow-md transition-shadow"
       style="background:linear-gradient(110deg,#1e1b4b,#4c1d95 55%,#b45309)">
       <span class="text-[26px] leading-none transition-transform group-hover:scale-110 group-hover:-rotate-6" aria-hidden="true">🏆</span>
@@ -301,6 +340,57 @@
           </ol>
         {/if}
       {/key}
+
+        <!-- Pemakaian metode pembayaran -->
+        <section class="mt-4 rounded-xl border border-[var(--border-subtle)] p-4 row" style="animation-delay:1.6s">
+          <h3 class="text-[13px] font-bold">{t('platform.reports.payUseTitle')}</h3>
+          <p class="text-[11.5px] text-[var(--text-tertiary)] mb-3">{t('platform.reports.payUseSub')}</p>
+          {#if !payRows}
+            <div class="h-24 rounded-lg bg-[var(--surface-sunken)] animate-pulse"></div>
+          {:else if !payAgg.has}
+            <p class="text-[12px] text-[var(--text-tertiary)] text-center py-4">{t('platform.reports.payEmpty')}</p>
+          {:else}
+            <div class="flex h-3 rounded-full overflow-hidden bg-[var(--surface-sunken)] mb-3">
+              {#each PAYKEYS as k (k)}{#if payAgg.all[k].n > 0}<span style="width:{(payAgg.all[k].n / payAgg.total) * 100}%;background:{PAYK[k].color}" title={t(PAYK[k].label)}></span>{/if}{/each}
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {#each PAYKEYS.filter((k) => payAgg.all[k].n > 0).sort((a, b) => payAgg.all[b].n - payAgg.all[a].n) as k (k)}
+                <div class="rounded-lg border border-[var(--border-subtle)] p-2.5 flex items-center gap-2.5">
+                  <span class="size-9 shrink-0 rounded-lg grid place-items-center" style="background:{PAYK[k].color}1f;color:{PAYK[k].color}"><i class="icon-{PAYK[k].icon} text-[16px]"></i></span>
+                  <span class="min-w-0">
+                    <span class="block text-[11.5px] text-[var(--text-tertiary)] truncate">{t(PAYK[k].label)}</span>
+                    <span class="block text-[15px] font-extrabold tabular-nums leading-tight" style="color:{PAYK[k].color}">{pctOf(payAgg.all[k].n, payAgg.total)}</span>
+                    <span class="block text-[11px] tabular-nums text-[var(--text-tertiary)]">{formatNumber(payAgg.all[k].n)} {t('platform.reports.notes').toLowerCase()} · {rp(payAgg.all[k].amt)}</span>
+                  </span>
+                </div>
+              {/each}
+            </div>
+
+            <h4 class="text-[12px] font-semibold mt-5 mb-2">{t('platform.reports.payPerTenant', { n: payTenants.length })}</h4>
+            <ul class="divide-y divide-[var(--border-subtle)] max-h-80 overflow-y-auto scroll-thin pe-1">
+              {#each payTenants as r (r.tenant_id)}
+                {@const m = payAgg.per.get(r.tenant_id)}
+                {@const tot = m ? PAYKEYS.reduce((a, k) => a + m[k], 0) : 0}
+                <li class="py-2.5">
+                  <div class="flex items-center justify-between gap-2 text-[12.5px]">
+                    <a href="/platform/tenants/{r.tenant_id}" class="font-semibold truncate hover:underline">{r.name}</a>
+                    <span class="text-[11.5px] tabular-nums text-[var(--text-tertiary)] shrink-0">{formatNumber(tot)} {t('platform.reports.payTx')}</span>
+                  </div>
+                  {#if m && tot > 0}
+                    <div class="flex h-2 rounded-full overflow-hidden bg-[var(--surface-sunken)] my-1.5">
+                      {#each PAYKEYS as k (k)}{#if m[k] > 0}<span style="width:{(m[k] / tot) * 100}%;background:{PAYK[k].color}"></span>{/if}{/each}
+                    </div>
+                    <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums">
+                      {#each PAYKEYS.filter((k) => m[k] > 0).sort((a, b) => m[b] - m[a]) as k (k)}
+                        <span class="inline-flex items-center gap-1"><span class="size-2 rounded-full" style="background:{PAYK[k].color}"></span>{t(PAYK[k].label)} <b>{formatNumber(m[k])}</b> <span class="text-[var(--text-tertiary)]">({pctOf(m[k], tot)})</span></span>
+                      {/each}
+                    </div>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
       <div class="flex justify-end mt-3">
         <button type="button" class="btn btn-secondary btn-sm" onclick={() => replay++}><i class="icon-rotate-ccw text-[12px]"></i>{t('platform.reports.podiumReplay')}</button>
       </div>

@@ -276,6 +276,8 @@ export type OutletLocation = {
 export const platformApi = {
   salesReport: (from: string, to: string) =>
     papi<{ items: SalesReportRow[]; from: string; to: string }>(`/platform/reports/sales?${new URLSearchParams({ from, to })}`),
+  salesPayments: (from: string, to: string) =>
+    papi<{ items: { tenant_id: string; kind: SalesDetail['payments'][number]['kind']; erapay: boolean; sales_count: number; amount: string }[] }>(`/platform/reports/sales/payments?${new URLSearchParams({ from, to })}`).then((r) => r.items),
   salesDetail: (id: string, from: string, to: string) =>
     papi<SalesDetail>(`/platform/reports/sales/${id}/detail?${new URLSearchParams({ from, to })}`),
   salesMonthly: (id: string) => papi<{ items: SalesMonth[] }>(`/platform/reports/sales/${id}/monthly`).then((r) => r.items),
@@ -314,6 +316,9 @@ export const platformApi = {
     papi<TenantPage>(`/platform/tenants?${new URLSearchParams({ q, limit: String(limit), offset: String(offset), ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) })}`),
   bulkSetPlan: (tenantIds: string[], planId: string | null, expiresAt: string | null) =>
     papi<{ updated: number; failed: string[] }>('/platform/tenants/bulk-plan', { method: 'POST', body: json({ tenant_ids: tenantIds, plan_id: planId, expires_at: expiresAt }) }),
+  /** Field undefined = tidak diubah; string kosong = dikosongkan. */
+  bulkSetProfile: (tenantIds: string[], tenantType?: string, location?: string) =>
+    papi<{ updated: number; failed: string[] }>('/platform/tenants/bulk-profile', { method: 'POST', body: json({ tenant_ids: tenantIds, tenant_type: tenantType, location }) }),
   bulkCreateTenants: (items: BulkTenantItem[], dryRun = false) =>
     papi<{ results: BulkTenantResult[] }>('/platform/tenants/bulk', { method: 'POST', body: json({ items, dry_run: dryRun }) }),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),
