@@ -376,7 +376,8 @@
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
                 {#if r.last_login_at}
-                  <span title={formatDateTime(r.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}>{relativeTime(r.last_login_at)}</span>
+                  <span class="block">{formatDateTime(r.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  <span class="block text-[11px] text-[var(--text-tertiary)]">{relativeTime(r.last_login_at)}</span>
                 {:else}
                   <span class="text-[var(--text-tertiary)]">{t('platform.tenants.never')}</span>
                 {/if}
