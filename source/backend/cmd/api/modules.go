@@ -97,7 +97,7 @@ func mountModules(r chi.Router, d appDeps) error {
 		Service: authSvc, Log: d.Log, Redis: d.Redis,
 		Lockout:    auth.NewLockout(d.Redis, auth.NewPolicyLoader(d.Pool, d.Log)),
 		RateLimits: auth.NewRateLimitLoader(d.Pool, d.Log), Captcha: httpx.NewTurnstile(d.Cfg.TurnstileSecret),
-		Tokens:     tokens, Perms: perms, Origins: d.Cfg.CORSOrigins, OriginOK: domainOriginOK(d.Pool), SecureCookie: !d.Cfg.IsDev(),
+		Tokens:     tokens, Perms: perms, Presence: presence, Origins: d.Cfg.CORSOrigins, OriginOK: domainOriginOK(d.Pool), SecureCookie: !d.Cfg.IsDev(),
 	}).Routes(r)
 
 	uploads, err := storage.NewLocal(d.Cfg.UploadDir)

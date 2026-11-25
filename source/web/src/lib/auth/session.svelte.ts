@@ -200,6 +200,7 @@ export async function logout() {
     return;
   }
   try {
+    await api('/auth/offline', { method: 'POST' }).catch(() => {});
     await api('/auth/logout', { method: 'POST', headers: CSRF_HEADERS });
   } catch {
     // Server tak terjangkau: sesi lokal tetap dibuang; cookie refresh habis sendiri.

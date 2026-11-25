@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"aciraba/internal/authz"
+	"aciraba/internal/live"
 	pauth "aciraba/internal/platform/auth"
 	"aciraba/internal/platform/httpx"
 )
@@ -33,6 +34,7 @@ type HandlerDeps struct {
 	Captcha      *httpx.Turnstile // nil = mati; klien native (mobile) dilewati
 	Tokens       *pauth.TokenIssuer
 	Perms        *authz.Resolver
+	Presence     *live.Presence // nil = tanpa presence
 	Origins      []string // dipakai CSRFGuard (endpoint ber-cookie)
 	// OriginOK menerima Origin tambahan saat runtime (domain kustom aktif); nil = hanya Origins.
 	OriginOK func(ctx context.Context, origin string) bool
@@ -64,6 +66,12 @@ func (h *Handler) Routes(r chi.Router) {
 	r.With(csrf, httpx.RateLimit(h.Redis, "refresh", 600, time.Hour)).Post("/auth/refresh", h.Refresh)
 	r.With(csrf).Post("/auth/logout", h.Logout)
 	r.With(authed...).Get("/auth/me", h.Me)
+	// Aplikasi ditutup / logout: langsung offline (tanpa ini baru hilang setelah jendela online habis).
+	r.With(authed...).Post("/auth/offline", func(w http.ResponseWriter, r *http.Request) {
+		a := actor(r)
+		h.Presence.Forget(a.TenantID, a.UserID)
+		w.WriteHeader(http.StatusNoContent)
+	})
 	// Heartbeat presence: middleware authed sudah menandai user online; tanpa query DB.
 	r.With(authed...).Get("/auth/ping", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	r.With(authed...).Get("/auth/feature-shortcuts", h.GetFeatureShortcuts)

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/locale/locale_controller.dart';
+import 'core/session/presence_beacon.dart';
 import 'core/session/session_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/text_scale_controller.dart';
@@ -67,8 +68,8 @@ class ArusApp extends ConsumerWidget {
           data: mq.copyWith(textScaler: _ScaledBy(mq.textScaler, user)),
           // Play Store melarang aplikasi memperbarui diri di luar Play → flavor 'play' memakai In-App Update Play (bukan UpdateGate).
           child: appFlavor == 'play'
-              ? PlayUpdateGate(child: child!)
-              : UpdateGate(child: child!),
+              ? PlayUpdateGate(child: PresenceBeacon(child: child!))
+              : UpdateGate(child: PresenceBeacon(child: child!)),
         );
       },
       localizationsDelegates: const [

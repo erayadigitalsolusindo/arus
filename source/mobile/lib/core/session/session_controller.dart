@@ -127,6 +127,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   Future<void> logout() async {
+    await _api.offline();
     await _api.logout();
     state = const SessionSignedOut();
   }

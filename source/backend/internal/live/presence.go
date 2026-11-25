@@ -60,6 +60,19 @@ func (p *Presence) Touch(tenant, user uuid.UUID) {
 	}()
 }
 
+// Forget menandai pengguna offline segera (logout / aplikasi ditutup). Heartbeat berikutnya menjadikannya online lagi.
+func (p *Presence) Forget(tenant, user uuid.UUID) {
+	if p == nil || p.rdb == nil {
+		return
+	}
+	p.mu.Lock()
+	delete(p.last, [2]uuid.UUID{tenant, user})
+	p.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = p.rdb.ZRem(ctx, presenceKey, tenant.String()+":"+user.String()).Err()
+}
+
 type Online struct {
 	Tenant, User uuid.UUID
 	Seen         time.Time

@@ -220,6 +220,12 @@ class ApiClient {
     }
   }
 
+  /// Heartbeat presence (204, tanpa DB) dan penanda offline; galat jaringan diabaikan.
+  Future<void> ping() =>
+      dio.get<void>('/auth/ping').then((_) {}, onError: (_) {});
+  Future<void> offline() =>
+      dio.post<void>('/auth/offline').then((_) {}, onError: (_) {});
+
   Future<void> logout() async {
     final token = await tokens.readRefreshToken();
     _accessToken = null;

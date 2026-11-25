@@ -44,11 +44,20 @@
     let id: ReturnType<typeof setTimeout>;
     // Jitter ±10 dtk agar klien tidak serempak menembak server.
     const tick = () => {
-      if (session.status === 'authed' && document.visibilityState === 'visible') void api('/auth/ping').catch(() => {});
+      if (session.status === 'authed') void api('/auth/ping').catch(() => {});
       id = setTimeout(tick, 35_000 + Math.random() * 20_000);
     };
     id = setTimeout(tick, 35_000 + Math.random() * 20_000);
-    return () => clearTimeout(id);
+    // Tab/jendela ditutup → offline segera (keepalive: permintaan tetap terkirim saat halaman dibongkar).
+    // shortcut: tab lain yang masih terbuka memulihkan status lewat heartbeat berikutnya (<=55 dtk).
+    const bye = () => {
+      if (session.status === 'authed') void api('/auth/offline', { method: 'POST', keepalive: true }).catch(() => {});
+    };
+    window.addEventListener('pagehide', bye);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('pagehide', bye);
+    };
   });
 </script>
 
