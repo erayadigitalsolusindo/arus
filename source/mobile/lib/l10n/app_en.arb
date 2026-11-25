@@ -256,6 +256,23 @@
   "salesTodaySearch": "Search receipt number",
   "salesTodayEmpty": "No sales yet.",
   "salesTodayTruncated": "List truncated; narrow it with search.",
+  "saleVoidAction": "Void sale",
+  "saleVoidTitle": "Void sale {docNo}?",
+  "@saleVoidTitle": {
+    "placeholders": {
+      "docNo": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReasonLabel": "Reason (min. 3 characters)",
+  "saleVoidConfirm": "Void sale",
+  "locTitle": "Outlet location",
+  "locBody": "ARUS uses this device's GPS location to update the location of the outlet you are working in. Location is read only when the app opens or when you choose an outlet, and location permission is required.",
+  "locAllow": "Allow location",
+  "locDenied": "Location permission was denied. Open Settings and allow Location for ARUS.",
+  "locServiceOff": "Device GPS is off. Turn on location so the outlet position can be updated.",
+  "locOpenSettings": "Open Settings",
   "saleVoidBadge": "VOID",
   "saleReturnedBadge": "Returned {amount}",
   "@saleReturnedBadge": {

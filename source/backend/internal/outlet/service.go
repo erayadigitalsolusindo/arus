@@ -329,3 +329,25 @@ func (s *Service) Update(ctx context.Context, actor authz.Actor, id uuid.UUID, i
 	o := outletOf(row)
 	return &o, nil
 }
+
+// SetLocation menimpa koordinat GPS outlet aktif pemanggil (dikirim aplikasi mobile tiap dibuka). Tanpa izin modul outlet:
+// hanya kolom koordinat dan hanya outlet yang sedang dipakai, jadi tidak bisa mengubah data outlet lain.
+func (s *Service) SetLocation(ctx context.Context, actor authz.Actor, lat, lng float64) error {
+	if math.IsNaN(lat+lng) || math.Abs(lat) > 90 || math.Abs(lng) > 180 {
+		return FieldErrors{"latitude": "INVALID"}
+	}
+	return db.WithTenant(ctx, s.pool, actor.TenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE outlets SET latitude = $3, longitude = $4 WHERE tenant_id = $1 AND id = $2`,
+			actor.TenantID, actor.OutletID, strconv.FormatFloat(lat, 'f', 6, 64), strconv.FormatFloat(lng, 'f', 6, 64))
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return ErrNotFound
+		}
+		return audit.Record(ctx, tx, audit.FromActor(actor), audit.Entry{
+			Action: audit.ActionOutletUpdate, Entity: audit.EntityOutlet, EntityID: actor.OutletID.String(),
+			Details: map[string]any{"source": "mobile_gps", "latitude": lat, "longitude": lng},
+		})
+	})
+}

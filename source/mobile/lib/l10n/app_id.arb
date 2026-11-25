@@ -357,6 +357,23 @@
   "salesTodaySearch": "Cari nomor nota",
   "salesTodayEmpty": "Belum ada penjualan.",
   "salesTodayTruncated": "Daftar dipotong; persempit dengan pencarian.",
+  "saleVoidAction": "Batalkan nota",
+  "saleVoidTitle": "Batalkan nota {docNo}?",
+  "@saleVoidTitle": {
+    "placeholders": {
+      "docNo": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReasonLabel": "Alasan pembatalan (min. 3 karakter)",
+  "saleVoidConfirm": "Batalkan nota",
+  "locTitle": "Lokasi outlet",
+  "locBody": "ARUS memakai lokasi GPS perangkat ini untuk memperbarui titik lokasi outlet yang sedang Anda pakai. Lokasi hanya diambil saat aplikasi dibuka atau saat Anda memilih outlet, dan izin lokasi wajib diizinkan.",
+  "locAllow": "Izinkan lokasi",
+  "locDenied": "Izin lokasi ditolak. Buka Pengaturan lalu izinkan Lokasi untuk ARUS.",
+  "locServiceOff": "GPS perangkat mati. Nyalakan lokasi agar titik outlet dapat diperbarui.",
+  "locOpenSettings": "Buka Pengaturan",
   "saleVoidBadge": "BATAL",
   "saleReturnedBadge": "Retur {amount}",
   "@saleReturnedBadge": {

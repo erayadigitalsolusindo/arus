@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/outlet/outlet_switcher.dart';
+import '../core/session/outlet_location.dart';
 import '../core/session/session_controller.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/beach_background.dart';
@@ -53,139 +54,147 @@ class HomePage extends ConsumerWidget {
         ? l.homeGreetAfternoon(name)
         : l.homeGreetNight(name);
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        centerTitle: true,
-        title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            // Logo biru tua: alas terang agar tetap terbaca di langit malam.
-            color: Colors.white.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(20),
+    return OutletLocationGate(
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          centerTitle: true,
+          title: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              // Logo biru tua: alas terang agar tetap terbaca di langit malam.
+              color: Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: SvgPicture.asset(
+              'assets/images/logo_dengan_text-no-bg.svg',
+              height: 30,
+              semanticsLabel: l.appName,
+            ),
           ),
-          child: SvgPicture.asset(
-            'assets/images/logo_dengan_text-no-bg.svg',
-            height: 30,
-            semanticsLabel: l.appName,
-          ),
+          actions: [
+            const OutboxButton(),
+            const ModeButton(),
+            const SettingsButton(),
+            IconButton(
+              tooltip: l.logout,
+              icon: const Icon(Icons.logout),
+              onPressed: () => ref.read(sessionProvider.notifier).logout(),
+            ),
+          ],
         ),
-        actions: [
-          const OutboxButton(),
-          const ModeButton(),
-          const SettingsButton(),
-          IconButton(
-            tooltip: l.logout,
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(sessionProvider.notifier).logout(),
-          ),
-        ],
-      ),
-      body: BeachBackground(
-        animate: ref.watch(oceanAnimateProvider),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(shiftProvider);
-              ref.invalidate(eraConfiguredProvider);
-            },
-            // Sapaan di atas; papan hari ini dan menu di dasar layar supaya langit, gunung, dan laut terlihat.
-            child: LayoutBuilder(
-              builder: (context, box) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: box.maxHeight - 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _Banner(
-                        greeting: greeting,
-                        store: p.tenant.name,
-                        branch: p.outlet.name,
-                        onSwitch: () => showOutletSwitcher(context),
-                      ),
-                      const SizedBox(height: 24),
-                      Column(
-                        children: [
-                          if (p.permissions.can('ai_assistant', 'view')) ...[
-                            _HalloArusButton(
-                              subtitle: l.halloArusSubtitle,
-                              onTap: () => showHalloArusPage(context),
+        body: BeachBackground(
+          animate: ref.watch(oceanAnimateProvider),
+          child: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(shiftProvider);
+                ref.invalidate(eraConfiguredProvider);
+              },
+              // Sapaan di atas; papan hari ini dan menu di dasar layar supaya langit, gunung, dan laut terlihat.
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: box.maxHeight - 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _Banner(
+                          greeting: greeting,
+                          store: p.tenant.name,
+                          branch: p.outlet.name,
+                          onSwitch: () => showOutletSwitcher(context),
+                        ),
+                        const SizedBox(height: 24),
+                        Column(
+                          children: [
+                            if (p.permissions.can('ai_assistant', 'view')) ...[
+                              _HalloArusButton(
+                                subtitle: l.halloArusSubtitle,
+                                onTap: () => showHalloArusPage(context),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            _MenuGrid(
+                              entries: [
+                                if (p.permissions.can('sales_orders', 'create'))
+                                  _MenuEntry(
+                                    Icons.point_of_sale,
+                                    l.posTitle,
+                                    () => context.go('/kasir'),
+                                  ),
+                                if (p.permissions.can('sales_orders', 'create'))
+                                  _MenuEntry(
+                                    Icons.payments_outlined,
+                                    l.pettyMenu,
+                                    () async {
+                                      final shift = await ref.read(
+                                        shiftProvider.future,
+                                      );
+                                      if (!context.mounted) return;
+                                      if (shift == null) {
+                                        await showOpenShiftDialog(context);
+                                        return;
+                                      }
+                                      await showPettyCashPage(
+                                        context,
+                                        shift.id,
+                                      );
+                                    },
+                                  ),
+                                if (p.permissions.can('items', 'view'))
+                                  _MenuEntry(
+                                    Icons.inventory_2_outlined,
+                                    l.menuItems,
+                                    () => showItemManagePage(context),
+                                  ),
+                                // Mode Penjualan: Pembelian disembunyikan (tampil di Mode Persediaan).
+                                if (ref.watch(appModeProvider) ==
+                                        AppMode.inventory &&
+                                    (p.permissions.can(
+                                          'purchase_invoices',
+                                          'view',
+                                        ) ||
+                                        p.permissions.can(
+                                          'purchase_list',
+                                          'view',
+                                        )))
+                                  _MenuEntry(
+                                    Icons.local_shipping_outlined,
+                                    l.menuPurchases,
+                                    () => showPurchasesPage(context),
+                                  ),
+                                // Settlement hanya untuk admin dan hanya bila EraPay terpasang di toko ini.
+                                if (p.permissions.can(
+                                      'sales_reports',
+                                      'view',
+                                    ) &&
+                                    (ref
+                                            .watch(eraConfiguredProvider)
+                                            .asData
+                                            ?.value ??
+                                        false))
+                                  _MenuEntry(
+                                    Icons.account_balance_wallet_outlined,
+                                    l.menuSettlement,
+                                    () => showEraSettlementPage(context),
+                                  ),
+                                // Laporan hanya untuk akun berizin laporan penjualan (admin/pemilik).
+                                if (p.permissions.can('sales_reports', 'view'))
+                                  _MenuEntry(
+                                    Icons.bar_chart_rounded,
+                                    l.menuSales,
+                                    () => showSalesReportPage(context),
+                                  ),
+                              ],
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          _MenuGrid(
-                            entries: [
-                              if (p.permissions.can('sales_orders', 'create'))
-                                _MenuEntry(
-                                  Icons.point_of_sale,
-                                  l.posTitle,
-                                  () => context.go('/kasir'),
-                                ),
-                              if (p.permissions.can('sales_orders', 'create'))
-                                _MenuEntry(
-                                  Icons.payments_outlined,
-                                  l.pettyMenu,
-                                  () async {
-                                    final shift = await ref.read(
-                                      shiftProvider.future,
-                                    );
-                                    if (!context.mounted) return;
-                                    if (shift == null) {
-                                      await showOpenShiftDialog(context);
-                                      return;
-                                    }
-                                    await showPettyCashPage(context, shift.id);
-                                  },
-                                ),
-                              if (p.permissions.can('items', 'view'))
-                                _MenuEntry(
-                                  Icons.inventory_2_outlined,
-                                  l.menuItems,
-                                  () => showItemManagePage(context),
-                                ),
-                              // Mode Penjualan: Pembelian disembunyikan (tampil di Mode Persediaan).
-                              if (ref.watch(appModeProvider) ==
-                                      AppMode.inventory &&
-                                  (p.permissions.can(
-                                        'purchase_invoices',
-                                        'view',
-                                      ) ||
-                                      p.permissions.can(
-                                        'purchase_list',
-                                        'view',
-                                      )))
-                                _MenuEntry(
-                                  Icons.local_shipping_outlined,
-                                  l.menuPurchases,
-                                  () => showPurchasesPage(context),
-                                ),
-                              // Settlement hanya untuk admin dan hanya bila EraPay terpasang di toko ini.
-                              if (p.permissions.can('sales_reports', 'view') &&
-                                  (ref
-                                          .watch(eraConfiguredProvider)
-                                          .asData
-                                          ?.value ??
-                                      false))
-                                _MenuEntry(
-                                  Icons.account_balance_wallet_outlined,
-                                  l.menuSettlement,
-                                  () => showEraSettlementPage(context),
-                                ),
-                              // Laporan hanya untuk akun berizin laporan penjualan (admin/pemilik).
-                              if (p.permissions.can('sales_reports', 'view'))
-                                _MenuEntry(
-                                  Icons.bar_chart_rounded,
-                                  l.menuSales,
-                                  () => showSalesReportPage(context),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

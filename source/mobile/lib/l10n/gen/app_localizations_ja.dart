@@ -624,6 +624,39 @@ class AppLocalizationsJa extends AppLocalizations {
   String get salesTodayTruncated => 'リストが切り詰められました。検索で絞り込んでください。';
 
   @override
+  String get saleVoidAction => '伝票をキャンセル';
+
+  @override
+  String saleVoidTitle(String docNo) {
+    return '伝票 $docNo をキャンセルしますか？';
+  }
+
+  @override
+  String get saleVoidReasonLabel => 'キャンセル理由（3文字以上）';
+
+  @override
+  String get saleVoidConfirm => '伝票をキャンセル';
+
+  @override
+  String get locTitle => '店舗の位置情報';
+
+  @override
+  String get locBody =>
+      'ARUSはこの端末のGPSで、使用中の店舗の位置を更新します。位置情報はアプリ起動時と店舗選択時のみ取得し、位置情報の許可が必要です。';
+
+  @override
+  String get locAllow => '位置情報を許可';
+
+  @override
+  String get locDenied => '位置情報が拒否されています。設定でARUSの位置情報を許可してください。';
+
+  @override
+  String get locServiceOff => '端末のGPSがオフです。店舗の位置を更新するには位置情報をオンにしてください。';
+
+  @override
+  String get locOpenSettings => '設定を開く';
+
+  @override
   String get saleVoidBadge => 'キャンセル';
 
   @override

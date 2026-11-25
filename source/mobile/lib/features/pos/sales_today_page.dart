@@ -18,6 +18,7 @@ import 'pos_models.dart';
 import 'pos_repository.dart';
 import 'sales_models.dart';
 import 'shift_dialog.dart';
+import 'void_sale_dialog.dart';
 
 /// Penjualan kasir ini pada rentang tanggal + jam + menit (default hari ini): daftar nota, laporan per metode bayar, cetak rekap
 /// untuk cek fisik, dan detail nota (hanya baca; edit/batal tetap di web).
@@ -245,7 +246,7 @@ class _SalesTodayPageState extends ConsumerState<_SalesTodayPage> {
                       children: [
                         _MethodReport(data: d),
                         for (final r in d.rows)
-                          _SaleTile(key: ValueKey(r.id), row: r),
+                          _SaleTile(key: ValueKey(r.id), row: r, onVoided: _load),
                         if (d.truncated)
                           Padding(
                             padding: const EdgeInsets.all(16),
@@ -458,9 +459,10 @@ class _MethodReport extends StatelessWidget {
 }
 
 class _SaleTile extends ConsumerStatefulWidget {
-  const _SaleTile({super.key, required this.row});
+  const _SaleTile({super.key, required this.row, required this.onVoided});
 
   final SaleRow row;
+  final VoidCallback onVoided;
 
   @override
   ConsumerState<_SaleTile> createState() => _SaleTileState();
@@ -553,7 +555,11 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
                   child: LinearProgressIndicator(minHeight: 2),
                 );
               }
-              return SaleDetailBody(d: snap.data!, saleId: r.id);
+              return SaleDetailBody(
+                d: snap.data!,
+                saleId: r.id,
+                onVoided: widget.onVoided,
+              );
             },
           ),
       ],
@@ -561,16 +567,31 @@ class _SaleTileState extends ConsumerState<_SaleTile> {
   }
 }
 
-class SaleDetailBody extends StatelessWidget {
-  const SaleDetailBody({super.key, required this.d, required this.saleId});
+class SaleDetailBody extends ConsumerWidget {
+  const SaleDetailBody({
+    super.key,
+    required this.d,
+    required this.saleId,
+    this.onVoided,
+  });
 
   final SaleDetailInfo d;
   final String saleId;
 
+  /// Bila diisi dan pengguna berizin, tombol Batalkan nota tampil; dipanggil setelah nota berhasil dibatalkan.
+  final VoidCallback? onVoided;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final pal = context.pal;
+    final session = ref.watch(sessionProvider);
+    // Sama dengan route server: POST /sales/{id}/void butuh izin hapus pada sales_orders; hanya nota 'completed' yang bisa batal.
+    final canVoid =
+        onVoided != null &&
+        d.status == 'completed' &&
+        session is SessionSignedIn &&
+        session.profile.permissions.can('sales_orders', 'delete');
     Widget kv(String k, Decimal v, {bool bold = false}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
@@ -648,6 +669,22 @@ class SaleDetailBody extends StatelessWidget {
         if (d.receivable > Decimal.zero) kv(l.saleReceivable, d.receivable),
         const SizedBox(height: 10),
         Center(child: PrintReceiptButton(saleId: saleId, reprint: true)),
+        if (canVoid)
+          Center(
+            child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: pal.danger),
+              icon: const Icon(Icons.block),
+              label: Text(l.saleVoidAction),
+              onPressed: () async {
+                final done = await showVoidSaleDialog(
+                  context,
+                  saleId: saleId,
+                  docNo: d.docNo,
+                );
+                if (done) onVoided!();
+              },
+            ),
+          ),
       ],
     );
   }

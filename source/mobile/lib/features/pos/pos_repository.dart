@@ -846,6 +846,22 @@ class PosRepository {
     return SaleDetailInfo.fromJson(r.data!);
   });
 
+  /// Batalkan nota (`POST /sales/{id}/void`): izin hapus + alasan + PIN penyetuju; stok/poin/kupon dibalik di server.
+  Future<void> voidSale(
+    String id, {
+    required String reason,
+    required String approverId,
+    required String pin,
+  }) => _guard(() async {
+    await _dio.post<Map<String, dynamic>>(
+      '/sales/$id/void',
+      data: {
+        'reason': reason,
+        'approval': {'user_id': approverId, 'pin': pin},
+      },
+    );
+  });
+
   Future<ShiftInfo> openShift(String openingCash) => _guard(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/shifts/open',

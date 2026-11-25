@@ -638,6 +638,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get salesTodayTruncated => 'List truncated; narrow it with search.';
 
   @override
+  String get saleVoidAction => 'Void sale';
+
+  @override
+  String saleVoidTitle(String docNo) {
+    return 'Void sale $docNo?';
+  }
+
+  @override
+  String get saleVoidReasonLabel => 'Reason (min. 3 characters)';
+
+  @override
+  String get saleVoidConfirm => 'Void sale';
+
+  @override
+  String get locTitle => 'Outlet location';
+
+  @override
+  String get locBody =>
+      'ARUS uses this device\'s GPS location to update the location of the outlet you are working in. Location is read only when the app opens or when you choose an outlet, and location permission is required.';
+
+  @override
+  String get locAllow => 'Allow location';
+
+  @override
+  String get locDenied =>
+      'Location permission was denied. Open Settings and allow Location for ARUS.';
+
+  @override
+  String get locServiceOff =>
+      'Device GPS is off. Turn on location so the outlet position can be updated.';
+
+  @override
+  String get locOpenSettings => 'Open Settings';
+
+  @override
   String get saleVoidBadge => 'VOID';
 
   @override

@@ -4,8 +4,6 @@ import '../../core/settings/settings_button.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
-import '../../core/update/app_update.dart';
-import '../../core/update/update_check.dart';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +14,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api/api_error.dart';
 import '../../core/money/money.dart';
+import '../../core/update/app_update.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -535,16 +534,6 @@ class OutletPanel extends ConsumerWidget {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Divider(height: 1),
-        ),
-        _PanelAction(
-          icon: Icons.system_update_alt,
-          label: ref.watch(updateAvailableProvider)
-              ? l.updAvailableBadge
-              : l.updCheckTitle,
-          onTap: () {
-            onClose();
-            checkForUpdates(context, ref);
-          },
         ),
         _PanelAction(
           icon: Icons.swap_horiz,

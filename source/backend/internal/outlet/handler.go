@@ -34,6 +34,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(httpx.RequireAuth(h.tokens), h.resolver.Authenticate)
 		// Pemilih outlet: semua pengguna terautentikasi, tanpa izin modul.
 		r.Get("/accessible", h.Accessible)
+		r.Put("/current/location", h.SetLocation)
 
 		r.With(authz.Require(ModuleID, authz.ActView)).Get("/", h.List)
 		r.With(authz.Require(ModuleID, authz.ActCreate)).Post("/", h.Create)
@@ -129,6 +130,25 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, o)
+}
+
+func (h *Handler) SetLocation(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Latitude  *float64 `json:"latitude"`
+		Longitude *float64 `json:"longitude"`
+	}
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if req.Latitude == nil || req.Longitude == nil {
+		httpx.ValidationError(w, map[string]string{"latitude": "REQUIRED"})
+		return
+	}
+	if err := h.svc.SetLocation(r.Context(), actor(r), *req.Latitude, *req.Longitude); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {

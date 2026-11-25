@@ -640,6 +640,41 @@ class AppLocalizationsId extends AppLocalizations {
       'Daftar dipotong; persempit dengan pencarian.';
 
   @override
+  String get saleVoidAction => 'Batalkan nota';
+
+  @override
+  String saleVoidTitle(String docNo) {
+    return 'Batalkan nota $docNo?';
+  }
+
+  @override
+  String get saleVoidReasonLabel => 'Alasan pembatalan (min. 3 karakter)';
+
+  @override
+  String get saleVoidConfirm => 'Batalkan nota';
+
+  @override
+  String get locTitle => 'Lokasi outlet';
+
+  @override
+  String get locBody =>
+      'ARUS memakai lokasi GPS perangkat ini untuk memperbarui titik lokasi outlet yang sedang Anda pakai. Lokasi hanya diambil saat aplikasi dibuka atau saat Anda memilih outlet, dan izin lokasi wajib diizinkan.';
+
+  @override
+  String get locAllow => 'Izinkan lokasi';
+
+  @override
+  String get locDenied =>
+      'Izin lokasi ditolak. Buka Pengaturan lalu izinkan Lokasi untuk ARUS.';
+
+  @override
+  String get locServiceOff =>
+      'GPS perangkat mati. Nyalakan lokasi agar titik outlet dapat diperbarui.';
+
+  @override
+  String get locOpenSettings => 'Buka Pengaturan';
+
+  @override
   String get saleVoidBadge => 'BATAL';
 
   @override

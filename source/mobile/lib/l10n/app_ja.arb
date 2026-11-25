@@ -350,6 +350,23 @@
   "salesTodaySearch": "ノート番号を検索",
   "salesTodayEmpty": "まだ売上がありません。",
   "salesTodayTruncated": "リストが切り詰められました。検索で絞り込んでください。",
+  "saleVoidAction": "伝票をキャンセル",
+  "saleVoidTitle": "伝票 {docNo} をキャンセルしますか？",
+  "@saleVoidTitle": {
+    "placeholders": {
+      "docNo": {
+        "type": "String"
+      }
+    }
+  },
+  "saleVoidReasonLabel": "キャンセル理由（3文字以上）",
+  "saleVoidConfirm": "伝票をキャンセル",
+  "locTitle": "店舗の位置情報",
+  "locBody": "ARUSはこの端末のGPSで、使用中の店舗の位置を更新します。位置情報はアプリ起動時と店舗選択時のみ取得し、位置情報の許可が必要です。",
+  "locAllow": "位置情報を許可",
+  "locDenied": "位置情報が拒否されています。設定でARUSの位置情報を許可してください。",
+  "locServiceOff": "端末のGPSがオフです。店舗の位置を更新するには位置情報をオンにしてください。",
+  "locOpenSettings": "設定を開く",
   "saleVoidBadge": "キャンセル",
   "saleReturnedBadge": "返品 {amount}",
   "@saleReturnedBadge": {

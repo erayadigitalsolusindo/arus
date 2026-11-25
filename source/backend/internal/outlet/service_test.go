@@ -210,3 +210,22 @@ func TestValidateGeo(t *testing.T) {
 		}
 	}
 }
+
+func TestSetLocation(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	var fe FieldErrors
+	if err := e.svc.SetLocation(ctx, e.owner, 91, 0); !errors.As(err, &fe) {
+		t.Errorf("lat di luar rentang: err = %v", err)
+	}
+	for _, c := range [][2]float64{{-6.2, 106.8}, {-7.25, 112.75}} { // dua kali: menimpa
+		if err := e.svc.SetLocation(ctx, e.owner, c[0], c[1]); err != nil {
+			t.Fatal(err)
+		}
+		var lat, lng float64
+		_ = e.admin.QueryRow(ctx, `SELECT latitude::float8, longitude::float8 FROM outlets WHERE id = $1`, e.first).Scan(&lat, &lng)
+		if lat != c[0] || lng != c[1] {
+			t.Errorf("koordinat = %v,%v want %v", lat, lng, c)
+		}
+	}
+}

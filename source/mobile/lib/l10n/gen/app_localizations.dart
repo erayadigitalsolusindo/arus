@@ -1222,6 +1222,66 @@ abstract class AppLocalizations {
   /// **'Daftar dipotong; persempit dengan pencarian.'**
   String get salesTodayTruncated;
 
+  /// No description provided for @saleVoidAction.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan nota'**
+  String get saleVoidAction;
+
+  /// No description provided for @saleVoidTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan nota {docNo}?'**
+  String saleVoidTitle(String docNo);
+
+  /// No description provided for @saleVoidReasonLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Alasan pembatalan (min. 3 karakter)'**
+  String get saleVoidReasonLabel;
+
+  /// No description provided for @saleVoidConfirm.
+  ///
+  /// In id, this message translates to:
+  /// **'Batalkan nota'**
+  String get saleVoidConfirm;
+
+  /// No description provided for @locTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Lokasi outlet'**
+  String get locTitle;
+
+  /// No description provided for @locBody.
+  ///
+  /// In id, this message translates to:
+  /// **'ARUS memakai lokasi GPS perangkat ini untuk memperbarui titik lokasi outlet yang sedang Anda pakai. Lokasi hanya diambil saat aplikasi dibuka atau saat Anda memilih outlet, dan izin lokasi wajib diizinkan.'**
+  String get locBody;
+
+  /// No description provided for @locAllow.
+  ///
+  /// In id, this message translates to:
+  /// **'Izinkan lokasi'**
+  String get locAllow;
+
+  /// No description provided for @locDenied.
+  ///
+  /// In id, this message translates to:
+  /// **'Izin lokasi ditolak. Buka Pengaturan lalu izinkan Lokasi untuk ARUS.'**
+  String get locDenied;
+
+  /// No description provided for @locServiceOff.
+  ///
+  /// In id, this message translates to:
+  /// **'GPS perangkat mati. Nyalakan lokasi agar titik outlet dapat diperbarui.'**
+  String get locServiceOff;
+
+  /// No description provided for @locOpenSettings.
+  ///
+  /// In id, this message translates to:
+  /// **'Buka Pengaturan'**
+  String get locOpenSettings;
+
   /// No description provided for @saleVoidBadge.
   ///
   /// In id, this message translates to:
