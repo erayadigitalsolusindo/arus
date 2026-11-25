@@ -712,6 +712,11 @@ type Plan struct {
 	MaxItems     pgtype.Int4
 }
 
+type PlatformAdminRole struct {
+	AdminID uuid.UUID
+	RoleID  uuid.UUID
+}
+
 type PlatformAdmin struct {
 	ID               uuid.UUID
 	Email            string
@@ -774,6 +779,15 @@ type PlatformRecoveryCode struct {
 	AdminID  uuid.UUID
 	CodeHash string
 	UsedAt   pgtype.Timestamptz
+}
+
+type PlatformRole struct {
+	ID          uuid.UUID
+	Name        string
+	Permissions []byte
+	IsSystem    bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type PosShortcut struct {
@@ -1435,6 +1449,8 @@ type Tenant struct {
 	SaleEditWindowDays    int32
 	DeleteAt              pgtype.Timestamptz
 	DeleteRequestedAt     pgtype.Timestamptz
+	TenantType            string
+	Location              string
 }
 
 type TenantDailyTx struct {

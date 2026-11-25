@@ -51,6 +51,9 @@ type Profile struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
 	MFAEnabled bool   `json:"mfa_enabled"`
+	// Role & Permissions hanya untuk menyaring tampilan di SPA; penegakan sebenarnya di server (requirePerm).
+	Role        string            `json:"role"`
+	Permissions authz.Permissions `json:"permissions"`
 }
 
 type Session struct {
@@ -67,6 +70,8 @@ type Actor struct {
 	ID   uuid.UUID
 	Name string
 	MFA  bool // 2FA aktif; tanpa ini hanya halaman keamanan yang boleh diakses
+	// Perms = izin role admin ini (dari cache singkat); ditegakkan requirePerm.
+	Perms authz.Permissions
 }
 
 type actorKey struct{}
@@ -94,9 +99,13 @@ func (s *Service) newSession(ctx context.Context, row gen.PlatformAdmin, refresh
 			return nil, err
 		}
 	}
+	_, role, perms, err := s.rolePerms(ctx, row.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &Session{
 		AccessToken: access, ExpiresIn: int(pauth.AccessTTL.Seconds()),
-		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid},
+		Admin:        Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, Role: role, Permissions: perms},
 		RefreshToken: refresh, Remember: remember,
 	}, nil
 }
@@ -203,7 +212,7 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 			httpx.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Sesi dicabut. Silakan masuk kembali.")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA})))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, Actor{ID: id, Name: admin.Name, MFA: admin.MFA, Perms: admin.Perms})))
 	})
 }
 
@@ -216,7 +225,11 @@ func (s *Service) Me(ctx context.Context, a Actor) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid}, nil
+	_, role, perms, err := s.rolePerms(ctx, a.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &Profile{ID: row.ID.String(), Name: row.Name, Email: row.Email, MFAEnabled: row.TotpEnabledAt.Valid, Role: role, Permissions: perms}, nil
 }
 
 // SetupRequired: setup hanya tersedia selama belum ada Platform Admin DAN SetupToken dikonfigurasi di server.

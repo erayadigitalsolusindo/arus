@@ -15,8 +15,10 @@ export type TenantRow = {
   plan_id: string;
   plan_name: string;
   plan_expires_at: string | null;
+  tenant_type: string;
+  location: string;
 };
-export type TenantFilter = { status?: string; plan?: string; login?: string; from?: string; to?: string };
+export type TenantFilter = { status?: string; plan?: string; login?: string; from?: string; to?: string; type?: string };
 export type BulkTenantItem = { business_name: string; email: string; owner_name?: string; outlet_name?: string; phone?: string };
 export type BulkTenantResult = { row: number; email: string; ok: boolean; tenant_id?: string; error?: string };
 export type TenantPage = { items: TenantRow[]; total: number; limit: number; offset: number };
@@ -32,11 +34,14 @@ export type UserRow = {
   email_verified: boolean;
   created_at: string;
 };
-export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; sale_edit_window_days: number; outlets: OutletRow[]; users: UserRow[] };
+export type TenantDetail = { id: string; code: string; name: string; active: boolean; created_at: string; sale_edit_window_days: number; tenant_type: string; location: string; outlets: OutletRow[]; users: UserRow[] };
 
 export type DeleteSchedule = { delete_at: string; requested_at: string; due: boolean };
 
-export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string };
+export type AdminRow = { id: string; email: string; name: string; active: boolean; mfa_enabled: boolean; last_login_at: string | null; created_at: string; role_id: string | null; role_name: string };
+
+export type PlatformModuleDef = { id: string; actions: string[] };
+export type PlatformRole = { id: string; name: string; permissions: Record<string, string[] | true>; is_system: boolean; admin_count: number };
 
 export type TenantAuditItem = {
   id: number;
@@ -331,7 +336,18 @@ export const platformApi = {
     papi<AuthResponse>(`/platform/tenants/${id}/impersonate`, { method: 'POST', body: json(outletId ? { outlet_id: outletId } : {}) }),
 
   admins: () => papi<{ items: AdminRow[] }>('/platform/admins'),
-  createAdmin: (body: { name: string; email: string; password: string }) => papi<{ id: string }>('/platform/admins', { method: 'POST', body: json(body) }),
+  createAdmin: (body: { name: string; email: string; password: string; role_id: string }) => papi<{ id: string }>('/platform/admins', { method: 'POST', body: json(body) }),
+  assignableRoles: () => papi<{ roles: PlatformRole[] }>('/platform/admins/roles').then((r) => r.roles),
+  setAdminRole: (id: string, roleId: string) => papi<void>(`/platform/admins/${id}/role`, { method: 'PUT', body: json({ role_id: roleId }) }),
+  roles: () => papi<{ roles: PlatformRole[] }>('/platform/roles').then((r) => r.roles),
+  roleModules: () => papi<{ modules: PlatformModuleDef[] }>('/platform/roles/modules').then((r) => r.modules),
+  createRole: (name: string, permissions: Record<string, string[]>) => papi<PlatformRole>('/platform/roles', { method: 'POST', body: json({ name, permissions }) }),
+  updateRole: (id: string, name: string, permissions: Record<string, string[]>) => papi<PlatformRole>(`/platform/roles/${id}`, { method: 'PUT', body: json({ name, permissions }) }),
+  deleteRole: (id: string) => papi<void>(`/platform/roles/${id}`, { method: 'DELETE' }),
+  tenantTypes: () => papi<{ items: { type: string; count: number }[] }>('/platform/tenant-types').then((r) => r.items),
+  /** Jenis & lokasi tenant (penanda opsional, boleh kosong); keduanya dikirim bersamaan. */
+  setTenantProfile: (id: string, tenantType: string, location: string) =>
+    papi<void>(`/platform/tenants/${id}`, { method: 'PATCH', body: json({ tenant_type: tenantType, location }) }),
   setAdminActive: (id: string, active: boolean) => papi<void>(`/platform/admins/${id}`, { method: 'PATCH', body: json({ active }) }),
   deleteAdmin: (id: string, password: string, code: string) => papi<void>(`/platform/admins/${id}/delete`, { method: 'POST', body: json({ password, code }) }),
   setAdminPassword: (id: string, password: string) => papi<void>(`/platform/admins/${id}/password`, { method: 'PUT', body: json({ password }) }),

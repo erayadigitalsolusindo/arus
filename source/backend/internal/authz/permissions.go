@@ -89,12 +89,14 @@ var Modules = []Module{
 	{"subscription", viewing}, // halaman Langganan: lihat paket & pemakaian; membeli/memperpanjang khusus Owner (dicek di layanan)
 }
 
-func moduleByID(id string) (Module, bool) {
-	i := slices.IndexFunc(Modules, func(m Module) bool { return m.ID == id })
+func moduleByID(id string) (Module, bool) { return moduleIn(Modules, id) }
+
+func moduleIn(mods []Module, id string) (Module, bool) {
+	i := slices.IndexFunc(mods, func(m Module) bool { return m.ID == id })
 	if i < 0 {
 		return Module{}, false
 	}
-	return Modules[i], true
+	return mods[i], true
 }
 
 // Permissions = izin efektif sebuah role. Bentuk JSON (disimpan di roles.permissions dan dikirim ke klien):
@@ -194,7 +196,10 @@ func (p Permissions) MarshalJSON() ([]byte, error) {
 
 // ParseStored membaca roles.permissions dari DB. Longgar terhadap modul/aksi yang sudah tidak ada (dibuang),
 // agar menghapus modul dari registri tidak merusak role lama. JSON rusak = tanpa izin (tertutup).
-func ParseStored(raw []byte) Permissions {
+func ParseStored(raw []byte) Permissions { return ParseStoredIn(Modules, raw) }
+
+// ParseStoredIn = ParseStored untuk registri modul lain (mis. role Platform Admin).
+func ParseStoredIn(mods []Module, raw []byte) Permissions {
 	var m map[string]json.RawMessage
 	if json.Unmarshal(raw, &m) != nil {
 		return Permissions{}
@@ -207,7 +212,7 @@ func ParseStored(raw []byte) Permissions {
 	}
 	grants := map[string][]string{}
 	for id, v := range m {
-		mod, ok := moduleByID(id)
+		mod, ok := moduleIn(mods, id)
 		if !ok {
 			continue
 		}
@@ -236,19 +241,22 @@ func Normalize(in map[string][]string) (Permissions, error) {
 	for id, acts := range in {
 		// "Hanya Kasir" adalah paket tetap: izin lain apa pun dibuang agar akun tidak bisa melakukan selain kasir.
 		if id == "pos_only" && len(acts) > 0 {
-			if _, err := normalizeOne(in); err != nil {
+			if _, err := normalizeOne(Modules, in); err != nil {
 				return Permissions{}, err
 			}
 			return Permissions{Grants: PosOnlyGrants()}, nil
 		}
 	}
-	return normalizeOne(in)
+	return normalizeOne(Modules, in)
 }
 
-func normalizeOne(in map[string][]string) (Permissions, error) {
+// NormalizeIn = Normalize untuk registri modul lain (tanpa paket "Hanya Kasir").
+func NormalizeIn(mods []Module, in map[string][]string) (Permissions, error) { return normalizeOne(mods, in) }
+
+func normalizeOne(mods []Module, in map[string][]string) (Permissions, error) {
 	out := map[string][]string{}
 	for id, acts := range in {
-		mod, ok := moduleByID(id)
+		mod, ok := moduleIn(mods, id)
 		if !ok {
 			return Permissions{}, fmt.Errorf("%w: modul %q tidak dikenal", ErrInvalidPermissions, id)
 		}

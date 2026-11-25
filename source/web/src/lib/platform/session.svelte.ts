@@ -4,7 +4,8 @@ import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
 import { API_URL, ApiError, CSRF_HEADERS, request, requestStream } from '#lib/api/client.ts';
 
-export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean };
+export type PlatformPermissions = { '*'?: true } & Record<string, string[] | true | undefined>;
+export type PlatformAdmin = { id: string; name: string; email: string; mfa_enabled: boolean; role: string; permissions: PlatformPermissions };
 export type PlatformAuth = { access_token: string; expires_in: number; admin: PlatformAdmin };
 type Status = 'unknown' | 'authed' | 'anon';
 
@@ -13,6 +14,15 @@ class PlatformState {
   admin = $state<PlatformAdmin | null>(null);
 }
 export const platform = new PlatformState();
+
+/** Apakah admin punya izin `module.action` (hanya untuk menyaring UI; server tetap menegakkan lewat role). */
+export function canPlatform(module: string, action = 'view'): boolean {
+  const p = platform.admin?.permissions;
+  if (!p) return false;
+  if (p['*'] === true) return true;
+  const acts = p[module];
+  return Array.isArray(acts) && acts.includes(action);
+}
 
 const REFRESH_LEAD_S = 60;
 let token: string | null = null;

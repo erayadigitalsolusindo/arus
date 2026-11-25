@@ -33,6 +33,8 @@ type PlatformAdmin struct {
 	Name       string
 	ValidAfter time.Time
 	MFA        bool // 2FA (TOTP) sudah aktif
+	// Perms = izin role Platform Admin (modul platform; lihat platformadmin.PlatformModules). Kosong = tanpa izin.
+	Perms Permissions
 }
 
 // PlatformChecker dipasang di Resolver (WithPlatform) oleh modul platformadmin; authz tidak mengimpornya (hindari siklus).

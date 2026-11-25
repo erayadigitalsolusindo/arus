@@ -3,48 +3,17 @@
   import { page } from '$app/state';
   import { afterNavigate, goto } from '$app/navigation';
   import { platform, platformLogout } from '#lib/platform/session.svelte.ts';
-  import { t, type MessageKey } from '#lib/i18n/index.ts';
+  import { t } from '#lib/i18n/index.ts';
+  import { navGroups, allowed } from '#lib/platform/nav.ts';
   import { initials } from '#lib/auth/initials.ts';
   import LanguageSwitcher from '#lib/components/LanguageSwitcher.svelte';
   import CommandHero from '#lib/platform/CommandHero.svelte';
 
   let { children }: { children: Snippet } = $props();
 
-  // Shell sama dengan aplikasi tenant (app-shell / app-sidebar / app-header dari template), isi menu khusus platform.
-  const groups: { titleKey: MessageKey; items: { href: string; key: MessageKey; icon: string }[] }[] = [
-    {
-      titleKey: 'platform.nav.groupMain',
-      items: [
-        { href: '/platform/live', key: 'platform.nav.live', icon: 'activity' },
-        { href: '/platform/tenants', key: 'platform.nav.tenants', icon: 'store' },
-        { href: '/platform/admins', key: 'platform.nav.admins', icon: 'shield-check' },
-        { href: '/platform/plans', key: 'platform.nav.plans', icon: 'badge-dollar-sign' },
-        { href: '/platform/storefront-templates', key: 'platform.nav.templates', icon: 'layout-template' },
-        { href: '/platform/halloarus', key: 'platform.nav.halloarus', icon: 'sparkles' }
-      ]
-    },
-    {
-      titleKey: 'platform.nav.groupReports',
-      items: [
-        { href: '/platform/reports/sales', key: 'platform.nav.reportSales', icon: 'trending-up' },
-        { href: '/platform/reports/expiring', key: 'platform.nav.reportExpiring', icon: 'alarm-clock' },
-        { href: '/platform/reports/locations', key: 'platform.nav.reportLocations', icon: 'map-pin' }
-      ]
-    },
-    {
-      titleKey: 'platform.nav.groupSystem',
-      items: [
-        { href: '/platform/audit', key: 'platform.nav.audit', icon: 'scroll-text' },
-        { href: '/platform/qa', key: 'platform.nav.qa', icon: 'list-checks' },
-        { href: '/platform/backup', key: 'platform.nav.backup', icon: 'cloud-backup' },
-        { href: '/platform/mobile', key: 'platform.nav.mobile', icon: 'smartphone' },
-        { href: '/platform/api-access', key: 'platform.nav.apiAccess', icon: 'plug' },
-        { href: '/platform/domains', key: 'platform.nav.domains', icon: 'globe' },
-        { href: '/platform/languages', key: 'platform.nav.languages', icon: 'languages' },
-        { href: '/platform/security', key: 'platform.nav.security', icon: 'key-round' }
-      ]
-    }
-  ];
+  // Shell sama dengan aplikasi tenant (app-shell / app-sidebar / app-header dari template); menu khusus platform,
+  // disaring dari izin role admin (lib/platform/nav.ts). Penegakan sebenarnya di server.
+  const groups = $derived(navGroups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length));
 
   const isActive = (href: string) => page.url.pathname.startsWith(href);
 

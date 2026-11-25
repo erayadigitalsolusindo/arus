@@ -12,6 +12,7 @@
   import StatCard from '#lib/platform/StatCard.svelte';
   import StatusPill from '#lib/platform/StatusPill.svelte';
   import { relativeTime } from '#lib/platform/relative.ts';
+  import { canPlatform } from '#lib/platform/session.svelte.ts';
 
   const id = $derived(page.params.id ?? '');
 
@@ -45,6 +46,29 @@
       error = errorMessage(err);
     } finally {
       savingId = false;
+    }
+  }
+
+  // Jenis & lokasi tenant (penanda opsional untuk operator)
+  let tType = $state('');
+  let tLoc = $state('');
+  let knownTypes = $state<string[]>([]);
+  let savingProfile = $state(false);
+  let profileSaved = $state(false);
+  const profileDirty = $derived(!!tenant && (tType.trim() !== tenant.tenant_type || tLoc.trim() !== tenant.location));
+  async function saveProfile() {
+    if (!tenant || !profileDirty || savingProfile) return;
+    savingProfile = true;
+    error = '';
+    profileSaved = false;
+    try {
+      await platformApi.setTenantProfile(id, tType.trim(), tLoc.trim());
+      await Promise.all([load(), loadAudit()]);
+      profileSaved = true;
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      savingProfile = false;
     }
   }
 
@@ -203,6 +227,8 @@
       windowDays = String(tenant.sale_edit_window_days);
       idName = tenant.name;
       idCode = tenant.code;
+      tType = tenant.tenant_type;
+      tLoc = tenant.location;
       void loadEra();
     } catch (err) {
       error = errorMessage(err);
@@ -286,6 +312,7 @@
   }
 
   onMount(() => {
+    platformApi.tenantTypes().then((r) => (knownTypes = r.map((x) => x.type))).catch(() => {});
     void load();
     void loadPlan();
     void loadAudit();
@@ -595,6 +622,32 @@
           <div class="flex flex-wrap items-center gap-3">
             <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!idValid || !idDirty || savingId}>{savingId ? t('platform.tenant.identitySaving') : t('platform.tenant.identitySave')}</button>
             {#if idSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.identitySaved')}</p>{/if}
+          </div>
+        </form>
+      </section>
+
+      <section class="surface-card !p-0 overflow-hidden">
+        {@render cardHead('map-pin', t('platform.access.profileTitle'))}
+        <form
+          class="p-5 space-y-3"
+          onsubmit={(e) => {
+            e.preventDefault();
+            void saveProfile();
+          }}
+        >
+          <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.access.profileHelp')}</p>
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.access.tenantType')}</span>
+            <input class="field-control w-full" maxlength="50" list="tenant-type-list" placeholder={t('platform.access.typePlaceholder')} bind:value={tType} oninput={() => (profileSaved = false)} />
+            <datalist id="tenant-type-list">{#each knownTypes as ty (ty)}<option value={ty}></option>{/each}</datalist>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.access.tenantLocation')}</span>
+            <input class="field-control w-full" maxlength="100" placeholder={t('platform.access.locationPlaceholder')} bind:value={tLoc} oninput={() => (profileSaved = false)} />
+          </label>
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="submit" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={!profileDirty || savingProfile || !canPlatform('tenants', 'update')}>{savingProfile ? t('platform.tenant.identitySaving') : t('platform.access.profileSave')}</button>
+            {#if profileSaved}<p class="text-[12px] font-semibold text-[var(--color-success-600)]"><i class="icon-circle-check me-1"></i>{t('platform.tenant.identitySaved')}</p>{/if}
           </div>
         </form>
       </section>

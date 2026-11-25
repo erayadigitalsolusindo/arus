@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { ApiError } from '#lib/api/client.ts';
-  import { platformApi, type AdminRow } from '#lib/platform/api.ts';
-  import { papi, platform, platformLogout } from '#lib/platform/session.svelte.ts';
+  import { platformApi, type AdminRow, type PlatformRole } from '#lib/platform/api.ts';
+  import { papi, platform, platformLogout, canPlatform } from '#lib/platform/session.svelte.ts';
   import { t, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage, fieldMessage } from '#lib/i18n/errors.ts';
   import Modal from '#lib/components/Modal.svelte';
@@ -11,18 +11,19 @@
   import { relativeTime } from '#lib/platform/relative.ts';
 
   let list = $state<AdminRow[]>([]);
+  let roles = $state<PlatformRole[]>([]); // hanya role yang boleh diberikan admin ini
   let loading = $state(true);
   let error = $state('');
   let notice = $state('');
   let busyId = $state('');
 
-  type Form = { mode: 'create' | 'password'; target?: AdminRow; name: string; email: string; password: string; saving: boolean; error: string; fields: Record<string, string> };
+  type Form = { mode: 'create' | 'password' | 'role'; target?: AdminRow; roleId: string; name: string; email: string; password: string; saving: boolean; error: string; fields: Record<string, string> };
   let form = $state<Form | null>(null);
 
   async function load() {
     loading = true;
     try {
-      list = (await platformApi.admins()).items;
+      [list, roles] = await Promise.all([platformApi.admins().then((r) => r.items), platformApi.assignableRoles()]);
     } catch (err) {
       error = errorMessage(err);
     } finally {
@@ -31,8 +32,10 @@
   }
   onMount(load);
 
-  const openCreate = () => (form = { mode: 'create', name: '', email: '', password: '', saving: false, error: '', fields: {} });
-  const openPassword = (target: AdminRow) => (form = { mode: 'password', target, name: '', email: '', password: '', saving: false, error: '', fields: {} });
+  const openCreate = () => (form = { mode: 'create', roleId: roles.find((r) => !r.is_system)?.id ?? roles[0]?.id ?? '', name: '', email: '', password: '', saving: false, error: '', fields: {} });
+  const openPassword = (target: AdminRow) => (form = { mode: 'password', target, roleId: '', name: '', email: '', password: '', saving: false, error: '', fields: {} });
+
+  const openRole = (target: AdminRow) => (form = { mode: 'role', target, roleId: target.role_id ?? '', name: '', email: '', password: '', saving: false, error: '', fields: {} });
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
@@ -42,8 +45,11 @@
     form.fields = {};
     try {
       if (form.mode === 'create') {
-        await platformApi.createAdmin({ name: form.name, email: form.email.trim(), password: form.password });
+        await platformApi.createAdmin({ name: form.name, email: form.email.trim(), password: form.password, role_id: form.roleId });
         notice = t('platform.admins.created');
+      } else if (form.mode === 'role' && form.target) {
+        await platformApi.setAdminRole(form.target.id, form.roleId);
+        notice = t('platform.access.roleChanged');
       } else if (form.target) {
         const self = form.target.id === platform.admin?.id;
         await platformApi.setAdminPassword(form.target.id, form.password);
@@ -126,7 +132,7 @@
     <h1 class="font-display font-bold text-[22px] tracking-tight">{t('platform.admins.title')}</h1>
     <p class="text-[12.5px] mt-1 text-[var(--text-tertiary)] max-w-2xl">{t('platform.admins.subtitle')}</p>
   </div>
-  <button type="button" class="btn btn-primary !text-[12.5px]" onclick={openCreate}><i class="icon-plus text-[13px]"></i>{t('platform.admins.add')}</button>
+  {#if canPlatform('admins', 'create')}<button type="button" class="btn btn-primary !text-[12.5px]" onclick={openCreate}><i class="icon-plus text-[13px]"></i>{t('platform.admins.add')}</button>{/if}
 </div>
 
 {#if error}
@@ -142,6 +148,7 @@
       <thead>
         <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.name')}</th>
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.access.role')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.lastLogin')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.admins.status')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">2FA</th>
@@ -161,22 +168,26 @@
                 </div>
               </div>
             </td>
+            <td class="px-4 py-3 whitespace-nowrap">{#if a.role_name}<span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold badge-info">{a.role_name}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.access.noRole')}</span>{/if}</td>
             <td class="px-4 py-3 whitespace-nowrap">{#if a.last_login_at}<span title={formatDateTime(a.last_login_at, { dateStyle: 'medium', timeStyle: 'short' })}>{relativeTime(a.last_login_at)}</span>{:else}<span class="text-[var(--text-tertiary)]">{t('platform.tenants.never')}</span>{/if}</td>
             <td class="px-4 py-3"><StatusPill ok={a.active} label={a.active ? t('platform.tenants.active') : t('platform.tenants.inactive')} /></td>
             <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold {a.mfa_enabled ? 'badge-success' : 'badge-warning'}"><i class="{a.mfa_enabled ? 'icon-shield-check' : 'icon-shield-alert'} text-[12px]"></i>{a.mfa_enabled ? t('platform.security.on') : t('platform.security.off')}</span></td>
             <td class="px-4 py-3 text-end whitespace-nowrap space-x-1">
-              <button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openPassword(a)}>{t('platform.admins.resetPassword')}</button>
+              {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openPassword(a)}>{t('platform.admins.resetPassword')}</button>{/if}
               {#if a.id !== platform.admin?.id}
-                {#if a.mfa_enabled}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetMfa(a)}>{t('platform.admins.resetMfa')}</button>{/if}
-                <button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60 {a.active ? '!text-[var(--color-danger-600)]' : ''}" disabled={busyId === a.id} onclick={() => toggle(a)}>
-                  {a.active ? t('platform.admins.disable') : t('platform.admins.enable')}
-                </button>
-                <button type="button" class="btn btn-outline !text-[12px] !py-1 !text-[var(--color-danger-600)]" onclick={() => (del = { target: a, password: '', code: '', saving: false, error: '' })}>{t('platform.admins.delete')}</button>
+                {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1" onclick={() => openRole(a)}>{t('platform.access.changeRole')}</button>{/if}
+                {#if a.mfa_enabled && canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60" disabled={busyId === a.id} onclick={() => resetMfa(a)}>{t('platform.admins.resetMfa')}</button>{/if}
+                {#if canPlatform('admins', 'update')}
+                  <button type="button" class="btn btn-outline !text-[12px] !py-1 disabled:opacity-60 {a.active ? '!text-[var(--color-danger-600)]' : ''}" disabled={busyId === a.id} onclick={() => toggle(a)}>
+                    {a.active ? t('platform.admins.disable') : t('platform.admins.enable')}
+                  </button>
+                {/if}
+                {#if canPlatform('admins', 'delete')}<button type="button" class="btn btn-outline !text-[12px] !py-1 !text-[var(--color-danger-600)]" onclick={() => (del = { target: a, password: '', code: '', saving: false, error: '' })}>{t('platform.admins.delete')}</button>{/if}
               {/if}
             </td>
           </tr>
         {:else}
-          <tr><td colspan="5" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? t('platform.tenants.loading') : t('platform.tenants.empty')}</td></tr>
+          <tr><td colspan="6" class="p-6 text-center text-[var(--text-tertiary)]">{loading ? t('platform.tenants.loading') : t('platform.tenants.empty')}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -184,7 +195,7 @@
 </div>
 
 {#if form}
-  <Modal title={form.mode === 'create' ? t('platform.admins.add') : `${t('platform.admins.resetPassword')}: ${form.target?.name}`} onclose={() => (form = null)}>
+  <Modal title={form.mode === 'create' ? t('platform.admins.add') : form.mode === 'role' ? `${t('platform.access.changeRole')}: ${form.target?.name}` : `${t('platform.admins.resetPassword')}: ${form.target?.name}`} onclose={() => (form = null)}>
     <form class="space-y-3.5" onsubmit={submit} novalidate>
       {#if form.error}
         <div role="alert" class="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] badge-danger"><i class="icon-circle-alert text-[14px] mt-px shrink-0"></i><span>{form.error}</span></div>
@@ -200,14 +211,25 @@
           <input id="ae" type="email" bind:value={form.email} class={inputClass} autocomplete="off" />
           {#if form.fields.email}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{fieldMessage(form.fields.email)}</p>{/if}
         </div>
-      {:else if form.target?.id === platform.admin?.id}
+      {:else if form.mode === 'password' && form.target?.id === platform.admin?.id}
         <p class="text-[12px] text-[var(--text-tertiary)]">{t('platform.admins.selfPasswordNote')}</p>
       {/if}
+      {#if form.mode !== 'password'}
+        <div>
+          <label for="ar" class={labelClass}>{t('platform.access.role')}</label>
+          <select id="ar" bind:value={form.roleId} class={inputClass}>
+            {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+          </select>
+          {#if form.fields.role_id}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{fieldMessage(form.fields.role_id)}</p>{/if}
+        </div>
+      {/if}
+      {#if form.mode !== 'role'}
       <div>
         <label for="ap" class={labelClass}>{form.mode === 'create' ? t('platform.admins.password') : t('platform.admins.newPassword')}</label>
         <input id="ap" type="password" bind:value={form.password} class={inputClass} autocomplete="new-password" />
         {#if form.fields.password}<p class="text-[11.5px] mt-1 text-[var(--color-danger-600)]">{fieldMessage(form.fields.password)}</p>{/if}
       </div>
+      {/if}
       <div class="flex items-center gap-2 pt-1">
         <button type="button" class="btn btn-outline !text-[12.5px] flex-1" onclick={() => (form = null)}>{t('platform.admins.cancel')}</button>
         <button type="submit" class="btn btn-primary !text-[12.5px] flex-1 disabled:opacity-60" disabled={form.saving}>{t('platform.admins.save')}</button>

@@ -102,7 +102,11 @@ func (s *Service) Admin(ctx context.Context, id uuid.UUID) (authz.PlatformAdmin,
 	case !row.Active:
 		err = authz.ErrInactive
 	default:
-		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time, MFA: row.TotpEnabledAt.Valid}
+		_, _, perms, perr := s.rolePerms(ctx, id)
+		if perr != nil {
+			return authz.PlatformAdmin{}, perr // galat sementara: jangan di-cache
+		}
+		out = authz.PlatformAdmin{Name: row.Name, ValidAfter: row.TokensValidAfter.Time, MFA: row.TotpEnabledAt.Valid, Perms: perms}
 	}
 	s.mu.Lock()
 	if len(s.cache) > 1000 {
@@ -116,6 +120,13 @@ func (s *Service) Admin(ctx context.Context, id uuid.UUID) (authz.PlatformAdmin,
 func (s *Service) forget(id uuid.UUID) {
 	s.mu.Lock()
 	delete(s.cache, id)
+	s.mu.Unlock()
+}
+
+// forgetAll membuang seluruh cache admin (izin banyak admin berubah sekaligus, mis. role diedit).
+func (s *Service) forgetAll() {
+	s.mu.Lock()
+	clear(s.cache)
 	s.mu.Unlock()
 }
 

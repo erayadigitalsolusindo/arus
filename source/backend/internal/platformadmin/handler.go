@@ -96,8 +96,9 @@ func (h *Handler) Routes(r chi.Router) {
 
 		// Selebihnya wajib 2FA aktif (Platform Admin = akses ke semua data pelanggan).
 		r.Group(func(r chi.Router) {
-			r.Use(requireMFA)
+			r.Use(requireMFA, requirePerm)
 			r.Get("/platform/tenants", h.ListTenants)
+			r.Get("/platform/tenant-types", h.TenantTypes)
 			r.Get("/platform/reports/sales", h.SalesReport)
 			r.Get("/platform/reports/sales/{id}/monthly", h.SalesMonthly)
 			r.Get("/platform/reports/expiring", h.ExpiringReport)
@@ -123,15 +124,23 @@ func (h *Handler) Routes(r chi.Router) {
 
 			r.Get("/platform/admins", h.ListAdmins)
 			r.Post("/platform/admins", h.CreateAdmin)
-			r.Patch("/platform/admins/{id}", h.PatchAdmin)
-			r.Put("/platform/admins/{id}/password", h.SetPassword)
+			r.Get("/platform/admins/roles", h.AssignableRoles)
+			r.With(h.guardTarget).Patch("/platform/admins/{id}", h.PatchAdmin)
+			r.With(h.guardTarget).Put("/platform/admins/{id}/password", h.SetPassword)
+			r.Put("/platform/admins/{id}/role", h.SetAdminRole)
+
+			r.Get("/platform/roles", h.ListRoles)
+			r.Get("/platform/roles/modules", h.RoleModules)
+			r.Post("/platform/roles", h.CreateRole)
+			r.Put("/platform/roles/{id}", h.UpdateRole)
+			r.Delete("/platform/roles/{id}", h.DeleteRole)
 
 			r.Get("/platform/audit", h.Audit)
 			r.Get("/platform/live/summary", h.LiveSummary)
 			r.Get("/platform/live/feed", h.LiveFeed)
 			r.Get("/platform/live/stream", h.LiveStream)
-			r.Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
-			r.Post("/platform/admins/{id}/delete", h.DeleteAdmin)
+			r.With(h.guardTarget).Post("/platform/admins/{id}/reset-2fa", h.ResetMFA)
+			r.With(h.guardTarget).Post("/platform/admins/{id}/delete", h.DeleteAdmin)
 
 			r.Put("/platform/mobile/apk", h.APKUpload)
 			r.Delete("/platform/mobile/apk", h.APKDelete)
@@ -435,7 +444,12 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, map[string]string{"q": "INVALID"})
 		return
 	}
-	f := TenantFilter{Q: search, Status: q.Get("status"), Login: q.Get("login")}
+	typ, okT := sanitize.Text(q.Get("type"))
+	if !okT || len([]rune(typ)) > maxTenantType {
+		httpx.ValidationError(w, map[string]string{"type": "INVALID"})
+		return
+	}
+	f := TenantFilter{Q: search, Status: q.Get("status"), Login: q.Get("login"), Type: typ}
 	if f.Status != "" && f.Status != "active" && f.Status != "inactive" || f.Login != "" && f.Login != "never" && f.Login != "stale30" && f.Login != "recent7" {
 		httpx.ValidationError(w, map[string]string{"filter": "INVALID"})
 		return
@@ -469,6 +483,15 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, page)
+}
+
+func (h *Handler) TenantTypes(w http.ResponseWriter, r *http.Request) {
+	list, err := h.svc.TenantTypes(r.Context(), actor(r))
+	if err != nil {
+		h.internal(w, r, "daftar jenis tenant gagal", err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": list})
 }
 
 // BulkCreateTenants: POST /platform/tenants/bulk {"items":[{business_name,email,owner_name?,outlet_name?,phone?}]} (maks 100).
@@ -549,6 +572,9 @@ type activeRequest struct {
 	// Name + Code (slug) diganti bersamaan; keduanya wajib bila salah satunya dikirim.
 	Name *string `json:"name"`
 	Code *string `json:"code"`
+	// TenantType + Location = penanda opsional (boleh string kosong); keduanya dikirim bersamaan.
+	TenantType *string `json:"tenant_type"`
+	Location   *string `json:"location"`
 }
 
 func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
@@ -560,9 +586,30 @@ func (h *Handler) PatchTenant(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.Active == nil && req.SaleEditWindowDays == nil && req.Name == nil && req.Code == nil {
+	if req.Active == nil && req.SaleEditWindowDays == nil && req.Name == nil && req.Code == nil && req.TenantType == nil && req.Location == nil {
 		httpx.ValidationError(w, map[string]string{"active": "REQUIRED"})
 		return
+	}
+	if req.TenantType != nil || req.Location != nil {
+		if req.TenantType == nil || req.Location == nil {
+			httpx.ValidationError(w, map[string]string{"tenant_type": "REQUIRED", "location": "REQUIRED"})
+			return
+		}
+		switch err := h.svc.SetTenantProfile(r.Context(), actor(r), id, *req.TenantType, *req.Location); {
+		case errors.Is(err, ErrInvalidTenantProfile):
+			httpx.ValidationError(w, map[string]string{"tenant_type": "INVALID", "location": "INVALID"})
+			return
+		case errors.Is(err, ErrNotFound):
+			httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Tenant tidak ditemukan.")
+			return
+		case err != nil:
+			h.internal(w, r, "ubah jenis/lokasi tenant gagal", err)
+			return
+		}
+		if req.Active == nil && req.SaleEditWindowDays == nil && req.Name == nil && req.Code == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 	}
 	if req.Name != nil || req.Code != nil {
 		if req.Name == nil || req.Code == nil {
@@ -689,6 +736,7 @@ type createAdminRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	RoleID   string `json:"role_id"`
 }
 
 func (h *Handler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
@@ -701,8 +749,15 @@ func (h *Handler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 		httpx.ValidationError(w, fields)
 		return
 	}
-	id, err := h.svc.CreateAdmin(r.Context(), actor(r), name, email, req.Password)
+	roleID, perr := uuid.Parse(req.RoleID)
+	if perr != nil {
+		httpx.ValidationError(w, map[string]string{"role_id": "REQUIRED"})
+		return
+	}
+	id, err := h.svc.CreateAdmin(r.Context(), actor(r), name, email, req.Password, roleID)
 	switch {
+	case errors.Is(err, ErrEscalation), errors.Is(err, ErrRoleNotFound):
+		h.roleFail(w, r, err)
 	case errors.Is(err, ErrEmailTaken):
 		httpx.Error(w, http.StatusConflict, "EMAIL_TAKEN", "Email sudah terdaftar.")
 	case errors.Is(err, ErrInvalidSession):

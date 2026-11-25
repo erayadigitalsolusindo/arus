@@ -40,11 +40,13 @@ type TenantRow struct {
 	PlanID      uuid.UUID  `json:"plan_id"`
 	PlanName    string     `json:"plan_name"`
 	PlanExpires *time.Time `json:"plan_expires_at"`
+	TenantType  string     `json:"tenant_type"`
+	Location    string     `json:"location"`
 }
 
 // TenantFilter = filter lanjutan daftar tenant; nilai kosong/nil = tidak memfilter.
 type TenantFilter struct {
-	Q, Status, Login string
+	Q, Status, Login, Type string
 	PlanID           *uuid.UUID
 	From, To         *time.Time
 }
@@ -63,8 +65,8 @@ func (s *Service) ListTenants(ctx context.Context, a Actor, f TenantFilter, limi
 	}
 	limit, offset = min(limit, maxPage), max(offset, 0)
 	rows, err := s.Pool.Query(ctx,
-		`SELECT id, code, name, active, created_at, outlet_count, user_count, last_login_at, owner_email, plan_id, plan_name, plan_expires_at, total
-		   FROM platform_list_tenants($1, $2, $3, $4, $5, $6, $7, $8, $9)`, a.ID, f.Q, limit, offset, f.Status, f.PlanID, f.Login, f.From, f.To)
+		`SELECT id, code, name, active, created_at, outlet_count, user_count, last_login_at, owner_email, plan_id, plan_name, plan_expires_at, tenant_type, location, total
+		   FROM platform_list_tenants($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, a.ID, f.Q, limit, offset, f.Status, f.PlanID, f.Login, f.From, f.To, f.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +79,7 @@ func (s *Service) ListTenants(ctx context.Context, a Actor, f TenantFilter, limi
 			owner pgtype.Text
 			pexp  pgtype.Timestamptz
 		)
-		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Active, &r.CreatedAt, &r.OutletCount, &r.UserCount, &last, &owner, &r.PlanID, &r.PlanName, &pexp, &page.Total); err != nil {
+		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Active, &r.CreatedAt, &r.OutletCount, &r.UserCount, &last, &owner, &r.PlanID, &r.PlanName, &pexp, &r.TenantType, &r.Location, &page.Total); err != nil {
 			return nil, err
 		}
 		if last.Valid {
@@ -120,6 +122,8 @@ type TenantDetail struct {
 	CreatedAt time.Time `json:"created_at"`
 	// SaleEditWindowDays = berapa hari sesudah hari nota dibuat nota masih boleh diedit/dibatalkan (0 = hanya hari itu). Hanya operator platform yang mengubahnya.
 	SaleEditWindowDays int         `json:"sale_edit_window_days"`
+	TenantType         string      `json:"tenant_type"`
+	Location           string      `json:"location"`
 	Outlets            []OutletRow `json:"outlets"`
 	Users              []UserRow   `json:"users"`
 }
@@ -134,6 +138,10 @@ func (s *Service) Tenant(ctx context.Context, id uuid.UUID) (*TenantDetail, erro
 		if err != nil {
 			return err
 		}
+		var tType, tLoc string
+		if err := tx.QueryRow(ctx, `SELECT tenant_type, location FROM tenants WHERE id = $1`, id).Scan(&tType, &tLoc); err != nil {
+			return err
+		}
 		outlets, err := q.PlatformTenantOutlets(ctx, id)
 		if err != nil {
 			return err
@@ -142,7 +150,7 @@ func (s *Service) Tenant(ctx context.Context, id uuid.UUID) (*TenantDetail, erro
 		if err != nil {
 			return err
 		}
-		out = &TenantDetail{ID: t.ID, Code: t.Code, Name: t.Name, Active: t.Active, CreatedAt: t.CreatedAt.Time, SaleEditWindowDays: int(t.SaleEditWindowDays), Outlets: []OutletRow{}, Users: []UserRow{}}
+		out = &TenantDetail{ID: t.ID, Code: t.Code, Name: t.Name, Active: t.Active, CreatedAt: t.CreatedAt.Time, SaleEditWindowDays: int(t.SaleEditWindowDays), TenantType: tType, Location: tLoc, Outlets: []OutletRow{}, Users: []UserRow{}}
 		for _, o := range outlets {
 			out.Outlets = append(out.Outlets, OutletRow{ID: o.ID, Code: o.Code, Name: o.Name, Active: o.Active})
 		}
@@ -413,4 +421,65 @@ func (s *Service) Impersonate(ctx context.Context, a Actor, tenantID, outletID u
 		},
 	}
 	return out, nil
+}
+
+var ErrInvalidTenantProfile = errors.New("jenis/lokasi tenant tidak valid")
+
+const (
+	maxTenantType     = 50
+	maxTenantLocation = 100
+)
+
+// cleanLabel menormalkan isian penanda opsional (boleh kosong), menolak karakter kontrol/markup dan teks terlalu panjang.
+func cleanLabel(raw string, max int) (string, bool) {
+	v, ok := sanitize.Text(raw)
+	return v, ok && !strings.ContainsAny(v, "<>") && len([]rune(v)) <= max
+}
+
+// SetTenantProfile mengisi penanda Jenis Tenant (mis. UMKM) dan Lokasi Tenant. Keduanya hanya label untuk operator:
+// tidak mempengaruhi paket, izin, maupun data bisnis tenant.
+func (s *Service) SetTenantProfile(ctx context.Context, a Actor, tenantID uuid.UUID, tenantType, location string) error {
+	tt, ok1 := cleanLabel(tenantType, maxTenantType)
+	loc, ok2 := cleanLabel(location, maxTenantLocation)
+	if !ok1 || !ok2 {
+		return ErrInvalidTenantProfile
+	}
+	err := db.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		var name, prevType, prevLoc string
+		if err := tx.QueryRow(ctx, `SELECT name, tenant_type, location FROM tenants WHERE id = $1`, tenantID).Scan(&name, &prevType, &prevLoc); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE tenants SET tenant_type = $2, location = $3 WHERE id = $1`, tenantID, tt, loc); err != nil {
+			return err
+		}
+		return s.recordTx(ctx, tx, a, ActionTenantProfile, tenantID, name, map[string]any{
+			"tenant_type": tt, "location": loc, "previous_tenant_type": prevType, "previous_location": prevLoc})
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}
+
+type TenantTypeCount struct {
+	Type  string `json:"type"`
+	Count int64  `json:"count"`
+}
+
+// TenantTypes = jenis tenant yang sudah dipakai (maks 200, terbanyak dulu): bahan saran isian dan filter.
+func (s *Service) TenantTypes(ctx context.Context, a Actor) ([]TenantTypeCount, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT tenant_type, n FROM platform_tenant_types($1)`, a.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []TenantTypeCount{}
+	for rows.Next() {
+		var t TenantTypeCount
+		if err := rows.Scan(&t.Type, &t.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }

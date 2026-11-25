@@ -96,6 +96,7 @@ const errors: Messages['errors'] = {
   INVALID_SETUP_TOKEN: 'セットアップトークンが正しくありません。',
   CANNOT_DISABLE_SELF: '自分のアカウントを無効化することはできません。',
   LAST_ADMIN: '有効なプラットフォーム管理者が少なくとも1人は必要です。',
+  CANNOT_CHANGE_SELF: '自分自身のロールは変更できません。',
   OPENING_LOCKED: '期首残高はロックされています。棚卸しを使用してください。',
   ALREADY_LOCKED: '営業開始日は既にロックされています。',
   NOT_STOCKED: 'この商品には在庫がありません。',

@@ -22,23 +22,44 @@ type AdminRow struct {
 	LastLoginAt *time.Time `json:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	MFAEnabled  bool       `json:"mfa_enabled"`
+	RoleID      *uuid.UUID `json:"role_id"`
+	RoleName    string     `json:"role_name"`
 }
 
 func (s *Service) ListAdmins(ctx context.Context) ([]AdminRow, error) {
-	rows, err := gen.New(s.Pool).PlatformAdminList(ctx)
+	rows, err := s.Pool.Query(ctx, `SELECT a.id, a.email, a.name, a.active, a.last_login_at, a.created_at,
+		(a.totp_enabled_at IS NOT NULL), r.id, r.name
+		FROM platform_admins a
+		LEFT JOIN platform_admin_roles ar ON ar.admin_id = a.id
+		LEFT JOIN platform_roles r ON r.id = ar.role_id
+		ORDER BY a.created_at, a.id`)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]AdminRow, 0, len(rows))
-	for _, r := range rows {
-		a := AdminRow{ID: r.ID, Email: r.Email, Name: r.Name, Active: r.Active, CreatedAt: r.CreatedAt.Time, MFAEnabled: r.MfaEnabled}
-		if r.LastLoginAt.Valid {
-			t := r.LastLoginAt.Time
+	defer rows.Close()
+	out := []AdminRow{}
+	for rows.Next() {
+		var (
+			a    AdminRow
+			last pgtype.Timestamptz
+			rid  pgtype.UUID
+			rn   pgtype.Text
+		)
+		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &a.Active, &last, &a.CreatedAt, &a.MFAEnabled, &rid, &rn); err != nil {
+			return nil, err
+		}
+		if last.Valid {
+			t := last.Time
 			a.LastLoginAt = &t
 		}
+		if rid.Valid {
+			id := uuid.UUID(rid.Bytes)
+			a.RoleID = &id
+		}
+		a.RoleName = rn.String
 		out = append(out, a)
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 // pgCode mengembalikan SQLSTATE galat Postgres ("" bila bukan galat Postgres).
@@ -51,13 +72,20 @@ func pgCode(err error) string {
 }
 
 // CreateAdmin menambah Platform Admin. Penulisan lewat fungsi DB yang memverifikasi pelaku adalah admin aktif.
-func (s *Service) CreateAdmin(ctx context.Context, a Actor, name, email, password string) (uuid.UUID, error) {
+func (s *Service) CreateAdmin(ctx context.Context, a Actor, name, email, password string, roleID uuid.UUID) (uuid.UUID, error) {
+	role, err := s.roleByID(ctx, roleID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if !a.Perms.Covers(role.Permissions) {
+		return uuid.Nil, ErrEscalation
+	}
 	hash, err := s.hash(ctx, password)
 	if err != nil {
 		return uuid.Nil, err
 	}
 	var id pgtype.UUID
-	err = s.Pool.QueryRow(ctx, `SELECT platform_admin_create($1, $2, $3, $4)`, a.ID, email, name, hash).Scan(&id)
+	err = s.Pool.QueryRow(ctx, `SELECT platform_admin_create($1, $2, $3, $4, $5)`, a.ID, email, name, hash, roleID).Scan(&id)
 	switch pgCode(err) {
 	case "23505":
 		return uuid.Nil, ErrEmailTaken
@@ -67,7 +95,7 @@ func (s *Service) CreateAdmin(ctx context.Context, a Actor, name, email, passwor
 	if err != nil {
 		return uuid.Nil, err
 	}
-	s.record(ctx, a, ActionAdminCreate, uuid.Nil, "", map[string]any{"target_id": uuid.UUID(id.Bytes).String(), "email": email})
+	s.record(ctx, a, ActionAdminCreate, uuid.Nil, "", map[string]any{"target_id": uuid.UUID(id.Bytes).String(), "email": email, "role": role.Name})
 	return id.Bytes, nil
 }
 

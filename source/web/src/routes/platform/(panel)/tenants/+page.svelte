@@ -25,8 +25,10 @@
   let fLogin = $state('');
   let fFrom = $state('');
   let fTo = $state('');
-  const filterCount = $derived([fStatus, fPlan, fLogin, fFrom, fTo].filter(Boolean).length);
-  const filters = (): TenantFilter => ({ status: fStatus, plan: fPlan, login: fLogin, from: fFrom, to: fTo });
+  let fType = $state('');
+  let types = $state<{ type: string; count: number }[]>([]);
+  const filterCount = $derived([fStatus, fPlan, fLogin, fFrom, fTo, fType].filter(Boolean).length);
+  const filters = (): TenantFilter => ({ status: fStatus, plan: fPlan, login: fLogin, from: fFrom, to: fTo, type: fType });
   // DatePicker tidak punya onchange: terapkan filter saat rentang tanggal berubah (tanpa memicu pada muat awal).
   let lastRange = '|';
   $effect(() => {
@@ -41,7 +43,7 @@
     void load();
   }
   function resetFilter() {
-    fStatus = fPlan = fLogin = fFrom = fTo = '';
+    fStatus = fPlan = fLogin = fFrom = fTo = fType = '';
     applyFilter();
   }
 
@@ -94,6 +96,7 @@
   onMount(() => {
     void load();
     platformApi.plans().then((r) => (plans = r.items)).catch(() => {});
+    platformApi.tenantTypes().then((r) => (types = r)).catch(() => {});
   });
 
   let debounce: ReturnType<typeof setTimeout>;
@@ -145,7 +148,7 @@
   </div>
 
   {#if showFilter}
-    <div class="p-3 sm:p-4 grid grid-cols-2 lg:grid-cols-5 gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]/50">
+    <div class="p-3 sm:p-4 grid grid-cols-2 lg:grid-cols-6 gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)]/50">
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.status')}
         <select class="field-control w-full mt-1 font-normal" bind:value={fStatus} onchange={applyFilter}>
           <option value="">{t('platform.tenants.filter.all')}</option>
@@ -157,6 +160,12 @@
         <select class="field-control w-full mt-1 font-normal" bind:value={fPlan} onchange={applyFilter}>
           <option value="">{t('platform.tenants.filter.all')}</option>
           {#each plans as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+        </select>
+      </label>
+      <label class="text-[11.5px] font-semibold">{t('platform.access.tenantType')}
+        <select class="field-control w-full mt-1 font-normal" bind:value={fType} onchange={applyFilter}>
+          <option value="">{t('platform.tenants.filter.all')}</option>
+          {#each types as ty (ty.type)}<option value={ty.type}>{ty.type} ({ty.count})</option>{/each}
         </select>
       </label>
       <label class="text-[11.5px] font-semibold">{t('platform.tenants.lastLogin')}
@@ -217,6 +226,7 @@
         <tr class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--surface-sunken)]">
           <th class="ps-4 py-2.5 w-8" scope="col"><input type="checkbox" checked={allChecked} onchange={toggleAll} aria-label={t('platform.tenants.bulkPlan.selectAll')} /></th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.name')}</th>
+          <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.access.tenantType')} / {t('platform.access.tenantLocation')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.owner')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.outlets')} / {t('platform.tenants.users')}</th>
           <th class="px-4 py-2.5 text-start font-semibold" scope="col">{t('platform.tenants.plan')}</th>
@@ -230,7 +240,7 @@
         {#if loading && rows.length === 0}
           {#each [0, 1, 2, 3, 4] as i (i)}
             <tr class="border-t border-[var(--border-subtle)]" aria-hidden="true">
-              <td class="px-4 py-3.5" colspan="9"><div class="h-9 rounded-lg bg-[var(--surface-sunken)] animate-pulse"></div></td>
+              <td class="px-4 py-3.5" colspan="10"><div class="h-9 rounded-lg bg-[var(--surface-sunken)] animate-pulse"></div></td>
             </tr>
           {/each}
         {:else}
@@ -248,6 +258,11 @@
                     <span class="block text-[11px] font-mono text-[var(--text-tertiary)]">{r.code}</span>
                   </div>
                 </div>
+              </td>
+              <td class="px-4 py-3">
+                {#if r.tenant_type}<span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold badge-info">{r.tenant_type}</span>{/if}
+                {#if r.location}<span class="block text-[11px] mt-0.5 text-[var(--text-tertiary)]">{r.location}</span>{/if}
+                {#if !r.tenant_type && !r.location}<span class="text-[var(--text-tertiary)]">—</span>{/if}
               </td>
               <td class="px-4 py-3 text-[var(--text-secondary,inherit)]">{r.owner_email || '—'}</td>
               <td class="px-4 py-3">
@@ -273,7 +288,7 @@
             </tr>
           {:else}
             <tr>
-              <td colspan="9" class="px-4 py-14 text-center">
+              <td colspan="10" class="px-4 py-14 text-center">
                 <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><i class="icon-store text-[22px]"></i></span>
                 <p class="font-semibold">{t('platform.tenants.empty')}</p>
               </td>
