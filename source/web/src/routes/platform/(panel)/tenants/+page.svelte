@@ -155,7 +155,9 @@
     <h1 class="font-display font-bold text-[22px] tracking-tight">{t('platform.tenants.title')}</h1>
     <p class="text-[12.5px] mt-1 text-[var(--text-tertiary)] max-w-2xl">{t('platform.tenants.subtitle')}</p>
   </div>
-  <a href="/platform/tenants/bulk" class="btn btn-outline !text-[12.5px]"><i class="icon-users text-[13px]"></i>{t('platform.tenants.bulk.open')}</a>
+  {#if canPlatform('tenants', 'create')}
+    <a href="/platform/tenants/bulk" class="btn btn-outline !text-[12.5px]"><i class="icon-users text-[13px]"></i>{t('platform.tenants.bulk.open')}</a>
+  {/if}
 </div>
 
 <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -226,7 +228,9 @@
     <div class="px-3 sm:px-4 py-2.5 flex flex-wrap items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--color-primary-50)]/60 text-[12.5px]">
       {#if selected.size > 0}
         <span class="font-semibold">{t('platform.tenants.bulkPlan.selected', { count: selected.size })}</span>
-        <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPlan = !showPlan)}><i class="icon-package text-[13px]"></i>{t('platform.tenants.bulkPlan.open')}</button>
+        {#if canPlatform('tenants', 'update')}
+          <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPlan = !showPlan)}><i class="icon-package text-[13px]"></i>{t('platform.tenants.bulkPlan.open')}</button>
+        {/if}
         {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12.5px]" onclick={openScope}><i class="icon-user-check text-[13px]"></i>{t('platform.tenants.bulkScope.open')}</button>{/if}
         <button type="button" class="text-[12px] text-[var(--text-tertiary)] hover:underline" onclick={() => (selected = new Set())}>{t('platform.tenants.bulkPlan.clear')}</button>
       {/if}

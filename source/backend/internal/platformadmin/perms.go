@@ -18,7 +18,9 @@ var PlatformModules = []authz.Module{
 	{ID: "tenants", Actions: []string{authz.ActView, authz.ActCreate, authz.ActUpdate, authz.ActDelete}}, // delete = jadwal hapus & purge
 	{ID: "tenant_impersonate", Actions: []string{authz.ActView}},                                         // masuk sebagai tenant
 	{ID: "tenant_erapay", Actions: []string{authz.ActView, authz.ActUpdate}},
-	{ID: "reports", Actions: []string{authz.ActView}},
+	{ID: "reports_sales", Actions: []string{authz.ActView}},
+	{ID: "reports_expiring", Actions: []string{authz.ActView}},
+	{ID: "reports_locations", Actions: []string{authz.ActView}},
 	{ID: "plans", Actions: []string{authz.ActView, authz.ActCreate, authz.ActUpdate, authz.ActDelete}},
 	{ID: "storefront_templates", Actions: []string{authz.ActView, authz.ActCreate, authz.ActUpdate, authz.ActDelete}},
 	{ID: "ai", Actions: []string{authz.ActView, authz.ActUpdate}},
@@ -50,7 +52,9 @@ var routeRules = []routeRule{
 	{"/platform/tenants", "tenants", ""},
 	{"/platform/tenant-types", "tenants", ""},
 	{"/platform/tenant-locations", "tenants", ""},
-	{"/platform/reports", "reports", ""},
+	{"/platform/reports/sales", "reports_sales", ""},
+	{"/platform/reports/expiring", "reports_expiring", ""},
+	{"/platform/reports/locations", "reports_locations", ""},
 	{"/platform/audit", "audit", ""},
 	{"/platform/admins/{id}/reset-2fa", "admins", authz.ActUpdate},
 	{"/platform/admins/{id}/delete", "admins", authz.ActDelete},

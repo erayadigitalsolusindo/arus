@@ -15,7 +15,7 @@ import (
 
 // Cakupan tenant: Actor.Scope nil = admin melihat semua tenant; non-nil = hanya tenant di daftar itu.
 // Daftar tenant/jenis/lokasi dibatasi di DB (kolom platform_admins.tenant_scope); rute per-tenant dijaga scopeGuard;
-// laporan per-tenant disaring di Go.
+// laporan per-tenant disaring di Go; live penjualan disaring di fungsi DB (sinyal SSE `sales` tetap lintas tenant, klien mengambil ulang data yang sudah disaring).
 
 // ActionAdminScope = audit platform untuk perubahan cakupan tenant admin.
 const ActionAdminScope = "platform.admin_scope"
@@ -28,8 +28,8 @@ func (a Actor) Allows(tenant uuid.UUID) bool {
 }
 
 // scopeBlocked = awalan rute lintas-tenant yang tidak bisa disaring per tenant; ditutup untuk admin berbatas
-// (shortcut: ringkasan/stream live, audit global, AI, API eksternal, domain & backup ditolak, buka bila perlu disaring per tenant).
-var scopeBlocked = []string{"/platform/live", "/platform/audit", "/platform/ai", "/platform/ext", "/platform/domains", "/platform/backup", "/platform/tenants/bulk"} // bulk-plan bukan awalan "bulk/", jadi tetap boleh (disaring per id)
+// (shortcut: audit global, AI, API eksternal, domain & backup ditolak, buka bila perlu disaring per tenant).
+var scopeBlocked = []string{"/platform/audit", "/platform/ai", "/platform/ext", "/platform/domains", "/platform/backup", "/platform/tenants/bulk"} // bulk-plan bukan awalan "bulk/", jadi tetap boleh (disaring per id)
 
 // scopeGuard menolak admin berbatas yang menyentuh tenant di luar cakupan (id tenant dibaca dari segmen `tenants/<uuid>`
 // di path, jadi satu pemeriksaan melindungi semua rute per-tenant, termasuk yang baru) atau rute lintas-tenant yang diblokir.

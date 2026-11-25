@@ -22,9 +22,9 @@ export const navGroups: NavGroup[] = [
   {
     titleKey: 'platform.nav.groupReports',
     items: [
-      { href: '/platform/reports/sales', key: 'platform.nav.reportSales', icon: 'trending-up', module: 'reports' },
-      { href: '/platform/reports/expiring', key: 'platform.nav.reportExpiring', icon: 'alarm-clock', module: 'reports' },
-      { href: '/platform/reports/locations', key: 'platform.nav.reportLocations', icon: 'map-pin', module: 'reports' }
+      { href: '/platform/reports/sales', key: 'platform.nav.reportSales', icon: 'trending-up', module: 'reports_sales' },
+      { href: '/platform/reports/expiring', key: 'platform.nav.reportExpiring', icon: 'alarm-clock', module: 'reports_expiring' },
+      { href: '/platform/reports/locations', key: 'platform.nav.reportLocations', icon: 'map-pin', module: 'reports_locations' }
     ]
   },
   {
