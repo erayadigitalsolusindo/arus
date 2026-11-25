@@ -2,6 +2,7 @@ package platformadmin
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -142,31 +143,39 @@ func wibDay(v string) (time.Time, bool) {
 	return d, err == nil
 }
 
-// SalesReport: GET /platform/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD (to inklusif; bawaan 30 hari terakhir, maks 366 hari).
-func (h *Handler) SalesReport(w http.ResponseWriter, r *http.Request) {
-	a, _ := ActorFrom(r.Context())
+// salesRange membaca ?from&to (YYYY-MM-DD WIB; to inklusif; bawaan 30 hari terakhir, maks 366 hari), membalas 422 bila salah.
+func salesRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
 	q := r.URL.Query()
-	to := time.Now().In(time.FixedZone("WIB", 7*3600))
+	to = time.Now().In(time.FixedZone("WIB", 7*3600))
 	to = time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()).AddDate(0, 0, 1)
-	from := to.AddDate(0, 0, -30)
-	var ok bool
+	from = to.AddDate(0, 0, -30)
 	if v := q.Get("to"); v != "" {
 		if to, ok = wibDay(v); !ok {
 			httpx.ValidationError(w, map[string]string{"to": "INVALID"})
-			return
+			return from, to, false
 		}
 		to = to.AddDate(0, 0, 1)
 	}
 	if v := q.Get("from"); v != "" {
 		if from, ok = wibDay(v); !ok {
 			httpx.ValidationError(w, map[string]string{"from": "INVALID"})
-			return
+			return from, to, false
 		}
 	} else if q.Get("to") != "" {
 		from = to.AddDate(0, 0, -30)
 	}
 	if !from.Before(to) || to.Sub(from) > 366*24*time.Hour {
 		httpx.ValidationError(w, map[string]string{"from": "INVALID"})
+		return from, to, false
+	}
+	return from, to, true
+}
+
+// SalesReport: GET /platform/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD.
+func (h *Handler) SalesReport(w http.ResponseWriter, r *http.Request) {
+	a, _ := ActorFrom(r.Context())
+	from, to, ok := salesRange(w, r)
+	if !ok {
 		return
 	}
 	items, err := h.svc.SalesReport(r.Context(), a, from, to)
@@ -175,6 +184,27 @@ func (h *Handler) SalesReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": items, "from": from, "to": to})
+}
+
+// SalesDetail: GET /platform/reports/sales/{id}/detail?from&to (JSON dari platform_report_sales_detail).
+func (h *Handler) SalesDetail(w http.ResponseWriter, r *http.Request) {
+	a, _ := ActorFrom(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil || !a.Allows(id) {
+		httpx.Error(w, http.StatusNotFound, "NOT_FOUND", "Data tidak ditemukan.")
+		return
+	}
+	from, to, ok := salesRange(w, r)
+	if !ok {
+		return
+	}
+	var raw json.RawMessage
+	if err := h.svc.Pool.QueryRow(r.Context(), `SELECT platform_report_sales_detail($1, $2, $3, $4)`, a.ID, id, from, to).Scan(&raw); err != nil {
+		h.internal(w, r, "rincian penjualan tenant gagal", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
 }
 
 // SalesMonthly: GET /platform/reports/sales/{id}/monthly.

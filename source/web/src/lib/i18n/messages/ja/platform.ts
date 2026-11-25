@@ -26,7 +26,7 @@ const platform: Messages['platform'] = {
     revenue: '売上', count: '伝票数', tenantsSelling: '取引のあるテナント', change: '売上の変化',
     tenant: 'テナント', plan: 'プラン', outlets: '店舗', notes: '伝票', avg: '平均伝票額', growth: '変化', activeDays: '稼働日数', lastSale: '最終売上',
     stNew: '新規', stNone: '売上なし', stStopped: '停止', stUp: '増加', stDown: '減少', stFlat: '横ばい',
-    fActiveN: '{n}件適用中', podiumOpen: '表彰台を見る', podiumReplay: 'もう一度', fTypeAll: 'すべてのテナント種別', top10: 'トップ10テナント', top10Sub: '選択期間の売上順。', champ: 'チャンピオン', fAdv: '詳細フィルター', fSearchT: 'テナント名またはコードで検索', fPlanAll: 'すべてのプラン', fStAll: 'すべての状態', fMin: '最低売上 (Rp)', fOnlyActive: '有効なテナントのみ', fOnlySelling: '取引のあるテナントのみ', fResetS: 'フィルターをリセット', fShownS: '{total}件中{shown}件', trend: '直近6か月', never: 'なし',
+    fActiveN: '{n}件適用中', podiumOpen: '表彰台を見る', podiumReplay: 'もう一度', fTypeAll: 'すべてのテナント種別', detail: '売上の詳細', payTitle: '支払方法', payEmpty: 'この期間の支払いはありません。', kCash: '現金', kDebit: 'デビットカード', kCredit: 'クレジットカード', kEwallet: '電子マネー', kTransfer: '振込', itemsTitle: '売れ筋トップ5', outletsTitle: '店舗別', maxTicket: '最高額の伝票', discount: '値引き合計', voids: '取消伝票', peak: 'ピーク時間帯', top10: 'トップ10テナント', top10Sub: '選択期間の売上順。', champ: 'チャンピオン', fAdv: '詳細フィルター', fSearchT: 'テナント名またはコードで検索', fPlanAll: 'すべてのプラン', fStAll: 'すべての状態', fMin: '最低売上 (Rp)', fOnlyActive: '有効なテナントのみ', fOnlySelling: '取引のあるテナントのみ', fResetS: 'フィルターをリセット', fShownS: '{total}件中{shown}件', trend: '直近6か月', never: 'なし',
     window: '終了まで', days: '{n}日', expired: '終了済み', soon: 'まもなく（7日以内）', later: '接近中',
     expiresOn: '終了日', daysLeft: '残り{n}日', daysAgo: '{n}日前', today: '本日',
     price: 'プラン料金', rev30: '30日間の売上', lastLogin: '最終ログイン', owner: 'オーナー', users: 'ユーザー', inactive: '無効',

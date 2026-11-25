@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { platformApi, type SalesReportRow, type SalesMonth, type ExpiringRow, type OutletLocation } from '#lib/platform/api.ts';
+  import { platformApi, type SalesReportRow, type SalesDetail, type ExpiringRow, type OutletLocation } from '#lib/platform/api.ts';
   import { t, formatNumber, formatDate, formatDateTime } from '#lib/i18n/index.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import DateRange from '#lib/components/DateRange.svelte';
@@ -23,7 +23,7 @@
   let to = $state(today());
   let all = $state<SalesReportRow[]>([]);
   let openId = $state<string | null>(null);
-  let monthly = $state<SalesMonth[] | null>(null);
+  let detail = $state<SalesDetail | null>(null);
 
   // ---- Filter lanjutan (client-side, berlaku untuk Top 10, kartu ringkasan, dan tabel) ----
   const sel = 'h-9 w-full px-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] text-[13px]';
@@ -127,15 +127,24 @@
       return;
     }
     openId = id;
-    monthly = null;
+    detail = null;
     try {
-      const m = await platformApi.salesMonthly(id);
-      if (openId === id) monthly = m;
+      const d = await platformApi.salesDetail(id, from, to);
+      if (openId === id) detail = d;
     } catch (err) {
       error = errorMessage(err);
     }
   }
-  const maxMonth = $derived(Math.max(1, ...(monthly ?? []).map((m) => Number(m.revenue))));
+  const payTotal = $derived(Math.max(1, (detail?.payments ?? []).reduce((a, p) => a + Number(p.amount), 0)));
+  const KIND = {
+    cash: { icon: 'banknote', color: '#16a34a', label: 'platform.reports.kCash' },
+    debit: { icon: 'credit-card', color: '#0ea5e9', label: 'platform.reports.kDebit' },
+    credit_card: { icon: 'credit-card', color: '#8b5cf6', label: 'platform.reports.kCredit' },
+    ewallet: { icon: 'wallet', color: '#f59e0b', label: 'platform.reports.kEwallet' },
+    transfer: { icon: 'landmark', color: '#64748b', label: 'platform.reports.kTransfer' }
+  } as const;
+  const ERAPAY = '#ec4899';
+  const hh = (h: number) => String(h).padStart(2, '0') + ':00–' + String((h + 1) % 24).padStart(2, '0') + ':00';
 
   onMount(loadSales);
 </script>
@@ -341,22 +350,86 @@
                 <tr class="bg-[var(--surface-sunken)]">
                   <td colspan="9" class="px-4 py-4">
                     <div class="flex items-center justify-between gap-3 mb-3">
-                      <p class="text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.reports.trend')}</p>
+                      <p class="text-[11.5px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('platform.reports.detail')}</p>
                       <a href="/platform/tenants/{r.tenant_id}" class="text-[12px] text-[var(--color-primary-700)] hover:underline">{r.name} →</a>
                     </div>
-                    {#if monthly}
-                      <div class="grid grid-cols-6 gap-2 items-end h-32">
-                        {#each monthly as m (m.month)}
-                          <div class="flex flex-col items-center justify-end h-full gap-1 min-w-0">
-                            <span class="text-[10.5px] tabular-nums text-[var(--text-tertiary)] truncate max-w-full">{rp(Number(m.revenue))}</span>
-                            <div class="w-full max-w-10 rounded-t bg-[var(--color-primary-500)]" style="height:{Math.max(2, (Number(m.revenue) / maxMonth) * 80)}%"></div>
-                            <span class="text-[11px]">{formatDate(m.month + '-01', { month: 'short', year: '2-digit' })}</span>
-                            <span class="text-[10.5px] text-[var(--text-tertiary)]">{formatNumber(m.sales_count)}</span>
+                    {#if detail}
+                      {@const d = detail}
+                      <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                        {#each [
+                          [t('platform.reports.avg'), r.sales_count ? rp(Number(r.revenue) / r.sales_count) : '—'],
+                          [t('platform.reports.maxTicket'), rp(Number(d.summary.max_ticket))],
+                          [t('platform.reports.discount'), rp(Number(d.summary.discount))],
+                          [t('platform.reports.voids'), formatNumber(d.summary.voids)],
+                          [t('platform.reports.peak'), d.summary.peak_hour === null ? '—' : hh(d.summary.peak_hour)]
+                        ] as [label, val] (label)}
+                          <div class="rounded-lg bg-[var(--surface-card)] border border-[var(--border-subtle)] px-3 py-2">
+                            <p class="text-[10.5px] uppercase tracking-wide text-[var(--text-tertiary)]">{label}</p>
+                            <p class="text-[13px] font-bold tabular-nums mt-0.5">{val}</p>
                           </div>
                         {/each}
                       </div>
+
+                      <div class="grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">
+                        <div class="rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] p-3.5">
+                          <p class="text-[12px] font-semibold mb-2.5">{t('platform.reports.payTitle')}</p>
+                          {#if d.payments.length === 0}
+                            <p class="text-[12px] text-[var(--text-tertiary)] py-4 text-center">{t('platform.reports.payEmpty')}</p>
+                          {:else}
+                            <div class="flex h-2.5 rounded-full overflow-hidden bg-[var(--surface-sunken)] mb-3" role="img" aria-label={t('platform.reports.payTitle')}>
+                              {#each d.payments as pm (pm.name + pm.kind)}
+                                <span style="width:{(Number(pm.amount) / payTotal) * 100}%;background:{pm.erapay ? ERAPAY : KIND[pm.kind].color}" title="{pm.name}"></span>
+                              {/each}
+                            </div>
+                            <ul class="space-y-2">
+                              {#each d.payments as pm (pm.name + pm.kind)}
+                                {@const k = KIND[pm.kind]}
+                                {@const c = pm.erapay ? ERAPAY : k.color}
+                                <li class="flex items-center gap-2.5">
+                                  <span class="size-8 shrink-0 rounded-lg grid place-items-center" style="background:{c}1f;color:{c}"><i class="icon-{pm.erapay ? 'qr-code' : k.icon} text-[15px]"></i></span>
+                                  <span class="min-w-0 flex-1">
+                                    <span class="flex items-center gap-1.5 text-[12.5px] font-semibold"><span class="truncate">{pm.name}</span>{#if pm.erapay}<span class="rounded-full px-1.5 text-[10px] font-bold text-white" style="background:{ERAPAY}">EraPay</span>{/if}</span>
+                                    <span class="block text-[11px] text-[var(--text-tertiary)]">{t(k.label)} · {formatNumber(pm.count)} {t('platform.reports.notes').toLowerCase()}</span>
+                                  </span>
+                                  <span class="text-end shrink-0">
+                                    <span class="block text-[12.5px] font-bold tabular-nums">{rp(Number(pm.amount))}</span>
+                                    <span class="block text-[11px] tabular-nums text-[var(--text-tertiary)]">{formatNumber((Number(pm.amount) / payTotal) * 100, { maximumFractionDigits: 1 })}%</span>
+                                  </span>
+                                </li>
+                              {/each}
+                            </ul>
+                          {/if}
+                        </div>
+
+                        <div class="space-y-4">
+                          <div class="rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] p-3.5">
+                            <p class="text-[12px] font-semibold mb-2">{t('platform.reports.itemsTitle')}</p>
+                            {#each d.items as it, i (it.name)}
+                              <div class="flex items-center gap-2 py-1 text-[12px]">
+                                <span class="w-5 text-[var(--text-tertiary)] tabular-nums">{i + 1}</span>
+                                <span class="min-w-0 flex-1 truncate">{it.name}</span>
+                                <span class="text-[var(--text-tertiary)] tabular-nums">{formatNumber(Number(it.qty), { maximumFractionDigits: 1 })}×</span>
+                                <span class="font-semibold tabular-nums w-24 text-end">{rp(Number(it.revenue))}</span>
+                              </div>
+                            {:else}<p class="text-[12px] text-[var(--text-tertiary)] text-center py-2">—</p>{/each}
+                          </div>
+                          {#if d.outlets.length > 1}
+                            <div class="rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] p-3.5">
+                              <p class="text-[12px] font-semibold mb-2">{t('platform.reports.outletsTitle')}</p>
+                              {#each d.outlets as o (o.name)}
+                                <div class="flex items-center gap-2 py-1 text-[12px]">
+                                  <i class="icon-store text-[13px] text-[var(--text-tertiary)]"></i>
+                                  <span class="min-w-0 flex-1 truncate">{o.name}</span>
+                                  <span class="text-[var(--text-tertiary)] tabular-nums">{formatNumber(o.count)}</span>
+                                  <span class="font-semibold tabular-nums w-24 text-end">{rp(Number(o.revenue))}</span>
+                                </div>
+                              {/each}
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
                     {:else}
-                      <div class="h-32 rounded-lg bg-[var(--surface-card)] animate-pulse"></div>
+                      <div class="h-40 rounded-lg bg-[var(--surface-card)] animate-pulse"></div>
                     {/if}
                   </td>
                 </tr>

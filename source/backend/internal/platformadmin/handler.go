@@ -102,6 +102,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/platform/tenant-locations", h.TenantLocations)
 			r.Get("/platform/reports/sales", h.SalesReport)
 			r.Get("/platform/reports/sales/{id}/monthly", h.SalesMonthly)
+			r.Get("/platform/reports/sales/{id}/detail", h.SalesDetail)
 			r.Get("/platform/reports/expiring", h.ExpiringReport)
 			r.Get("/platform/reports/locations", h.OutletLocations)
 			r.Post("/platform/tenants/bulk", h.BulkCreateTenants)

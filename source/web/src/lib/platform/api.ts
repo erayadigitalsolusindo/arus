@@ -257,6 +257,12 @@ export type SalesReportRow = {
   tenant_id: string; code: string; name: string; active: boolean; plan_name: string; outlet_count: number;
   sales_count: number; revenue: string; prev_count: number; prev_revenue: string; active_days: number; last_sale_at: string | null; tenant_type: string; location: string;
 };
+export type SalesDetail = {
+  payments: { name: string; kind: 'cash' | 'debit' | 'credit_card' | 'ewallet' | 'transfer'; erapay: boolean; count: number; amount: number }[];
+  outlets: { name: string; count: number; revenue: number }[];
+  items: { name: string; qty: number; revenue: number }[];
+  summary: { voids: number; discount: number; max_ticket: number; peak_hour: number | null };
+};
 export type SalesMonth = { month: string; sales_count: number; revenue: string };
 export type ExpiringRow = {
   tenant_id: string; code: string; name: string; active: boolean; owner_email: string; plan_name: string; plan_price: string;
@@ -270,6 +276,8 @@ export type OutletLocation = {
 export const platformApi = {
   salesReport: (from: string, to: string) =>
     papi<{ items: SalesReportRow[]; from: string; to: string }>(`/platform/reports/sales?${new URLSearchParams({ from, to })}`),
+  salesDetail: (id: string, from: string, to: string) =>
+    papi<SalesDetail>(`/platform/reports/sales/${id}/detail?${new URLSearchParams({ from, to })}`),
   salesMonthly: (id: string) => papi<{ items: SalesMonth[] }>(`/platform/reports/sales/${id}/monthly`).then((r) => r.items),
   expiringReport: (days: number) => papi<{ items: ExpiringRow[] }>(`/platform/reports/expiring?days=${days}`).then((r) => r.items),
   setOutletLocation: (tenantId: string, outletId: string, latitude: number | null, longitude: number | null) =>
