@@ -236,6 +236,14 @@ const platform: Messages['platform'] = {
       done: '{ok} tenants updated, {failed} failed.',
       hint: 'Type a new value, or leave as "keep". Choose "clear" to empty the field.',
     },
+    bulkPin: {
+      open: 'Set Approver PIN',
+      pin: 'Approver PIN (6 digits)',
+      confirm: 'Set the Approver PIN for the Owner of {count} tenants? The old PIN is replaced.',
+      apply: 'Set Approver PIN',
+      done: '{ok} tenants updated, {failed} failed.',
+      hint: 'The same PIN is set for the Owner of each selected tenant. No repeated or sequential digits (e.g. 111111, 123456). Owners can change it on the PIN page. Recorded in the audit log.',
+    },
     bulkScope: {
       open: 'Set admin access',
       admin: 'Admin',
@@ -571,6 +579,7 @@ const platform: Messages['platform'] = {
       platform_admin_role: 'Changed a Platform Admin role assignment',
       platform_tenant_profile: 'Changed tenant type/location',
       platform_tenant_create: 'Registered a tenant (bulk)',
+      platform_tenant_pin_set: 'Set tenant Approver PIN (bulk)',
       platform_outlet_location: 'Set outlet location',
       platform_user_email: 'Changed a user\'s login email',
       platform_tenant_edit_window: 'Changed the receipt edit window',

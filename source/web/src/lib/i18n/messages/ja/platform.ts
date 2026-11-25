@@ -232,6 +232,14 @@ const platform: Messages['platform'] = {
       done: '{ok} 件更新、{failed} 件失敗。',
       hint: '新しい値を入力するか「変更しない」のままにします。「空にする」で削除します。',
     },
+    bulkPin: {
+      open: '承認者PINを設定',
+      pin: '承認者PIN(6桁)',
+      confirm: '{count}件のテナントのオーナーの承認者PINを設定しますか?以前のPINは置き換えられます。',
+      apply: '承認者PINを設定',
+      done: '{ok}件を更新、{failed}件失敗。',
+      hint: '選択した各テナントのオーナーに同じPINを設定します。同じ数字の連続や連番(111111、123456など)は不可。オーナーはPINページで変更できます。監査ログに記録されます。',
+    },
     bulkScope: {
       open: '管理者のアクセス設定',
       admin: '管理者',
@@ -567,6 +575,7 @@ const platform: Messages['platform'] = {
       platform_admin_role: '管理者のロール割り当てを変更しました',
       platform_tenant_profile: 'テナントの種別/所在地を変更しました',
       platform_tenant_create: 'テナントを登録しました(一括)',
+      platform_tenant_pin_set: 'テナントの承認者PINを設定しました(一括)',
       platform_outlet_location: '店舗の位置を設定しました',
       platform_user_email: 'ユーザーのログインメールを変更しました',
       platform_tenant_edit_window: 'レシート編集期間を変更しました',

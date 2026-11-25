@@ -45,6 +45,7 @@ var routeRules = []routeRule{
 	{"/platform/live", "live", ""},
 	{"/platform/tenants/bulk-plan", "tenants", authz.ActUpdate},
 	{"/platform/tenants/bulk-profile", "tenants", authz.ActUpdate},
+	{"/platform/tenants/bulk-pin", "tenant_impersonate", authz.ActView}, // setara "masuk sebagai" lalu atur PIN
 	{"/platform/tenants/bulk", "tenants", authz.ActCreate},
 	{"/platform/tenants/{id}/impersonate", "tenant_impersonate", authz.ActView},
 	{"/platform/tenants/{id}/erapay", "tenant_erapay", authz.ActUpdate},

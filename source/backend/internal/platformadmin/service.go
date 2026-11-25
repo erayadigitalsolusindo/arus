@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"aciraba/internal/approval"
 	"aciraba/internal/authz"
 	gen "aciraba/internal/gen"
 	pauth "aciraba/internal/platform/auth"
@@ -61,6 +62,8 @@ type Deps struct {
 	DomainTarget string
 	// Files = penyimpanan unggahan tenant (gambar barang/member); dibersihkan saat tenant dihapus permanen. nil = dilewati.
 	Files *storage.Local
+	// Approvals = layanan PIN Penyetuju (atur PIN Owner massal); nil = fitur nonaktif.
+	Approvals *approval.Service
 }
 
 type Service struct {

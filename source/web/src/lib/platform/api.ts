@@ -319,6 +319,9 @@ export const platformApi = {
   /** Field undefined = tidak diubah; string kosong = dikosongkan. */
   bulkSetProfile: (tenantIds: string[], tenantType?: string, location?: string) =>
     papi<{ updated: number; failed: string[] }>('/platform/tenants/bulk-profile', { method: 'POST', body: json({ tenant_ids: tenantIds, tenant_type: tenantType, location }) }),
+  /** Satu PIN Penyetuju (6 digit) untuk Owner banyak tenant sekaligus. */
+  bulkSetPin: (tenantIds: string[], pin: string) =>
+    papi<{ updated: number; failed: string[] }>('/platform/tenants/bulk-pin', { method: 'POST', body: json({ tenant_ids: tenantIds, pin }) }),
   bulkCreateTenants: (items: BulkTenantItem[], dryRun = false) =>
     papi<{ results: BulkTenantResult[] }>('/platform/tenants/bulk', { method: 'POST', body: json({ items, dry_run: dryRun }) }),
   tenant: (id: string) => papi<TenantDetail>(`/platform/tenants/${id}`),

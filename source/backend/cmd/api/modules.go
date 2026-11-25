@@ -118,7 +118,7 @@ func mountModules(r chi.Router, d appDeps) error {
 	platformSvc := platformadmin.NewService(platformadmin.Deps{
 		Pool: d.Pool, Tokens: tokens, PTokens: pauth.NewPlatformTokenIssuer(d.Cfg.JWTSecret), Sessions: sessions,
 		OneTime: pauth.NewOneTime(d.Redis), TOTP: totpBox, Perms: perms, SetupToken: d.Cfg.PlatformSetupToken,
-		DomainTarget: d.Cfg.DomainTarget, Files: uploads,
+		DomainTarget: d.Cfg.DomainTarget, Files: uploads, Approvals: approvalSvc,
 	})
 	go platformSvc.RunTenantPurger(d.Ctx, d.Log)
 	perms.WithPlatform(platformSvc) // menerima token "masuk sebagai" (hanya-baca) milik Platform Admin

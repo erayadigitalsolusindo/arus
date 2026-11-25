@@ -109,6 +109,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Post("/platform/tenants/bulk", h.BulkCreateTenants)
 			r.Post("/platform/tenants/bulk-plan", h.BulkSetTenantPlan)
 			r.Post("/platform/tenants/bulk-profile", h.BulkSetTenantProfile)
+			r.Post("/platform/tenants/bulk-pin", h.BulkSetTenantPin)
 			r.Get("/platform/tenants/{id}", h.GetTenant)
 			r.Patch("/platform/tenants/{id}", h.PatchTenant)
 			r.Patch("/platform/tenants/{id}/users/{userId}/email", h.ChangeUserEmail)

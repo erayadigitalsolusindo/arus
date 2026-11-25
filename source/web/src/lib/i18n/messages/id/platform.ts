@@ -230,6 +230,14 @@ export default {
       done: '{ok} tenant diubah, {failed} gagal.',
       hint: 'Ketik nilai baru, atau biarkan "tidak diubah". Pilih "kosongkan" untuk menghapus isian.',
     },
+    bulkPin: {
+      open: 'Atur PIN Penyetuju',
+      pin: 'PIN Penyetuju (6 digit)',
+      confirm: 'Atur PIN Penyetuju Owner {count} tenant? PIN lama diganti.',
+      apply: 'Atur PIN Penyetuju',
+      done: '{ok} tenant diubah, {failed} gagal.',
+      hint: 'PIN yang sama dipasang untuk Owner tiap tenant terpilih. Tidak boleh angka kembar atau berurutan (mis. 111111, 123456). Owner dapat menggantinya sendiri di halaman PIN. Tercatat di audit.',
+    },
     bulkScope: {
       open: 'Atur akses admin',
       admin: 'Admin',
@@ -565,6 +573,7 @@ export default {
       platform_admin_role: 'Mengganti role Platform Admin',
       platform_tenant_profile: 'Mengubah jenis/lokasi tenant',
       platform_tenant_create: 'Mendaftarkan tenant (massal)',
+      platform_tenant_pin_set: 'Mendaftarkan PIN Penyetuju tenant (massal)',
       platform_outlet_location: 'Mengisi lokasi outlet',
       platform_user_email: 'Mengubah email login pengguna',
       platform_tenant_edit_window: 'Mengubah batas waktu edit nota',

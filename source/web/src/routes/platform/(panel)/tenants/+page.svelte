@@ -130,6 +130,25 @@
     }
   }
 
+  // Atur PIN Penyetuju Owner massal (program UMKM).
+  let showPin = $state(false);
+  let bulkPin = $state('');
+  async function applyPin() {
+    bulkBusy = true;
+    bulkMsg = error = '';
+    try {
+      const res = await platformApi.bulkSetPin([...selected], bulkPin);
+      bulkMsg = t('platform.tenants.bulkPin.done', { ok: res.updated, failed: res.failed.length });
+      selected = new Set(res.failed);
+      showPin = res.failed.length > 0;
+      bulkPin = '';
+    } catch (err) {
+      error = errorMessage(err);
+    } finally {
+      bulkBusy = false;
+    }
+  }
+
   async function load() {
     const my = ++seq; // abaikan respons usang saat pengguna mengetik cepat
     loading = true;
@@ -255,6 +274,7 @@
           <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPlan = !showPlan)}><i class="icon-package text-[13px]"></i>{t('platform.tenants.bulkPlan.open')}</button>
         {/if}
         <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showProfile = !showProfile)}><i class="icon-map-pin text-[13px]"></i>{t('platform.tenants.bulkProfile.open')}</button>
+        {#if canPlatform('tenant_impersonate', 'view')}<button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => (showPin = !showPin)}><i class="icon-key-round text-[13px]"></i>{t('platform.tenants.bulkPin.open')}</button>{/if}
         {#if canPlatform('admins', 'update')}<button type="button" class="btn btn-outline !text-[12.5px]" onclick={openScope}><i class="icon-user-check text-[13px]"></i>{t('platform.tenants.bulkScope.open')}</button>{/if}
         <button type="button" class="text-[12px] text-[var(--text-tertiary)] hover:underline" onclick={() => (selected = new Set())}>{t('platform.tenants.bulkPlan.clear')}</button>
       {/if}
@@ -293,6 +313,16 @@
       <button type="button" class="btn btn-outline !text-[12.5px]" onclick={() => { profLoc = profLoc === '__clear' ? '' : '__clear'; }}>{t('platform.access.tenantLocation')}: {t('platform.tenants.bulkProfile.clear')}</button>
       <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={bulkBusy || (!profType && !profLoc)} onclick={() => confirm(t('platform.tenants.bulkProfile.confirm', { count: selected.size })) && applyProfile()}>{t('platform.tenants.bulkProfile.apply')}</button>
       <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkProfile.hint')}</p>
+    </div>
+  {/if}
+
+  {#if showPin && selected.size > 0}
+    <div class="px-3 sm:px-4 py-3 flex flex-wrap items-end gap-3 border-b border-[var(--border-subtle)]">
+      <label class="text-[11.5px] font-semibold">{t('platform.tenants.bulkPin.pin')}
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" class="field-control mt-1 font-normal block min-w-44 tracking-[0.4em]" bind:value={bulkPin} />
+      </label>
+      <button type="button" class="btn btn-primary !text-[12.5px] disabled:opacity-60" disabled={bulkBusy || !/^[0-9]{6}$/.test(bulkPin)} onclick={() => confirm(t('platform.tenants.bulkPin.confirm', { count: selected.size })) && applyPin()}>{t('platform.tenants.bulkPin.apply')}</button>
+      <p class="basis-full text-[11.5px] text-[var(--text-tertiary)]">{t('platform.tenants.bulkPin.hint')}</p>
     </div>
   {/if}
 
